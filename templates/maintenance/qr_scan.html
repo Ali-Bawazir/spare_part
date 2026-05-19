@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}QR scanner{% endblock %}
+{% block page_heading %}QR scanner{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Scan a {{ scan_label }} with the device camera, upload a QR image, or paste the code manually if camera scanning is unavailable.</p>
+
+<div class="mms-grid mms-grid--2" id="qr-scan-app" data-next-path="{{ next_path }}" data-param-name="{{ param_name }}" data-decode-url="{% url 'qr_scan_decode' %}">
+  <div class="mms-card">
+    <div class="mms-card-header">Camera scan</div>
+    <div class="mms-card-body mms-stack">
+      <video id="qr-video" autoplay playsinline muted style="width:100%;border-radius:18px;background:#0f172a;min-height:260px"></video>
+      <div id="qr-status" class="mms-form-tip">Waiting to start camera.</div>
+      <div class="mms-actions">
+        <button type="button" class="mms-btn mms-btn--primary mms-btn--sm" id="qr-start">Start camera</button>
+        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="qr-stop">Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-header">Upload or manual fallback</div>
+    <div class="mms-card-body">
+      <form method="post" enctype="multipart/form-data" class="mms-form" style="margin-bottom:1rem">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <input type="hidden" name="param" value="{{ param_name }}">
+        <input type="hidden" name="label" value="{{ scan_label }}">
+        <div class="mms-form-row">
+          <label for="qr-upload-input">Upload QR image</label>
+          <input id="qr-upload-input" class="form-control" type="file" name="qr_image" accept="image/*">
+        </div>
+        <div class="mms-form-actions">
+          <button type="submit" class="mms-btn mms-btn--primary">Upload and read</button>
+        </div>
+      </form>
+      <form id="qr-manual-form" class="mms-form">
+        <div class="mms-form-row">
+          <label for="qr-manual-input">{{ scan_label|capfirst }}</label>
+          <input id="qr-manual-input" class="form-control" type="text" placeholder="Enter scanned value">
+        </div>
+        <div class="mms-form-actions">
+          <button type="submit" class="mms-btn mms-btn--primary">Use code</button>
+          <a class="mms-btn mms-btn--ghost" href="{{ next_path }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var app = document.getElementById("qr-scan-app");
+  if (!app) return;
+  var nextPath = app.getAttribute("data-next-path");
+  var paramName = app.getAttribute("data-param-name") || "qr";
+  var decodeUrl = app.getAttribute("data-decode-url");
+  var video = document.getElementById("qr-video");
+  var status = document.getElementById("qr-status");
+  var startBtn = document.getElementById("qr-start");
+  var stopBtn = document.getElementById("qr-stop");
+  var manualForm = document.getElementById("qr-manual-form");
+  var manualInput = document.getElementById("qr-manual-input");
+  var canvas = document.createElement("canvas");
+  var scanningMode = "native";
+  var mediaStream = null;
+  var detectTimer = null;
+  var detector = null;
+  var frameRequestInFlight = false;
+
+  function buildTarget(value) {
+    var url = new URL(nextPath, window.location.origin);
+    url.searchParams.set(paramName, value);
+    return url.toString();
+  }
+
+  function completeScan(value) {
+    var clean = (value || "").trim();
+    if (!clean) return;
+    window.location.href = buildTarget(clean);
+  }
+
+  function setStatus(message) {
+    status.textContent = message;
+  }
+
+  function getCsrfToken() {
+    var value = document.cookie
+      .split("; ")
+      .find(function (row) { return row.indexOf("csrftoken=") === 0; });
+    return value ? decodeURIComponent(value.split("=").slice(1).join("=")) : "";
+  }
+
+  function stopCamera() {
+    if (detectTimer) {
+      window.clearInterval(detectTimer);
+      detectTimer = null;
+    }
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(function (track) { track.stop(); });
+      mediaStream = null;
+    }
+    video.srcObject = null;
+    setStatus("Camera stopped.");
+  }
+
+  async function detectViaServer() {
+    if (frameRequestInFlight || !video.videoWidth || !video.videoHeight) return;
+    frameRequestInFlight = true;
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      var blob = await new Promise(function (resolve) {
+        canvas.toBlob(resolve, "image/jpeg", 0.85);
+      });
+      if (!blob) return;
+      var formData = new FormData();
+      formData.append("qr_image", blob, "scan-frame.jpg");
+      var response = await fetch(decodeUrl, {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-CSRFToken": getCsrfToken()
+        },
+        credentials: "same-origin"
+      });
+      if (!response.ok) return;
+      var payload = await response.json();
+      if (payload.decoded_value) {
+        stopCamera();
+        completeScan(payload.decoded_value);
+      }
+    } finally {
+      frameRequestInFlight = false;
+    }
+  }
+
+  async function detectFrame() {
+    if (!video || video.readyState < 2) return;
+    if (scanningMode === "native" && detector) {
+      try {
+        var codes = await detector.detect(video);
+        if (codes && codes.length && codes[0].rawValue) {
+          stopCamera();
+          completeScan(codes[0].rawValue);
+        }
+      } catch (_err) {
+        scanningMode = "server";
+        setStatus("Switched to server-assisted scanning. Hold the QR code steady.");
+      }
+      return;
+    }
+    await detectViaServer();
+  }
+
+  async function startCamera() {
+    if (!("mediaDevices" in navigator) || !navigator.mediaDevices.getUserMedia) {
+      setStatus("Camera access is not available here. Upload a QR image below or enter the code manually.");
+      return;
+    }
+    try {
+      if ("BarcodeDetector" in window) {
+        detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+        scanningMode = "native";
+      } else {
+        detector = null;
+        scanningMode = "server";
+      }
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+      video.srcObject = mediaStream;
+      await video.play();
+      if (scanningMode === "native") {
+        setStatus("Camera started. Point it at the QR code.");
+      } else {
+        setStatus("Camera started in server-assisted scan mode. Hold the QR code steady.");
+      }
+      detectTimer = window.setInterval(detectFrame, 450);
+    } catch (_err) {
+      setStatus("Unable to start the camera. Upload a QR image below or enter the code manually.");
+      stopCamera();
+    }
+  }
+
+  startBtn.addEventListener("click", function () {
+    stopCamera();
+    startCamera();
+  });
+  stopBtn.addEventListener("click", stopCamera);
+  manualForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    completeScan(manualInput.value);
+  });
+  window.addEventListener("beforeunload", stopCamera);
+})();
+</script>
+{% endblock %}

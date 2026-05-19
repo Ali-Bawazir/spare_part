@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Purchase request{% endblock %}
+{% block page_heading %}New purchase request{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Request spare parts or services. Link to a work order when the shortage came from maintenance.</p>
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

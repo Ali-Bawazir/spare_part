@@ -1,0 +1,280 @@
+{% load static %}
+{% load mms_extras %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}MMS{% endblock %} — Bawazir Maintenance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/mms.css' %}">
+</head>
+<body class="mms-body" data-nav-user="{% if user.is_authenticated %}{{ user.username }}{% else %}anon{% endif %}">
+<div class="mms-app" id="mms-app">
+  <aside class="mms-sidebar" id="mms-sidebar">
+    <div class="mms-brand">
+      <div class="mms-brand-title">Bawazir MMS</div>
+      <div class="mms-brand-sub">Maintenance &amp; spare parts</div>
+    </div>
+    <nav class="mms-nav">
+      <div class="mms-nav-section" data-section="overview">Overview</div>
+      <a href="{% url 'dashboard' %}" class="mms-nav-link{% if current_url_name == 'dashboard' %} is-active{% endif %}">Dashboard</a>
+
+      {% if perm_view_issues %}
+      <div class="mms-nav-section" data-section="maintenance">Maintenance</div>
+      <a href="{% url 'issue_list' %}" class="mms-nav-link{% if current_url_name and 'issue' in current_url_name %} is-active{% endif %}">
+        <span>Issues</span>
+        {% if nav_issues_new %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_issues_new }}</span>{% endif %}
+      </a>
+      {% endif %}
+      {% if perm_view_work_orders %}
+      <a href="{% url 'work_order_list' %}" class="mms-nav-link{% if current_url_name and 'work_order' in current_url_name %} is-active{% endif %}">Work orders</a>
+      {% endif %}
+      {% if perm_emergency_wo %}
+      <a href="{% url 'emergency_wo_create' %}" class="mms-nav-link{% if current_url_name == 'emergency_wo_create' %} is-active{% endif %}">Emergency WO</a>
+      {% endif %}
+      {% if perm_quick_log %}
+      <a href="{% url 'quick_log' %}" class="mms-nav-link{% if current_url_name == 'quick_log' %} is-active{% endif %}">Quick log</a>
+      {% endif %}
+
+      {% if perm_view_stock or perm_consumables %}
+      <div class="mms-nav-section" data-section="inventory">Inventory</div>
+      {% if perm_view_stock %}
+      <a href="{% url 'stock_dashboard' %}" class="mms-nav-link{% if current_url_name and 'stock' in current_url_name %} is-active{% endif %}">Stock</a>
+      {% endif %}
+      {% if perm_consumables %}
+      <a href="{% url 'consumables' %}" class="mms-nav-link{% if current_url_name == 'consumables' %} is-active{% endif %}">Consumables</a>
+      {% endif %}
+      {% endif %}
+
+      {% if perm_view_procurement_requests %}
+      <div class="mms-nav-section" data-section="procurement">Procurement</div>
+      <a href="{% url 'purchase_list' %}" class="mms-nav-link{% if current_url_name and 'purchase' in current_url_name %} is-active{% endif %}">
+        <span>Requests</span>
+        {% if nav_pr_pending %}<span class="mms-nav-badge">{{ nav_pr_pending }}</span>{% endif %}
+      </a>
+      {% endif %}
+
+      {% if perm_machine_manage or perm_pm_schedule_manage or perm_tool_page or perm_repair_list %}
+      <div class="mms-nav-section" data-section="assets">Assets</div>
+      {% if perm_machine_manage %}
+      <a href="{% url 'machine_list' %}" class="mms-nav-link{% if current_url_name and 'machine' in current_url_name %} is-active{% endif %}">Machines</a>
+      {% endif %}
+      {% if perm_pm_schedule_manage %}
+      <a href="{% url 'pm_list' %}" class="mms-nav-link{% if current_url_name and 'pm' in current_url_name %} is-active{% endif %}">Preventive</a>
+      {% endif %}
+      {% if perm_tool_page %}
+      <a href="{% url 'tool_list' %}" class="mms-nav-link{% if current_url_name and 'tool' in current_url_name %} is-active{% endif %}">Tools</a>
+      {% endif %}
+      {% if perm_repair_list %}
+      <a href="{% url 'repair_list' %}" class="mms-nav-link{% if current_url_name and 'repair' in current_url_name %} is-active{% endif %}">External repairs</a>
+      {% endif %}
+      {% endif %}
+
+      {% if perm_manage_system_users %}
+      <div class="mms-nav-section" data-section="system">System</div>
+      <a href="{% url 'mms_user_list' %}" class="mms-nav-link{% if current_url_name == 'mms_user_list' or current_url_name == 'mms_user_create' or current_url_name == 'mms_user_edit' or current_url_name == 'mms_user_delete' or current_url_name == 'mms_user_deactivate' %} is-active{% endif %}">Users</a>
+      {% endif %}
+
+      <div class="mms-nav-section" data-section="insights">Insights</div>
+      <a href="{% url 'notification_list' %}" class="mms-nav-link{% if current_url_name == 'notification_list' or current_url_name == 'notification_mark_read' or current_url_name == 'notification_mark_all_read' %} is-active{% endif %}">
+        <span>Notifications</span>
+        {% if nav_notif_unread %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_notif_unread }}</span>{% endif %}
+      </a>
+      {% if perm_kpi_dashboard %}
+      <a href="{% url 'kpi_dashboard' %}" class="mms-nav-link{% if current_url_name == 'kpi_dashboard' %} is-active{% endif %}">KPIs</a>
+      {% endif %}
+      {% if perm_audit_log %}
+      <a href="{% url 'audit_log_list' %}" class="mms-nav-link{% if current_url_name == 'audit_log_list' %} is-active{% endif %}">Audit log</a>
+      {% endif %}
+      {% if perm_reports %}
+      <a href="{% url 'reports' %}" class="mms-nav-link{% if current_url_name == 'reports' %} is-active{% endif %}">Reports</a>
+      {% endif %}
+    </nav>
+    <div class="mms-sidebar-footer">
+      {% if user.is_authenticated %}
+      <div style="margin-bottom:.5rem"><strong>{{ user.username }}</strong><br><span style="opacity:.85">{{ user.get_role_display }}</span></div>
+      {% if user.is_staff %}
+      <a href="{% url 'admin:index' %}" class="mms-nav-link">Admin</a>
+      {% endif %}
+      <a href="{% url 'logout' %}" class="mms-nav-link">Sign out</a>
+      {% endif %}
+    </div>
+  </aside>
+  <button type="button" class="mms-nav-backdrop" id="mms-nav-backdrop" aria-label="Close navigation" tabindex="-1"></button>
+  <div class="mms-main">
+    <header class="mms-topbar">
+      <div class="mms-topbar-start">
+        <button type="button" class="mms-menu-btn" id="mms-nav-toggle" aria-controls="mms-sidebar" aria-expanded="false" aria-label="Open navigation menu">
+          <span class="mms-menu-btn__bars" aria-hidden="true"></span>
+        </button>
+        <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+      </div>
+      <div class="mms-user">
+        {% if perm_close_or_review_wo and nav_wo_review %}
+        <span class="mms-badge mms-badge--accent" title="Pending manager review">{{ nav_wo_review }} review</span>
+        {% endif %}
+        {% if user.role == 'technician' and nav_my_open_wo %}
+        <span class="mms-badge mms-badge--info">{{ nav_my_open_wo }} open WO</span>
+        {% endif %}
+      </div>
+    </header>
+    <div class="mms-content">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %} mb-3 py-2 px-3" role="alert">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var app = document.getElementById("mms-app");
+  var toggle = document.getElementById("mms-nav-toggle");
+  var backdrop = document.getElementById("mms-nav-backdrop");
+  if (!app || !toggle) return;
+  var mq = window.matchMedia("(min-width: 1024px)");
+  function closeNav() {
+    app.classList.remove("mms-nav-open");
+    document.body.classList.remove("mms-nav-locked");
+    toggle.setAttribute("aria-expanded", "false");
+  }
+  function openNav() {
+    app.classList.add("mms-nav-open");
+    document.body.classList.add("mms-nav-locked");
+    toggle.setAttribute("aria-expanded", "true");
+  }
+  toggle.addEventListener("click", function () {
+    if (app.classList.contains("mms-nav-open")) closeNav();
+    else openNav();
+  });
+  if (backdrop) backdrop.addEventListener("click", closeNav);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeNav();
+  });
+  function onMediaChange(e) {
+    if (e.matches) closeNav();
+  }
+  if (mq.addEventListener) mq.addEventListener("change", onMediaChange);
+  else if (mq.addListener) mq.addListener(onMediaChange);
+  var side = document.getElementById("mms-sidebar");
+  if (side) {
+    var nav = side.querySelector(".mms-nav");
+    if (nav) {
+      var navUser = document.body.getAttribute("data-nav-user") || "anon";
+      var storageKey = "mms.nav.section.state.v2." + navUser;
+      var collapsibleEnabled = false;
+      function sectionLinks(section) {
+        var links = [];
+        var cur = section.nextElementSibling;
+        while (cur && !cur.classList.contains("mms-nav-section")) {
+          if (cur.classList.contains("mms-nav-link")) links.push(cur);
+          cur = cur.nextElementSibling;
+        }
+        return links;
+      }
+      function setSectionState(section, expanded) {
+        var links = sectionLinks(section);
+        if (!links.length) return;
+        section.classList.toggle("is-collapsed", !expanded);
+        section.setAttribute("aria-expanded", expanded ? "true" : "false");
+        for (var i = 0; i < links.length; i++) {
+          links[i].style.display = expanded ? "" : "none";
+        }
+      }
+      function loadSectionState() {
+        try {
+          return JSON.parse(localStorage.getItem(storageKey) || "{}");
+        } catch (_e) {
+          return {};
+        }
+      }
+      function setSectionInteractive(section, interactive) {
+        if (!interactive) {
+          section.removeAttribute("role");
+          section.removeAttribute("tabindex");
+          return;
+        }
+        section.setAttribute("role", "button");
+        section.setAttribute("tabindex", "0");
+      }
+      function sectionKey(section) {
+        return section.getAttribute("data-section") || (section.textContent || "").trim();
+      }
+      function saveSectionState() {
+        var data = {};
+        for (var i = 0; i < sections.length; i++) {
+          var key = sectionKey(sections[i]);
+          if (!key) continue;
+          data[key] = sections[i].getAttribute("aria-expanded") !== "false";
+        }
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(data));
+        } catch (_e) {}
+      }
+      var sections = nav.querySelectorAll(".mms-nav-section");
+      function hydrateSectionState() {
+        collapsibleEnabled = true; // enable collapsible sections on all screen sizes
+        nav.classList.toggle("mms-nav--collapsible", collapsibleEnabled);
+        var persistedState = collapsibleEnabled ? loadSectionState() : {};
+        for (var i = 0; i < sections.length; i++) {
+          var section = sections[i];
+          var links = sectionLinks(section);
+          if (!links.length) continue;
+          setSectionInteractive(section, collapsibleEnabled);
+          var key = sectionKey(section);
+          var expanded = collapsibleEnabled
+            ? (persistedState.hasOwnProperty(key) ? !!persistedState[key] : true)
+            : true;
+          setSectionState(section, expanded);
+        }
+        // Keep the section that contains the current page visible.
+        var activeLink = nav.querySelector(".mms-nav-link.is-active");
+        if (activeLink) {
+          var sec = activeLink.previousElementSibling;
+          while (sec && !sec.classList.contains("mms-nav-section")) {
+            sec = sec.previousElementSibling;
+          }
+          if (sec) setSectionState(sec, true);
+        }
+        if (collapsibleEnabled) saveSectionState();
+      }
+      hydrateSectionState();
+      nav.addEventListener("click", function (e) {
+        if (!collapsibleEnabled) return;
+        var section = e.target.closest(".mms-nav-section");
+        if (!section || !nav.contains(section)) return;
+        var expanded = section.getAttribute("aria-expanded") !== "false";
+        setSectionState(section, !expanded);
+        saveSectionState();
+      });
+      nav.addEventListener("keydown", function (e) {
+        if (!collapsibleEnabled) return;
+        if (e.key !== "Enter" && e.key !== " ") return;
+        var section = e.target.closest(".mms-nav-section");
+        if (!section || !nav.contains(section)) return;
+        e.preventDefault();
+        var expanded = section.getAttribute("aria-expanded") !== "false";
+        setSectionState(section, !expanded);
+        saveSectionState();
+      });
+      function onCollapsibleMediaChange() {
+        hydrateSectionState();
+      }
+      if (mq.addEventListener) mq.addEventListener("change", onCollapsibleMediaChange);
+      else if (mq.addListener) mq.addListener(onCollapsibleMediaChange);
+    }
+    side.querySelectorAll("a[href]").forEach(function (a) {
+      a.addEventListener("click", function () {
+        if (!mq.matches) closeNav();
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>

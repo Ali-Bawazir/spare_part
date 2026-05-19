@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% block title %}Issues{% endblock %}
+{% block page_heading %}Maintenance issues{% endblock %}
+{% block content %}
+<div class="mms-actions" style="margin-bottom:1rem">
+  {% if perm_report_issue %}
+  <a class="mms-btn mms-btn--primary" href="{% url 'issue_create' %}">Report issue</a>
+  <a class="mms-btn mms-btn--ghost" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">Scan machine QR</a>
+  {% endif %}
+</div>
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>ID</th><th>Machine</th><th>Status</th><th>Priority</th><th>Reporter</th><th></th></tr></thead>
+      <tbody>
+      {% for i in issues %}
+      <tr>
+        <td>#{{ i.id }}</td>
+        <td>{{ i.machine.name }}</td>
+        <td><span class="{{ i.status|issue_status_badge_class }}">{{ i.get_status_display }}</span></td>
+        <td>{% if i.priority %}<span class="{{ i.priority|priority_badge_class }}">{{ i.get_priority_display }}</span>{% else %}—{% endif %}</td>
+        <td>{{ i.reported_by.username }}</td>
+        <td>
+          {% if i.status == 'new' %}
+            {% if perm_validate_issue %}
+              <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_validate' i.pk %}">Validate</a>
+            {% endif %}
+          {% endif %}
+          {% if i.status == 'validated' %}
+            {% if perm_create_work_order %}
+              <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_create' i.pk %}">Review / Create WO</a>
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="mms-empty">No issues.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

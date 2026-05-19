@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Emergency work order{% endblock %}
+{% block page_heading %}Emergency work order{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Create a breakdown / emergency work order without a prior issue (UC-08 style).</p>
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="mms-form-row">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="mms-form-actions">
+        <button type="submit" class="mms-btn mms-btn--primary">Create emergency WO</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

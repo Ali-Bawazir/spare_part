@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Validate issue{% endblock %}
+{% block page_heading %}Validate issue #{{ issue.id }}{% endblock %}
+{% block content %}
+<p class="mms-page-lead"><strong>Machine:</strong> {{ issue.machine }}<br><strong>Description:</strong> {{ issue.description }}</p>
+<div class="mms-card mms-form-stack mms-form-stack--narrow">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form">
+      {% csrf_token %}
+      <div class="mms-form-row">{{ form.priority.label_tag }}{{ form.priority }}</div>
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">Validate &amp; set priority</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

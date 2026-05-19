@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_heading %}Dashboard{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Role: <strong>{{ role }}</strong> — quick access based on your permissions.</p>
+
+<div class="mms-grid mms-grid--kpis">
+  {% if open_issues is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_issues }}</div><div class="mms-kpi-label">New issues</div></div>
+  {% endif %}
+  {% if open_wos is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_wos }}</div><div class="mms-kpi-label">Open work orders</div></div>
+  {% endif %}
+  {% if pending_review is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_review }}</div><div class="mms-kpi-label">Pending review</div></div>
+  {% endif %}
+  {% if emergency_open is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ emergency_open }}</div><div class="mms-kpi-label">Open emergency WO</div></div>
+  {% endif %}
+  {% if pending_procurement %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_procurement }}</div><div class="mms-kpi-label">PR pending (officer)</div></div>
+  {% endif %}
+  {% if stale_new_issues %}
+  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ stale_new_issues }}</div><div class="mms-kpi-label">Issues NEW &gt; 24h</div></div>
+  {% endif %}
+  {% if overdue_pm %}
+  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ overdue_pm|length }}</div><div class="mms-kpi-label">PM schedules overdue</div></div>
+  {% endif %}
+</div>
+
+{% if stale_new_issues or overdue_pm %}
+<div class="mms-card" style="margin-top:1rem;border:1px solid rgba(180,83,9,.35)">
+  <div class="mms-card-header">Needs attention</div>
+  <div class="mms-card-body">
+    {% if stale_new_issues and perm_view_issues %}<p><strong>{{ stale_new_issues }}</strong> issue(s) still in <em>New</em> after 24h — <a href="{% url 'issue_list' %}">review issues</a>.</p>{% endif %}
+    {% if overdue_pm and perm_pm_schedule_manage %}
+    <p style="margin-top:.75rem;font-size:.85rem;font-weight:600">Overdue PM (next due)</p>
+    <ul style="margin:.35rem 0 0 1.1rem;font-size:.875rem">{% for s in overdue_pm %}<li>{{ s.machine.name }} — {{ s.title }} (due {{ s.next_due_at|date:"Y-m-d H:i" }})</li>{% endfor %}</ul>
+    <p style="margin-top:.5rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_list' %}">PM schedules</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="mms-grid mms-grid--2" style="margin-top:1.25rem">
+  <div class="mms-card">
+    <div class="mms-card-header">Shortcuts</div>
+    <div class="mms-card-body mms-stack">
+      {% if perm_view_issues %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_list' %}">Issues</a>{% endif %}
+      {% if perm_report_issue %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_create' %}">Report issue</a>{% endif %}
+      {% if perm_view_work_orders %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}">Work orders</a>{% endif %}
+      {% if perm_view_stock %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'stock_dashboard' %}">Stock</a>{% endif %}
+      {% if perm_machine_manage %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">Machines</a>{% endif %}
+      {% if perm_consumables %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'consumables' %}">Consumables</a>{% endif %}
+      {% if perm_view_procurement_requests %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_list' %}">Procurement</a>{% endif %}
+      {% if perm_reports %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'reports' %}">Reports</a>{% endif %}
+      {% if perm_kpi_dashboard %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'kpi_dashboard' %}">KPIs</a>{% endif %}
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'notification_list' %}">Notifications</a>
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">Recent notifications</div>
+    <div class="mms-card-body">
+      {% if notif_feed %}
+      <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for n in notif_feed %}<li style="margin-bottom:.35rem">{% if n.link %}<a href="{{ n.link }}">{{ n.title }}</a>{% else %}{{ n.title }}{% endif %} <span class="mms-badge mms-badge--muted">{{ n.created_at|timesince }} ago</span></li>{% endfor %}</ul>
+      <p style="margin-top:.75rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'notification_list' %}">All notifications</a></p>
+      {% else %}
+      <div class="mms-empty">No notifications yet.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">Your queue</div>
+    <div class="mms-card-body">
+      {% if my_issues %}
+      <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted)">Your issues</p>
+      <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for i in my_issues %}<li><a href="{% url 'issue_list' %}">#{{ i.id }}</a> {{ i.machine }} — {{ i.get_status_display }}</li>{% endfor %}</ul>
+      {% elif my_queue %}
+      <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for w in my_queue %}<li><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a> — {{ w.machine }} <span class="mms-badge mms-badge--muted">{{ w.get_status_display }}</span></li>{% endfor %}</ul>
+      {% else %}
+      <div class="mms-empty">No personal queue items.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

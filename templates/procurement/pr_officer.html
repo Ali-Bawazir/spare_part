@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Procurement update{% endblock %}
+{% block page_heading %}PR #{{ pr.id }} — {{ pr.part }}{% endblock %}
+{% block content %}
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+<a class="mms-link-back" href="{% url 'purchase_list' %}">← Back to requests</a>
+{% endblock %}

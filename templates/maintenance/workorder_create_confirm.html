@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% block title %}Create work order{% endblock %}
+{% block page_heading %}Create work order{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Review the validated issue before converting it into a work order, as defined in the approved maintenance flow.</p>
+
+<div class="mms-actions" style="margin-bottom:1rem">
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_list' %}">Back to issues</a>
+</div>
+
+<div class="mms-grid mms-grid--2">
+  <div class="mms-card">
+    <div class="mms-card-header">Validated issue</div>
+    <div class="mms-card-body mms-stack">
+      <div><strong>Issue</strong><br>#{{ issue.pk }}</div>
+      <div><strong>Machine</strong><br>{{ issue.machine.name }}</div>
+      <div><strong>Status</strong><br><span class="{{ issue.status|issue_status_badge_class }}">{{ issue.get_status_display }}</span></div>
+      <div><strong>Priority</strong><br><span class="{{ issue.priority|priority_badge_class }}">{{ issue.get_priority_display }}</span></div>
+      <div><strong>Reported by</strong><br>{{ issue.reported_by.username }}</div>
+      <div><strong>Validated by</strong><br>{{ issue.validated_by.username|default:"-" }}</div>
+      <div><strong>Validated at</strong><br>{{ issue.validated_at|date:"Y-m-d H:i"|default:"-" }}</div>
+    </div>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-header">Issue description</div>
+    <div class="mms-card-body">
+      {{ issue.description|linebreaksbr }}
+      <div class="mms-divider"></div>
+      <p class="mms-form-tip">Creating the work order will link this issue and machine, and the new work order will start in <strong>Approved</strong> status.</p>
+      <form method="post" class="mms-actions" style="margin-top:1rem">
+        {% csrf_token %}
+        <button class="mms-btn mms-btn--primary" type="submit">Create work order</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'issue_list' %}">Cancel</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Consumables{% endblock %}
+{% block page_heading %}Daily consumables{% endblock %}
+{% block content %}
+<p class="mms-page-lead">No approval workflow — usage is logged and stock is deducted.</p>
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">Log usage</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

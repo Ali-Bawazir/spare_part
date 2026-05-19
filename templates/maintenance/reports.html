@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_heading %}Reports &amp; analytics{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Operational snapshots aligned with scope: machines, stock, parts usage, work order mix.</p>
+<div class="mms-grid mms-grid--2">
+  <div class="mms-card">
+    <div class="mms-card-header">Machines by issue count</div>
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr><th>Machine</th><th>Issues</th></tr></thead>
+        <tbody>
+        {% for m in most_issues %}<tr><td>{{ m.name }}</td><td>{{ m.ic }}</td></tr>{% empty %}<tr><td colspan="2" class="mms-empty">No data.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">Low stock (≤ min)</div>
+    <div class="mms-table-wrap">
+      <table class="mms-table mms-table--warn">
+        <thead><tr><th>SKU</th><th>Qty</th><th>Min</th></tr></thead>
+        <tbody>
+        {% for p in low_stock %}<tr class="mms-row-warn"><td>{{ p.sku }}</td><td>{{ p.quantity_on_hand }}</td><td>{{ p.min_stock_level }}</td></tr>{% empty %}<tr><td colspan="3" class="mms-empty">None.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mms-grid mms-grid--2" style="margin-top:1rem">
+  <div class="mms-card">
+    <div class="mms-card-header">Most issued parts (qty)</div>
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr><th>SKU</th><th>Name</th><th>Total qty</th></tr></thead>
+        <tbody>
+        {% for row in top_parts %}<tr><td>{{ row.part__sku }}</td><td>{{ row.part__name }}</td><td>{{ row.total_qty }}</td></tr>{% empty %}<tr><td colspan="3" class="mms-empty">No part issues recorded yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">Work orders by status</div>
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr><th>Status</th><th>Count</th></tr></thead>
+        <tbody>
+        {% for row in status_counts %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>{% empty %}<tr><td colspan="2" class="mms-empty">No work orders.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">Technician throughput (closed WO count)</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>Technician</th><th>Closed WOs</th></tr></thead>
+      <tbody>
+      {% for t in tech_done %}<tr><td>{{ t.username }}</td><td>{{ t.closed_wos }}</td></tr>{% empty %}<tr><td colspan="2" class="mms-empty">No technicians.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

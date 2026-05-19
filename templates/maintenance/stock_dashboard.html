@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Stock{% endblock %}
+{% block page_heading %}Stock levels{% endblock %}
+{% block content %}
+<div class="mms-actions" style="margin-bottom:1rem">
+  {% if perm_stock_in %}
+  <a class="mms-btn mms-btn--primary" href="{% url 'stock_in' %}">Stock-in</a>
+  {% endif %}
+</div>
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table {% if parts %}mms-table--warn{% endif %}">
+      <thead><tr><th>SKU</th><th>Name</th><th>Qty</th><th>Min</th><th>Consumable</th></tr></thead>
+      <tbody>
+      {% for p in parts %}
+      <tr {% if p.is_low_stock %}class="mms-row-warn"{% endif %}>
+        <td>{{ p.sku }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.quantity_on_hand }}</td>
+        <td>{{ p.min_stock_level }}</td>
+        <td>{% if p.is_consumable %}Yes{% else %}No{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="5" class="mms-empty">No parts.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

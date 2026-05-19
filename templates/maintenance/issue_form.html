@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Report issue{% endblock %}
+{% block page_heading %}Report machine issue{% endblock %}
+{% block content %}
+<div class="mms-actions" style="margin-bottom:1rem">
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">Scan machine QR</a>
+  {% if perm_machine_manage %}
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">View machines</a>
+  {% endif %}
+</div>
+
+{% if qr_value %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body">
+    <strong>Scanned code:</strong> <code>{{ qr_value }}</code><br>
+    {% if matched_machine %}
+    Matched machine: <strong>{{ matched_machine.name }}</strong>{% if matched_machine.location %} ({{ matched_machine.location }}){% endif %}
+    {% else %}
+    <span class="mms-field-error">No machine matched this QR code yet. Add it in Machines, then retry.</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="mms-form-row">
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+<p class="mms-form-tip">Tip: QR deep link <code>?qr=PRESS-01</code> pre-selects the machine, and the scanner page can fill it for you.</p>
+{% endblock %}
