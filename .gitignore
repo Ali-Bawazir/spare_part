@@ -1,0 +1,53 @@
+# Environment
+.env
+.env.local
+
+# Database
+*.sqlite3
+db.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+staticfiles/
+mediafiles/
+
+# Staticfiles collected by Django
+staticfiles/
+media/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Celery beat DB
+celerybeat-schedule
+celerybeat-schedule.db
+
+# Node (if any future frontend)
+node_modules/
