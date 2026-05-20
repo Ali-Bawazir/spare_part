@@ -211,7 +211,27 @@ def qr_scan_decode(request):
     if not upload:
         return JsonResponse({"decoded_value": "", "error": "missing_file"}, status=400)
     decoded_value = _decode_uploaded_qr(upload)
-    return JsonResponse({"decoded_value": decoded_value})
+
+    if decoded_value.startswith("PART:"):
+        sku = decoded_value.replace("PART:", "")
+        from inventory.models import SparePart
+        part = get_object_or_404(SparePart, sku=sku)
+        from maintenance.models import Site
+        site = Site.objects.filter(is_default=True).first()
+        inv = part.inventory_items.filter(site=site).first() if site else None
+        return JsonResponse({
+            "type": "part",
+            "sku": part.sku,
+            "name": part.name,
+            "category": part.category or "",
+            "is_consumable": part.is_consumable,
+            "quantity_available": str(inv.quantity_available) if inv else "0",
+            "rack_location": inv.rack_location if inv else "",
+            "unit": part.unit or "",
+            "site": site.name if site else "",
+        })
+
+    return JsonResponse({"decoded_value": decoded_value, "type": "machine"})
 
 
 @login_required

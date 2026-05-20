@@ -4,26 +4,6 @@ from django.db import models
 from django.utils import timezone
 
 
-class Site(models.Model):
-    """Factory/site location. Single default 'Main Factory' in Phase 1."""
-    name = models.CharField(max_length=255)
-    code = models.SlugField(max_length=32, unique=True)
-    address = models.TextField(blank=True)
-    timezone = models.CharField(max_length=64, default="UTC")
-    downtime_rate = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0
-    )
-    is_active = models.BooleanField(default=True)
-    is_default = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name
-
-
 class Machine(models.Model):
     """Factory asset; QR resolves to `qr_code`."""
 
@@ -32,53 +12,12 @@ class Machine(models.Model):
     location = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    parent = models.ForeignKey(
-        "self", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="children"
-    )
-    asset_level = models.PositiveIntegerField(
-        default=3,
-        choices=[(1, "Plant"), (2, "Line"), (3, "Machine"), (4, "Component")],
-    )
-    asset_type = models.CharField(
-        max_length=32, blank=True,
-        choices=[
-            ("production", "Production"), ("utility", "Utility"),
-            ("safety", "Safety"), ("hvac", "HVAC"), ("other", "Other"),
-        ],
-    )
-    site = models.ForeignKey(
-        "Site", on_delete=models.PROTECT,
-        null=True, blank=True, related_name="machines"
-    )
 
     class Meta:
         ordering = ["name"]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.qr_code})"
-
-    def full_path(self) -> str:
-        """e.g. 'Factory A > Line 1 > Press 1'"""
-        ancestors = []
-        current = self
-        while current.parent:
-            current = current.parent
-            ancestors.insert(0, current)
-        return " > ".join([m.name for m in ancestors] + [self.name])
-
-    def get_descendants(self):
-        all_descendants = []
-        for child in self.children.all():
-            all_descendants.append(child)
-            all_descendants.extend(child.get_descendants())
-        return all_descendants
-
-    def get_root(self):
-        current = self
-        while current.parent:
-            current = current.parent
-        return current
 
 
 class MaintenanceIssue(models.Model):

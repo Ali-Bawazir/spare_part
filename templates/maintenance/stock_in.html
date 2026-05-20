@@ -2,6 +2,11 @@
 {% block title %}Stock-in{% endblock %}
 {% block page_heading %}Stock-in spare parts{% endblock %}
 {% block content %}
+{% if part %}
+<a href="/media/qr/parts/PART_{{ part.sku }}.png" target="_blank" class="mms-btn mms-btn--secondary" style="margin-bottom:1rem;display:inline-block">
+  🖨️ Print QR Label
+</a>
+{% endif %}
 <p class="mms-page-lead">Receive parts into inventory (goods receipt).</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
