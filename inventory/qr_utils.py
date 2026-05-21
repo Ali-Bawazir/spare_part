@@ -32,3 +32,23 @@ def save_part_qr(sku: str, destination: str = None) -> str:
 def get_part_qr_url(sku: str) -> str:
     """Return the URL path to the QR PNG for a part."""
     return f"/media/qr/parts/PART_{sku}.png"
+
+
+def qr_scan_decode(raw: str) -> dict:
+    """
+    Decode a scanned QR raw string.
+    Handles: PART:{sku}   → returns {"type": "part", "sku": "..."}
+    Handles: INV:{part_id} → returns {"type": "inventory", "part_id": ...}
+    Returns {"type": "unknown", "raw": raw} if format not recognized.
+    """
+    raw = raw.strip()
+    if raw.startswith("PART:"):
+        sku = raw[5:]
+        return {"type": "part", "sku": sku}
+    if raw.startswith("INV:"):
+        try:
+            part_id = int(raw[4:])
+            return {"type": "inventory", "part_id": part_id}
+        except ValueError:
+            pass
+    return {"type": "unknown", "raw": raw}

@@ -2,19 +2,48 @@
 {% block title %}{{ page_title }}{% endblock %}
 {% block page_heading %}{{ page_title }}{% endblock %}
 {% block content %}
+<style>
+.mms-form-section { margin: 1.5rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+.mms-form-section h4 { margin-bottom: 1rem; }
+.mms-form-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.mms-form-row > div { flex: 1; min-width: 200px; }
+.mms-help { font-size: 0.85em; color: #666; }
+</style>
 <p class="mms-page-lead">Keep machine names and QR codes aligned with the shop-floor labels so issue reporting stays fast and accurate.</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
-      {% for field in form %}
       <div class="mms-form-row">
         {{ field.label_tag }}
         {{ field }}
         {% if field.help_text %}<div class="mms-form-tip">{{ field.help_text }}</div>{% endif %}
         {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
       </div>
-      {% endfor %}
+      <div class="mms-form-section">
+        <h4>Asset Hierarchy</h4>
+        <div class="mms-form-row">
+          <div>
+            <label>Site</label>
+            {{ form.site }}
+          </div>
+          <div>
+            <label>Parent Machine</label>
+            {{ form.parent }}
+            <small class="mms-help">Leave blank if this is a top-level machine</small>
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>Asset Level</label>
+            {{ form.asset_level }}
+          </div>
+          <div>
+            <label>Asset Type</label>
+            {{ form.asset_type }}
+          </div>
+        </div>
+      </div>
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">Save machine</button>
         <a class="mms-btn mms-btn--ghost" href="{% url 'machine_list' %}">Back</a>

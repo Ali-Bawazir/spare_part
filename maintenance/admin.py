@@ -1,11 +1,12 @@
 from django.contrib import admin
 
 from inventory.models import PartIssueLine
-from mms.admin_mixins import ProcurementMaintenanceReadOnlyMixin
+from mms.admin_mixins import MMSAdminPermission
 
 from .models import (
     AuditEntry,
     ExternalRepairOrder,
+    FailureCategory,
     Machine,
     MaintenanceIssue,
     Notification,
@@ -33,8 +34,16 @@ class PartIssueLineInline(admin.TabularInline):
     readonly_fields = ("part", "quantity", "unit_cost", "invoice_ref", "supplier_name", "issued_by", "created_at")
 
 
+@admin.register(FailureCategory)
+class FailureCategoryAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("name", "code", "is_active", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "code")
+    ordering = ("name",)
+
+
 @admin.register(Machine)
-class MachineAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class MachineAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("name", "qr_code", "location", "is_active", "created_at")
     list_filter = ("is_active",)
     search_fields = ("name", "qr_code", "location")
@@ -43,17 +52,18 @@ class MachineAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(MaintenanceIssue)
-class MaintenanceIssueAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class MaintenanceIssueAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = (
         "id",
         "machine",
-        "status",
+        "issue_type",
         "priority",
+        "status",
         "reported_by",
         "validated_by",
         "created_at",
     )
-    list_filter = ("status", "priority", "machine")
+    list_filter = ("issue_type", "priority", "status", "machine__site")
     search_fields = ("description", "machine__name", "machine__qr_code", "reported_by__username")
     readonly_fields = ("created_at", "validated_at")
     raw_id_fields = ("reported_by", "validated_by")
@@ -62,7 +72,7 @@ class MaintenanceIssueAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmi
 
 
 @admin.register(WorkOrder)
-class WorkOrderAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class WorkOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = (
         "number",
         "machine",
@@ -117,7 +127,7 @@ class WorkOrderAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(WorkOrderStateLog)
-class WorkOrderStateLogAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class WorkOrderStateLogAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("work_order", "from_status", "to_status", "actor", "created_at")
     list_filter = ("to_status",)
     search_fields = ("work_order__number", "note", "actor__username")
@@ -131,7 +141,7 @@ class WorkOrderStateLogAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdm
 
 
 @admin.register(QuickMaintenanceLog)
-class QuickMaintenanceLogAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class QuickMaintenanceLogAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("machine", "author", "summary", "created_at")
     list_filter = ("machine",)
     search_fields = ("summary", "details", "machine__name", "author__username")
@@ -141,7 +151,7 @@ class QuickMaintenanceLogAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelA
 
 
 @admin.register(PMSchedule)
-class PMScheduleAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class PMScheduleAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("title", "machine", "frequency_days", "next_due_at", "is_active", "created_at")
     list_filter = ("is_active", "machine")
     search_fields = ("title", "machine__name", "checklist")
@@ -150,7 +160,7 @@ class PMScheduleAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(Tool)
-class ToolAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class ToolAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("name", "code", "status", "created_at")
     list_filter = ("status",)
     search_fields = ("name", "code")
@@ -158,7 +168,7 @@ class ToolAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(ToolAssignment)
-class ToolAssignmentAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class ToolAssignmentAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("tool", "user", "assigned_at", "returned_at", "return_condition")
     list_filter = ("return_condition",)
     search_fields = ("tool__name", "tool__code", "user__username")
@@ -166,7 +176,7 @@ class ToolAssignmentAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin)
 
 
 @admin.register(Notification)
-class NotificationAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class NotificationAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("title", "kind", "recipient", "read_at", "created_at")
     list_filter = ("kind", "read_at")
     search_fields = ("title", "body", "recipient__username")
@@ -180,9 +190,7 @@ class NotificationAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(ExternalRepairOrder)
-class ExternalRepairOrderAdmin(admin.ModelAdmin):
-    """Procurement coordinates; manager accepts — officers keep full admin access here."""
-
+class ExternalRepairOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = (
         "title",
         "status",
@@ -209,7 +217,7 @@ class ExternalRepairOrderAdmin(admin.ModelAdmin):
 
 
 @admin.register(AuditEntry)
-class AuditEntryAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class AuditEntryAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("action", "entity", "object_id", "actor", "created_at")
     list_filter = ("action", "entity")
     search_fields = ("action", "entity", "object_id", "actor__username")

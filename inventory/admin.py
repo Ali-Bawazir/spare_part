@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from mms.admin_mixins import ProcurementMaintenanceReadOnlyMixin
+from mms.admin_mixins import MMSAdminPermission
 
 from .models import PartIssueLine, SparePart, StockMovement
 
@@ -31,7 +31,7 @@ class StockMovementInline(admin.TabularInline):
 
 
 @admin.register(SparePart)
-class SparePartAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class SparePartAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = (
         "sku",
         "name",
@@ -54,7 +54,7 @@ class SparePartAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(StockMovement)
-class StockMovementAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class StockMovementAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = (
         "part",
         "movement_type",
@@ -81,7 +81,7 @@ class StockMovementAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(PartIssueLine)
-class PartIssueLineAdmin(ProcurementMaintenanceReadOnlyMixin, admin.ModelAdmin):
+class PartIssueLineAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("work_order", "part", "quantity", "unit_cost", "issued_by", "created_at")
     list_filter = ("part",)
     search_fields = ("work_order__number", "part__sku", "part__name", "issued_by__username")

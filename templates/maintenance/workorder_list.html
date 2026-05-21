@@ -24,9 +24,9 @@
         <td>{{ w.machine.name }}</td>
         <td><span class="{{ w.status|wo_status_badge_class }}">{{ w.get_status_display }}</span></td>
         <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">n/a</span>{% endif %}</td>
-        <td>{{ w.get_category_display }}</td>
-        <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}â€”{% endif %}</td>
-        <td><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_detail' w.pk %}">Open</a></td>
+<td>{{ w.get_category_display }}</td>
+        <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
+        <td>{% if not w.is_archived %}<a href="{% url 'work_order_archive' w.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="return confirm('Archive this work order?')">Archive</a>{% else %}<span class="mms-badge mms-badge--archived">Archived</span>{% endif %}</td>
       </tr>
       {% empty %}<tr><td colspan="7" class="mms-empty">No work orders.</td></tr>{% endfor %}
       </tbody>

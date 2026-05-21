@@ -10,13 +10,27 @@
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Name</th><th>QR code</th><th>Location</th><th>Open WO</th><th>Issues</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>QR code</th><th>Location</th><th>Site</th><th>Level</th><th>Hierarchy</th><th>Tree</th><th>Open WO</th><th>Issues</th><th></th></tr></thead>
       <tbody>
       {% for machine in machines %}
       <tr>
         <td>{{ machine.name }}</td>
         <td><code>{{ machine.qr_code }}</code></td>
-        <td>{{ machine.location|default:"â€”" }}</td>
+        <td>{{ machine.location|default:"—" }}</td>
+        <td>{{ machine.site.name|default:"—" }}</td>
+        <td>
+          {% if machine.asset_level %}
+            {{ machine.get_asset_level_display }}
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ machine.full_path }}</td>
+        <td>
+          {% if machine.children.exists %}
+            <span class="mms-badge mms-badge--info" title="{{ machine.children.count }} child machines">
+              {{ machine.children.count }} sub
+            </span>
+          {% endif %}
+        </td>
         <td>{{ machine.open_work_orders }}</td>
         <td>{{ machine.issue_count }}</td>
         <td class="mms-actions">
@@ -25,7 +39,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="6" class="mms-empty">No machines yet.</td></tr>
+      <tr><td colspan="10" class="mms-empty">No machines yet.</td></tr>
       {% endfor %}
       </tbody>
     </table>

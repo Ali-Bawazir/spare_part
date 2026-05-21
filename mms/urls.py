@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import RedirectView
+from django.conf import settings
+from django.conf.urls.static import static
 
 admin.site.site_header = "Factory Maintenance & Spare Parts Management System"
 admin.site.site_title = "MMS Admin"
@@ -14,3 +16,6 @@ urlpatterns = [
     path("", include("maintenance.urls")),
     path("home/", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
 ]
+
+# Serve media files in development
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

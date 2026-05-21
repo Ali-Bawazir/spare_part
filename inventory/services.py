@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 
 from maintenance.models import WorkOrder
 from maintenance.services import log_audit
@@ -30,7 +31,15 @@ def stock_in(
     site = site or _get_default_site()
     if not site:
         raise ValueError("No default site configured. Please create a Site first.")
-    
+
+    recent = StockMovement.objects.filter(
+        part=part, movement_type=StockMovement.MovementType.STOCK_IN,
+        performed_by=performed_by, invoice_ref=invoice_ref,
+        created_at__gte=timezone.now() - timezone.timedelta(seconds=10)
+    ).exists()
+    if recent:
+        raise ValueError("Duplicate stock-in detected. Please wait before submitting again.")
+
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
     quantity_before = inv.quantity_available
     inv.quantity_available += quantity
@@ -152,6 +161,10 @@ def issue_part_to_work_order(
     if wo.status == WorkOrder.Status.CLOSED:
         return False, "Cannot issue parts to a closed work order."
 
+    existing = PartIssueLine.objects.filter(work_order=wo, part=part).exists()
+    if existing:
+        return False, "Parts already issued for this work order and part combination."
+
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
     available = inv.quantity_available - inv.quantity_reserved
     quantity_before = inv.quantity_available
@@ -216,6 +229,13 @@ def consumable_use(
     site = site or _get_default_site()
     if not site:
         return False, "No default site configured."
+
+    recent = StockMovement.objects.filter(
+        part=part, movement_type=StockMovement.MovementType.CONSUMABLE_USE,
+        performed_by=user, created_at__gte=timezone.now() - timezone.timedelta(seconds=5)
+    ).exists()
+    if recent:
+        return False, "Duplicate consumable log detected. Please wait."
 
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
     quantity_before = inv.quantity_available

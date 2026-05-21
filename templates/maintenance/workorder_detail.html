@@ -15,6 +15,11 @@
   {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">Emergency</span>{% endif %}
   {% if wo.issue %}<span class="mms-badge mms-badge--info">Issue #{{ wo.issue.id }}</span>{% endif %}
   {% if wo.issue and wo.issue.priority %}<span class="{{ wo.issue.priority|priority_badge_class }}">{{ wo.issue.get_priority_display }}</span>{% endif %}
+  {% if wo.is_archived %}
+<span class="mms-badge mms-badge--archived" title="Archived by {{ wo.archived_by }} on {{ wo.archived_at|date:'Y-m-d H:i' }}">
+  Archived
+</span>
+{% endif %}
 </p>
 
 <div class="mms-grid mms-grid--2">
@@ -175,4 +180,165 @@
     {% empty %}<div class="mms-empty">No transitions yet.</div>{% endfor %}
   </div>
 </div>
+
+{% if wo.assignment_history.exists %}
+<section class="mms-section mms-assignment-history">
+  <h3>Assignment History</h3>
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>Technician</th>
+        <th>Action</th>
+        <th>Assigned At</th>
+        <th>Released At</th>
+        <th>Duration</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in wo.assignment_history.all %}
+      <tr>
+        <td>{{ record.technician.get_full_name|default:record.technician.username }}</td>
+        <td>{{ record.get_action_display }}</td>
+        <td>{{ record.assigned_at|date:"Y-m-d H:i" }}</td>
+        <td>{% if record.unassigned_at %}{{ record.unassigned_at|date:"Y-m-d H:i" }}{% else %}<em>Active</em>{% endif %}</td>
+        <td>
+          {% if record.unassigned_at %}
+            {{ record.unassigned_at|timesince:record.assigned_at }}
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ record.reason|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if wo.downtime_records.exists %}
+<section class="mms-section mms-downtime">
+  <h3>Downtime History</h3>
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Start</th>
+        <th>End</th>
+        <th>Duration</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for dt in wo.downtime_records.all %}
+      <tr class="{% if dt.is_open %}mms-row-warn{% endif %}">
+        <td>{{ dt.get_downtime_type_display }}</td>
+        <td>{{ dt.start_time|date:"Y-m-d H:i" }}</td>
+        <td>{% if dt.end_time %}{{ dt.end_time|date:"Y-m-d H:i" }}{% else %}<em>Still down</em>{% endif %}</td>
+        <td>{% if dt.total_minutes %}{{ dt.total_minutes }} min{% else %}—{% endif %}</td>
+        <td>{{ dt.reason|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="mms-total-row">
+        <td colspan="3"><strong>Total Downtime</strong></td>
+        <td><strong>{{ wo.total_downtime_minutes }} min</strong></td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</section>
+{% endif %}
+
+<section class="mms-section mms-attachments">
+  <h3>Attachments</h3>
+  <div id="attachment-list"
+       data-entity="work_order"
+       data-id="{{ wo.pk }}"
+       data-perm-upload="{% if perm_issue_parts_to_wo %}true{% else %}false{% endif %}">
+    <div class="mms-loading">Loading...</div>
+  </div>
+
+  {% if perm_issue_parts_to_wo %}
+  <form class="mms-attachment-upload" method="post" enctype="multipart/form-data"
+        action="{% url 'attachment_upload' %}" id="attachment-upload-form">
+    {% csrf_token %}
+    <input type="hidden" name="entity_type" value="work_order">
+    <input type="hidden" name="entity_id" value="{{ wo.pk }}">
+    <div class="mms-form-row">
+      <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" required>
+      <input type="text" name="note" placeholder="Optional note" maxlength="500">
+      <button type="submit" class="btn btn-sm btn-primary">Upload</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+<style>
+.mms-downtime { margin-top: 2rem; }
+.mms-downtime .mms-row-warn { background: #fff3cd; }
+.mms-assignment-history { margin-top: 2rem; }
+.mms-assignment-history .mms-empty { color: #999; font-style: italic; }
+.mms-attachments { margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+.mms-attachment-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+.mms-attachment-item:last-child { border-bottom: none; }
+.mms-attachment-info { display: flex; align-items: center; gap: 0.5rem; }
+.mms-form-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+.mms-form-row input[type="file"] { flex: 1; min-width: 200px; }
+.mms-badge--archived { background: #e0e0e0; color: #666; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const listEl = document.getElementById('attachment-list');
+  if (!listEl) return;
+
+  const entity = listEl.dataset.entity;
+  const id = listEl.dataset.id;
+
+  // Load attachments
+  fetch(`/attachments/${entity}/${id}/`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.attachments.length) {
+        listEl.innerHTML = '<p class="mms-empty">No attachments yet.</p>';
+        return;
+      }
+      listEl.innerHTML = data.attachments.map(a => `
+        <div class="mms-attachment-item">
+          <div class="mms-attachment-info">
+            <a href="${a.url}" target="_blank">${a.filename}</a>
+            <span class="mms-meta">${(a.size/1024).toFixed(1)} KB</span>
+            <span class="mms-meta">${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}</span>
+          </div>
+          ${listEl.dataset.permUpload === 'true' ? `<button class="btn btn-sm btn-danger" onclick="deleteAtt(${a.id})">×</button>` : ''}
+        </div>
+      `).join('');
+    });
+
+  // Upload form
+  const form = document.getElementById('attachment-upload-form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fd = new FormData(form);
+      fetch(form.action, { method: 'POST', body: fd, headers: {'X-CSRFToken': fd.get('csrfmiddlewaretoken')} })
+        .then(r => r.json())
+        .then(data => {
+          if (data.id) {
+            listEl.querySelector('.mms-empty')?.remove();
+            location.reload();
+          }
+        });
+    });
+  }
+});
+
+function deleteAtt(id) {
+  if (!confirm('Delete this attachment?')) return;
+  fetch(`/attachments/${id}/delete/`, { method: 'POST', headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''} })
+    .then(r => r.json())
+    .then(() => location.reload());
+}
+</script>
 {% endblock %}

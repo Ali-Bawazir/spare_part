@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 
 from .models import (
     ExternalRepairOrder,
+    FailureCategory,
     Machine,
     MaintenanceIssue,
     PMSchedule,
@@ -19,13 +20,26 @@ _SEL = {"class": "form-select"}
 
 
 class IssueReportForm(forms.ModelForm):
+    issue_type = forms.ModelChoiceField(
+        queryset=FailureCategory.objects.filter(is_active=True),
+        required=False,
+        label="Issue Type",
+        help_text="Optional failure classification",
+    )
+
     class Meta:
         model = MaintenanceIssue
-        fields = ("machine", "description")
+        fields = ("machine", "issue_type", "description")
         widgets = {
             "machine": forms.Select(attrs=_SEL),
             "description": forms.Textarea(attrs={**_CTRL, "rows": 4, "placeholder": "Describe the problem…"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["issue_type"].queryset = FailureCategory.objects.filter(is_active=True)
+        if self.instance and self.instance.machine_id and self.instance.machine.failure_category_id:
+            self.fields["issue_type"].initial = self.instance.machine.failure_category_id
 
 
 class ValidateIssueForm(forms.Form):
@@ -76,6 +90,15 @@ class PMScheduleForm(forms.ModelForm):
             "checklist": forms.Textarea(attrs={**_CTRL, "rows": 5, "placeholder": "One checklist item per line"}),
             "next_due_at": forms.DateTimeInput(attrs={**_CTRL, "type": "datetime-local"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["propagate_to_children"] = forms.BooleanField(
+            required=False,
+            label="Apply to all child machines",
+            help_text="If this machine has child machines, create PM work orders for each of them.",
+            widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        )
 
 
 class ToolAssignForm(forms.Form):
@@ -145,12 +168,21 @@ class ExternalRepairOfficerForm(forms.ModelForm):
 class MachineForm(forms.ModelForm):
     class Meta:
         model = Machine
-        fields = ("name", "qr_code", "location", "is_active")
+        fields = ("name", "qr_code", "location", "is_active", "site", "parent", "asset_level", "asset_type")
         widgets = {
             "name": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Line A Press 1"}),
             "qr_code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. PRESS-01"}),
             "location": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Hall A"}),
+            "site": forms.Select(attrs=_SEL),
+            "parent": forms.Select(attrs=_SEL),
+            "asset_level": forms.Select(attrs=_SEL),
+            "asset_type": forms.Select(attrs=_SEL),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in ("parent", "asset_level", "asset_type"):
+            self.fields[field].required = False
 
 
 class EmergencyWOForm(forms.Form):

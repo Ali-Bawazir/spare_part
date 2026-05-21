@@ -2,7 +2,7 @@
 {% block title %}Validate issue{% endblock %}
 {% block page_heading %}Validate issue #{{ issue.id }}{% endblock %}
 {% block content %}
-<p class="mms-page-lead"><strong>Machine:</strong> {{ issue.machine }}<br><strong>Description:</strong> {{ issue.description }}</p>
+<p class="mms-page-lead"><strong>Machine:</strong> {{ issue.machine }}<br><strong>Issue Type:</strong> {% if issue.issue_type %}{{ issue.issue_type.name }}{% else %}—{% endif %}<br><strong>Description:</strong> {{ issue.description }}</p>
 <div class="mms-card mms-form-stack mms-form-stack--narrow">
   <div class="mms-card-body">
     <form method="post" class="mms-form">

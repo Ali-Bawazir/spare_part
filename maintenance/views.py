@@ -13,11 +13,21 @@ from django.views.decorators.http import require_POST
 from datetime import timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from datetime import timedelta as td
+
+STALE_THRESHOLDS = {
+    "critical": td(hours=1),
+    "high": td(hours=4),
+    "medium": td(hours=8),
+    "low": td(hours=24),
+}
+
 from accounts.capabilities import get_mms_capabilities
 from accounts.models import User
 from accounts.permissions import role_required
 from inventory.forms import ConsumableUseForm, IssuePartForm, StockInForm
 from inventory.models import PartIssueLine, SparePart
+from inventory.qr_utils import qr_scan_decode as decode_qr
 from inventory.services import consumable_use, issue_part_to_work_order, stock_in
 from procurement.models import PurchaseRequest
 
@@ -48,8 +58,11 @@ from .models import (
     Tool,
     ToolAssignment,
     WorkOrder,
+    WorkOrderAssignmentHistory,
 )
 from .services import (
+    archive_maintenance_issue,
+    archive_work_order,
     get_other_active_work_order,
     log_audit,
     manager_close_work_order,
@@ -60,6 +73,32 @@ from .services import (
     transition_work_order,
     validate_issue,
 )
+
+
+def _queue_priority_and_status_rank():
+    """
+    Orders technician's WO queue by:
+    1. IN_PROGRESS first (active work)
+    2. Emergency WOs before non-emergency
+    3. Issue priority (CRITICAL > HIGH > MEDIUM > LOW from validated issue)
+    4. Status rank as tiebreaker
+    """
+    return Case(
+        When(status=WorkOrder.Status.IN_PROGRESS, then=Value(0)),
+        When(is_emergency=True, then=Value(1)),
+        When(issue__priority=MaintenanceIssue.Priority.CRITICAL, then=Value(2)),
+        When(issue__priority=MaintenanceIssue.Priority.HIGH, then=Value(3)),
+        When(issue__priority=MaintenanceIssue.Priority.MEDIUM, then=Value(4)),
+        When(issue__priority=MaintenanceIssue.Priority.LOW, then=Value(5)),
+        When(status=WorkOrder.Status.ASSIGNED, then=Value(6)),
+        When(status=WorkOrder.Status.PAUSED, then=Value(7)),
+        When(status=WorkOrder.Status.PENDING_PARTS, then=Value(8)),
+        When(status=WorkOrder.Status.WAITING_FOR_VENDOR, then=Value(9)),
+        When(status=WorkOrder.Status.PENDING_REVIEW, then=Value(10)),
+        When(status=WorkOrder.Status.APPROVED, then=Value(11)),
+        default=Value(12),
+        output_field=IntegerField(),
+    )
 
 
 def _priority_rank():
@@ -158,14 +197,35 @@ def dashboard(request):
         ctx["overdue_pm"] = PMSchedule.objects.filter(is_active=True, next_due_at__lt=timezone.now()).select_related(
             "machine"
         )[:12]
+
+    now = timezone.now()
+    stale_issues_by_priority = {}
+    for priority, threshold in STALE_THRESHOLDS.items():
+        stale_qs = MaintenanceIssue.objects.filter(
+            status=MaintenanceIssue.Status.NEW,
+            priority=priority.upper(),
+            created_at__lt=now - threshold,
+            is_archived=False,
+        )
+        if stale_qs.exists():
+            stale_issues_by_priority[priority] = stale_qs.count()
+
+    stale_red_count = stale_issues_by_priority.get("critical", 0) + stale_issues_by_priority.get("high", 0)
+    stale_yellow_count = stale_issues_by_priority.get("medium", 0) + stale_issues_by_priority.get("low", 0)
+
+    ctx.update({
+        "stale_issues_by_priority": stale_issues_by_priority,
+        "stale_red_count": stale_red_count,
+        "stale_yellow_count": stale_yellow_count,
+    })
     if role == User.Role.OPERATOR:
         ctx["my_issues"] = MaintenanceIssue.objects.filter(reported_by=request.user)[:10]
     if role in (User.Role.TECHNICIAN,):
         ctx["my_queue"] = (
             WorkOrder.objects.filter(assigned_technician=request.user)
             .exclude(status=WorkOrder.Status.CLOSED)
-            .annotate(priority_rank=_priority_rank(), queue_status_rank=_queue_status_rank())
-            .order_by("queue_status_rank", "-is_emergency", "priority_rank", "created_at")[:20]
+            .annotate(queue_rank=_queue_priority_and_status_rank())
+            .order_by("queue_rank", "created_at")[:20]
         )
     if caps.get("close_or_review_wo"):
         ctx["pending_review"] = WorkOrder.objects.filter(status=WorkOrder.Status.PENDING_REVIEW).count()
@@ -212,11 +272,11 @@ def qr_scan_decode(request):
         return JsonResponse({"decoded_value": "", "error": "missing_file"}, status=400)
     decoded_value = _decode_uploaded_qr(upload)
 
-    if decoded_value.startswith("PART:"):
-        sku = decoded_value.replace("PART:", "")
-        from inventory.models import SparePart
-        part = get_object_or_404(SparePart, sku=sku)
+    decoded = decode_qr(decoded_value)
+
+    if decoded["type"] == "part":
         from maintenance.models import Site
+        part = get_object_or_404(SparePart, sku=decoded["sku"])
         site = Site.objects.filter(is_default=True).first()
         inv = part.inventory_items.filter(site=site).first() if site else None
         return JsonResponse({
@@ -346,15 +406,14 @@ def issue_validate(request, pk):
 @role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_list(request):
     wos = WorkOrder.objects.select_related("machine", "assigned_technician", "issue").annotate(
-        priority_rank=_priority_rank(),
-        queue_status_rank=_queue_status_rank(),
+        queue_rank=_queue_priority_and_status_rank(),
     )
     if request.user.role == User.Role.TECHNICIAN and not request.user.is_super_admin_role():
-        wos = wos.filter(assigned_technician=request.user)
+        wos = wos.filter(assigned_technician=request.user).exclude(status=WorkOrder.Status.CLOSED)
     st = request.GET.get("status")
     if st in dict(WorkOrder.Status.choices):
         wos = wos.filter(status=st)
-    wos = wos.order_by("queue_status_rank", "-is_emergency", "priority_rank", "created_at")[:400]
+    wos = wos.order_by("queue_rank", "created_at")[:400]
     return render(
         request,
         "maintenance/workorder_list.html",
@@ -439,6 +498,7 @@ def work_order_create_from_issue(request, issue_pk):
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_assign(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
+    previous_technician_id = wo.assigned_technician_id
     if wo.status not in (
         WorkOrder.Status.APPROVED,
         WorkOrder.Status.ASSIGNED,
@@ -452,9 +512,26 @@ def work_order_assign(request, pk):
     if not form.is_valid():
         messages.error(request, "Invalid assignment.")
         return redirect("work_order_detail", pk=pk)
-    wo.assigned_technician = form.cleaned_data["technician"]
+    new_technician = form.cleaned_data["technician"]
+    wo.assigned_technician = new_technician
     wo.save(update_fields=["assigned_technician", "updated_at"])
     transition_work_order(wo, WorkOrder.Status.ASSIGNED, actor=request.user, note="Technician assigned")
+    WorkOrderAssignmentHistory.objects.create(
+        work_order=wo,
+        technician=new_technician,
+        action=WorkOrderAssignmentHistory.Action.ASSIGNED,
+        assigned_by=request.user,
+        reason=f"Assigned by {request.user.get_full_name() or request.user.username}",
+    )
+    if previous_technician_id and previous_technician_id != new_technician.id:
+        old_technician = User.objects.get(pk=previous_technician_id)
+        prev = WorkOrderAssignmentHistory.objects.filter(
+            work_order=wo, technician=old_technician, unassigned_at__isnull=True
+        ).first()
+        if prev:
+            prev.unassigned_at = timezone.now()
+            prev.reason = f"Reassigned to {new_technician.get_full_name() or new_technician.username}"
+            prev.save()
     from .notifications import notify_wo_assigned
 
     notify_wo_assigned(wo)
@@ -467,6 +544,9 @@ def work_order_assign(request, pk):
 @role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_start(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician != request.user:
+        messages.error(request, "You can only start work orders assigned to you.")
+        return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     if wo.status not in (
@@ -495,6 +575,9 @@ def work_order_start(request, pk):
 @role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_pause(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician != request.user:
+        messages.error(request, "You can only pause work orders assigned to you.")
+        return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     if wo.status != WorkOrder.Status.IN_PROGRESS:
@@ -512,6 +595,9 @@ def work_order_pause(request, pk):
 @role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_submit(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician != request.user:
+        messages.error(request, "You can only submit work orders assigned to you.")
+        return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     if wo.status != WorkOrder.Status.IN_PROGRESS:
@@ -596,6 +682,9 @@ def emergency_work_order_create(request):
 @role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_mark_parts(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician != request.user:
+        messages.error(request, "You can only mark parts for work orders assigned to you.")
+        return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     form = TechVendorNoteForm(request.POST, prefix="parts")
@@ -615,6 +704,9 @@ def work_order_mark_parts(request, pk):
 @role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_mark_vendor(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician != request.user:
+        messages.error(request, "You can only mark vendor status for work orders assigned to you.")
+        return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     form = TechVendorNoteForm(request.POST, prefix="vendor")
@@ -705,16 +797,37 @@ def pm_create(request):
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def pm_spawn_wo(request, pk):
     sched = get_object_or_404(PMSchedule, pk=pk)
-    wo = WorkOrder.objects.create(
-        category=WorkOrder.Category.PREVENTIVE,
-        machine=sched.machine,
-        status=WorkOrder.Status.APPROVED,
-        created_by=request.user,
-        notes=f"PM: {sched.title}",
-    )
-    transition_work_order(wo, WorkOrder.Status.APPROVED, actor=request.user, note="PM work order")
-    messages.success(request, f"PM work order WO-{wo.number} created.")
-    return redirect("work_order_detail", pk=wo.pk)
+    if request.method == "POST":
+        form = PMScheduleForm(request.POST)
+        if form.is_valid():
+            wo = WorkOrder.objects.create(
+                category=WorkOrder.Category.PREVENTIVE,
+                machine=sched.machine,
+                status=WorkOrder.Status.APPROVED,
+                created_by=request.user,
+                notes=f"PM: {sched.title}",
+            )
+            transition_work_order(wo, WorkOrder.Status.APPROVED, actor=request.user, note="PM work order")
+            if form.cleaned_data.get("propagate_to_children") and sched.machine.children.exists():
+                child_count = 0
+                for child_machine in sched.machine.children.all():
+                    child_wo = WorkOrder.objects.create(
+                        category=WorkOrder.Category.PREVENTIVE,
+                        machine=child_machine,
+                        status=WorkOrder.Status.APPROVED,
+                        created_by=request.user,
+                        notes=f"PM spawned from {sched.machine.name} → {child_machine.name}",
+                    )
+                    transition_work_order(child_wo, WorkOrder.Status.APPROVED, actor=request.user,
+                                         note=f"PM for {child_machine.name} (child of {sched.machine.name})")
+                    child_count += 1
+                if child_count:
+                    messages.success(request, f"Created {child_count} child PM work orders.")
+            messages.success(request, f"PM work order WO-{wo.number} created.")
+            return redirect("work_order_detail", pk=wo.pk)
+    else:
+        form = PMScheduleForm()
+    return render(request, "maintenance/pm_spawn_wo.html", {"form": form, "schedule": sched})
 
 
 @login_required
@@ -1189,3 +1302,93 @@ def repair_manager_accept(request, pk):
         messages.success(request, "Repair verified and closed.")
         return redirect("repair_list")
     return render(request, "maintenance/repair_accept.html", {"rwo": rwo})
+
+
+@login_required
+@require_POST
+def attachment_upload(request):
+    """Handle file upload for any entity."""
+    from .models import Attachment
+    entity_type = request.POST.get("entity_type")
+    entity_id = request.POST.get("entity_id")
+    file = request.FILES.get("file")
+    note = request.POST.get("note", "")
+
+    if not entity_type or not entity_id or not file:
+        return JsonResponse({"error": "Missing entity_type, entity_id, or file."}, status=400)
+
+    att = Attachment.objects.create(
+        entity_type=entity_type,
+        entity_id=int(entity_id),
+        file=file,
+        filename=file.name,
+        size_bytes=file.size or 0,
+        uploaded_by=request.user,
+        note=note,
+    )
+    return JsonResponse({
+        "id": att.pk,
+        "filename": att.filename,
+        "size": att.size_bytes,
+        "uploaded_at": att.uploaded_at.isoformat(),
+        "uploaded_by": att.uploaded_by.username if att.uploaded_by else "",
+    })
+
+
+@login_required
+def attachment_list(request, entity_type, entity_id):
+    """Return JSON list of attachments for an entity."""
+    from .models import Attachment
+    attachments = Attachment.objects.filter(
+        entity_type=entity_type, entity_id=int(entity_id)
+    ).select_related("uploaded_by").order_by("-uploaded_at")
+    data = [{
+        "id": a.pk,
+        "filename": a.filename,
+        "size": a.size_bytes,
+        "mime_type": a.mime_type,
+        "uploaded_at": a.uploaded_at.isoformat(),
+        "uploaded_by": a.uploaded_by.username if a.uploaded_by else "",
+        "note": a.note,
+        "url": a.file.url if a.file else "",
+    } for a in attachments]
+    return JsonResponse({"attachments": data})
+
+
+@login_required
+@require_POST
+def attachment_delete(request, pk):
+    """Delete an attachment (owner or admin only)."""
+    from .models import Attachment
+    att = get_object_or_404(Attachment, pk=pk)
+    if att.uploaded_by != request.user and not request.user.is_super_admin_role():
+        return JsonResponse({"error": "Not authorized."}, status=403)
+    att.delete()
+    return JsonResponse({"status": "deleted"})
+
+
+@login_required
+@require_POST
+def issue_archive(request, pk):
+    issue = get_object_or_404(MaintenanceIssue, pk=pk)
+    if issue.is_archived:
+        messages.error(request, "Issue is already archived.")
+        return redirect("issue_list")
+    if issue.status == MaintenanceIssue.Status.CONVERTED:
+        messages.error(request, "Cannot archive a converted issue. Archive the linked work order instead.")
+        return redirect("issue_list")
+    archive_maintenance_issue(issue, request.user)
+    messages.success(request, f"Issue #{issue.pk} has been archived.")
+    return redirect("issue_list")
+
+
+@login_required
+@require_POST
+def work_order_archive(request, pk):
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.is_archived:
+        messages.error(request, "Work order is already archived.")
+        return redirect("work_order_list")
+    archive_work_order(wo, request.user)
+    messages.success(request, f"Work order WO-{wo.number} has been archived.")
+    return redirect("work_order_list")

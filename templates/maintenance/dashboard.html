@@ -28,6 +28,23 @@
   {% endif %}
 </div>
 
+{# Stale Issue Alerts #}
+{% if stale_red_count %}
+<div class="mms-alert mms-alert--error">
+  <strong>⚠️ {{ stale_red_count }} urgent stale issue{{ stale_red_count|pluralize }}</strong>
+  — CRITICAL/HIGH priority issues have been NEW for too long.
+  <a href="{% url 'issue_list' %}?status=new&priority=critical,high" class="mms-alert-link">Review now →</a>
+</div>
+{% endif %}
+
+{% if stale_yellow_count %}
+<div class="mms-alert mms-alert--warn">
+  <strong>⚡ {{ stale_yellow_count }} medium/low stale issue{{ stale_yellow_count|pluralize }}</strong>
+  — needs validation.
+  <a href="{% url 'issue_list' %}?status=new&priority=medium,low" class="mms-alert-link">Review →</a>
+</div>
+{% endif %}
+
 {% if stale_new_issues or overdue_pm %}
 <div class="mms-card" style="margin-top:1rem;border:1px solid rgba(180,83,9,.35)">
   <div class="mms-card-header">Needs attention</div>

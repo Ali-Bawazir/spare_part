@@ -1,10 +1,12 @@
 from django.contrib import admin
 
+from mms.admin_mixins import MMSAdminPermission
+
 from .models import PurchaseRequest, Supplier
 
 
 @admin.register(Supplier)
-class SupplierAdmin(admin.ModelAdmin):
+class SupplierAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = ("name", "is_repair_vendor", "contact", "created_at")
     list_filter = ("is_repair_vendor",)
     search_fields = ("name", "contact", "notes")
@@ -13,7 +15,7 @@ class SupplierAdmin(admin.ModelAdmin):
 
 
 @admin.register(PurchaseRequest)
-class PurchaseRequestAdmin(admin.ModelAdmin):
+class PurchaseRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_display = (
         "id",
         "part",

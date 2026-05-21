@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Spawn PM Work Order{% endblock %}
+{% block page_heading %}Spawn PM Work Order for {{ schedule.machine.name }}{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Create a preventive maintenance work order from schedule "{{ schedule.title }}".</p>
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">Create PM Work Order</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'pm_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

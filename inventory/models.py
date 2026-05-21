@@ -24,6 +24,11 @@ class Inventory(models.Model):
 
 class SparePart(models.Model):
     sku = models.SlugField(max_length=64, unique=True)
+    qr_code = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Auto-generated from SKU. Used in PART QR format.",
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=64, blank=True)
@@ -38,6 +43,9 @@ class SparePart(models.Model):
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["qr_code"]),
+        ]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.sku})"
@@ -61,6 +69,8 @@ class SparePart(models.Model):
         old_sku = None
         if not is_new and self.__class__.objects.filter(pk=self.pk).exists():
             old_sku = self.__class__.objects.get(pk=self.pk).sku
+        if is_new or (old_sku and old_sku != self.sku):
+            self.qr_code = f"PART:{self.sku}"
         super().save(*args, **kwargs)
         if is_new or (old_sku and old_sku != self.sku):
             try:
@@ -108,6 +118,20 @@ class StockMovement(models.Model):
     reference = models.JSONField(default=dict, blank=True)
     note = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    class ActiveManager(models.Manager):
+        def get_queryset(self):
+            return super().get_queryset().filter(is_archived=False)
+
+    class ArchivedManager(models.Manager):
+        def get_queryset(self):
+            return super().get_queryset().filter(is_archived=True)
+
+    objects = ActiveManager()
+    all_objects = models.Manager()
+    archived = ArchivedManager()
 
     class Meta:
         ordering = ["-created_at"]

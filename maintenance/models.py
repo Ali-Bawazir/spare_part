@@ -24,6 +24,23 @@ class Site(models.Model):
         return self.name
 
 
+class FailureCategory(models.Model):
+    """Top-level classification of equipment failures (Mechanical, Electrical, Hydraulic, etc.)."""
+    code = models.SlugField(max_length=32, unique=True)
+    name = models.CharField(max_length=128)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Failure Category"
+        verbose_name_plural = "Failure Categories"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.code})"
+
+
 class Machine(models.Model):
     """Factory asset; QR resolves to `qr_code`."""
 
@@ -49,6 +66,10 @@ class Machine(models.Model):
     )
     site = models.ForeignKey(
         "Site", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="machines"
+    )
+    failure_category = models.ForeignKey(
+        "FailureCategory", on_delete=models.SET_NULL,
         null=True, blank=True, related_name="machines"
     )
 
@@ -81,6 +102,16 @@ class Machine(models.Model):
         return current
 
 
+class ActiveManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_archived=False)
+
+
+class ArchivedManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_archived=True)
+
+
 class MaintenanceIssue(models.Model):
     class Status(models.TextChoices):
         NEW = "new", "New"
@@ -98,6 +129,15 @@ class MaintenanceIssue(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="reported_issues",
+    )
+    issue_type = models.ForeignKey(
+        "FailureCategory",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="issues",
+        verbose_name="Issue Type",
+        help_text="Classified failure category (Phase 2: FailureMode sub-classification)",
     )
     description = models.TextField()
     status = models.CharField(
@@ -120,10 +160,21 @@ class MaintenanceIssue(models.Model):
         related_name="validated_issues",
     )
     validated_at = models.DateTimeField(null=True, blank=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="archived_issues"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ActiveManager()
+    all_objects = models.Manager()
+    archived = ArchivedManager()
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [models.Index(fields=["issue_type"])]
 
     def __str__(self) -> str:
         return f"Issue #{self.pk} — {self.machine.name} ({self.status})"
@@ -186,6 +237,12 @@ class WorkOrder(models.Model):
     labor_stopped_at = models.DateTimeField(null=True, blank=True)
     downtime_started_at = models.DateTimeField(null=True, blank=True)
     downtime_ended_at = models.DateTimeField(null=True, blank=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="archived_work_orders"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -201,6 +258,15 @@ class WorkOrder(models.Model):
     def __str__(self) -> str:
         return f"WO-{self.number} ({self.get_status_display()})"
 
+    @property
+    def total_downtime_minutes(self) -> int:
+        """Sum of all downtime record minutes for this WO."""
+        return sum(dt.total_minutes or 0 for dt in self.downtime_records.all())
+
+    objects = ActiveManager()
+    all_objects = models.Manager()
+    archived = ArchivedManager()
+
 
 class WorkOrderStateLog(models.Model):
     work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="state_logs")
@@ -212,6 +278,89 @@ class WorkOrderStateLog(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+
+
+class WorkOrderAssignmentHistory(models.Model):
+    """
+    Immutable append-only record of every technician assignment period on a Work Order.
+    Each record tracks who was assigned, when, and when they were released.
+    Records are NEVER deleted or modified — only new ones added.
+    """
+
+    class Action(models.TextChoices):
+        ASSIGNED = "assigned", "Assigned"
+        RELEASED = "released", "Released"
+
+    work_order = models.ForeignKey(
+        "WorkOrder", on_delete=models.CASCADE,
+        related_name="assignment_history"
+    )
+    technician = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="assignment_records"
+    )
+    action = models.CharField(max_length=20, choices=Action.choices)
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    unassigned_at = models.DateTimeField(null=True, blank=True)
+    reason = models.CharField(max_length=500, blank=True)
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="assignments_made"
+    )
+
+    class Meta:
+        ordering = ["assigned_at"]
+        unique_together = [["work_order", "technician", "assigned_at"]]
+        verbose_name_plural = "work order assignment histories"
+
+    def __str__(self) -> str:
+        status = "active" if not self.unassigned_at else f"released {self.unassigned_at}"
+        return f"WO-{self.work_order.number}: {self.technician} ({status})"
+
+
+class Downtime(models.Model):
+    """
+    Tracks machine downtime periods per work order.
+    Multiple records per WO support interrupted repairs (parts wait, vendor wait, emergency overrides).
+    Downtime clock runs from first WO start until manager closes — NOT paused during labor pauses.
+    """
+
+    class DowntimeType(models.TextChoices):
+        BREAKDOWN = "breakdown", "Breakdown"
+        EMERGENCY = "emergency", "Emergency"
+        SCHEDULED = "scheduled", "Scheduled"
+        IDLE = "idle", "Idle"
+
+    work_order = models.ForeignKey(
+        "WorkOrder", on_delete=models.PROTECT,
+        related_name="downtime_records"
+    )
+    downtime_type = models.CharField(
+        max_length=20, choices=DowntimeType.choices,
+        default=DowntimeType.BREAKDOWN
+    )
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField(null=True, blank=True)
+    total_minutes = models.PositiveIntegerField(null=True, blank=True)
+    reason = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-start_time"]
+        verbose_name_plural = "downtime_records"
+
+    def save(self, *args, **kwargs):
+        if self.start_time and self.end_time:
+            delta = self.end_time - self.start_time
+            self.total_minutes = int(delta.total_seconds() / 60)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_open(self):
+        return self.end_time is None
+
+    def __str__(self) -> str:
+        status = "OPEN" if self.is_open else f"{self.total_minutes}min"
+        return f"Downtime on WO-{self.work_order.number} ({status})"
 
 
 class QuickMaintenanceLog(models.Model):
@@ -392,3 +541,50 @@ class AuditEntry(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+def attachment_upload_path(instance, filename):
+    """Store uploads at media/attachments/{entity_type}/{entity_id}/{uuid}.{ext}"""
+    import os
+    from uuid import uuid4
+    ext = filename.split(".")[-1] if "." in filename else ""
+    new_name = f"{uuid4().hex}.{ext}" if ext else uuid4().hex
+    return f"attachments/{instance.entity_type}/{instance.entity_id}/{new_name}"
+
+
+class Attachment(models.Model):
+    """File attachments for any entity: work_order, machine, spare_part, purchase_request, repair_order."""
+
+    class EntityType(models.TextChoices):
+        WORK_ORDER = "work_order"
+        MACHINE = "machine"
+        SPARE_PART = "spare_part"
+        PURCHASE_REQUEST = "purchase_request"
+        REPAIR_ORDER = "repair_order"
+
+    entity_type = models.CharField(max_length=32, choices=EntityType.choices)
+    entity_id = models.PositiveIntegerField()
+    file = models.FileField(upload_to=attachment_upload_path, max_length=500)
+    filename = models.CharField(max_length=255)
+    size_bytes = models.PositiveIntegerField(default=0)
+    mime_type = models.CharField(max_length=128, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name="attachments"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+        indexes = [models.Index(fields=["entity_type", "entity_id"])]
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.filename:
+            self.filename = self.file.name
+        if self.file and not self.size_bytes:
+            self.size_bytes = self.file.size or 0
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.filename} ({self.entity_type}:{self.entity_id})"

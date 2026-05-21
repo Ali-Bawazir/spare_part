@@ -12,12 +12,13 @@
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>ID</th><th>Machine</th><th>Status</th><th>Priority</th><th>Reporter</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>Machine</th><th>Issue Type</th><th>Status</th><th>Priority</th><th>Reporter</th><th></th></tr></thead>
       <tbody>
       {% for i in issues %}
-      <tr>
+      <tr class="{% if i.is_archived %}mms-row--archived{% endif %}">
         <td>#{{ i.id }}</td>
         <td>{{ i.machine.name }}</td>
+        <td>{% if i.issue_type %}<span class="badge badge--{{ i.issue_type.code|lower }}">{{ i.issue_type.name }}</span>{% else %}—{% endif %}</td>
         <td><span class="{{ i.status|issue_status_badge_class }}">{{ i.get_status_display }}</span></td>
         <td>{% if i.priority %}<span class="{{ i.priority|priority_badge_class }}">{{ i.get_priority_display }}</span>{% else %}—{% endif %}</td>
         <td>{{ i.reported_by.username }}</td>
@@ -32,9 +33,13 @@
               <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_create' i.pk %}">Review / Create WO</a>
             {% endif %}
           {% endif %}
+          {% if i.status != 'converted' and not i.is_archived %}
+            <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_archive' i.pk %}"
+               onclick="return confirm('Archive issue #{{ i.pk }}? This cannot be undone.')">Archive</a>
+          {% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="6" class="mms-empty">No issues.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="7" class="mms-empty">No issues.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
