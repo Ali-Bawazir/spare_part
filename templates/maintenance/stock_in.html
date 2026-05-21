@@ -10,9 +10,14 @@
 <p class="mms-page-lead">Receive parts into inventory (goods receipt).</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
-    <form method="post" class="mms-form">
+    <form method="post" class="mms-form" enctype="multipart/form-data">
       {% csrf_token %}
       {{ form.as_p }}
+      <div class="mms-form-group">
+        <label class="mms-label">Invoice attachment</label>
+        <input type="file" name="invoice_attachment" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" class="form-control">
+        <span class="mms-form-help">Optional: PDF or image of the invoice</span>
+      </div>
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">Save</button>
       </div>

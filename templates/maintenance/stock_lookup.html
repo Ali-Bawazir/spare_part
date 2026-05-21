@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Inventory Lookup{% endblock %}
+{% block page_heading %}Inventory Lookup — {{ selected_site.name }}{% endblock %}
+{% block content %}
+<style>
+tbody tr {
+  min-height: 48px;
+}
+tbody tr td {
+  font-size: 1rem;
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+}
+tbody tr td:first-child {
+  padding-left: 1rem;
+}
+tbody tr td:last-child {
+  padding-right: 1rem;
+}
+tbody tr td code {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+</style>
+<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap">
+  <form method="get" style="display:flex;align-items:center;gap:0.5rem;flex:1">
+    <label class="text-muted small">Site:</label>
+    <select name="site" class="form-select" style="width:auto" onchange="this.form.submit()">
+      {% for s in sites %}
+        <option value="{{ s.pk }}" {% if s.pk == selected_site.pk %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <input class="form-control" type="text" name="q" placeholder="Search SKU or name…" value="{{ q }}" style="width:200px" autofocus>
+    <button type="submit" class="mms-btn mms-btn--ghost">Search</button>
+    {% if q %}
+      <a href="{% url 'stock_lookup' %}?site={{ selected_site.pk }}" class="mms-btn mms-btn--ghost">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>SKU</th>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Available</th>
+        <th>Rack</th>
+      </tr></thead>
+      <tbody>
+      {% for p in parts %}
+      <tr>
+        <td><code>{{ p.sku }}</code></td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.category|default:"—" }}</td>
+        <td>
+          {% if p.inv_available is not None %}
+            {% if p.inv_available == 0 %}
+              <span class="mms-badge mms-badge--danger">Out of stock</span>
+            {% elif p.inv_available <= p.min_stock_level and p.min_stock_level > 0 %}
+              <span class="mms-badge" style="background-color:#f59e0b;color:#fff">{{ p.inv_available }} Low</span>
+            {% else %}
+              {{ p.inv_available }}
+            {% endif %}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>{{ p.inv_rack|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="mms-empty">No parts found.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

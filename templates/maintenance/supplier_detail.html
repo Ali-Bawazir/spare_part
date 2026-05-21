@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} — Suppliers{% endblock %}
+{% block page_heading %}{{ supplier.code }} — {{ supplier.name }}{% endblock %}
+{% block content %}
+<div class="mms-link-back">
+  <a href="{% url 'supplier_list' %}">← Back to suppliers</a>
+</div>
+
+<div class="mms-grid mms-grid--2" style="margin-top:1rem; gap:1.5rem">
+  <div class="mms-card">
+    <div class="mms-card-header">Contact information</div>
+    <div class="mms-card-body">
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td class="text-muted small" style="width:120px">Contact person</td><td>{{ supplier.contact_person|default:"—" }}</td></tr>
+        <tr><td class="text-muted small">Phone</td><td>{{ supplier.phone|default:"—" }}</td></tr>
+        <tr><td class="text-muted small">Email</td><td>{{ supplier.email|default:"—" }}</td></tr>
+        <tr><td class="text-muted small">Address</td><td>{{ supplier.address|default:"—"|linebreaks }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-header">Status</div>
+    <div class="mms-card-body">
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td class="text-muted small" style="width:120px">Active</td>
+          <td>
+            {% if supplier.is_active %}
+              <span class="mms-badge mms-badge--success">Active</span>
+            {% else %}
+              <span class="mms-badge mms-badge--muted">Inactive</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr><td class="text-muted small">Repair vendor</td>
+          <td>
+            {% if supplier.is_repair_vendor %}
+              <span class="mms-badge mms-badge--info">Yes — handles external repairs</span>
+            {% else %}
+              <span class="mms-badge mms-badge--muted">No</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr><td class="text-muted small">Code</td><td><code>{{ supplier.code }}</code></td></tr>
+        <tr><td class="text-muted small">QR</td>
+          <td>
+            {% if supplier.code %}
+              <a href="/media/qr/suppliers/SUPPLIER_{{ supplier.code }}.png" target="_blank">
+                <img src="/media/qr/suppliers/SUPPLIER_{{ supplier.code }}.png" width="80" height="80" style="border:1px solid #e2e8f0;border-radius:6px">
+              </a>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mms-actions" style="margin:1.5rem 0">
+  <a class="mms-btn mms-btn--primary" href="{% url 'supplier_edit' supplier.pk %}">Edit supplier</a>
+</div>
+
+{% if linked_parts %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Linked parts ({{ linked_parts|length }})</div>
+  <div class="mms-card-body">
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Is consumable</th></tr></thead>
+        <tbody>
+        {% for p in linked_parts %}
+        <tr>
+          <td><code>{{ p.sku }}</code></td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.category|default:"—" }}</td>
+          <td>{{ p.is_consumable|yesno:"Yes,No" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if supplier.notes %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Notes</div>
+  <div class="mms-card-body">{{ supplier.notes|linebreaks }}</div>
+</div>
+{% endif %}
+{% endblock %}

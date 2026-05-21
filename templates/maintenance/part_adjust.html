@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Adjust quantity — {{ part.name }}{% endblock %}
+{% block page_heading %}Adjust inventory — {{ part.name }}{% endblock %}
+{% block content %}
+<div class="mms-link-back">
+  <a href="{% url 'spare_part_detail' part.pk %}?site={{ selected_site.pk }}">← Back to {{ part.name }}</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem">
+  <div class="mms-card">
+    <div class="mms-card-header">Current quantity</div>
+    <div class="mms-card-body">
+      <div style="font-size:2rem;font-weight:700">{{ current_qty }}</div>
+      <div class="text-muted small">at {{ selected_site.name }}</div>
+      <div class="text-muted small" style="margin-top:0.5rem">
+        Rack: {{ inv.rack_location|default:"—" }}
+      </div>
+      {% if inv and inv.last_counted_at %}
+        <div class="text-muted small" style="margin-top:0.5rem">
+          Last counted: {{ inv.last_counted_at|date:"Y-m-d H:i" }} by {{ inv.last_counted_by.username }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-header">Site</div>
+    <div class="mms-card-body">
+      <form method="get">
+        <select name="site" class="form-select" onchange="this.form.submit()">
+          {% for s in sites %}
+            <option value="{{ s.pk }}" {% if s.pk == selected_site.pk %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="mms-form-stack" style="margin-top:1rem">
+  <form method="post" class="mms-form">
+    {% csrf_token %}
+    <div class="mms-form-row">
+      <label for="new_quantity">New quantity *</label>
+      <input type="number" name="new_quantity" id="new_quantity"
+             class="form-control"
+             step="0.001" min="0"
+             value="{{ current_qty }}" required>
+    </div>
+    <div class="mms-form-row">
+      <label for="reason">Reason *</label>
+      <select name="reason" id="reason" class="form-select" required>
+        <option value="">Select a reason…</option>
+        <option value="audit_correction">Audit correction</option>
+        <option value="damaged_goods">Damaged goods</option>
+        <option value="expired">Expired material</option>
+        <option value="theft">Suspected theft/loss</option>
+        <option value="cycle_count">Cycle count</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="mms-form-row">
+      <label for="note">Note</label>
+      <textarea name="note" id="note" class="form-control" rows="2"
+                placeholder="Additional details…"></textarea>
+    </div>
+    <div class="mms-form-row">
+      <label for="rack_location">Rack location</label>
+      <input type="text" name="rack_location" id="rack_location"
+             class="form-control" maxlength="64"
+             value="{{ inv.rack_location|default:"" }}"
+             placeholder="e.g. A-01-03">
+    </div>
+    <div id="reason_other_row" class="mms-form-row" style="display:none">
+      <label for="reason_other">Specify reason</label>
+      <input type="text" name="reason_other" id="reason_other"
+             class="form-control" maxlength="128"
+             placeholder="Describe the reason…">
+    </div>
+    <div class="mms-form-row mms-form-row--checkbox">
+      <div>
+        <input type="checkbox" name="is_cycle_count" id="is_cycle_count" value="on">
+        <label for="is_cycle_count">Planned cycle count (vs emergency correction)</label>
+      </div>
+    </div>
+    <div class="alert alert-warning" style="margin-bottom:1rem">
+      <strong>Note:</strong> Adjustments are logged with <code>approved_by={{ request.user.username }}</code>.
+      All adjustments are permanently recorded in the stock movement history.
+      Rack location changes are also logged.
+    </div>
+    <div class="mms-form-actions">
+      <button type="submit" class="mms-btn mms-btn--primary">Record adjustment</button>
+      <a class="mms-btn mms-btn--ghost" href="{% url 'spare_part_detail' part.pk %}?site={{ selected_site.pk }}">Cancel</a>
+    </div>
+  </form>
+</div>
+<script>
+(function() {
+  var reasonSel = document.getElementById('reason');
+  var otherRow = document.getElementById('reason_other_row');
+  if (reasonSel && otherRow) {
+    reasonSel.addEventListener('change', function() {
+      otherRow.style.display = reasonSel.value === 'other' ? '' : 'none';
+    });
+  }
+})();
+</script>
+{% endblock %}

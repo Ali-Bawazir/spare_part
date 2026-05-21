@@ -1,29 +1,119 @@
 {% extends "base.html" %}
 {% block title %}Stock{% endblock %}
-{% block page_heading %}Stock levels{% endblock %}
+{% block page_heading %}Stock levels — {{ selected_site.name }}{% endblock %}
 {% block content %}
+<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap">
+  <form method="get" style="display:flex;align-items:center;gap:0.5rem">
+    <label for="site-select" class="text-muted small">Site:</label>
+    <select name="site" id="site-select" class="form-select" style="width:auto" onchange="this.form.submit()">
+      {% for s in sites %}
+        <option value="{{ s.pk }}" {% if s.pk == selected_site.pk %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <input class="form-control" type="text" name="q" placeholder="Search SKU or name…" value="{{ q }}" style="width:200px">
+    <select name="category" class="form-select" style="width:auto">
+      <option value="">All categories</option>
+      {% for cat in categories %}
+        <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="mms-btn mms-btn--ghost">Filter</button>
+    {% if q or category or low_stock_only or consumable_only %}
+      <a href="?site={{ selected_site.pk }}" class="mms-btn mms-btn--ghost">Clear</a>
+    {% endif %}
+  </form>
+  <div style="margin-left:auto;display:flex;gap:0.5rem;align-items:center">
+    <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer">
+      <input type="checkbox" name="low_stock" value="1" {% if low_stock_only %}checked{% endif %} onchange="this.form.submit()">
+      <span class="small">Low stock only</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer">
+      <input type="checkbox" name="consumable" value="1" {% if consumable_only %}checked{% endif %} onchange="this.form.submit()">
+      <span class="small">Consumables only</span>
+    </label>
+  </div>
+</div>
+
+{% if q or category or low_stock_only or consumable_only %}
+<div class="mms-form-tip" style="margin-bottom:0.75rem">
+  Filters: {% if q %}SKU/name contains "{{ q }}"{% endif %}
+  {% if category %} | Category: {{ category }}{% endif %}
+  {% if low_stock_only %} | Low stock only{% endif %}
+  {% if consumable_only %} | Consumables only{% endif %}
+</div>
+{% endif %}
+
 <div class="mms-actions" style="margin-bottom:1rem">
   {% if perm_stock_in %}
-  <a class="mms-btn mms-btn--primary" href="{% url 'stock_in' %}">Stock-in</a>
+  <a class="mms-btn mms-btn--primary" href="{% url 'stock_in' %}">+ Stock-in</a>
   {% endif %}
+  <a class="mms-btn mms-btn--ghost" href="{% url 'spare_part_create' %}">+ New part</a>
 </div>
+
 <div class="mms-card">
   <div class="mms-table-wrap">
-    <table class="mms-table {% if parts %}mms-table--warn{% endif %}">
-      <thead><tr><th>SKU</th><th>Name</th><th>Qty</th><th>Min</th><th>Consumable</th>{% if perm_stock_in %}<th>QR</th>{% endif %}</tr></thead>
+    <table class="mms-table">
+      <thead><tr>
+        <th>SKU</th>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Qty available</th>
+        <th>Reserved</th>
+        <th>Min</th>
+        <th>Rack</th>
+        <th>Consumable</th>
+        <th>Supplier</th>
+        <th>Low stock</th>
+        <th>QR</th>
+      </tr></thead>
       <tbody>
       {% for p in parts %}
-      <tr {% if p.is_low_stock %}class="mms-row-warn"{% endif %}>
-        <td>{{ p.sku }}</td>
+      <tr 
+        {% if p.inv_available is None or p.inv_available == 0 %}class="mms-row--danger"{% elif p.is_low_stock %}class="mms-row-warn"{% endif %}
+        style="cursor:pointer"
+        onclick="window.location='{% url 'spare_part_detail' p.pk %}?site={{ selected_site.pk }}'"
+      >
+        <td><code>{{ p.sku }}</code></td>
         <td>{{ p.name }}</td>
-        <td>{{ p.quantity_on_hand }}</td>
+        <td>{{ p.category|default:"—" }}</td>
+        <td>
+          {% if p.inv_available is not None %}
+            {{ p.inv_available }}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.inv_reserved is not None %}
+            {{ p.inv_reserved }}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
         <td>{{ p.min_stock_level }}</td>
-        <td>{% if p.is_consumable %}Yes{% else %}No{% endif %}</td>
-        {% if perm_stock_in %}
-        <td><a href="/media/qr/parts/PART_{{ p.sku }}.png" target="_blank" title="Print QR for {{ p.sku }}">📋</a></td>
-        {% endif %}
+        <td>{{ p.inv_rack|default:"—" }}</td>
+        <td>{{ p.is_consumable|yesno:"Yes,No" }}</td>
+        <td>
+          {% if p.supplier %}
+            <a href="{% url 'supplier_detail' p.supplier.pk %}">{{ p.supplier.code }}</a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.inv_available is None or p.inv_available == 0 %}
+            <span class="mms-badge mms-badge--danger">Out</span>
+          {% elif p.is_low_stock %}
+            <span class="mms-badge mms-badge--warning">Low</span>
+          {% else %}
+            <span class="mms-badge mms-badge--muted">OK</span>
+          {% endif %}
+        </td>
+        <td><a href="/media/qr/parts/PART_{{ p.sku }}.png" target="_blank" title="Print QR">📋</a></td>
       </tr>
-      {% empty %}<tr><td colspan="6" class="mms-empty">No parts.</td></tr>{% endfor %}
+      {% empty %}
+      <tr><td colspan="11" class="mms-empty">No parts found.</td></tr>
+      {% endfor %}
       </tbody>
     </table>
   </div>

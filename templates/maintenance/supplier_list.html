@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Suppliers — Stock{% endblock %}
+{% block page_heading %}Suppliers{% endblock %}
+{% block content %}
+<div class="mms-actions" style="margin-bottom:1rem">
+  <a class="mms-btn mms-btn--primary" href="{% url 'supplier_create' %}">+ New supplier</a>
+</div>
+
+{% if q %}
+<div class="mms-form-tip" style="margin-bottom:0.75rem">
+  Showing results for "<strong>{{ q }}</strong>" — <a href="{% url 'supplier_list' %}">Clear search</a>
+</div>
+{% endif %}
+
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Contact person</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>Active</th>
+        <th>Repair vendor</th>
+        <th>QR</th>
+      </tr></thead>
+      <tbody>
+      {% for s in suppliers %}
+      <tr>
+        <td><a href="{% url 'supplier_detail' s.pk %}"><code>{{ s.code }}</code></a></td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.contact_person|default:"—" }}</td>
+        <td>{{ s.phone|default:"—" }}</td>
+        <td>{{ s.email|default:"—" }}</td>
+        <td>
+          {% if s.is_active %}
+            <span class="mms-badge mms-badge--success">Active</span>
+          {% else %}
+            <span class="mms-badge mms-badge--muted">Inactive</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if s.is_repair_vendor %}
+            <span class="mms-badge mms-badge--info">Repair</span>
+          {% else %}
+            <span class="mms-badge mms-badge--muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if s.code %}
+          <a href="/media/qr/suppliers/SUPPLIER_{{ s.code }}.png" target="_blank" title="Print QR for {{ s.code }}">📋</a>
+          {% else %}
+          —
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="mms-empty">No suppliers found.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

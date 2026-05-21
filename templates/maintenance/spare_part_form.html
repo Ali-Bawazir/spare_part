@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}{{ page_heading }}{% endblock %}
+{% block page_heading %}{{ page_heading }}{% endblock %}
+{% block content %}
+<div class="mms-link-back">
+  {% if part %}
+    <a href="{% url 'spare_part_detail' part.pk %}">← Back to {{ part.name }}</a>
+  {% else %}
+    <a href="{% url 'stock_dashboard' %}">← Back to stock</a>
+  {% endif %}
+</div>
+
+<div class="mms-form-stack" style="margin-top:1rem">
+  <form method="post" class="mms-form" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mms-form-row">
+      <label for="id_sku">SKU *</label>
+      {{ form.sku }}
+      <span class="mms-form-help">Unique part identifier (e.g. BRG-6006). Uppercase letters, numbers, dashes only.</span>
+      {% if form.sku.errors %}<span class="mms-field-error">{{ form.sku.errors.0 }}</span>{% endif %}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_name">Name *</label>
+      {{ form.name }}
+      {% if form.name.errors %}<span class="mms-field-error">{{ form.name.errors.0 }}</span>{% endif %}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_category">Category</label>
+      {{ form.category }}
+      <span class="mms-form-help">e.g. Bearings, Filters, Electrical, Hydraulic</span>
+    </div>
+    <div class="mms-form-row">
+      <label for="id_unit">Unit</label>
+      {{ form.unit }}
+      <span class="mms-form-help">e.g. pcs, kg, liter, meter</span>
+    </div>
+    <div class="mms-form-row">
+      <label for="id_supplier">Preferred supplier</label>
+      {{ form.supplier }}
+    </div>
+    <div class="mms-form-row mms-form-row--checkbox">
+      <div>
+        {{ form.is_consumable }}
+        <label for="id_is_consumable">Consumable (depletes on use)</label>
+      </div>
+    </div>
+    <div class="mms-form-row mms-form-row--checkbox">
+      <div>
+        {{ form.is_repairable }}
+        <label for="id_is_repairable">Repairable (can be refurbished)</label>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+      <div class="mms-form-row">
+        <label for="id_min_stock_level">Min stock level</label>
+        {{ form.min_stock_level }}
+        {% if form.min_stock_level.errors %}<span class="mms-field-error">{{ form.min_stock_level.errors.0 }}</span>{% endif %}
+      </div>
+      <div class="mms-form-row">
+        <label for="id_max_stock_level">Max stock level</label>
+        {{ form.max_stock_level }}
+      </div>
+      <div class="mms-form-row">
+        <label for="id_avg_cost">Avg cost (€)</label>
+        {{ form.avg_cost }}
+      </div>
+    </div>
+    {% if form.last_purchase_cost %}
+    <div class="mms-form-row">
+      <label for="id_last_purchase_cost">Last purchase cost (€)</label>
+      {{ form.last_purchase_cost }}
+      <span class="mms-form-help">Most recent procurement unit price.</span>
+    </div>
+    {% endif %}
+    <div class="mms-form-row">
+      <label for="id_status">Status</label>
+      {{ form.status }}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_description">Description</label>
+      {{ form.description }}
+    </div>
+
+    <div class="mms-form-group">
+      <label class="mms-label">Datasheet / Certificate</label>
+      <input type="file" name="part_attachment" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" class="form-control">
+      <span class="mms-form-help">Optional: PDF or image (datasheet, certificate, etc.)</span>
+    </div>
+
+    {# Opening inventory fields — only on create form #}
+    {% if form.opening_qty %}
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:1.5rem 0">
+    <div class="mms-subheading" style="margin-bottom:1rem">Opening inventory (optional)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="mms-form-row">
+        <label for="id_opening_qty">Opening quantity</label>
+        {{ form.opening_qty }}
+        <span class="mms-form-help">Initial stock at default site.</span>
+      </div>
+      <div class="mms-form-row">
+        <label for="id_rack_location">Rack location</label>
+        {{ form.rack_location }}
+        <span class="mms-form-help">Storage location (e.g. A-01-03).</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="mms-form-actions">
+      <button type="submit" class="mms-btn mms-btn--primary">
+        {% if part %}Save changes{% else %}Create part{% endif %}
+      </button>
+      {% if part %}
+        <a class="mms-btn mms-btn--ghost" href="{% url 'spare_part_detail' part.pk %}">Cancel</a>
+      {% else %}
+        <a class="mms-btn mms-btn--ghost" href="{% url 'stock_dashboard' %}">Cancel</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

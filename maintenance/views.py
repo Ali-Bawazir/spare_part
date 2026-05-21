@@ -25,11 +25,13 @@ STALE_THRESHOLDS = {
 from accounts.capabilities import get_mms_capabilities
 from accounts.models import User
 from accounts.permissions import role_required
-from inventory.forms import ConsumableUseForm, IssuePartForm, StockInForm
-from inventory.models import PartIssueLine, SparePart
+from inventory.forms import ConsumableUseForm, IssuePartForm, SparePartCreateForm, StockInForm
+from inventory.models import Inventory, PartIssueLine, SparePart, StockMovement
+from decimal import Decimal
 from inventory.qr_utils import qr_scan_decode as decode_qr
 from inventory.services import consumable_use, issue_part_to_work_order, stock_in
-from procurement.models import PurchaseRequest
+from procurement.models import PurchaseRequest, Supplier
+from procurement.forms import SupplierForm
 
 from .forms import (
     AssignTechnicianForm,
@@ -724,8 +726,91 @@ def work_order_mark_vendor(request, pk):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def stock_dashboard(request):
-    parts = SparePart.objects.all()[:500]
-    return render(request, "maintenance/stock_dashboard.html", {"parts": parts})
+    """Site-aware stock dashboard with search, filters, and per-site inventory."""
+    from django.db.models import OuterRef, Subquery
+    from inventory.models import Inventory, SparePart
+    from maintenance.models import Site
+
+    sites = Site.objects.filter(is_active=True).order_by("name")
+    selected_site_id = request.GET.get("site")
+    selected_site = None
+    if selected_site_id:
+        try:
+            selected_site = sites.get(pk=int(selected_site_id))
+        except (ValueError, Site.DoesNotExist):
+            selected_site = sites.filter(is_default=True).first()
+    if not selected_site:
+        selected_site = sites.filter(is_default=True).first()
+
+    parts_qs = SparePart.objects.annotate(
+        inv_available=Subquery(
+            Inventory.objects.filter(
+                part=OuterRef("pk"),
+                site=selected_site
+            ).values("quantity_available")[:1]
+        ),
+        inv_reserved=Subquery(
+            Inventory.objects.filter(
+                part=OuterRef("pk"),
+                site=selected_site
+            ).values("quantity_reserved")[:1]
+        ),
+        inv_rack=Subquery(
+            Inventory.objects.filter(
+                part=OuterRef("pk"),
+                site=selected_site
+            ).values("rack_location")[:1]
+        ),
+        inv_pk=Subquery(
+            Inventory.objects.filter(
+                part=OuterRef("pk"),
+                site=selected_site
+            ).values("pk")[:1]
+        ),
+    )
+
+    q = request.GET.get("q", "").strip()
+    if q:
+        parts_qs = parts_qs.filter(
+            Q(sku__icontains=q) | Q(name__icontains=q)
+        )
+
+    category = request.GET.get("category", "").strip()
+    if category:
+        parts_qs = parts_qs.filter(category=category)
+
+    if request.GET.get("low_stock") == "1":
+        parts_qs = parts_qs.filter(
+            Q(min_stock_level__gt=0)
+            & (
+                Q(inv_available__isnull=True)
+                | Q(inv_available=0)
+                | Q(inv_available__lte=models.F("min_stock_level"))
+            )
+        )
+
+    if request.GET.get("consumable") == "1":
+        parts_qs = parts_qs.filter(is_consumable=True)
+
+    parts_qs = parts_qs.order_by("name")[:500]
+
+    categories = list(
+        SparePart.objects.exclude(category="")
+        .values_list("category", flat=True)
+        .distinct()
+        .order_by("category")
+    )
+
+    return render(request, "maintenance/stock_dashboard.html", {
+        "parts": parts_qs,
+        "sites": sites,
+        "selected_site": selected_site,
+        "categories": categories,
+        "q": q,
+        "category": category,
+        "low_stock_only": request.GET.get("low_stock") == "1",
+        "consumable_only": request.GET.get("consumable") == "1",
+    })
 
 
 @login_required
@@ -744,6 +829,19 @@ def stock_in_view(request):
                 note=form.cleaned_data.get("note") or "",
             )
             messages.success(request, "Stock-in recorded.")
+            uploaded_file = request.FILES.get("invoice_attachment")
+            if uploaded_file:
+                from maintenance.models import Attachment
+                Attachment.objects.create(
+                    entity_type=Attachment.EntityType.SPARE_PART,
+                    entity_id=form.cleaned_data["part"].pk,
+                    file=uploaded_file,
+                    filename=uploaded_file.name,
+                    size_bytes=uploaded_file.size,
+                    mime_type=getattr(uploaded_file, "content_type", "") or "",
+                    uploaded_by=request.user,
+                    note="Invoice attachment from stock-in",
+                )
             return redirect("stock_dashboard")
     else:
         form = StockInForm()
@@ -767,6 +865,179 @@ def consumables_view(request):
     else:
         form = ConsumableUseForm()
     return render(request, "maintenance/consumables.html", {"form": form})
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def supplier_list(request):
+    """Operational supplier list — /stock/suppliers/"""
+    suppliers = Supplier.objects.filter(is_active=True).order_by("code")
+    q = request.GET.get("q", "").strip()
+    if q:
+        suppliers = suppliers.filter(
+            models.Q(name__icontains=q)
+            | models.Q(code__icontains=q)
+            | models.Q(contact_person__icontains=q)
+            | models.Q(phone__icontains=q)
+            | models.Q(email__icontains=q)
+        )
+    return render(request, "maintenance/supplier_list.html", {"suppliers": suppliers, "q": q})
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def supplier_detail(request, pk):
+    """Supplier detail with linked parts and recent PRs."""
+    supplier = get_object_or_404(Supplier, pk=pk)
+    linked_parts = supplier.parts.order_by("name")[:50]
+    recent_prs = supplier.purchase_requests.filter(
+        status=PurchaseRequest.Status.PENDING
+    ).order_by("-created_at")[:10]
+    return render(request, "maintenance/supplier_detail.html", {
+        "supplier": supplier,
+        "linked_parts": linked_parts,
+        "recent_prs": recent_prs,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def supplier_create(request):
+    """Create a new supplier."""
+    if request.method == "POST":
+        form = SupplierForm(request.POST)
+        if form.is_valid():
+            supplier = form.save()
+            messages.success(request, f"Supplier '{supplier.name}' created with code {supplier.code}.")
+            return redirect("supplier_detail", pk=supplier.pk)
+    else:
+        form = SupplierForm()
+    return render(request, "maintenance/supplier_form.html", {
+        "form": form,
+        "supplier": None,
+        "page_heading": "New supplier",
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def supplier_edit(request, pk):
+    """Edit an existing supplier."""
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == "POST":
+        form = SupplierForm(request.POST, instance=supplier)
+        if form.is_valid():
+            supplier = form.save()
+            messages.success(request, f"Supplier '{supplier.name}' updated.")
+            return redirect("supplier_detail", pk=supplier.pk)
+    else:
+        form = SupplierForm(instance=supplier)
+    return render(request, "maintenance/supplier_form.html", {
+        "form": form,
+        "supplier": supplier,
+        "page_heading": f"Edit supplier — {supplier.code}",
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
+def spare_part_detail(request, pk):
+    """Operational spare part detail — /stock/<pk>/"""
+    from inventory.models import Inventory, StockMovement, SparePart as SP
+    from maintenance.models import Site
+
+    part = get_object_or_404(SP, pk=pk)
+
+    sites = Site.objects.filter(is_active=True).order_by("name")
+    selected_site_id = request.GET.get("site")
+    if selected_site_id:
+        try:
+            selected_site = sites.get(pk=int(selected_site_id))
+        except (ValueError, Site.DoesNotExist):
+            selected_site = sites.filter(is_default=True).first()
+    else:
+        selected_site = sites.filter(is_default=True).first()
+
+    inv = None
+    if selected_site:
+        inv = part.inventory_items.filter(site=selected_site).first()
+
+    movements_qs = StockMovement.objects.filter(part=part).select_related(
+        "performed_by", "work_order", "site"
+    ).order_by("-created_at")
+
+    recent_wo_ids = movements_qs.filter(
+        work_order__isnull=False
+    ).values_list("work_order", flat=True).distinct()[:10]
+    recent_wos = (
+        WorkOrder.objects.filter(pk__in=list(recent_wo_ids))
+        .select_related("machine")
+        .order_by("-created_at")[:10]
+    )
+
+    recent_prs = part.purchase_requests.filter(
+        status=PurchaseRequest.Status.PENDING
+    ).order_by("-created_at")[:5]
+
+    return render(request, "maintenance/spare_part_detail.html", {
+        "part": part,
+        "sites": sites,
+        "selected_site": selected_site,
+        "inv": inv,
+        "movements": list(movements_qs[:50]),
+        "recent_wos": recent_wos,
+        "recent_prs": recent_prs,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def spare_part_create(request):
+    """Create a new spare part from operations — /stock/new/"""
+    from decimal import Decimal
+    from inventory.models import Inventory, SparePart as SP
+    from maintenance.models import Site
+
+    if request.method == "POST":
+        form = SparePartCreateForm(request.POST)
+        if form.is_valid():
+            part = form.save()
+            from maintenance.models import Attachment
+            uploaded_file = request.FILES.get("part_attachment")
+            if uploaded_file:
+                Attachment.objects.create(
+                    entity_type=Attachment.EntityType.SPARE_PART,
+                    entity_id=part.pk,
+                    file=uploaded_file,
+                    filename=uploaded_file.name,
+                    size_bytes=uploaded_file.size,
+                    mime_type=getattr(uploaded_file, "content_type", "") or "",
+                    uploaded_by=request.user,
+                    note="Datasheet / certificate attached during part creation",
+                )
+            opening_qty = form.cleaned_data.get("opening_qty") or Decimal("0")
+            rack = form.cleaned_data.get("rack_location", "").strip()
+            if opening_qty > 0:
+                default_site = Site.objects.filter(is_default=True).first()
+                if default_site:
+                    Inventory.objects.create(
+                        part=part,
+                        site=default_site,
+                        quantity_available=opening_qty,
+                        rack_location=rack,
+                    )
+                part.quantity_on_hand = opening_qty
+                part.save(update_fields=["quantity_on_hand"])
+            messages.success(request, f"Part '{part.name}' created. SKU: {part.sku}")
+            return redirect("spare_part_detail", pk=part.pk)
+    else:
+        form = SparePartCreateForm()
+
+    return render(request, "maintenance/spare_part_form.html", {
+        "form": form,
+        "part": None,
+        "page_heading": "New spare part",
+    })
 
 
 @login_required
@@ -1392,3 +1663,269 @@ def work_order_archive(request, pk):
     archive_work_order(wo, request.user)
     messages.success(request, f"Work order WO-{wo.number} has been archived.")
     return redirect("work_order_list")
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def spare_part_create(request):
+    """Create a new spare part from operations — /stock/new/"""
+    from decimal import Decimal
+    from inventory.models import Inventory, SparePart
+    from maintenance.models import Site
+
+    if request.method == "POST":
+        form = SparePartCreateForm(request.POST)
+        if form.is_valid():
+            part = form.save()
+            opening_qty = form.cleaned_data.get("opening_qty") or Decimal("0")
+            rack = form.cleaned_data.get("rack_location", "").strip()
+            if opening_qty > 0:
+                default_site = Site.objects.filter(is_default=True).first()
+                if default_site:
+                    Inventory.objects.create(
+                        part=part,
+                        site=default_site,
+                        quantity_available=opening_qty,
+                        rack_location=rack,
+                    )
+                    part.quantity_on_hand = opening_qty
+                    part.save(update_fields=["quantity_on_hand"])
+            messages.success(request, f"Part '{part.name}' created. SKU: {part.sku}")
+            return redirect("spare_part_detail", pk=part.pk)
+    else:
+        form = SparePartCreateForm()
+    return render(request, "maintenance/spare_part_form.html", {
+        "form": form,
+        "part": None,
+        "page_heading": "New spare part",
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
+def spare_part_detail(request, pk):
+    """Operational spare part detail — /stock/<pk>/"""
+    from inventory.models import Inventory, StockMovement
+    from maintenance.models import Site
+
+    part = get_object_or_404(SparePart, pk=pk)
+    sites = Site.objects.filter(is_active=True).order_by("name")
+    selected_site_id = request.GET.get("site")
+    if selected_site_id:
+        try:
+            selected_site = sites.get(pk=int(selected_site_id))
+        except (ValueError, Site.DoesNotExist):
+            selected_site = sites.filter(is_default=True).first()
+    else:
+        selected_site = sites.filter(is_default=True).first()
+
+    inv = None
+    if selected_site and part:
+        inv = part.inventory_items.filter(site=selected_site).first()
+
+    movements_qs = StockMovement.objects.filter(part=part).select_related(
+        "performed_by", "work_order", "site"
+    ).order_by("-created_at")
+
+    recent_wo_ids = movements_qs.filter(work_order__isnull=False).values_list(
+        "work_order", flat=True
+    ).distinct()[:10]
+    recent_wos = WorkOrder.objects.filter(pk__in=list(recent_wo_ids)).select_related(
+        "machine"
+    ).order_by("-created_at")[:10]
+
+    recent_prs = part.purchase_requests.filter(
+        status=PurchaseRequest.Status.PENDING
+    ).order_by("-created_at")[:5]
+
+    return render(request, "maintenance/spare_part_detail.html", {
+        "part": part,
+        "sites": sites,
+        "selected_site": selected_site,
+        "inv": inv,
+        "movements": list(movements_qs[:50]),
+        "recent_wos": recent_wos,
+        "recent_prs": recent_prs,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def part_stock_in(request, pk):
+    """Stock-in form for a specific part — /stock/<pk>/stock-in/"""
+    from inventory.forms import StockInForm
+
+    part = get_object_or_404(SparePart, pk=pk)
+    selected_site_id = request.GET.get("site")
+    from maintenance.models import Site
+    sites = Site.objects.filter(is_active=True).order_by("name")
+    selected_site = sites.filter(is_default=True).first()
+    if selected_site_id:
+        try:
+            selected_site = sites.get(pk=int(selected_site_id))
+        except (ValueError, Site.DoesNotExist):
+            pass
+
+    if request.method == "POST":
+        form = StockInForm(request.POST)
+        if form.is_valid():
+            stock_in(
+                part=form.cleaned_data["part"],
+                quantity=form.cleaned_data["quantity"],
+                performed_by=request.user,
+                supplier_name=form.cleaned_data["supplier_name"],
+                unit_cost=form.cleaned_data["unit_cost"],
+                invoice_ref=form.cleaned_data["invoice_ref"],
+                note=form.cleaned_data.get("note") or "",
+                site=selected_site,
+            )
+            messages.success(request, f"Stock-in recorded for {part.name}.")
+            uploaded_file = request.FILES.get("invoice_attachment")
+            if uploaded_file:
+                from maintenance.models import Attachment
+                Attachment.objects.create(
+                    entity_type=Attachment.EntityType.SPARE_PART,
+                    entity_id=part.pk,
+                    file=uploaded_file,
+                    filename=uploaded_file.name,
+                    size_bytes=uploaded_file.size,
+                    mime_type=getattr(uploaded_file, "content_type", "") or "",
+                    uploaded_by=request.user,
+                    note="Invoice attachment from stock-in",
+                )
+            return redirect("spare_part_detail", pk=part.pk)
+    else:
+        form = StockInForm(initial={"part": part.pk})
+
+    return render(request, "maintenance/stock_in.html", {
+        "form": form,
+        "part": part,
+        "page_heading": f"Stock-in — {part.name}",
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def part_adjust(request, pk):
+    """Inventory adjustment for a specific part — /stock/<pk>/adjust/"""
+    from decimal import Decimal
+    from inventory.models import Inventory
+    from maintenance.models import Site
+
+    part = get_object_or_404(SparePart, pk=pk)
+    sites = Site.objects.filter(is_active=True).order_by("name")
+    selected_site_id = request.GET.get("site")
+    if selected_site_id:
+        try:
+            selected_site = sites.get(pk=int(selected_site_id))
+        except (ValueError, Site.DoesNotExist):
+            selected_site = sites.filter(is_default=True).first()
+    else:
+        selected_site = sites.filter(is_default=True).first()
+
+    inv = None
+    if selected_site:
+        inv = part.inventory_items.filter(site=selected_site).first()
+
+    current_qty = inv.quantity_available if inv else Decimal("0")
+
+    if request.method == "POST":
+        new_qty = request.POST.get("new_quantity")
+        reason = request.POST.get("reason", "").strip()
+        note = request.POST.get("note", "").strip()
+        rack_location = request.POST.get("rack_location", "").strip()
+        is_cycle_count = request.POST.get("is_cycle_count") == "on"
+        if new_qty and reason:
+            try:
+                new_qty_dec = Decimal(str(new_qty))
+                if selected_site:
+                    if inv:
+                        inv.quantity_available = new_qty_dec
+                        inv.last_counted_at = timezone.now()
+                        inv.last_counted_by = request.user
+                        if rack_location:
+                            inv.rack_location = rack_location
+                        inv.save()
+                    else:
+                        Inventory.objects.create(
+                            part=part,
+                            site=selected_site,
+                            quantity_available=new_qty_dec,
+                            last_counted_at=timezone.now(),
+                            last_counted_by=request.user,
+                            rack_location=rack_location,
+                        )
+                StockMovement.objects.create(
+                    part=part,
+                    movement_type=StockMovement.MovementType.ADJUSTMENT,
+                    quantity=new_qty_dec - current_qty,
+                    quantity_before=current_qty,
+                    quantity_after=new_qty_dec,
+                    performed_by=request.user,
+                    site=selected_site,
+                    reference={"reason": reason, "note": note, "approved_by": request.user.username, "is_cycle_count": is_cycle_count},
+                )
+                messages.success(request, f"Adjusted {part.name} from {current_qty} to {new_qty_dec}.")
+                return redirect("spare_part_detail", pk=part.pk)
+            except Exception as e:
+                messages.error(request, f"Adjustment failed: {e}")
+        else:
+            messages.error(request, "New quantity and reason are required.")
+
+    return render(request, "maintenance/part_adjust.html", {
+        "part": part,
+        "inv": inv,
+        "current_qty": current_qty,
+        "selected_site": selected_site,
+        "sites": sites,
+        "is_cycle_count": False,
+    })
+
+
+@login_required
+@role_required(User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def stock_lookup(request):
+    """Read-only stock lookup for technicians — /stock/lookup/"""
+    from django.db.models import OuterRef, Subquery
+    from inventory.models import Inventory, SparePart
+    from maintenance.models import Site
+
+    sites = Site.objects.filter(is_active=True).order_by("name")
+    selected_site_id = request.GET.get("site")
+    if selected_site_id:
+        try:
+            selected_site = sites.get(pk=int(selected_site_id))
+        except (ValueError, Site.DoesNotExist):
+            selected_site = sites.filter(is_default=True).first()
+    else:
+        selected_site = sites.filter(is_default=True).first()
+
+    parts_qs = SparePart.objects.annotate(
+        inv_available=Subquery(
+            Inventory.objects.filter(
+                part=OuterRef("pk"),
+                site=selected_site
+            ).values("quantity_available")[:1]
+        ),
+        inv_rack=Subquery(
+            Inventory.objects.filter(
+                part=OuterRef("pk"),
+                site=selected_site
+            ).values("rack_location")[:1]
+        ),
+    ).filter(status="active")
+
+    q = request.GET.get("q", "").strip()
+    if q:
+        parts_qs = parts_qs.filter(
+            Q(sku__icontains=q) | Q(name__icontains=q)
+        )
+
+    parts_qs = parts_qs.order_by("name")[:500]
+
+    return render(request, "maintenance/stock_lookup.html", {
+        "parts": parts_qs,
+        "sites": sites,
+        "selected_site": selected_site,
+        "q": q,
+    })

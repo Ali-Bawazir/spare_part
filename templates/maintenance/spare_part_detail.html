@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}{{ part.name }} ({% if part.sku %}{{ part.sku }}{% endif %}) — Stock{% endblock %}
+{% block page_heading %}{{ part.name }}{% endblock %}
+{% block content %}
+
+{# Site selector #}
+<div style="margin-bottom:1rem">
+  <form method="get" style="display:flex;align-items:center;gap:0.5rem">
+    <label class="text-muted small">Site:</label>
+    <select name="site" class="form-select" style="width:auto" onchange="this.form.submit()">
+      {% for s in sites %}
+        <option value="{{ s.pk }}" {% if s.pk == selected_site.pk %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{# Header card #}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem">
+    <div>
+      <div class="mms-subheading">SKU: <code>{{ part.sku }}</code></div>
+      <div class="text-muted small">
+        Category: {{ part.category|default:"—" }} |
+        Unit: {{ part.unit|default:"—" }} |
+        Status:
+        {% if part.status == 'active' %}<span class="mms-badge mms-badge--success">Active</span>
+        {% elif part.status == 'obsolete' %}<span class="mms-badge mms-badge--warning">Obsolete</span>
+        {% else %}<span class="mms-badge mms-badge--muted">Discontinued</span>{% endif %}
+        |
+        Consumable: {{ part.is_consumable|yesno:"Yes,No" }}
+      </div>
+      <div class="text-muted small" style="margin-top:0.25rem">
+        Supplier:
+        {% if part.supplier %}
+          <a href="{% url 'supplier_detail' part.supplier.pk %}">{{ part.supplier.name }}</a> ({{ part.supplier.code }})
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+        |
+        Avg cost: {% if part.avg_cost %}{{ part.avg_cost }}{% else %}—{% endif %}
+        |
+        Last purchase: {% if part.last_purchase_cost %}{{ part.last_purchase_cost }}{% else %}—{% endif %}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem">
+      {% if part.qr_code %}
+      <div style="text-align:center">
+        <img src="/media/qr/parts/PART_{{ part.sku }}.png" width="100" height="100" style="border:1px solid #e2e8f0;border-radius:8px">
+        <div class="small text-muted">QR code</div>
+      </div>
+      {% endif %}
+      <div>
+        <a class="mms-btn mms-btn--ghost" href="/media/qr/parts/PART_{{ part.sku }}.png" target="_blank">📋 Print QR</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Inventory by site #}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">
+    Inventory @ {{ selected_site.name }}
+  </div>
+  <div class="mms-card-body">
+    {% if inv %}
+    <table style="width:100%;border-collapse:collapse">
+      <tr>
+        <td class="text-muted small" style="width:120px">Available</td>
+        <td>
+          {% if inv.quantity_available <= part.min_stock_level and part.min_stock_level > 0 %}
+            <span class="mms-badge mms-badge--danger">{{ inv.quantity_available }}</span>
+          {% else %}
+            {{ inv.quantity_available }}
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td class="text-muted small">Reserved</td>
+        <td>{{ inv.quantity_reserved }}</td>
+      </tr>
+      <tr>
+        <td class="text-muted small">Rack</td>
+        <td>{{ inv.rack_location|default:"—" }}</td>
+      </tr>
+      <tr>
+        <td class="text-muted small">Last counted</td>
+        <td>
+          {% if inv.last_counted_at %}
+            {{ inv.last_counted_at|date:"Y-m-d H:i" }} by {{ inv.last_counted_by.username }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+    </table>
+    {% else %}
+    <p class="mms-empty">No inventory record at this site.</p>
+    {% endif %}
+
+    {# Quick actions #}
+    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+      <a class="mms-btn mms-btn--primary" href="{% url 'part_stock_in' part.pk %}?site={{ selected_site.pk }}">+ Stock-in</a>
+      {% if perm_issue_part %}
+      <a class="mms-btn mms-btn--ghost" href="{% url 'work_order_issue_part' %}?part={{ part.pk }}">Issue to WO</a>
+      {% endif %}
+      <a class="mms-btn mms-btn--ghost" href="{% url 'part_adjust' part.pk %}?site={{ selected_site.pk }}">Adjust qty</a>
+    </div>
+  </div>
+</div>
+
+{# Stock movement timeline #}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Recent stock movements ({{ movements|length }})</div>
+  <div class="mms-card-body">
+    {% if movements %}
+    <div style="max-height:400px;overflow-y:auto">
+      {% for m in movements %}
+      <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid #f1f5f9">
+        <span class="mms-badge mms-badge--{% if m.movement_type == 'stock_in' %}success{% elif m.movement_type == 'issue_wo' %}primary{% elif m.movement_type == 'consumable' %}info{% elif m.movement_type == 'adjustment' %}warning{% else %}muted{% endif %}">
+          {{ m.get_movement_type_display }}
+        </span>
+        <span style="font-weight:600">
+          {% if m.quantity > 0 %}+{% endif %}{{ m.quantity }}
+        </span>
+        <span class="text-muted small">
+          {% if m.supplier_name %}{{ m.supplier_name }}{% endif %}
+          {% if m.invoice_ref %}| Inv: {{ m.invoice_ref }}{% endif %}
+          {% if m.work_order %}| <a href="{% url 'work_order_detail' m.work_order.pk %}">{{ m.work_order.number }}</a>{% endif %}
+        </span>
+        <span class="text-muted small" style="margin-left:auto">{{ m.created_at|date:"Y-m-d H:i" }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="mms-empty">No movements recorded.</p>
+    {% endif %}
+  </div>
+</div>
+
+{# Recent work orders #}
+{% if recent_wos %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Recent work orders using this part</div>
+  <div class="mms-card-body">
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr><th>WO</th><th>Machine</th><th>Status</th><th>Created</th></tr></thead>
+        <tbody>
+        {% for wo in recent_wos %}
+        <tr>
+          <td><a href="{% url 'work_order_detail' wo.pk %}">{{ wo.number }}</a></td>
+          <td>{{ wo.machine.name }}</td>
+          <td><span class="mms-badge mms-badge--muted">{{ wo.get_status_display }}</span></td>
+          <td>{{ wo.created_at|date:"Y-m-d" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# Recent purchase requests #}
+{% if recent_prs %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Pending purchase requests</div>
+  <div class="mms-card-body">
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr><th>PR</th><th>Qty</th><th>Supplier</th><th>Status</th><th>Created</th></tr></thead>
+        <tbody>
+        {% for pr in recent_prs %}
+        <tr>
+          <td>#{{ pr.pk }}</td>
+          <td>{{ pr.quantity }}</td>
+          <td>{% if pr.supplier %}{{ pr.supplier.name }}{% else %}—{% endif %}</td>
+          <td><span class="mms-badge mms-badge--warning">{{ pr.get_status_display }}</span></td>
+          <td>{{ pr.created_at|date:"Y-m-d" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# Attachments section #}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Documents & Attachments</div>
+  <div class="mms-card-body">
+    <div id="attachments-list" hx-get="/attachments/spare_part/{{ part.pk }}/"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <span class="text-muted">Loading attachments…</span>
+    </div>
+    <form id="attachment-upload-form" method="post" enctype="multipart/form-data" style="margin-top:1rem">
+      {% csrf_token %}
+      <input type="hidden" name="entity_type" value="spare_part">
+      <input type="hidden" name="entity_id" value="{{ part.pk }}">
+      <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <input type="file" name="file" id="attachment-file-input" style="flex:1">
+        <input type="text" name="note" placeholder="Note (optional)" class="form-control" style="width:200px">
+        <button type="submit" class="mms-btn mms-btn--ghost">Upload</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if part.description %}
+<div class="mms-card">
+  <div class="mms-card-header">Description</div>
+  <div class="mms-card-body">{{ part.description|linebreaks }}</div>
+</div>
+{% endif %}
+
+{# Back link #}
+<div style="margin-top:1rem">
+  <a href="{% url 'stock_dashboard' %}?site={{ selected_site.pk }}">← Back to stock</a>
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.safestring import mark_safe
 
 from mms.admin_mixins import MMSAdminPermission
 
@@ -7,11 +8,46 @@ from .models import PurchaseRequest, Supplier
 
 @admin.register(Supplier)
 class SupplierAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("name", "is_repair_vendor", "contact", "created_at")
-    list_filter = ("is_repair_vendor",)
-    search_fields = ("name", "contact", "notes")
-    readonly_fields = ("created_at",)
+    list_display = (
+        "code",
+        "name",
+        "contact_person",
+        "phone",
+        "email",
+        "is_active",
+        "is_repair_vendor",
+        "created_at",
+    )
+    list_filter = ("is_active", "is_repair_vendor")
+    search_fields = ("code", "name", "contact_person", "phone", "email", "notes")
+    readonly_fields = ("created_at", "qr_code_preview")
     ordering = ("name",)
+    fieldsets = (
+        ("Identification", {
+            "fields": ("code", "name", "is_active"),
+        }),
+        ("Contact", {
+            "fields": ("contact_person", "phone", "email", "address"),
+        }),
+        ("Vendor type", {
+            "fields": ("is_repair_vendor",),
+        }),
+        ("Notes", {
+            "fields": ("notes",),
+        }),
+        ("Audit", {
+            "fields": ("created_at",),
+            "classes": ("collapse",),
+        }),
+    )
+
+    def qr_code_preview(self, obj):
+        if obj and obj.code:
+            from inventory.qr_utils import get_supplier_qr_url
+            url = get_supplier_qr_url(obj.code)
+            return mark_safe(f'<img src="{url}" width="120" height="120" style="border:1px solid #ccc;border-radius:8px"/>')
+        return "-"
+    qr_code_preview.short_description = "QR Code"
 
 
 @admin.register(PurchaseRequest)

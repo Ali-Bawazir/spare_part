@@ -4,7 +4,7 @@ from django import forms
 
 from maintenance.models import WorkOrder
 
-from .models import PurchaseRequest
+from .models import PurchaseRequest, Supplier
 
 
 _CTRL = {"class": "form-control"}
@@ -42,4 +42,53 @@ class PurchaseOfficerForm(forms.ModelForm):
             "unit_price": forms.NumberInput(attrs=_CTRL),
             "status": forms.Select(attrs=_SEL),
             "notes": forms.Textarea(attrs={**_CTRL, "rows": 3}),
+        }
+
+
+class SupplierForm(forms.ModelForm):
+    """Operational supplier form — used in stock module (not Django admin)."""
+
+    class Meta:
+        model = Supplier
+        fields = (
+            "code",
+            "name",
+            "contact_person",
+            "phone",
+            "email",
+            "address",
+            "is_repair_vendor",
+            "is_active",
+            "notes",
+        )
+        widgets = {
+            "code": forms.TextInput(attrs={**_CTRL, "placeholder": "SUP-001"}),
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": "ACME Parts Ltd"}),
+            "contact_person": forms.TextInput(attrs={**_CTRL}),
+            "phone": forms.TextInput(attrs={**_CTRL, "placeholder": "+966 11 555 0100"}),
+            "email": forms.EmailInput(attrs={**_CTRL, "placeholder": "contact@acme.com"}),
+            "address": forms.Textarea(attrs={**_CTRL, "rows": 3}),
+            "is_repair_vendor": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "notes": forms.Textarea(attrs={**_CTRL, "rows": 2}),
+        }
+
+    def clean_code(self):
+        code = (self.cleaned_data.get("code") or "").strip().upper()
+        if not code:
+            raise forms.ValidationError("Supplier code is required.")
+        if Supplier.objects.filter(code=code).exclude(pk=self.instance.pk if self.instance.pk else None).exists():
+            raise forms.ValidationError(f"Supplier code '{code}' is already in use.")
+        return code
+
+
+class SupplierQuickForm(forms.ModelForm):
+    """Quick supplier create — name + code only (used for rapid entry)."""
+
+    class Meta:
+        model = Supplier
+        fields = ("code", "name")
+        widgets = {
+            "code": forms.TextInput(attrs={**_CTRL, "placeholder": "SUP-001"}),
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": "Supplier name"}),
         }

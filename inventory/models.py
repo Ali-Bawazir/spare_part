@@ -12,6 +12,14 @@ class Inventory(models.Model):
     quantity_available = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     quantity_reserved = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     rack_location = models.CharField(max_length=64, blank=True)
+    last_counted_at = models.DateTimeField(null=True, blank=True)
+    last_counted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="inventory_counts",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -39,6 +47,30 @@ class SparePart(models.Model):
     max_stock_level = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
     is_repairable = models.BooleanField(default=False)
     avg_cost = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    supplier = models.ForeignKey(
+        "procurement.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="parts",
+    )
+    last_purchase_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Most recent unit purchase price.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("active", "Active"),
+            ("obsolete", "Obsolete"),
+            ("discontinued", "Discontinued"),
+        ],
+        default="active",
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

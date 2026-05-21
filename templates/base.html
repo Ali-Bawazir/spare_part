@@ -47,6 +47,12 @@
       {% if perm_consumables %}
       <a href="{% url 'consumables' %}" class="mms-nav-link{% if current_url_name == 'consumables' %} is-active{% endif %}">Consumables</a>
       {% endif %}
+      {% if user.role == 'technician' or user.role == 'supervisor' %}
+      <a href="{% url 'stock_lookup' %}" class="mms-nav-link{% if current_url_name == 'stock_lookup' %} is-active{% endif %}">Inventory Lookup</a>
+      {% endif %}
+      {% if user.role == 'manager' or user.role == 'procurement' or user.role == 'super_admin' %}
+      <a href="{% url 'supplier_list' %}" class="mms-nav-link{% if current_url_name and 'supplier' in current_url_name %} is-active{% endif %}">Suppliers</a>
+      {% endif %}
       {% endif %}
 
       {% if perm_view_procurement_requests %}

@@ -34,6 +34,35 @@ def get_part_qr_url(sku: str) -> str:
     return f"/media/qr/parts/PART_{sku}.png"
 
 
+def generate_supplier_qr(code: str) -> bytes:
+    """Generate QR PNG bytes for a SUPPLIER code."""
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(f"SUPPLIER:{code}")
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def save_supplier_qr(code: str, destination: str = None) -> str:
+    """Save SUPPLIER QR to media/qr/suppliers/ and return the file path."""
+    if destination is None:
+        qr_dir = os.path.join(settings.MEDIA_ROOT, "qr", "suppliers")
+        os.makedirs(qr_dir, exist_ok=True)
+        destination = os.path.join(qr_dir, f"SUPPLIER_{code}.png")
+
+    png_bytes = generate_supplier_qr(code)
+    with open(destination, "wb") as f:
+        f.write(png_bytes)
+    return destination
+
+
+def get_supplier_qr_url(code: str) -> str:
+    """Return the URL path to the QR PNG for a supplier."""
+    return f"/media/qr/suppliers/SUPPLIER_{code}.png"
+
+
 def qr_scan_decode(raw: str) -> dict:
     """
     Decode a scanned QR raw string.
@@ -51,4 +80,7 @@ def qr_scan_decode(raw: str) -> dict:
             return {"type": "inventory", "part_id": part_id}
         except ValueError:
             pass
+    if raw.startswith("SUPPLIER:"):
+        code = raw[9:]
+        return {"type": "supplier", "code": code}
     return {"type": "unknown", "raw": raw}
