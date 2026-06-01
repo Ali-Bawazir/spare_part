@@ -4,7 +4,7 @@ from django import forms
 
 from maintenance.models import WorkOrder
 
-from .models import PurchaseRequest, Supplier
+from .models import PurchaseOrder, PurchaseOrderItem, PurchaseRequest, Supplier
 
 
 _CTRL = {"class": "form-control"}
@@ -43,6 +43,48 @@ class PurchaseOfficerForm(forms.ModelForm):
             "status": forms.Select(attrs=_SEL),
             "notes": forms.Textarea(attrs={**_CTRL, "rows": 3}),
         }
+
+
+class PurchaseOrderForm(forms.ModelForm):
+    """Form for creating and editing a purchase order."""
+
+    class Meta:
+        model = PurchaseOrder
+        fields = ["supplier", "invoice_ref", "expected_delivery", "status", "notes", "handled_by"]
+        widgets = {
+            "expected_delivery": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "notes": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["handled_by"].required = False
+        self.fields["invoice_ref"].required = False
+
+
+class PurchaseOrderItemForm(forms.ModelForm):
+    """Form for a PO line item."""
+
+    class Meta:
+        model = PurchaseOrderItem
+        fields = ["part", "ordered_qty", "unit_price"]
+
+    def clean(self):
+        cleaned = super().clean()
+        qty = cleaned.get("ordered_qty")
+        price = cleaned.get("unit_price")
+        if qty and price:
+            cleaned["total_price"] = qty * price
+        return cleaned
+
+
+POItemFormSet = forms.inlineformset_factory(
+    PurchaseOrder,
+    PurchaseOrderItem,
+    fields=["part", "ordered_qty", "unit_price"],
+    extra=1,
+    can_delete=True,
+)
 
 
 class SupplierForm(forms.ModelForm):

@@ -50,6 +50,8 @@ from .forms import (
     WorkOrderCompleteForm,
 )
 from .models import (
+    Attachment,
+    Incident,
     AuditEntry,
     ExternalRepairOrder,
     Machine,
@@ -354,6 +356,32 @@ def issue_list(request):
 
 
 @login_required
+@role_required(User.Role.OPERATOR, User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+def issue_detail(request, pk):
+    """Operator issue detail page — read only."""
+    issue = get_object_or_404(
+        MaintenanceIssue.objects.select_related("machine", "reported_by", "validated_by"),
+        pk=pk,
+    )
+    if request.user.role == User.Role.OPERATOR and not request.user.is_super_admin_role():
+        if issue.reported_by_id != request.user.id:
+            raise Http404()
+    return render(request, "maintenance/issue_detail.html", {"issue": issue})
+
+
+@login_required
+def failure_modes_by_category(request):
+    """API endpoint: return failure modes for a given category_id. Used for cascading dropdown."""
+    category_id = request.GET.get("category_id", "")
+    modes = []
+    if category_id:
+        from maintenance.models import FailureMode
+        qs = FailureMode.objects.filter(is_active=True, category_id=category_id).order_by("code")
+        modes = [{"id": fm.pk, "code": fm.code, "name": fm.name} for fm in qs]
+    return JsonResponse({"modes": modes})
+
+
+@login_required
 @role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def issue_create(request):
     qr = request.GET.get("qr", "").strip()
@@ -369,6 +397,23 @@ def issue_create(request):
 
             notify_new_issue(issue)
             messages.success(request, "Issue reported.")
+
+            files = request.FILES.getlist("issue_photos")
+            if files:
+                from .models import Attachment
+                for f in files:
+                    content_type = getattr(f, 'content_type', '') or ''
+                    att = Attachment.objects.create(
+                        entity_type='maintenance_issue',
+                        entity_id=issue.pk,
+                        file=f,
+                        filename=f.name,
+                        size_bytes=f.size or 0,
+                        mime_type=content_type,
+                        uploaded_by=request.user,
+                    )
+                return JsonResponse({"redirect_url": reverse("issue_list")})
+
             return redirect("issue_list")
     else:
         initial = {}
@@ -434,6 +479,12 @@ def work_order_detail(request, pk):
         raise Http404()
     part_issues = wo.part_issues.select_related("part", "issued_by")
     logs = wo.state_logs.select_related("actor")[:50]
+    issue_attachments = []
+    if wo.issue_id:
+        issue_attachments = Attachment.objects.filter(
+            entity_type='maintenance_issue',
+            entity_id=wo.issue_id
+        ).select_related('uploaded_by')[:10]
     assign_form = AssignTechnicianForm()
     complete_form = WorkOrderCompleteForm(instance=wo)
     issue_part_form = IssuePartForm()
@@ -449,6 +500,7 @@ def work_order_detail(request, pk):
         {
             "wo": wo,
             "logs": logs,
+            "issue_attachments": issue_attachments,
             "part_issues": part_issues,
             "assign_form": assign_form,
             "complete_form": complete_form,
@@ -625,8 +677,19 @@ def work_order_close(request, pk):
     if request.method != "POST":
         return redirect("work_order_detail", pk=pk)
     action = request.POST.get("action")
-    manager_close_work_order(wo, request.user, approve=(action == "approve"))
-    messages.success(request, "Closed." if action == "approve" else "Returned to technician.")
+    rejection_reason = request.POST.get("rejection_reason", "").strip()
+    if action != "approve" and not rejection_reason:
+        messages.error(request, "Rejection reason is required when returning to technician.")
+        return redirect("work_order_detail", pk=pk)
+    try:
+        manager_close_work_order(wo, request.user, approve=(action == "approve"), rejection_reason=rejection_reason)
+        if action == "approve":
+            messages.success(request, "Work order closed.")
+        else:
+            messages.info(request, "Work order returned to technician.")
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=pk)
     return redirect("work_order_detail", pk=pk)
 
 
@@ -857,14 +920,19 @@ def consumables_view(request):
             ok, msg = consumable_use(
                 part=form.cleaned_data["part"],
                 quantity=form.cleaned_data["quantity"],
-                user=request.user,
+                consumed_by=request.user,
+                note="",
                 machine_id=form.cleaned_data.get("machine_id"),
             )
             (messages.success if ok else messages.error)(request, msg)
             return redirect("consumables")
     else:
         form = ConsumableUseForm()
-    return render(request, "maintenance/consumables.html", {"form": form})
+    from inventory.models import ConsumableAssignment
+    assignments = ConsumableAssignment.objects.filter(
+        consumed_by=request.user
+    ).select_related("part", "machine").order_by("-created_at")[:20]
+    return render(request, "maintenance/consumables.html", {"form": form, "assignments": assignments})
 
 
 @login_required
@@ -1102,6 +1170,63 @@ def pm_spawn_wo(request, pk):
 
 
 @login_required
+@role_required(User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def pm_execute(request, pk):
+    """Execute a PM work order with checklist."""
+    wo = get_object_or_404(
+        WorkOrder.objects.select_related("machine"),
+        pk=pk,
+    )
+    if wo.category != WorkOrder.Category.PREVENTIVE:
+        messages.error(request, "This is not a preventive maintenance work order.")
+        return redirect("work_order_detail", pk=pk)
+
+    sched = PMSchedule.objects.filter(machine=wo.machine).order_by("-created_at").first()
+
+    checklist_items = []
+    if sched and sched.checklist:
+        for line in sched.checklist.strip().split("\n"):
+            line = line.strip()
+            if line:
+                checklist_items.append({"text": line, "checked": False})
+
+    if request.method == "POST":
+        form = WorkOrderCompleteForm(request.POST, instance=wo)
+        if form.is_valid():
+            checklist_results = []
+            for i, item in enumerate(checklist_items):
+                key = f"checklist_{i}"
+                checked = request.POST.get(key) == "on"
+                note_key = f"note_{i}"
+                note = request.POST.get(note_key, "").strip()
+                checklist_results.append({"text": item["text"], "checked": checked, "note": note})
+
+            action_lines = []
+            for result in checklist_results:
+                status = "✓" if result["checked"] else "✗"
+                action_lines.append(f"[{status}] {result['text']}")
+                if result["note"]:
+                    action_lines.append(f"  Note: {result['note']}")
+
+            wo.action_taken = "\n".join(action_lines)
+            wo.save(update_fields=["action_taken"])
+
+            form.save()
+            technician_submit_for_review(wo, request.user)
+            messages.success(request, "PM submitted for manager review.")
+            return redirect("work_order_detail", pk=pk)
+    else:
+        form = WorkOrderCompleteForm(instance=wo)
+
+    return render(request, "maintenance/pm_execute.html", {
+        "wo": wo,
+        "sched": sched,
+        "checklist_items": checklist_items,
+        "form": form,
+    })
+
+
+@login_required
 @role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.OPERATOR, User.Role.SUPER_ADMIN)
 def tool_list(request):
     tools = Tool.objects.all()
@@ -1205,15 +1330,40 @@ def tool_return(request, assignment_pk):
             ta.return_condition = cond
             ta.returned_at = timezone.now()
             ta.save()
+
             if cond == ToolAssignment.ReturnCondition.GOOD:
                 ta.tool.status = Tool.Status.AVAILABLE
+                ta.tool.save(update_fields=["status"])
+                log_audit(actor=request.user, action="tool_returned", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond})
+                messages.success(request, "Return recorded — tool is available.")
+
             elif cond == ToolAssignment.ReturnCondition.DAMAGED:
                 ta.tool.status = Tool.Status.OUT_OF_SERVICE
-            else:
+                ta.tool.save(update_fields=["status"])
+                wo = WorkOrder(
+                    category=WorkOrder.Category.REPAIR,
+                    status=WorkOrder.Status.PENDING_REVIEW,
+                    tool=ta.tool,
+                    created_by=request.user,
+                    notes=f"Tool returned damaged: {ta.tool.name} (code: {ta.tool.code})",
+                )
+                wo.save()
+                log_audit(actor=request.user, action="tool_returned_damaged", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond, "wo_pk": wo.pk})
+                messages.success(request, f"Return recorded. Damaged tool flagged — repair work order WO-{wo.number} created for manager review.")
+
+            else:  # LOST
                 ta.tool.status = Tool.Status.OUT_OF_SERVICE
-            ta.tool.save(update_fields=["status"])
-            log_audit(actor=request.user, action="tool_returned", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond})
-            messages.success(request, "Return recorded.")
+                ta.tool.save(update_fields=["status"])
+                Incident.objects.create(
+                    title=f"Lost Tool: {ta.tool.name}",
+                    description=f"Tool {ta.tool.name} (code: {ta.tool.code}) reported lost by user {request.user.username}.",
+                    reported_by=request.user,
+                    tool=ta.tool,
+                    status=Incident.Status.OPEN,
+                )
+                log_audit(actor=request.user, action="tool_returned_lost", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond})
+                messages.warning(request, "Return recorded. Lost tool incident created — investigating.")
+
             return redirect("tool_list")
     else:
         form = ToolReturnForm()
@@ -1327,6 +1477,86 @@ def reports_view(request):
             "tech_done": tech_done,
         },
     )
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def machine_cost_report(request):
+    """Machine cost report: parts + vendor + consumables + additional per machine over period."""
+    from decimal import Decimal
+    from django.db.models import Sum, F, Q
+    from datetime import timedelta
+    from inventory.models import StockMovement
+
+    now = timezone.now()
+    period_days = int(request.GET.get("period", 90))
+    period_start = now - timedelta(days=period_days)
+
+    wos = WorkOrder.objects.filter(
+        status=WorkOrder.Status.CLOSED,
+        updated_at__gte=period_start,
+    ).select_related("machine").prefetch_related(
+        "part_issues", "external_repairs", "cost_record"
+    )
+
+    machine_costs = {}
+    for wo in wos:
+        machine = wo.machine
+        if machine is None:
+            continue
+        if machine not in machine_costs:
+            machine_costs[machine] = {
+                "machine": machine,
+                "parts_cost": Decimal("0"),
+                "vendor_cost": Decimal("0"),
+                "consumables_cost": Decimal("0"),
+                "additional_cost": Decimal("0"),
+                "total_cost": Decimal("0"),
+                "wo_count": 0,
+            }
+
+        mc = machine_costs[machine]
+        mc["wo_count"] += 1
+
+        if hasattr(wo, 'cost_record') and wo.cost_record:
+            mc["parts_cost"] += wo.cost_record.parts_cost or Decimal("0")
+            mc["vendor_cost"] += wo.cost_record.vendor_cost or Decimal("0")
+            mc["consumables_cost"] += wo.cost_record.consumables_cost or Decimal("0")
+            mc["additional_cost"] += wo.cost_record.additional_cost or Decimal("0")
+        else:
+            for pi in wo.part_issues.all():
+                mc["parts_cost"] += (pi.quantity or Decimal("0")) * (pi.unit_cost or Decimal("0"))
+            for er in wo.external_repairs.all():
+                mc["vendor_cost"] += er.actual_cost or Decimal("0")
+
+    machine_costs = {k: v for k, v in machine_costs.items() if v["wo_count"] > 0}
+
+    for mc in machine_costs.values():
+        mc["total_cost"] = mc["parts_cost"] + mc["vendor_cost"] + mc["consumables_cost"] + mc["additional_cost"]
+
+    sorted_machines = sorted(
+        machine_costs.values(),
+        key=lambda x: x["total_cost"],
+        reverse=True,
+    )
+
+    grand_parts = sum(m["parts_cost"] for m in sorted_machines)
+    grand_vendor = sum(m["vendor_cost"] for m in sorted_machines)
+    grand_consumables = sum(m["consumables_cost"] for m in sorted_machines)
+    grand_additional = sum(m["additional_cost"] for m in sorted_machines)
+    grand_total = grand_parts + grand_vendor + grand_consumables + grand_additional
+
+    return render(request, "maintenance/machine_cost_report.html", {
+        "machine_costs": sorted_machines,
+        "period_days": period_days,
+        "period_start": period_start,
+        "grand_parts": grand_parts,
+        "grand_vendor": grand_vendor,
+        "grand_consumables": grand_consumables,
+        "grand_additional": grand_additional,
+        "grand_total": grand_total,
+        "period_choices": [30, 90, 180, 365],
+    })
 
 
 @login_required
@@ -1531,31 +1761,78 @@ def kpi_dashboard(request):
         for month, hours in sorted(downtime_by_month.items())
     ]
 
-    return render(
-        request,
-        "maintenance/kpi.html",
-        {
-            "mttr_hours": mttr_hours,
-            "mttw_hours": mttw_hours,
-            "mtbf_hours": mtbf_hours,
-            "avg_downtime_hours": avg_downtime_hours,
-            "pm_compliance_pct": pm_compliance_pct,
-            "pm_closed_90d": pm_closed,
-            "pm_active_schedules": pm_active,
-            "pm_due_count": pm_due,
-            "repeat_failures": repeat_failures,
-            "open_emergency_wos": WorkOrder.objects.filter(is_emergency=True)
-            .exclude(status=WorkOrder.Status.CLOSED)
-            .count(),
-            "most_used_parts": most_used_parts,
-            "machine_failure_rate": machine_failure_rate,
-            "tech_efficiency": tech_efficiency,
-            "tool_lost_count": tool_lost_count,
-            "tool_loss_rate_pct": tool_loss_rate_pct,
-            "supplier_cost_ranking": supplier_cost_ranking,
-            "downtime_trends": downtime_trends,
-        },
+    # === STOCK TURNOVER ANALYSIS ===
+    from django.db.models import Avg
+    from inventory.models import Inventory, StockMovement
+    from decimal import Decimal
+
+    consumption_qs = (
+        StockMovement.objects.filter(
+            movement_type__in=[
+                StockMovement.MovementType.CONSUMABLE_USE,
+                StockMovement.MovementType.ISSUE_TO_WO,
+            ],
+            created_at__gte=td90,
+        )
+        .values("part__pk", "part__sku", "part__name")
+        .annotate(total_consumed=Sum("quantity"))
+        .order_by("-total_consumed")[:30]
     )
+
+    stock_turnover = []
+    for row in consumption_qs:
+        inv_items = Inventory.objects.filter(part_id=row["part__pk"])
+        if inv_items.exists():
+            avg_qty = sum(
+                float(inv.quantity_available or 0) for inv in inv_items
+            ) / inv_items.count()
+        else:
+            avg_qty = 0
+
+        consumed = float(row["total_consumed"] or 0)
+        turnover = (consumed / avg_qty) if avg_qty > 0 else None
+
+        stock_turnover.append({
+            "part_pk": row["part__pk"],
+            "sku": row["part__sku"],
+            "name": row["part__name"],
+            "total_consumed_90d": row["total_consumed"],
+            "avg_inventory": round(avg_qty, 2),
+            "turnover_rate": round(turnover, 2) if turnover is not None else None,
+            "is_dead_stock": avg_qty > 0 and consumed < (avg_qty * 0.1),
+            "is_slow_moving": turnover is not None and turnover < 1,
+        })
+
+    dead_stock = [r for r in stock_turnover if r["is_dead_stock"]]
+    slow_movers = [r for r in stock_turnover if r["is_slow_moving"] and not r["is_dead_stock"]]
+    top_turnover = [r for r in stock_turnover if r["turnover_rate"] is not None][:10]
+
+    ctx = {
+        "mttr_hours": mttr_hours,
+        "mttw_hours": mttw_hours,
+        "mtbf_hours": mtbf_hours,
+        "avg_downtime_hours": avg_downtime_hours,
+        "pm_compliance_pct": pm_compliance_pct,
+        "pm_closed_90d": pm_closed,
+        "pm_active_schedules": pm_active,
+        "pm_due_count": pm_due,
+        "repeat_failures": repeat_failures,
+        "open_emergency_wos": WorkOrder.objects.filter(is_emergency=True)
+        .exclude(status=WorkOrder.Status.CLOSED)
+        .count(),
+        "most_used_parts": most_used_parts,
+        "machine_failure_rate": machine_failure_rate,
+        "tech_efficiency": tech_efficiency,
+        "tool_lost_count": tool_lost_count,
+        "tool_loss_rate_pct": tool_loss_rate_pct,
+        "supplier_cost_ranking": supplier_cost_ranking,
+        "downtime_trends": downtime_trends,
+        "stock_turnover": top_turnover,
+        "dead_stock": dead_stock,
+        "slow_movers": slow_movers,
+    }
+
+    return render(request, "maintenance/kpi.html", ctx)
 
 
 @login_required
@@ -1575,6 +1852,16 @@ def repair_manager_accept(request, pk):
     return render(request, "maintenance/repair_accept.html", {"rwo": rwo})
 
 
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_ATTACHMENTS_PER_ENTITY = 10
+ALLOWED_CONTENT_TYPES = [
+    'image/jpeg',
+    'image/png', 
+    'image/webp',
+    'application/pdf',
+]
+
+
 @login_required
 @require_POST
 def attachment_upload(request):
@@ -1588,12 +1875,36 @@ def attachment_upload(request):
     if not entity_type or not entity_id or not file:
         return JsonResponse({"error": "Missing entity_type, entity_id, or file."}, status=400)
 
+    # Validate file size
+    if file.size > MAX_FILE_SIZE:
+        return JsonResponse({"error": "File exceeds 5MB limit."}, status=400)
+
+    # Validate content type
+    content_type = getattr(file, 'content_type', '') or ''
+    if content_type not in ALLOWED_CONTENT_TYPES:
+        return JsonResponse({"error": "Only JPG, PNG, WEBP, and PDF files are allowed."}, status=400)
+
+    # Validate entity_type is a valid choice
+    try:
+        Attachment.EntityType(entity_type)
+    except ValueError:
+        return JsonResponse({"error": f"Invalid entity_type: {entity_type}"}, status=400)
+
+    # Check max attachments per entity
+    existing_count = Attachment.objects.filter(
+        entity_type=entity_type,
+        entity_id=int(entity_id)
+    ).count()
+    if existing_count >= MAX_ATTACHMENTS_PER_ENTITY:
+        return JsonResponse({"error": f"Maximum {MAX_ATTACHMENTS_PER_ENTITY} attachments per {entity_type}."}, status=400)
+
     att = Attachment.objects.create(
         entity_type=entity_type,
         entity_id=int(entity_id),
         file=file,
         filename=file.name,
         size_bytes=file.size or 0,
+        mime_type=content_type,
         uploaded_by=request.user,
         note=note,
     )
@@ -1601,8 +1912,13 @@ def attachment_upload(request):
         "id": att.pk,
         "filename": att.filename,
         "size": att.size_bytes,
+        "mime_type": att.mime_type,
         "uploaded_at": att.uploaded_at.isoformat(),
         "uploaded_by": att.uploaded_by.username if att.uploaded_by else "",
+        "thumbnail_url": att.thumbnail.url if att.thumbnail else "",
+        "url": att.file.url if att.file else "",
+        "width": att.width,
+        "height": att.height,
     })
 
 
@@ -1622,6 +1938,9 @@ def attachment_list(request, entity_type, entity_id):
         "uploaded_by": a.uploaded_by.username if a.uploaded_by else "",
         "note": a.note,
         "url": a.file.url if a.file else "",
+        "thumbnail_url": a.thumbnail.url if a.thumbnail else "",
+        "width": a.width,
+        "height": a.height,
     } for a in attachments]
     return JsonResponse({"attachments": data})
 
@@ -1640,6 +1959,7 @@ def attachment_delete(request, pk):
 
 @login_required
 @require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def issue_archive(request, pk):
     issue = get_object_or_404(MaintenanceIssue, pk=pk)
     if issue.is_archived:

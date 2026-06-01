@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from .models import (
     ExternalRepairOrder,
     FailureCategory,
+    FailureMode,
     Machine,
     MaintenanceIssue,
     PMSchedule,
@@ -23,23 +24,35 @@ class IssueReportForm(forms.ModelForm):
     issue_type = forms.ModelChoiceField(
         queryset=FailureCategory.objects.filter(is_active=True),
         required=False,
-        label="Issue Type",
-        help_text="Optional failure classification",
+        label="Failure Category",
+        help_text="Top-level failure classification",
+    )
+    failure_mode = forms.ModelChoiceField(
+        queryset=FailureMode.objects.filter(is_active=True),
+        required=False,
+        label="Failure Mode",
+        help_text="Specific failure pattern (optional)",
     )
 
     class Meta:
         model = MaintenanceIssue
-        fields = ("machine", "issue_type", "description")
+        fields = ("machine", "issue_type", "failure_mode", "description")
         widgets = {
             "machine": forms.Select(attrs=_SEL),
+            "failure_mode": forms.Select(attrs=_SEL),
             "description": forms.Textarea(attrs={**_CTRL, "rows": 4, "placeholder": "Describe the problem…"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["issue_type"].queryset = FailureCategory.objects.filter(is_active=True)
+        self.fields["failure_mode"].queryset = FailureMode.objects.filter(is_active=True)
         if self.instance and self.instance.machine_id and self.instance.machine.failure_category_id:
             self.fields["issue_type"].initial = self.instance.machine.failure_category_id
+            self.fields["failure_mode"].queryset = FailureMode.objects.filter(
+                is_active=True,
+                category_id=self.instance.machine.failure_category_id
+            )
 
 
 class ValidateIssueForm(forms.Form):

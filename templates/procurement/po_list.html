@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Purchase Orders{% endblock %}
+{% block page_heading %}Purchase Orders{% endblock %}
+{% block content %}
+
+{% if perms.procurement.add_purchaseorder %}
+<div class="mms-actions" style="margin-bottom:1rem">
+    <a href="{% url 'purchase_order_create' %}" class="mms-btn mms-btn--primary">+ New PO</a>
+</div>
+{% endif %}
+
+<table class="mms-table">
+    <thead>
+        <tr>
+            <th>PO Number</th>
+            <th>Supplier</th>
+            <th>Status</th>
+            <th>Expected</th>
+            <th>Total Value</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for po in pos %}
+        <tr>
+            <td><a href="{% url 'purchase_order_detail' po.pk %}">{{ po.po_number }}</a></td>
+            <td>{{ po.supplier.name|default:"—" }}</td>
+            <td><span class="status-badge status-{{ po.status }}">{{ po.get_status_display }}</span></td>
+            <td>{{ po.expected_delivery|default:"—" }}</td>
+            <td>{{ po.total_ordered_value|default:"0" }}</td>
+            <td>{{ po.created_at|date:"Y-m-d" }}</td>
+            <td>
+                <a href="{% url 'purchase_order_detail' po.pk %}">View</a>
+                {% if po.status == 'draft' %}
+                | <a href="{% url 'purchase_order_receive' po.pk %}">Receive</a>
+                {% endif %}
+            </td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="7">No purchase orders yet.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<style>
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+.status-draft { background: #e9ecef; }
+.status-sent { background: #cfe2ff; color: #084; }
+.status-partial { background: #fff3cd; color: #856404; }
+.status-received { background: #d4edda; color: #155724; }
+.status-closed_short { background: #f8d7da; color: #721c24; }
+.status-cancelled { background: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}

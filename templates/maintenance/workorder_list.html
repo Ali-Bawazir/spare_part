@@ -20,7 +20,7 @@
       <tbody>
       {% for w in work_orders %}
       <tr>
-        <td>WO-{{ w.number }}{% if w.is_emergency %} <span class="mms-badge mms-badge--danger">EMRG</span>{% endif %}</td>
+        <td>WO-{{ w.number }}{% if w.is_emergency %} <span class="mms-badge mms-badge--danger">EMRG</span>{% endif %}{% if w.rejection_count > 0 %} <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">↩ {{ w.rejection_count }}</span>{% endif %}</td>
         <td>{{ w.machine.name }}</td>
         <td><span class="{{ w.status|wo_status_badge_class }}">{{ w.get_status_display }}</span></td>
         <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">n/a</span>{% endif %}</td>

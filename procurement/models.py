@@ -1,5 +1,8 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from inventory.models import SparePart
 
@@ -49,8 +52,9 @@ class Supplier(models.Model):
 class PurchaseRequest(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending officer"
-        ORDERED = "ordered", "Ordered"
-        RECEIVED = "received", "Received / stock updated"
+        CONVERTED_TO_PO = "converted_to_po", "Converted to PO"
+        PARTIALLY_FULFILLED = "partially_fulfilled", "Partially fulfilled"
+        FULFILLED = "fulfilled", "Fulfilled"
         CANCELLED = "cancelled", "Cancelled"
 
     part = models.ForeignKey(SparePart, on_delete=models.PROTECT, related_name="purchase_requests")
@@ -83,6 +87,13 @@ class PurchaseRequest(models.Model):
         on_delete=models.SET_NULL,
         related_name="purchase_requests",
     )
+    purchase_order = models.ForeignKey(
+        "PurchaseOrder",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="purchase_requests",
+    )
     unit_price = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     handled_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -99,3 +110,119 @@ class PurchaseRequest(models.Model):
 
     def __str__(self) -> str:
         return f"PR #{self.pk} — {self.part.sku} x{self.quantity}"
+
+
+class PurchaseOrder(models.Model):
+    """Actual procurement order sent to a supplier."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SENT = "sent", "Sent to supplier"
+        PARTIAL_RECEIVED = "partial", "Partial received"
+        RECEIVED = "received", "Fully received"
+        CLOSED_SHORT = "closed_short", "Closed short"
+        CANCELLED = "cancelled", "Cancelled"
+
+    po_number = models.CharField(max_length=12, unique=True, editable=False)
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="purchase_orders",
+    )
+    invoice_ref = models.CharField(max_length=120, blank=True)
+    expected_delivery = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+    )
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="purchase_orders_created",
+    )
+    handled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="purchase_orders_handled",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"PO-{self.po_number}"
+
+    def save(self, *args, **kwargs):
+        if not self.po_number:
+            last = PurchaseOrder.objects.order_by("-po_number").values_list("po_number", flat=True).first()
+            if last:
+                parts = last.split("-")
+                year = timezone.now().year
+                if len(parts) == 3 and parts[0] == "PO" and parts[1] == str(year):
+                    next_num = int(parts[2]) + 1
+                else:
+                    next_num = 1
+            else:
+                next_num = 1
+            self.po_number = f"PO-{timezone.now().year}-{next_num:04d}"
+        super().save(*args, **kwargs)
+
+    @property
+    def is_locked(self) -> bool:
+        return self.status in (
+            self.Status.RECEIVED,
+            self.Status.CLOSED_SHORT,
+            self.Status.CANCELLED,
+        )
+
+    @property
+    def total_ordered_value(self) -> Decimal:
+        return sum(item.total_price or Decimal("0") for item in self.items.all())
+
+    @property
+    def total_received_value(self) -> Decimal:
+        total = Decimal("0")
+        for item in self.items.all():
+            total += item.received_qty * item.unit_price
+        return total
+
+
+class PurchaseOrderItem(models.Model):
+    """Line item on a purchase order tracking ordered vs received."""
+
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    part = models.ForeignKey(
+        SparePart,
+        on_delete=models.PROTECT,
+        related_name="po_items",
+    )
+    ordered_qty = models.DecimalField(max_digits=14, decimal_places=3)
+    received_qty = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
+    unit_price = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"))
+    total_price = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal("0"))
+
+    class Meta:
+        verbose_name_plural = "purchase order items"
+
+    def __str__(self) -> str:
+        return f"{self.part.sku} x{self.ordered_qty} (recv {self.received_qty})"
+
+    @property
+    def remaining_qty(self) -> Decimal:
+        return self.ordered_qty - self.received_qty
+
+    def save(self, *args, **kwargs):
+        if self.ordered_qty and self.unit_price:
+            self.total_price = self.ordered_qty * self.unit_price
+        super().save(*args, **kwargs)

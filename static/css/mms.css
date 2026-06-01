@@ -397,6 +397,12 @@ body.mms-body {
   border-color: #fecaca;
 }
 
+.badge-rejected {
+  background: #ffc107;
+  color: #000;
+  font-size: 0.75em;
+}
+
 .mms-btn--sm { padding: 0.35rem 0.65rem; font-size: 0.75rem; }
 
 .mms-table-wrap {
@@ -768,6 +774,14 @@ form.mms-actions {
 
 .mms-notif-row--unread {
   background: linear-gradient(90deg, rgba(13, 148, 136, 0.06) 0%, transparent 12px);
+  margin: 0 -0.35rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
+.mms-notif-row--critical {
+  background: #fff3cd;
+  border-left: 4px solid #dc3545;
   margin: 0 -0.35rem;
   padding-left: 0.35rem;
   padding-right: 0.35rem;
@@ -1279,3 +1293,103 @@ body.mms-nav-locked {
 .badge--instr { background: #7b1fa2; color: #fff; }
 .badge--proc { background: #388e3c; color: #fff; }
 .badge--other { background: #757575; color: #fff; }
+
+/* ============================================
+   Mobile Bottom Navigation (Operator UX)
+   ============================================ */
+
+@media (max-width: 1023px) {
+    /* Hide sidebar on mobile */
+    .mms-sidebar {
+        display: none !important;
+    }
+    
+    /* Show bottom nav bar on mobile */
+    .mms-mobile-bottom-nav {
+        display: flex !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 64px;
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        justify-content: space-around;
+        align-items: center;
+        padding: 0;
+    }
+    
+    .mms-mobile-bottom-nav a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 48px;
+        min-width: 48px;
+        padding: 8px 4px;
+        color: #64748b;
+        text-decoration: none;
+        font-size: 0.75rem;
+        gap: 4px;
+    }
+    
+    .mms-mobile-bottom-nav a:hover,
+    .mms-mobile-bottom-nav a.is-active {
+        color: #2563eb;
+    }
+    
+    .mms-mobile-bottom-nav a .mms-nav-icon {
+        font-size: 1.25rem;
+    }
+    
+    /* Main content needs bottom padding for bottom nav */
+    .mms-content {
+        padding-bottom: 80px !important;
+    }
+    
+    /* Touch targets - ensure minimum 48px */
+    .mms-btn,
+    button,
+    input[type="submit"],
+    input[type="button"],
+    .mms-nav-link {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    /* Form inputs on mobile */
+    .mms-form input,
+    .mms-form select,
+    .mms-form textarea {
+        min-height: 48px;
+        font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+    
+    /* Spinbutton/number inputs */
+    input[type="number"],
+    input[type="text"],
+    input[type="tel"],
+    select {
+        min-height: 48px !important;
+    }
+    
+    /* Cards spacing on mobile */
+    .mms-card {
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Form rows more spacing on mobile */
+    .mms-form-row {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Desktop: hide bottom nav */
+@media (min-width: 1024px) {
+    .mms-mobile-bottom-nav {
+        display: none !important;
+    }
+}

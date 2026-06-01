@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -39,6 +41,28 @@ class FailureCategory(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.code})"
+
+
+class FailureMode(models.Model):
+    """Specific failure pattern within a FailureCategory (e.g. Bearing Failure under Mechanical). Globally shared. Auto-assigned code like MECH-BRG-001."""
+    category = models.ForeignKey(
+        "FailureCategory",
+        on_delete=models.CASCADE,
+        related_name="failure_modes",
+    )
+    code = models.CharField(max_length=32, unique=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["code"]
+        verbose_name = "Failure Mode"
+        verbose_name_plural = "Failure Modes"
+
+    def __str__(self) -> str:
+        return f"{self.code} — {self.name}"
 
 
 class Machine(models.Model):
@@ -139,6 +163,14 @@ class MaintenanceIssue(models.Model):
         verbose_name="Issue Type",
         help_text="Classified failure category (Phase 2: FailureMode sub-classification)",
     )
+    failure_mode = models.ForeignKey(
+        "FailureMode",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="issues",
+        verbose_name="Failure Mode",
+    )
     description = models.TextField()
     status = models.CharField(
         max_length=20,
@@ -185,6 +217,7 @@ class WorkOrder(models.Model):
         BREAKDOWN = "breakdown", "Breakdown / corrective"
         PREVENTIVE = "preventive", "Preventive"
         EMERGENCY = "emergency", "Emergency"
+        REPAIR = "repair", "Repair"
 
     class Status(models.TextChoices):
         APPROVED = "approved", "Approved"
@@ -211,7 +244,7 @@ class WorkOrder(models.Model):
         on_delete=models.SET_NULL,
         related_name="work_order",
     )
-    machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name="work_orders")
+    machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name="work_orders", null=True, blank=True)
     status = models.CharField(
         max_length=32,
         choices=Status.choices,
@@ -243,8 +276,25 @@ class WorkOrder(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="archived_work_orders"
     )
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rejected_work_orders",
+    )
+    rejection_reason = models.CharField(max_length=500, blank=True)
+    rejection_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    tool = models.ForeignKey(
+        "Tool",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="work_orders",
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -450,6 +500,51 @@ class ToolAssignment(models.Model):
             raise ValidationError("Return condition is required when returning a tool.")
 
 
+class Incident(models.Model):
+    """Incident report for lost/damaged tools or safety issues."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        INVESTIGATING = "investigating", "Investigating"
+        CLOSED = "closed", "Closed"
+
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reported_incidents",
+    )
+    tool = models.ForeignKey(
+        "Tool",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="incidents",
+    )
+    work_order = models.ForeignKey(
+        "WorkOrder",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="incidents",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+        db_index=True,
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class Notification(models.Model):
     """In-app alerts (PDF: low stock, emergency, PM due, pending WO, etc.)."""
 
@@ -475,6 +570,7 @@ class Notification(models.Model):
     link = models.CharField(max_length=500, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    is_critical = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -531,6 +627,83 @@ class ExternalRepairOrder(models.Model):
         ordering = ["-created_at"]
 
 
+class WorkOrderCost(models.Model):
+    work_order = models.OneToOneField(
+        "WorkOrder",
+        on_delete=models.CASCADE,
+        related_name="cost_record",
+    )
+    parts_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=Decimal("0"),
+        help_text="Sum of PartIssueLine unit_cost × qty",
+    )
+    vendor_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=Decimal("0"),
+        help_text="Sum of ExternalRepairOrder.actual_cost",
+    )
+    consumables_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=Decimal("0"),
+        help_text="StockMovement CONSUMABLE_USE for linked machine",
+    )
+    additional_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=Decimal("0"),
+    )
+    additional_cost_note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        verbose_name = "Work Order Cost"
+        verbose_name_plural = "Work Order Costs"
+
+    def __str__(self) -> str:
+        return f"Cost for WO-{self.work_order.number}: {self.total_cost}"
+
+    @property
+    def total_cost(self) -> Decimal:
+        return (
+            (self.parts_cost or Decimal("0"))
+            + (self.vendor_cost or Decimal("0"))
+            + (self.consumables_cost or Decimal("0"))
+            + (self.additional_cost or Decimal("0"))
+        )
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            self._auto_calculate()
+        super().save(*args, **kwargs)
+
+    def _auto_calculate(self):
+        from inventory.models import StockMovement
+        from django.db.models import F, Sum
+
+        wo = self.work_order
+
+        parts_total = wo.part_issues.aggregate(
+            total=Sum(F('quantity') * F('unit_cost'))
+        )['total'] or Decimal("0")
+        self.parts_cost = parts_total
+
+        vendor_total = wo.external_repairs.aggregate(
+            total=Sum('actual_cost')
+        )['total'] or Decimal("0")
+        self.vendor_cost = vendor_total
+
+        consumables_total = StockMovement.objects.filter(
+            work_order=wo,
+            movement_type=StockMovement.MovementType.CONSUMABLE_USE,
+        ).aggregate(
+            total=Sum(F('quantity') * F('unit_cost'))
+        )['total'] or Decimal("0")
+        self.consumables_cost = consumables_total
+
+
 class AuditEntry(models.Model):
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     action = models.CharField(max_length=120)
@@ -544,12 +717,20 @@ class AuditEntry(models.Model):
 
 
 def attachment_upload_path(instance, filename):
-    """Store uploads at media/attachments/{entity_type}/{entity_id}/{uuid}.{ext}"""
+    """Store uploads at media/attachments/originals/{entity_type}/{entity_id}/{uuid}.{ext}"""
     import os
     from uuid import uuid4
     ext = filename.split(".")[-1] if "." in filename else ""
     new_name = f"{uuid4().hex}.{ext}" if ext else uuid4().hex
-    return f"attachments/{instance.entity_type}/{instance.entity_id}/{new_name}"
+    return f"attachments/originals/{instance.entity_type}/{instance.entity_id}/{new_name}"
+
+def attachment_thumbnail_path(instance, filename):
+    """Thumbnail path: media/attachments/thumbs/{entity_type}/{entity_id}/{uuid}_300.{ext}"""
+    import os
+    from uuid import uuid4
+    ext = filename.split(".")[-1] if "." in filename else ""
+    base = os.path.splitext(filename)[0] if '.' in filename else filename
+    return f"attachments/thumbs/{instance.entity_type}/{instance.entity_id}/{base}_300.{ext}"
 
 
 class Attachment(models.Model):
@@ -560,7 +741,11 @@ class Attachment(models.Model):
         MACHINE = "machine"
         SPARE_PART = "spare_part"
         PURCHASE_REQUEST = "purchase_request"
+        PURCHASE_ORDER = "purchase_order"
+        MAINTENANCE_ISSUE = "maintenance_issue"
+        STOCK_MOVEMENT = "stock_movement"
         REPAIR_ORDER = "repair_order"
+        CONSUMABLE_ASSIGNMENT = "consumable_assignment"
 
     entity_type = models.CharField(max_length=32, choices=EntityType.choices)
     entity_id = models.PositiveIntegerField()
@@ -574,6 +759,13 @@ class Attachment(models.Model):
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
     note = models.CharField(max_length=500, blank=True)
+    thumbnail = models.ImageField(
+        upload_to=attachment_thumbnail_path,
+        blank=True,
+        help_text="Auto-generated 300px thumbnail"
+    )
+    width = models.PositiveIntegerField(default=0, help_text="Original image width in px")
+    height = models.PositiveIntegerField(default=0, help_text="Original image height in px")
 
     class Meta:
         ordering = ["-uploaded_at"]
@@ -584,7 +776,46 @@ class Attachment(models.Model):
             self.filename = self.file.name
         if self.file and not self.size_bytes:
             self.size_bytes = self.file.size or 0
+        if self.file and not self.mime_type:
+            self.mime_type = getattr(self.file, 'content_type', '') or ''
         super().save(*args, **kwargs)
+        if self.file and not self.thumbnail:
+            self._generate_thumbnail()
+
+    def _generate_thumbnail(self):
+        """Generate 300px max thumbnail using Pillow."""
+        import os
+        from django.conf import settings
+        from PIL import Image
+
+        try:
+            file_path = self.file.path
+            img = Image.open(file_path)
+
+            self.width = img.width
+            self.height = img.height
+
+            img.thumbnail((300, 300), Image.LANCZOS)
+
+            dir_name = os.path.dirname(file_path)
+            base_name = os.path.splitext(os.path.basename(file_path))[0]
+            thumb_name = f"{base_name}_300.jpg"
+            thumb_dir = file_path.replace('/originals/', '/thumbs/').rsplit('/', 1)[0]
+            os.makedirs(thumb_dir, exist_ok=True)
+            thumb_path = os.path.join(thumb_dir, thumb_name)
+
+            thumb_img = img.convert('RGB')
+            thumb_img.save(thumb_path, 'JPEG', quality=85, optimize=True)
+
+            self.thumbnail = thumb_path.replace(settings.MEDIA_ROOT, '').lstrip('/')
+            self.width = img.width
+            self.height = img.height
+
+            super().save(update_fields=['thumbnail', 'width', 'height'])
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Thumbnail generation failed for attachment {self.pk}: {e}")
 
     def __str__(self) -> str:
         return f"{self.filename} ({self.entity_type}:{self.entity_id})"

@@ -7,6 +7,8 @@ from .models import (
     AuditEntry,
     ExternalRepairOrder,
     FailureCategory,
+    FailureMode,
+    Incident,
     Machine,
     MaintenanceIssue,
     Notification,
@@ -40,6 +42,15 @@ class FailureCategoryAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("name", "code")
     ordering = ("name",)
+
+
+@admin.register(FailureMode)
+class FailureModeAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("code", "name", "category", "is_active", "created_at")
+    list_filter = ("is_active", "category")
+    search_fields = ("code", "name", "description")
+    ordering = ("code",)
+    raw_id_fields = ("category",)
 
 
 @admin.register(Machine)
@@ -173,6 +184,17 @@ class ToolAssignmentAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_filter = ("return_condition",)
     search_fields = ("tool__name", "tool__code", "user__username")
     raw_id_fields = ("tool", "user", "assigned_by")
+
+
+@admin.register(Incident)
+class IncidentAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("title", "status", "reported_by", "tool", "created_at", "resolved_at")
+    list_filter = ("status",)
+    search_fields = ("title", "description", "reported_by__username")
+    raw_id_fields = ("reported_by", "tool", "work_order")
+    readonly_fields = ("created_at",)
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
 
 
 @admin.register(Notification)

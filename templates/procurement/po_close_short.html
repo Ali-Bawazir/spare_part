@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Close Short PO {{ po.po_number }}{% endblock %}
+{% block page_heading %}Close Short — PO {{ po.po_number }}{% endblock %}
+{% block content %}
+
+<div class="mms-card">
+    <div class="mms-card-body">
+        <p>You are about to <strong>close short</strong> PO {{ po.po_number }}.</p>
+        <p>This will cancel all remaining undelivered quantities for this PO.</p>
+        
+        <table class="mms-table" style="margin:1rem 0">
+            <thead>
+                <tr><th>Part</th><th>Ordered</th><th>Received</th><th>Remaining</th></tr>
+            </thead>
+            <tbody>
+            {% for item in po.items.all %}
+                <tr>
+                    <td>{{ item.part.name }}</td>
+                    <td>{{ item.ordered_qty }}</td>
+                    <td>{{ item.received_qty }}</td>
+                    <td>{{ item.remaining_qty }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="mms-form-actions">
+                <button class="mms-btn mms-btn--danger" type="submit">Confirm Close Short</button>
+                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

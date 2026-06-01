@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Machine Cost Report{% endblock %}
+{% block page_heading %}Machine Cost Report{% endblock %}
+{% block content %}
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body" style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap">
+        <form method="get" style="display:flex; gap:0.5rem; align-items:center">
+            <label>Period:</label>
+            <select name="period" class="form-control" style="width:auto" onchange="this.form.submit()">
+                {% for p in period_choices %}
+                <option value="{{ p }}" {% if period_days == p %}selected{% endif %}>{{ p }} days</option>
+                {% endfor %}
+            </select>
+        </form>
+        <span class="text-muted">From {{ period_start|date:"Y-m-d" }} to today</span>
+    </div>
+</div>
+
+{% if machine_costs %}
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>Machine Costs — Last {{ period_days }} Days</h5>
+    </div>
+    <div class="mms-card-body" style="padding:0">
+        <table class="mms-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Machine</th>
+                    <th>WOs</th>
+                    <th class="text-right">Parts Cost</th>
+                    <th class="text-right">Vendor Cost</th>
+                    <th class="text-right">Consumables</th>
+                    <th class="text-right">Additional</th>
+                    <th class="text-right">Total Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for mc in machine_costs %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <a href="{% url 'machine_edit' mc.machine.pk %}">{{ mc.machine.name }}</a>
+                        <br><small class="text-muted">{{ mc.machine.qr_code }}</small>
+                    </td>
+                    <td>{{ mc.wo_count }}</td>
+                    <td class="text-right">${{ mc.parts_cost|floatformat:2 }}</td>
+                    <td class="text-right">${{ mc.vendor_cost|floatformat:2 }}</td>
+                    <td class="text-right">${{ mc.consumables_cost|floatformat:2 }}</td>
+                    <td class="text-right">${{ mc.additional_cost|floatformat:2 }}</td>
+                    <td class="text-right"><strong>${{ mc.total_cost|floatformat:2 }}</strong></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot style="background:#f8f9fa; font-weight:bold">
+                <tr>
+                    <td colspan="3" class="text-right">GRAND TOTAL</td>
+                    <td class="text-right">${{ grand_parts|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_vendor|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_consumables|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_additional|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_total|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="mms-card">
+    <div class="mms-card-body">
+        <p class="text-muted">No closed work orders in this period. Costs will appear here after WOs are closed.</p>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.text-right { text-align: right; }
+</style>
+{% endblock %}

@@ -94,8 +94,113 @@
     </div>
   </form>
 </div>
+
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">Evidence Photo</div>
+  <div class="mms-card-body">
+    <div id="attachment-list-spare_part-{{ part.pk }}">
+      <span class="text-muted">Loading...</span>
+    </div>
+    <div class="mt-2">
+      <input type="file" id="attachment-file-input-spare_part-{{ part.pk }}"
+             accept="image/jpeg,image/png,image/webp,application/pdf"
+             class="d-none" multiple
+             onchange="handleAttachmentSelect(this)">
+      <button type="button" class="btn btn-sm btn-outline-primary"
+              onclick="document.getElementById('attachment-file-input-spare_part-{{ part.pk }}').click()">
+        <i class="bi bi-paperclip"></i> Add Evidence Photo
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
-(function() {
+async function loadAttachments(entityType, entityId, containerId) {
+    try {
+        const response = await fetch(`/attachments/${entityType}/${entityId}/`);
+        const data = await response.json();
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.attachments && data.attachments.length > 0) {
+            container.innerHTML = data.attachments.map(att => `
+                <div class="attachment-item mb-2 p-2 border rounded" data-att-id="${att.id}">
+                    ${att.mime_type && att.mime_type.startsWith('image/')
+                        ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}"
+                             style="max-width:200px; max-height:150px; object-fit:cover;"
+                             class="mb-2">`
+                        : `<div class="file-icon mb-2"><i class="bi bi-file-earmark"></i> ${att.filename}</div>`
+                    }
+                    <div class="small text-muted">${att.filename} (${formatFileSize(att.size)})</div>
+                    <div class="small text-muted">${att.uploaded_by} - ${att.uploaded_at}</div>
+                    ${att.note ? `<div class="small">${att.note}</div>` : ''}
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-1"
+                            onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">
+                        Delete
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-muted mb-0">No attachments yet.</p>';
+        }
+    } catch (e) {
+        console.error('Failed to load attachments:', e);
+    }
+}
+
+async function handleAttachmentSelect(input) {
+    const files = input.files;
+    if (!files.length) return;
+    const parts = input.id.replace('attachment-file-input-', '').split('-');
+    const entityType = parts.slice(0, -1).join('-');
+    const entityId = parts[parts.length - 1];
+    for (const file of files) {
+        await uploadAttachment(file, entityType, entityId);
+    }
+    loadAttachments(entityType, entityId, `attachment-list-${entityType}-${entityId}`);
+    input.value = '';
+}
+
+async function uploadAttachment(file, entityType, entityId) {
+    const formData = new FormData();
+    formData.append('entity_type', entityType);
+    formData.append('entity_id', entityId);
+    formData.append('file', file);
+    const response = await fetch('/attachments/upload/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        alert('Upload failed: ' + (err.error || 'Unknown error'));
+    }
+    return response.json();
+}
+
+async function deleteAttachment(attId, containerId, entityType, entityId) {
+    if (!confirm('Delete this attachment?')) return;
+    const response = await fetch(`/attachments/${attId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    if (response.ok) {
+        loadAttachments(entityType, entityId, containerId);
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadAttachments('spare_part', {{ part.pk }}, 'attachment-list-spare_part-{{ part.pk }}');
   var reasonSel = document.getElementById('reason');
   var otherRow = document.getElementById('reason_other_row');
   if (reasonSel && otherRow) {
@@ -103,6 +208,6 @@
       otherRow.style.display = reasonSel.value === 'other' ? '' : 'none';
     });
   }
-})();
+});
 </script>
 {% endblock %}

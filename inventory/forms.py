@@ -26,7 +26,14 @@ class IssuePartForm(forms.Form):
 
 
 class ConsumableUseForm(forms.Form):
-    part = forms.ModelChoiceField(queryset=SparePart.objects.filter(is_consumable=True), widget=forms.Select(attrs=_SEL))
+    part = forms.ModelChoiceField(
+        queryset=SparePart.objects.filter(
+            is_consumable=True,
+            allow_operator_consumption=True,
+            status="active",
+        ),
+        widget=forms.Select(attrs=_SEL),
+    )
     quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL))
     machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL))
 
@@ -45,6 +52,7 @@ class SparePartForm(forms.ModelForm):
             "supplier",
             "is_consumable",
             "is_repairable",
+            "allow_operator_consumption",
             "min_stock_level",
             "max_stock_level",
             "avg_cost",
@@ -60,6 +68,7 @@ class SparePartForm(forms.ModelForm):
             "supplier": forms.Select(attrs={**_SEL}),
             "is_consumable": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_repairable": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "allow_operator_consumption": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "min_stock_level": forms.NumberInput(attrs={**_CTRL, "min": "0", "step": "0.001"}),
             "max_stock_level": forms.NumberInput(attrs={**_CTRL, "min": "0", "step": "0.001"}),
             "avg_cost": forms.NumberInput(attrs={**_CTRL, "min": "0", "step": "0.0001"}),

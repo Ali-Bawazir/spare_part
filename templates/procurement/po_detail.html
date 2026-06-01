@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}PO {{ po.po_number }}{% endblock %}
+{% block page_heading %}PO {{ po.po_number }}{% endblock %}
+{% block content %}
+
+<div style="display:grid; grid-template-columns: 2fr 1fr; gap:1rem; margin-bottom:1rem">
+    <div class="mms-card">
+        <div class="mms-card-body">
+            <dl style="margin:0">
+                <dt>Supplier</dt><dd>{{ po.supplier.name|default:"—" }}</dd>
+                <dt>Status</dt><dd><span class="status-badge status-{{ po.status }}">{{ po.get_status_display }}</span></dd>
+                <dt>Invoice Ref</dt><dd>{{ po.invoice_ref|default:"—" }}</dd>
+                <dt>Expected Delivery</dt><dd>{{ po.expected_delivery|default:"—" }}</dd>
+                <dt>Handled By</dt><dd>{{ po.handled_by|default:"—" }}</dd>
+                <dt>Created By</dt><dd>{{ po.created_by }}</dd>
+                <dt>Created</dt><dd>{{ po.created_at|date:"Y-m-d H:i" }}</dd>
+                <dt>Total Value</dt><dd>{{ po.total_ordered_value }}</dd>
+                <dt>Received Value</dt><dd>{{ po.total_received_value }}</dd>
+            </dl>
+            {% if po.notes %}
+            <strong>Notes:</strong><br>{{ po.notes|linebreaks }}
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="mms-card">
+        <div class="mms-card-body">
+            <h6>Actions</h6>
+            {% if po.is_locked %}
+            <p class="text-muted">This PO is locked.</p>
+            {% else %}
+            <a href="{% url 'purchase_order_receive' po.pk %}" class="mms-btn mms-btn--primary" style="margin-bottom:0.5rem">Receive Items</a>
+            {% endif %}
+            {% if po.status == 'partial' or po.status == 'sent' %}
+            <a href="{% url 'purchase_order_close_short' po.pk %}" class="mms-btn mms-btn--ghost" style="margin-bottom:0.5rem">Close Short</a>
+            {% endif %}
+            <a href="{% url 'purchase_order_list' %}" class="mms-btn mms-btn--ghost" style="margin-bottom:0.5rem">← Back</a>
+        </div>
+    </div>
+</div>
+
+<!-- Line Items -->
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">
+        <h5>Line Items</h5>
+    </div>
+    <div class="mms-card-body">
+        <table class="mms-table">
+            <thead>
+                <tr>
+                    <th>Part</th>
+                    <th>SKU</th>
+                    <th>Ordered Qty</th>
+                    <th>Received Qty</th>
+                    <th>Remaining</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in items_with_inventory %}
+                <tr>
+                    <td>{{ item.item.part.name }}</td>
+                    <td>{{ item.item.part.sku }}</td>
+                    <td>{{ item.item.ordered_qty }}</td>
+                    <td>{{ item.item.received_qty }}</td>
+                    <td>{{ item.item.remaining_qty }}</td>
+                    <td>{{ item.item.unit_price }}</td>
+                    <td>{{ item.item.total_price }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7">No line items. <a href="#" onclick="alert('Add items from PO detail page in Phase 2')">Add item</a></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if not po.is_locked %}
+        <p class="text-muted" style="margin-top:0.5rem"><em>To add line items, use "Create from PR" or contact admin.</em></p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Photos & Attachments -->
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>Photos & Attachments</h5>
+    </div>
+    <div class="mms-card-body">
+        <div class="attachment-list" id="attachment-list-purchase_order-{{ po.pk }}"></div>
+        <div class="mt-2">
+            <input type="file" 
+                   id="attachment-file-input-purchase_order-{{ po.pk }}"
+                   accept="image/jpeg,image/png,image/webp,application/pdf"
+                   class="d-none" multiple
+                   onchange="handleAttachmentSelect(this)">
+            <button type="button" class="mms-btn mms-btn--ghost"
+                    onclick="document.getElementById('attachment-file-input-purchase_order-{{ po.pk }}').click()">
+                + Add Photo / File
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+.status-draft { background: #e9ecef; }
+.status-sent { background: #cfe2ff; color: #084; }
+.status-partial { background: #fff3cd; color: #856404; }
+.status-received { background: #d4edda; color: #155724; }
+.status-closed_short { background: #f8d7da; color: #721c24; }
+.status-cancelled { background: #f8d7da; color: #721c24; }
+</style>
+
+<script>
+async function loadAttachments(entityType, entityId, containerId) {
+    try {
+        const response = await fetch(`/attachments/${entityType}/${entityId}/`);
+        const data = await response.json();
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.attachments && data.attachments.length > 0) {
+            container.innerHTML = data.attachments.map(att => `
+                <div class="attachment-item mb-2 p-2 border rounded">
+                    ${att.mime_type && att.mime_type.startsWith('image/') 
+                        ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}" style="max-width:200px; max-height:150px; object-fit:cover;" class="mb-2">` 
+                        : `<div class="mb-2"><i class="bi bi-file-earmark"></i> ${att.filename}</div>`
+                    }
+                    <div class="small text-muted">${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by}</div>
+                    {% if perms.maintenance.delete_attachment %}
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">Delete</button>
+                    {% endif %}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-muted mb-0">No attachments yet.</p>';
+        }
+    } catch (e) { console.error('Failed to load attachments:', e); }
+}
+
+async function handleAttachmentSelect(input) {
+    const files = input.files;
+    if (!files.length) return;
+    const entityType = 'purchase_order';
+    const entityId = {{ po.pk }};
+    for (const file of files) {
+        await uploadAttachment(file, entityType, entityId);
+    }
+    loadAttachments(entityType, entityId, `attachment-list-${entityType}-${entityId}`);
+    input.value = '';
+}
+
+async function uploadAttachment(file, entityType, entityId) {
+    const formData = new FormData();
+    formData.append('entity_type', entityType);
+    formData.append('entity_id', entityId);
+    formData.append('file', file);
+    const response = await fetch('/attachments/upload/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        alert('Upload failed: ' + (err.error || 'Unknown error'));
+    }
+    return response.json();
+}
+
+async function deleteAttachment(attId, containerId, entityType, entityId) {
+    if (!confirm('Delete this attachment?')) return;
+    await fetch(`/attachments/${attId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    loadAttachments(entityType, entityId, containerId);
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAttachments('purchase_order', {{ po.pk }}, 'attachment-list-purchase_order-{{ po.pk }}');
+});
+</script>
+{% endblock %}

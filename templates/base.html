@@ -22,7 +22,7 @@
       <div class="mms-nav-section" data-section="overview">Overview</div>
       <a href="{% url 'dashboard' %}" class="mms-nav-link{% if current_url_name == 'dashboard' %} is-active{% endif %}">Dashboard</a>
 
-      {% if perm_view_issues %}
+      {% if perm_view_issues or user.role == 'operator' %}
       <div class="mms-nav-section" data-section="maintenance">Maintenance</div>
       <a href="{% url 'issue_list' %}" class="mms-nav-link{% if current_url_name and 'issue' in current_url_name %} is-active{% endif %}">
         <span>Issues</span>
@@ -282,5 +282,26 @@
   }
 })();
 </script>
+<!-- Mobile Bottom Navigation for Operators -->
+{% if user.role == 'operator' %}
+<nav class="mms-mobile-bottom-nav" aria-label="Mobile navigation">
+    <a href="{% url 'issue_list' %}" class="{% if current_url_name and 'issue' in current_url_name %}is-active{% endif %}">
+        <span class="mms-nav-icon">📋</span>
+        <span>Issues</span>
+    </a>
+    <a href="{% url 'issue_create' %}" class="{% if current_url_name == 'issue_create' %}is-active{% endif %}">
+        <span class="mms-nav-icon">⚠️</span>
+        <span>Report</span>
+    </a>
+    <a href="{% url 'consumables' %}" class="{% if current_url_name == 'consumables' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🧴</span>
+        <span>Consume</span>
+    </a>
+    <a href="{% url 'tool_list' %}" class="{% if current_url_name and 'tool' in current_url_name %}is-active{% endif %}">
+        <span class="mms-nav-icon">🔧</span>
+        <span>Tools</span>
+    </a>
+</nav>
+{% endif %}
 </body>
 </html>

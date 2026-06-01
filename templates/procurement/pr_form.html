@@ -8,10 +8,31 @@
     <form method="post" class="mms-form">
       {% csrf_token %}
       {{ form.as_p }}
-      <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
-      </div>
-    </form>
-  </div>
+<div class="mms-form-actions">
+  <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
+</div>
+</form>
+</div>
+
+<!-- Photos & Attachments -->
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>Photos & Attachments</h5>
+    </div>
+    <div class="mms-card-body">
+        <p class="text-muted mb-0">Attachments can be added after saving the purchase request.</p>
+        <div class="attachment-list" id="attachment-list-purchase_request-0"></div>
+        <div class="mt-2">
+            <input type="file" 
+                   id="attachment-file-input-purchase_request-0"
+                   accept="image/jpeg,image/png,image/webp,application/pdf"
+                   class="d-none" multiple
+                   onchange="handleAttachmentSelect(this)">
+            <button type="button" class="mms-btn mms-btn--ghost"
+                    onclick="document.getElementById('attachment-file-input-purchase_request-0').click()">
+                + Add Photo / File
+            </button>
+        </div>
+    </div>
 </div>
 {% endblock %}

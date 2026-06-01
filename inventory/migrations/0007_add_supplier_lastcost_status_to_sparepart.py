@@ -5,6 +5,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
     dependencies = [
         ("inventory", "0006_add_last_counted_to_inventory"),
+        ("procurement", "__first__"),
     ]
     operations = [
         migrations.AddField(

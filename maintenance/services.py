@@ -156,7 +156,12 @@ def technician_mark_waiting_vendor(wo: WorkOrder, technician: User, note: str = 
 
 
 @transaction.atomic
-def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool) -> None:
+def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool, rejection_reason: str = "") -> None:
+    """
+    Manager approves or rejects a work order pending review.
+    
+    If approve=False, rejection_reason is REQUIRED (raises ValueError if empty).
+    """
     now = timezone.now()
     if approve:
         open_dt = wo.downtime_records.filter(end_time__isnull=True).first()
@@ -165,12 +170,29 @@ def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool) -> Non
             open_dt.save()
             wo.downtime_ended_at = timezone.now()
             wo.save(update_fields=["downtime_ended_at", "updated_at"])
+        wo.rejected_at = None
+        wo.rejected_by = None
+        wo.rejection_reason = ""
+        wo.save(update_fields=["rejected_at", "rejected_by", "rejection_reason", "updated_at"])
         transition_work_order(wo, WorkOrder.Status.CLOSED, actor=manager, note="Approved & closed")
     else:
-        wo.labor_started_at = timezone.now()
+        if not rejection_reason or not rejection_reason.strip():
+            raise ValueError("Rejection reason is required.")
+        wo.rejection_count = (wo.rejection_count or 0) + 1
+        wo.rejected_at = now
+        wo.rejected_by = manager
+        wo.rejection_reason = rejection_reason.strip()[:500]
+        wo.labor_started_at = now
         wo.labor_stopped_at = None
-        wo.save(update_fields=["labor_started_at", "labor_stopped_at", "updated_at"])
-        transition_work_order(wo, WorkOrder.Status.IN_PROGRESS, actor=manager, note="Rejected — resume work")
+        wo.save(update_fields=[
+            "rejection_count", "rejected_at", "rejected_by", "rejection_reason",
+            "labor_started_at", "labor_stopped_at", "updated_at"
+        ])
+        transition_work_order(
+            wo, WorkOrder.Status.IN_PROGRESS, 
+            actor=manager, 
+            note=f"Rejected: {rejection_reason.strip()[:200]}"
+        )
 
 
 def validate_issue(issue: MaintenanceIssue, *, actor: User, priority: str) -> None:

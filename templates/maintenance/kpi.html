@@ -104,4 +104,78 @@
 </div>
 
 <p style="font-size:.78rem;color:var(--mms-muted);margin-top:1rem">Definitions used here are practical system KPIs based on available maintenance, part, tool, and procurement records in the PDF scope.</p>
+
+{% if stock_turnover %}
+<div class="mms-section" style="margin-top:2rem">
+    <h4 style="margin-bottom:1rem">📦 Stock Turnover Analysis (Last 90 days)</h4>
+
+    {% if dead_stock %}
+    <div class="alert alert-warning" style="margin-bottom:1rem">
+        <strong>⚠️ Dead Stock Detected ({{ dead_stock|length }} items)</strong>
+        <p style="margin:0.5rem 0 0">These parts have high inventory but very low consumption.</p>
+        <table class="mms-table" style="margin-top:0.5rem; font-size:0.9em">
+            <thead><tr><th>SKU</th><th>Part</th><th>Avg Stock</th><th>Consumed (90d)</th></tr></thead>
+            <tbody>
+            {% for item in dead_stock %}
+            <tr>
+                <td>{{ item.sku }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.avg_inventory }}</td>
+                <td>{{ item.total_consumed_90d }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if slow_movers %}
+    <div class="alert alert-info" style="margin-bottom:1rem">
+        <strong>🐌 Slow Movers ({{ slow_movers|length }} items)</strong>
+        <p style="margin:0.5rem 0 0">Turnover less than 1x per quarter.</p>
+    </div>
+    {% endif %}
+
+    <div class="mms-card">
+        <div class="mms-card-header"><h5>Top Consumed Parts (by turnover rate)</h5></div>
+        <div class="mms-card-body" style="padding:0">
+            <table class="mms-table">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Part Name</th>
+                        <th class="text-right">Consumed (90d)</th>
+                        <th class="text-right">Avg Stock</th>
+                        <th class="text-right">Turnover Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in stock_turnover %}
+                    <tr>
+                        <td>{{ item.sku }}</td>
+                        <td>{{ item.name }}</td>
+                        <td class="text-right">{{ item.total_consumed_90d|floatformat:1 }}</td>
+                        <td class="text-right">{{ item.avg_inventory|floatformat:1 }}</td>
+                        <td class="text-right">
+                            {% if item.turnover_rate %}
+                                {{ item.turnover_rate }}x
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.text-right { text-align: right; }
+.alert { padding: 1rem; border-radius: 4px; margin-bottom: 1rem; }
+.alert-warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; }
+.alert-info { background: #d1ecf1; border: 1px solid #17a2b8; color: #0c5460; }
+</style>
 {% endblock %}

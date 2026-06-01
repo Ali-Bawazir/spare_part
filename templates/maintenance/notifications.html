@@ -13,7 +13,7 @@
   <div class="mms-card-header">Recent</div>
   <div class="mms-card-body mms-stack" style="gap:0">
     {% for n in notifications %}
-    <div class="mms-notif-row{% if not n.read_at %} mms-notif-row--unread{% endif %}">
+    <div class="mms-notif-row{% if not n.read_at %} mms-notif-row--unread{% endif %}{% if n.is_critical %} mms-notif-row--critical{% endif %}">
       <div class="mms-notif-row__body">
         <div class="mms-notif-row__title">{{ n.title }}</div>
         {% if n.body %}<div style="font-size:.85rem;opacity:.9;margin-top:.25rem">{{ n.body }}</div>{% endif %}

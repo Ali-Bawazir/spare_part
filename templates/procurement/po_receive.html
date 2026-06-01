@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Receive PO {{ po.po_number }}{% endblock %}
+{% block page_heading %}Receive Items — PO {{ po.po_number }}{% endblock %}
+{% block content %}
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <dl style="margin:0">
+            <dt>Supplier</dt><dd>{{ po.supplier.name|default:"—" }}</dd>
+            <dt>Current Status</dt><dd>{{ po.get_status_display }}</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>Receive Line Items</h5>
+    </div>
+    <div class="mms-card-body">
+        <form method="post">
+            {% csrf_token %}
+            <table class="mms-table">
+                <thead>
+                    <tr>
+                        <th>Part</th>
+                        <th>SKU</th>
+                        <th>Ordered</th>
+                        <th>Already Received</th>
+                        <th>Remaining</th>
+                        <th>Receive Now</th>
+                        <th>Unit Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in po.items.all %}
+                    <tr>
+                        <td>{{ item.part.name }}</td>
+                        <td>{{ item.part.sku }}</td>
+                        <td>{{ item.ordered_qty }}</td>
+                        <td>{{ item.received_qty }}</td>
+                        <td>{{ item.remaining_qty }}</td>
+                        <td>
+                            <input type="number" 
+                                   name="received_qty_{{ item.pk }}" 
+                                   min="0" 
+                                   max="{{ item.remaining_qty }}" 
+                                   step="0.001"
+                                   class="form-control"
+                                   style="width:100px"
+                                   placeholder="0">
+                        </td>
+                        <td>{{ item.unit_price }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div class="mms-form-actions" style="margin-top:1rem">
+                <button class="mms-btn mms-btn--primary" type="submit">Confirm Receipt</button>
+                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<p class="text-muted" style="margin-top:0.5rem">
+    <em>Enter the quantity received for each line item. Stock will be added to inventory immediately.</em>
+</p>
+
+<!-- Photos & Attachments -->
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>Photos & Attachments</h5>
+    </div>
+    <div class="mms-card-body">
+        <div class="attachment-list" id="attachment-list-purchase_order-{{ po.pk }}"></div>
+        <div class="mt-2">
+            <input type="file" 
+                   id="attachment-file-input-purchase_order-{{ po.pk }}"
+                   accept="image/jpeg,image/png,image/webp,application/pdf"
+                   class="d-none" multiple
+                   onchange="handleAttachmentSelect(this)">
+            <button type="button" class="mms-btn mms-btn--ghost"
+                    onclick="document.getElementById('attachment-file-input-purchase_order-{{ po.pk }}').click()">
+                + Add Photo / File
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.attachment-item img { max-width: 200px; max-height: 150px; object-fit: cover; }
+</style>
+
+<script>
+async function loadAttachments(entityType, entityId, containerId) {
+    try {
+        const response = await fetch(`/attachments/${entityType}/${entityId}/`);
+        const data = await response.json();
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.attachments && data.attachments.length > 0) {
+            container.innerHTML = data.attachments.map(att => `
+                <div class="attachment-item mb-2 p-2 border rounded">
+                    ${att.mime_type && att.mime_type.startsWith('image/') 
+                        ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}" style="max-width:200px; max-height:150px; object-fit:cover;" class="mb-2">` 
+                        : `<div class="mb-2"><i class="bi bi-file-earmark"></i> ${att.filename}</div>`
+                    }
+                    <div class="small text-muted">${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by}</div>
+                    {% if perms.maintenance.delete_attachment %}
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">Delete</button>
+                    {% endif %}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-muted mb-0">No attachments yet.</p>';
+        }
+    } catch (e) { console.error('Failed to load attachments:', e); }
+}
+
+async function handleAttachmentSelect(input) {
+    const files = input.files;
+    if (!files.length) return;
+    const entityType = 'purchase_order';
+    const entityId = {{ po.pk }};
+    for (const file of files) {
+        await uploadAttachment(file, entityType, entityId);
+    }
+    loadAttachments(entityType, entityId, `attachment-list-${entityType}-${entityId}`);
+    input.value = '';
+}
+
+async function uploadAttachment(file, entityType, entityId) {
+    const formData = new FormData();
+    formData.append('entity_type', entityType);
+    formData.append('entity_id', entityId);
+    formData.append('file', file);
+    const response = await fetch('/attachments/upload/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        alert('Upload failed: ' + (err.error || 'Unknown error'));
+    }
+    return response.json();
+}
+
+async function deleteAttachment(attId, containerId, entityType, entityId) {
+    if (!confirm('Delete this attachment?')) return;
+    await fetch(`/attachments/${attId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    loadAttachments(entityType, entityId, containerId);
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAttachments('purchase_order', {{ po.pk }}, 'attachment-list-purchase_order-{{ po.pk }}');
+});
+</script>
+{% endblock %}

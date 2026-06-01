@@ -28,6 +28,17 @@
     <div class="mms-card-body mms-stack">
       {% if wo.issue %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Issue description</span><br>{{ wo.issue.description|linebreaksbr }}</div>
+      {% if issue_attachments %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Issue photos</span><br>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem">
+          {% for att in issue_attachments %}
+    <a href="{{ att.file.url }}" target="_blank" title="{{ att.filename }}">
+      <img src="{% if att.thumbnail %}{{ att.thumbnail.url }}{% else %}{{ att.file.url }}{% endif %}" alt="{{ att.filename }}" style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #ddd">
+    </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Reporter / validator</span><br>{{ wo.issue.reported_by.username }}{% if wo.issue.validated_by %} / {{ wo.issue.validated_by.username }}{% endif %}</div>
       <div class="mms-divider"></div>
       {% endif %}
@@ -101,6 +112,10 @@
         </div>
         {% if wo.status == 'in_progress' %}
         <div class="mms-divider"></div>
+        {% if wo.category == 'preventive' %}
+        <a href="{% url 'pm_execute' wo.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">Execute PM Checklist</a>
+        <div class="mms-divider"></div>
+        {% endif %}
         <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Execution flow</p>
         <div class="mms-grid" style="gap:.75rem">
           <form method="post" action="{% url 'work_order_mark_parts' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed">
@@ -131,10 +146,23 @@
       {% if perm_close_or_review_wo and wo.status == 'pending_review' %}
       <div class="mms-divider"></div>
       <div class="mms-form-tip">Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure.</div>
-      <form method="post" action="{% url 'work_order_close' wo.pk %}" class="mms-actions">
+      {% if wo.rejected_at %}
+      <div class="alert alert-info">
+          <strong>Previously rejected:</strong> {{ wo.rejection_reason }}
+          <br><small>Rejected by {{ wo.rejected_by }} on {{ wo.rejected_at|date:"Y-m-d H:i" }} ({{ wo.rejection_count }} rejection{{ wo.rejection_count|pluralize:"s" }})</small>
+      </div>
+      {% endif %}
+      <form method="post" action="{% url 'work_order_close' wo.pk %}">
         {% csrf_token %}
-        <button class="mms-btn mms-btn--primary mms-btn--sm" name="action" value="approve" type="submit">Approve and close</button>
-        <button class="mms-btn mms-btn--danger mms-btn--sm" name="action" value="reject" type="submit">Reject back to tech</button>
+        <div class="mb-3">
+            <label for="rejection_reason" class="form-label">Rejection Reason (required if returning to technician)</label>
+            <textarea name="rejection_reason" id="rejection_reason" class="form-control" rows="2"
+                      placeholder="Enter reason if returning to technician..."></textarea>
+        </div>
+        <div class="mms-actions">
+          <button class="mms-btn mms-btn--success mms-btn--sm" name="action" value="approve" type="submit">Approve & Close</button>
+          <button class="mms-btn mms-btn--danger mms-btn--sm" name="action" value="reject" type="submit">Return to Technician</button>
+        </div>
       </form>
       {% endif %}
     </div>

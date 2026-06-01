@@ -42,6 +42,11 @@ class SparePart(models.Model):
     category = models.CharField(max_length=64, blank=True)
     unit = models.CharField(max_length=32, blank=True)
     is_consumable = models.BooleanField(default=False, db_index=True)
+    allow_operator_consumption = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="When True, operators can self-log this item via /consumables/",
+    )
     quantity_on_hand = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     min_stock_level = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     max_stock_level = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
@@ -195,3 +200,63 @@ class PartIssueLine(models.Model):
     def clean(self):
         if self.quantity <= 0:
             raise ValidationError("Quantity must be positive.")
+
+
+class ConsumableAssignment(models.Model):
+    """Business accountability record when an operator self-logs an approved consumable."""
+
+    class Source(models.TextChoices):
+        SELF_SERVICE = "SELF_SERVICE", "Self Service"
+        SUPERVISOR_ISSUE = "SUPERVISOR_ISSUE", "Supervisor Issue"
+        WO_CONSUMPTION = "WO_CONSUMPTION", "Work Order Consumption"
+
+    part = models.ForeignKey(
+        "SparePart",
+        on_delete=models.PROTECT,
+        related_name="consumable_assignments",
+    )
+    consumed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="consumed_assignments",
+    )
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="issued_consumables",
+    )
+    quantity = models.DecimalField(max_digits=14, decimal_places=3)
+    source = models.CharField(
+        max_length=32,
+        choices=Source.choices,
+        default=Source.SELF_SERVICE,
+        db_index=True,
+    )
+    approved = models.BooleanField(default=True)
+    site = models.ForeignKey(
+        "maintenance.Site",
+        on_delete=models.PROTECT,
+        related_name="consumable_assignments",
+    )
+    machine = models.ForeignKey(
+        "maintenance.Machine",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    note = models.CharField(max_length=500, blank=True)
+    stock_movement = models.OneToOneField(
+        "StockMovement",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Consumable Assignment"
+        verbose_name_plural = "Consumable Assignments"
+
+    def __str__(self) -> str:
+        return f"{self.consumed_by.username} consumed {self.quantity} x {self.part.name}"

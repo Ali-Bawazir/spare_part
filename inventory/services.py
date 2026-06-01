@@ -220,23 +220,48 @@ def issue_part_to_work_order(
 
 @transaction.atomic
 def consumable_use(
-    *, part: SparePart, quantity: Decimal, user, machine_id: int | None = None, site=None
+    *,
+    part: SparePart,
+    quantity: Decimal,
+    consumed_by,
+    note: str = "",
+    machine_id: int | None = None,
+    site=None,
 ) -> tuple[bool, str]:
+    """
+    Operator self-logs an approved consumable item.
+    
+    Creates both:
+    - ConsumableAssignment (business ledger)
+    - StockMovement (inventory audit)
+    
+    Both created atomically; StockMovement FK linked on ConsumableAssignment.
+    """
     if not part.is_consumable:
         return False, "Selected part is not marked as consumable."
+    if not part.allow_operator_consumption:
+        return False, "This item is not available for operator self-service."
     if quantity <= 0:
         return False, "Quantity must be positive."
+
     site = site or _get_default_site()
     if not site:
         return False, "No default site configured."
 
+    from django.utils import timezone
+    from inventory.models import ConsumableAssignment
+
+    # Check for duplicate (within 5 seconds)
     recent = StockMovement.objects.filter(
-        part=part, movement_type=StockMovement.MovementType.CONSUMABLE_USE,
-        performed_by=user, created_at__gte=timezone.now() - timezone.timedelta(seconds=5)
+        part=part,
+        movement_type=StockMovement.MovementType.CONSUMABLE_USE,
+        performed_by=consumed_by,
+        created_at__gte=timezone.now() - timezone.timedelta(seconds=5),
     ).exists()
     if recent:
         return False, "Duplicate consumable log detected. Please wait."
 
+    # Lock inventory row
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
     quantity_before = inv.quantity_available
     if inv.quantity_available < quantity:
@@ -245,20 +270,57 @@ def consumable_use(
     inv.save()
     quantity_after = inv.quantity_available
 
-    note = ""
+    # Build note string for StockMovement (includes machine if provided)
+    movement_note = note
     if machine_id:
-        note = f"machine_id={machine_id}"
-    StockMovement.objects.create(
-        part=part, site=site,
+        movement_note = f"machine_id={machine_id}" + (f"; {note}" if note else "")
+
+    # Create StockMovement first
+    stock_movement = StockMovement.objects.create(
+        part=part,
+        site=site,
         movement_type=StockMovement.MovementType.CONSUMABLE_USE,
         quantity=quantity,
         quantity_before=quantity_before,
         quantity_after=quantity_after,
-        performed_by=user, note=note,
+        performed_by=consumed_by,
+        note=movement_note,
     )
+
+    # Resolve machine if provided
+    machine = None
+    if machine_id:
+        from maintenance.models import Machine
+        try:
+            machine = Machine.objects.get(pk=machine_id)
+        except Machine.DoesNotExist:
+            pass
+
+    # Create ConsumableAssignment (Phase 1: issued_by = consumed_by, source = SELF_SERVICE)
+    assignment = ConsumableAssignment.objects.create(
+        part=part,
+        consumed_by=consumed_by,
+        issued_by=consumed_by,  # Phase 1: self-service
+        quantity=quantity,
+        source=ConsumableAssignment.Source.SELF_SERVICE,
+        approved=True,  # Phase 1: auto-approved
+        site=site,
+        machine=machine,
+        note=note,
+        stock_movement=stock_movement,  # Direct FK link
+    )
+
+    # Update reference JSON on StockMovement for audit portability
+    stock_movement.reference = {"assignment_id": assignment.pk}
+    stock_movement.save(update_fields=["reference"])
+
     log_audit(
-        actor=user, action="consumable_use", entity="SparePart",
-        object_id=str(part.pk), payload={"qty": str(quantity)},
+        actor=consumed_by,
+        action="consumable_use",
+        entity="SparePart",
+        object_id=str(part.pk),
+        payload={"qty": str(quantity), "assignment_id": assignment.pk},
     )
+
     _maybe_notify_low_stock(part, site)
-    return True, "Logged."
+    return True, f"Logged {quantity} x {part.name}."

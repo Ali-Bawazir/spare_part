@@ -24,7 +24,7 @@
 
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
-    <form method="post" class="mms-form">
+    <form method="post" class="mms-form" id="issue-form" enctype="multipart/form-data">
       {% csrf_token %}
       {% for field in form %}
       <div class="mms-form-row">
@@ -33,11 +33,234 @@
         {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
       </div>
       {% endfor %}
+      <div class="form-group" id="photo-upload-section">
+        <label for="id_issue_photos">Photos (optional)</label>
+        <input type="file" name="issue_photos" id="id_issue_photos"
+               accept="image/jpeg,image/png,image/webp,application/pdf" multiple
+               class="form-control">
+        <small class="form-text text-muted">Max 10 photos, 5MB each. JPG, PNG, WEBP, PDF.</small>
+        <div id="photo-preview" class="photo-preview-grid" style="display:none;"></div>
+      </div>
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
+        <button class="mms-btn mms-btn--primary" type="submit" id="submit-btn">Submit</button>
       </div>
     </form>
   </div>
 </div>
 <p class="mms-form-tip">Tip: QR deep link <code>?qr=PRESS-01</code> pre-selects the machine, and the scanner page can fill it for you.</p>
+<style>
+.photo-preview-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+.photo-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-preview-item .remove-photo {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 12px;
+}
+</style>
+<script>
+(function() {
+    // ─── Photo upload (enhanced for multiple) ────────────────────────────
+    // Simple approach: treat <input type="file"> as append-only event source
+    // Maintain our own fileArray as single source of truth
+    const photoInput = document.getElementById('id_issue_photos');
+    const previewContainer = document.getElementById('photo-preview');
+
+    // fileArray must be accessible to form submission handler
+    const fileArray = [];
+
+    if (photoInput) {
+
+        photoInput.addEventListener('change', function(e) {
+            // e.target.files contains newly selected files (browser replaced it)
+            // Append only new files, avoiding duplicates
+            Array.from(e.target.files).forEach(function(file) {
+                const exists = fileArray.some(function(f) {
+                    return f.name === file.name &&
+                           f.size === file.size &&
+                           f.lastModified === file.lastModified;
+                });
+                if (!exists) {
+                    fileArray.push(file);
+                }
+            });
+            // Clear the input so selecting same file again triggers change
+            photoInput.value = "";
+            updatePreview();
+        });
+
+        function updatePreview() {
+            previewContainer.innerHTML = '';
+            if (fileArray.length > 0) {
+                previewContainer.style.display = 'flex';
+                fileArray.forEach(function(file, index) {
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const div = document.createElement('div');
+                            div.className = 'photo-preview-item';
+                            div.innerHTML = '<img src="' + e.target.result + '" alt="Preview">' +
+                                '<button type="button" class="remove-photo" data-index="' + index + '" title="Remove">&times;</button>';
+                            previewContainer.appendChild(div);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        }
+
+        // Remove photo handler
+        previewContainer.addEventListener('click', function(e) {
+            const btn = e.target.closest('.remove-photo');
+            if (btn) {
+                const index = parseInt(btn.dataset.index, 10);
+                fileArray.splice(index, 1);
+                updatePreview();
+            }
+        });
+    }
+
+    // ─── Cascading failure category → mode dropdown ─────────────────────────
+    var categorySelect = document.getElementById('id_issue_type');
+    var modeSelect = document.getElementById('id_failure_mode');
+    var originalModeOptions = modeSelect ? Array.from(modeSelect.options) : [];
+
+    function getCsrfToken() {
+        var value = document.cookie.split("; ").find(function(row) { return row.indexOf("csrftoken=") === 0; });
+        return value ? decodeURIComponent(value.split("=").slice(1).join("=")) : "";
+    }
+
+    function updateModeSelect(modes) {
+        if (!modeSelect) return;
+        modeSelect.innerHTML = '';
+        var blankOpt = document.createElement('option');
+        blankOpt.value = '';
+        blankOpt.textContent = '— Select failure mode —';
+        modeSelect.appendChild(blankOpt);
+        modes.forEach(function(m) {
+            var opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.code + ' — ' + m.name;
+            modeSelect.appendChild(opt);
+        });
+    }
+
+    if (categorySelect && modeSelect) {
+        categorySelect.addEventListener('change', function() {
+            var catId = categorySelect.value;
+            if (!catId) {
+                // Reset to all modes
+                updateModeSelect(originalModeOptions.filter(function(o) { return o.value !== ''; }).map(function(o) {
+                    return { id: o.value, code: '', name: o.textContent };
+                }));
+                return;
+            }
+            // Fetch filtered modes from API
+            var url = '{% url "failure_modes_by_category" %}?category_id=' + encodeURIComponent(catId);
+            fetch(url, {
+                headers: { "X-CSRFToken": getCsrfToken() }
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) { updateModeSelect(data.modes || []); })
+            .catch(function() { updateModeSelect([]); });
+        });
+
+        // If category pre-selected (e.g. from machine), trigger initial load
+        if (categorySelect.value) {
+            categorySelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    // ─── Form submission ──────────────────────────────────────────────────
+    // Always use AJAX - FormData(form) correctly handles multiple files
+    const form = document.getElementById('issue-form');
+    const submitBtn = document.getElementById('submit-btn');
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            // Build FormData manually to ensure files are properly included
+            const formData = new FormData();
+            
+            // Add CSRF token first
+            const csrfInput = form.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfInput) {
+                formData.append('csrfmiddlewaretoken', csrfInput.value);
+            }
+            
+            // Add all form fields
+            const fields = ['machine', 'issue_type', 'failure_mode', 'description'];
+            fields.forEach(function(fieldName) {
+                const field = form.querySelector('[name=' + fieldName + ']');
+                if (field) {
+                    formData.append(fieldName, field.value);
+                }
+            });
+            
+            // Add files from fileArray (our accumulated files)
+            fileArray.forEach(function(file) {
+                formData.append('issue_photos', file);
+            });
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+            })
+            .then(function(response) {
+                // Check if we got a redirect (302) - the issue was saved
+                if (response.url && response.url.includes('/issues/')) {
+                    window.location.href = '{% url "issue_list" %}';
+                    return;
+                }
+                // If we got HTML back (redirect page), follow it
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                // Otherwise try to parse as JSON
+                return response.json().then(function(data) {
+                    window.location.href = data.redirect_url || '{% url "issue_list" %}';
+                }).catch(function() {
+                    // If JSON parse fails, check if it's a redirect
+                    window.location.href = '{% url "issue_list" %}';
+                });
+            })
+            .catch(function(err) {
+                console.error('Form submission error:', err);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit';
+                alert('Failed to submit issue. Please try again.');
+            });
+        });
+    }
+})();
+</script>
 {% endblock %}

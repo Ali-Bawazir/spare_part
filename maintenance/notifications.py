@@ -19,6 +19,7 @@ Call sync_pm_overdue_notifications() from dashboard / PM list, or run
 """
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from datetime import timedelta
 
@@ -28,6 +29,25 @@ from django.utils import timezone
 from accounts.models import User
 
 from .models import ExternalRepairOrder, MaintenanceIssue, Notification, PMSchedule
+
+
+def _send_email_if_configured(recipient, subject, body):
+    """
+    Placeholder for email sending. In Phase 2, this would send real emails.
+    Currently logs to console/audit.
+    """
+    logger = logging.getLogger(__name__)
+
+    from django.conf import settings
+    if not getattr(settings, 'EMAIL_BACKEND', None):
+        logger.debug(f"Email not configured — would send to {recipient.email}: {subject}")
+        return False
+
+    # Phase 2: actually send email
+    # from django.core.mail import send_mail
+    # send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [recipient.email])
+
+    return True
 
 
 def _unique_users(users: Iterable[User]) -> list[User]:
@@ -40,7 +60,7 @@ def _unique_users(users: Iterable[User]) -> list[User]:
     return out
 
 
-def _notify_users(users: Iterable[User], *, kind: str, title: str, body: str = "", link: str = "") -> None:
+def _notify_users(users: Iterable[User], *, kind: str, title: str, body: str = "", link: str = "", is_critical: bool = False) -> None:
     for u in _unique_users(users):
         Notification.objects.create(
             recipient=u,
@@ -48,6 +68,7 @@ def _notify_users(users: Iterable[User], *, kind: str, title: str, body: str = "
             title=title[:255],
             body=body[:2000],
             link=link[:500],
+            is_critical=is_critical,
         )
 
 
@@ -113,13 +134,20 @@ def notify_emergency_work_order(wo) -> None:
     title = f"Emergency WO: WO-{wo.number}"
     notes = (wo.notes or "").strip()
     body = f"{wo.machine.name}. {notes[:500]}" if notes else f"{wo.machine.name}."
+    recipients = _emergency_wo_recipients()
     _notify_users(
-        _emergency_wo_recipients(),
+        recipients,
         kind=Notification.Kind.WO_EMERGENCY,
         title=title,
         body=body,
         link=reverse("work_order_detail", kwargs={"pk": wo.pk}),
+        is_critical=True,
     )
+    for recipient in recipients:
+        try:
+            _send_email_if_configured(recipient, title, body)
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Email notification failed: {e}")
 
 
 def notify_wo_pending_review(wo) -> None:
@@ -158,31 +186,45 @@ def notify_low_stock(part, *, sku: str, qty) -> None:
         title=title,
         body=body,
         link=reverse("stock_dashboard"),
+        is_critical=(qty == 0),
     )
 
 
 def notify_procurement_request(pr) -> None:
     title = f"Purchase request #{pr.pk}"
     body = f"{pr.part.sku} × {pr.quantity} — {pr.get_status_display()}."
+    recipients = _procurement_request_recipients()
     _notify_users(
-        _procurement_request_recipients(),
+        recipients,
         kind=Notification.Kind.PROCUREMENT,
         title=title,
         body=body,
         link=reverse("purchase_list"),
+        is_critical=getattr(pr, 'is_emergency', False),
     )
+    for recipient in recipients:
+        try:
+            _send_email_if_configured(recipient, title, body)
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Email notification failed: {e}")
 
 
 def notify_repair_returned(rwo: ExternalRepairOrder) -> None:
     title = f"Repair returned: {rwo.title}"
     body = "Verify repair quality and cost, then accept (UC-20)."
+    recipients = _managers_supers()
     _notify_users(
-        _managers_supers(),
+        recipients,
         kind=Notification.Kind.REPAIR_RETURNED,
         title=title,
         body=body,
         link=reverse("repair_manager_accept", kwargs={"pk": rwo.pk}),
     )
+    for recipient in recipients:
+        try:
+            _send_email_if_configured(recipient, title, body)
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Email notification failed: {e}")
 
 
 def sync_pm_overdue_notifications() -> int:

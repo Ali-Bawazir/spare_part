@@ -45,6 +45,7 @@ _ALL_KEYS = (
     "audit_log",
     "quick_log",
     "manage_system_users",
+    "issue_archive",
     "machine_manage",
 )
 
@@ -71,6 +72,7 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
     view_issues = role_in(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER)
     report_issue = role_in(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER)
     validate_issue = role_in(User.Role.SUPERVISOR, User.Role.MANAGER)
+    issue_archive = role_in(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 
     # --- Work orders (matrix: queue = technician + manager; no operator / supervisor / procurement) ---
     view_work_orders = role_in(User.Role.TECHNICIAN, User.Role.MANAGER)
@@ -169,6 +171,7 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
         "audit_log": audit_log,
         "quick_log": quick_log,
         "manage_system_users": manage_system_users,
+        "issue_archive": issue_archive,
         "machine_manage": machine_manage,
     }
 

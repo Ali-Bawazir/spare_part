@@ -1,17 +1,90 @@
 {% extends "base.html" %}
-{% block title %}Consumables{% endblock %}
+{% block title %}Daily consumables{% endblock %}
 {% block page_heading %}Daily consumables{% endblock %}
 {% block content %}
-<p class="mms-page-lead">No approval workflow — usage is logged and stock is deducted.</p>
-<div class="mms-card mms-form-stack">
-  <div class="mms-card-body">
-    <form method="post" class="mms-form">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Log usage</button>
-      </div>
-    </form>
-  </div>
+
+<p class="mms-page-lead">Log usage of approved consumables. No approval workflow — usage is logged and stock is deducted immediately.</p>
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <form method="post" class="mms-form">
+            {% csrf_token %}
+            <div class="mms-form-row">
+                <label for="id_part">Part</label>
+                {{ form.part }}
+                {% if form.part.errors %}<div class="mms-field-error">{{ form.part.errors }}</div>{% endif %}
+            </div>
+            <div class="mms-form-row">
+                <label for="id_quantity">Quantity <span id="unit-hint" style="font-weight:normal;color:var(--mms-text-muted)"></span></label>
+                {{ form.quantity }}
+                {% if form.quantity.errors %}<div class="mms-field-error">{{ form.quantity.errors }}</div>{% endif %}
+            </div>
+            <div class="mms-form-row" style="display:none">
+                {{ form.machine_id }}
+            </div>
+            <div class="mms-form-actions">
+                <button class="mms-btn mms-btn--primary" type="submit">Log usage</button>
+            </div>
+        </form>
+    </div>
 </div>
+
+{% if assignments %}
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>My recent consumptions</h5>
+    </div>
+    <div class="mms-card-body" style="padding:0">
+        <table class="mms-table">
+            <thead>
+                <tr>
+                    <th>Part</th>
+                    <th>Qty</th>
+                    <th>Machine</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in assignments %}
+                <tr>
+                    <td>{{ a.part.name }}</td>
+                    <td>{{ a.quantity }} {{ a.part.unit }}</td>
+                    <td>{{ a.machine.name|default:"—" }}</td>
+                    <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function() {
+    var partSelect = document.getElementById('id_part');
+    var unitHint = document.getElementById('unit-hint');
+    var partOptions = {};
+
+    // Build part -> unit map from select options' text
+    Array.from(partSelect.options).forEach(function(opt) {
+        if (!opt.value) return;
+        // Expected format: "Name (SKU)" — extract unit from data attribute if available
+        // Fallback: leave hint empty unless we have per-part unit info
+    });
+
+    function updateUnitHint() {
+        var selectedOption = partSelect.options[partSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            unitHint.textContent = '';
+            return;
+        }
+        // We don't have unit in option text — rely on user seeing it in history
+        // Just show a generic hint
+        unitHint.textContent = '';
+    }
+
+    partSelect.addEventListener('change', updateUnitHint);
+    updateUnitHint();
+})();
+</script>
 {% endblock %}
