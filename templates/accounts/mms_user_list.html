@@ -12,7 +12,7 @@
       {% for u in users %}
       <tr>
         <td>{{ u.username }}</td>
-        <td>{{ u.get_role_display }}</td>
+        <td>{{ u|user_role }}</td>
         <td>{% if u.is_staff %}Yes{% else %}No{% endif %}</td>
         <td>{% if u.is_active %}Yes{% else %}No{% endif %}</td>
         <td>{{ u.email|default:"—" }}</td>

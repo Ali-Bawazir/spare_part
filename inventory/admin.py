@@ -125,10 +125,24 @@ class StockMovementAdmin(MMSAdminPermission, admin.ModelAdmin):
 
 @admin.register(PartIssueLine)
 class PartIssueLineAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("work_order", "part", "quantity", "unit_cost", "issued_by", "created_at")
-    list_filter = ("part",)
-    search_fields = ("work_order__number", "part__sku", "part__name", "issued_by__username")
-    readonly_fields = ("created_at",)
-    raw_id_fields = ("work_order", "part", "issued_by")
+    list_display = (
+        "work_order", "part", "quantity", "status", "unit_cost",
+        "requested_by", "issued_by", "approved_by", "is_emergency_auto_approved",
+        "created_at",
+    )
+    list_filter = ("status", "is_emergency_auto_approved", "part")
+    search_fields = (
+        "work_order__number", "part__sku", "part__name",
+        "issued_by__username", "requested_by__username", "approved_by__username",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    raw_id_fields = ("work_order", "part", "issued_by", "requested_by", "approved_by")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
+    fieldsets = (
+        ("Identification", {"fields": ("work_order", "part", "status")}),
+        ("Quantities", {"fields": ("quantity", "unit_cost", "invoice_ref", "supplier_name")}),
+        ("People", {"fields": ("requested_by", "issued_by", "approved_by", "approved_at")}),
+        ("Decision", {"fields": ("rejection_reason", "is_emergency_auto_approved")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )

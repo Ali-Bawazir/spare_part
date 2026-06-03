@@ -22,6 +22,10 @@ _ALL_KEYS = (
     "create_work_order",
     "assign_technician",
     "issue_parts_to_wo",
+    "request_part_on_wo",
+    "approve_part_request",
+    "request_external_repair",
+    "approve_external_repair_request",
     "close_or_review_wo",
     "execute_work_order",
     "view_stock",
@@ -79,6 +83,15 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
     create_work_order = role_in(User.Role.MANAGER)
     assign_technician = role_in(User.Role.MANAGER)
     issue_parts_to_wo = role_in(User.Role.MANAGER)
+    # Phase 2.1: hybrid approval — technician requests (PENDING), manager approves.
+    # Own-WO enforcement is done in the view, not the capability flag.
+    request_part_on_wo = role_in(User.Role.TECHNICIAN)
+    # Phase 2.1: only MANAGER approves (single approval authority, parts = money).
+    approve_part_request = role_in(User.Role.MANAGER)
+    # Phase 2.2: technician requests external repair on own WO; manager reviews/approves.
+    # Own-WO enforcement is done in the view, not the capability flag.
+    request_external_repair = role_in(User.Role.TECHNICIAN)
+    approve_external_repair_request = role_in(User.Role.MANAGER)
     close_or_review_wo = role_in(User.Role.MANAGER)
     execute_work_order = role_in(User.Role.TECHNICIAN) or full
 
@@ -148,6 +161,10 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
         "create_work_order": create_work_order,
         "assign_technician": assign_technician,
         "issue_parts_to_wo": issue_parts_to_wo,
+        "request_part_on_wo": request_part_on_wo,
+        "approve_part_request": approve_part_request,
+        "request_external_repair": request_external_repair,
+        "approve_external_repair_request": approve_external_repair_request,
         "close_or_review_wo": close_or_review_wo,
         "execute_work_order": execute_work_order,
         "view_stock": view_stock,

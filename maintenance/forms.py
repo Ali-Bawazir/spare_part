@@ -1,8 +1,11 @@
+from decimal import Decimal
+
 from django import forms
 from django.contrib.auth import get_user_model
 
 from .models import (
     ExternalRepairOrder,
+    ExternalRepairRequest,
     FailureCategory,
     FailureMode,
     Machine,
@@ -33,10 +36,19 @@ class IssueReportForm(forms.ModelForm):
         label="Failure Mode",
         help_text="Specific failure pattern (optional)",
     )
+    is_emergency = forms.BooleanField(
+        required=False,
+        label="Mark as emergency",
+        help_text=(
+            "P3.3: tick if this issue is an emergency. The issue will be "
+            "set to CRITICAL priority, and any WO created from it will "
+            "be an Emergency WO."
+        ),
+    )
 
     class Meta:
         model = MaintenanceIssue
-        fields = ("machine", "issue_type", "failure_mode", "description")
+        fields = ("machine", "issue_type", "failure_mode", "description", "is_emergency")
         widgets = {
             "machine": forms.Select(attrs=_SEL),
             "failure_mode": forms.Select(attrs=_SEL),
@@ -53,6 +65,13 @@ class IssueReportForm(forms.ModelForm):
                 is_active=True,
                 category_id=self.instance.machine.failure_category_id
             )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("is_emergency"):
+            # Emergency issues default to CRITICAL priority.
+            cleaned["priority"] = MaintenanceIssue.Priority.CRITICAL
+        return cleaned
 
 
 class ValidateIssueForm(forms.Form):
@@ -79,6 +98,33 @@ class WorkOrderCompleteForm(forms.ModelForm):
             "action_taken": forms.Textarea(attrs={**_CTRL, "rows": 3}),
             "notes": forms.Textarea(attrs={**_CTRL, "rows": 3}),
         }
+
+
+class WorkOrderPauseForm(forms.Form):
+    """Categorized pause form. Reason is mandatory; note required for 'other'."""
+    pause_reason = forms.ChoiceField(
+        choices=WorkOrder.PauseReason.choices,
+        widget=forms.Select(attrs=_SEL),
+        label="Reason for pause",
+    )
+    pause_note = forms.CharField(
+        required=False,
+        max_length=500,
+        widget=forms.Textarea(
+            attrs={**_CTRL, "rows": 2, "placeholder": "Required when reason is 'Other'"}
+        ),
+        label="Note",
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        reason = cleaned.get("pause_reason")
+        note = (cleaned.get("pause_note") or "").strip()
+        if reason == WorkOrder.PauseReason.OTHER and not note:
+            raise forms.ValidationError(
+                {"pause_note": "Note is required when reason is 'Other'."}
+            )
+        return cleaned
 
 
 class QuickLogForm(forms.ModelForm):
@@ -213,3 +259,99 @@ class TechVendorNoteForm(forms.Form):
         max_length=500,
         widget=forms.TextInput(attrs={**_CTRL, "placeholder": "Optional note for the log"}),
     )
+
+
+class ExternalRepairRequestForm(forms.ModelForm):
+    """Technician-submitted form to request external (vendor) repair."""
+
+    class Meta:
+        model = ExternalRepairRequest
+        fields = ("diagnosis_note", "part_description")
+        widgets = {
+            "diagnosis_note": forms.Textarea(
+                attrs={
+                    **_CTRL,
+                    "rows": 3,
+                    "placeholder": "What's wrong with the part? Why does it need an external repair?",
+                }
+            ),
+            "part_description": forms.Textarea(
+                attrs={
+                    **_CTRL,
+                    "rows": 2,
+                    "placeholder": "Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1')",
+                }
+            ),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        if not (cleaned.get("diagnosis_note") or "").strip():
+            self.add_error("diagnosis_note", "Diagnosis note is required.")
+        if not (cleaned.get("part_description") or "").strip():
+            self.add_error("part_description", "Part description is required.")
+        return cleaned
+
+
+class ExternalRepairRequestDecisionForm(forms.Form):
+    """Manager approves or rejects a PENDING external-repair request."""
+
+    ACTION_CHOICES = (
+        ("approve", "Approve (create ERO)"),
+        ("reject", "Reject"),
+    )
+    action = forms.ChoiceField(choices=ACTION_CHOICES, widget=forms.Select(attrs=_SEL))
+    manager_note = forms.CharField(
+        required=False,
+        widget=forms.Textarea(
+            attrs={**_CTRL, "rows": 2, "placeholder": "Required on reject; optional on approve."}
+        ),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("action") == "reject" and not (cleaned.get("manager_note") or "").strip():
+            self.add_error("manager_note", "A rejection reason is required.")
+        return cleaned
+
+
+class RepairManagerAcceptForm(forms.Form):
+    """P3.2 — manager acceptance of a RETURNED ExternalRepairOrder (UC-20).
+
+    SRS UC-20: every issued part must have cost + supplier + invoice.
+    So actual_cost and invoice_ref are mandatory on accept.
+    """
+    actual_cost = forms.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0"),
+        widget=forms.NumberInput(attrs={
+            **_CTRL, "step": "0.01", "min": "0",
+            "placeholder": "Vendor invoice total",
+        }),
+        help_text="Required — final vendor invoice amount.",
+    )
+    invoice_ref = forms.CharField(
+        max_length=120,
+        widget=forms.TextInput(attrs={
+            **_CTRL, "placeholder": "Vendor invoice number",
+        }),
+        help_text="Required — vendor invoice number (UC-20).",
+    )
+    note = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            **_CTRL, "rows": 2,
+            "placeholder": "Optional verification note (e.g. condition of returned part)",
+        }),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        cost = cleaned.get("actual_cost")
+        if cost is None or cost <= 0:
+            self.add_error("actual_cost", "Actual cost must be greater than zero.")
+        inv = (cleaned.get("invoice_ref") or "").strip()
+        if not inv:
+            self.add_error("invoice_ref", "Vendor invoice number is required.")
+        else:
+            cleaned["invoice_ref"] = inv
+        return cleaned

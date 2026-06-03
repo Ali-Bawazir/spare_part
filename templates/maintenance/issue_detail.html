@@ -22,7 +22,16 @@
                 {% elif issue.status == 'converted' %}<span class="status-badge status-converted">Converted</span>
                 {% endif %}
             </dd>
-            <dt>Priority</dt><dd>{{ issue.priority|upper }}</dd>
+            <dt>Priority</dt>
+            <dd>
+                {{ issue.priority|upper }}
+                {% if issue.is_emergency %}
+                    <span class="status-badge" style="background:#dc3545;color:#fff;margin-left:.5rem">EMERGENCY</span>
+                    {% if issue.escalated_by %}
+                        <br><small class="text-muted">Escalated by {{ issue.escalated_by.username }} at {{ issue.escalated_at|date:"Y-m-d H:i" }}</small>
+                    {% endif %}
+                {% endif %}
+            </dd>
             <dt>Description</dt><dd>{{ issue.description|linebreaks }}</dd>
             <dt>Reported By</dt><dd>{{ issue.reported_by.get_full_name|default:issue.reported_by.username }}</dd>
             <dt>Reported At</dt><dd>{{ issue.created_at|date:"Y-m-d H:i" }}</dd>
@@ -54,8 +63,36 @@
 </div>
 
 <div class="mms-form-actions">
+    {% if not issue.is_archived and not issue.is_emergency and request.user.role in 'supervisor,manager,super_admin' %}
+    <button type="button" class="mms-btn mms-btn--danger" id="escalate-trigger">
+        Escalate to emergency
+    </button>
+    {% endif %}
     <a href="{% url 'issue_list' %}" class="mms-btn mms-btn--ghost">← Back to My Issues</a>
 </div>
+
+{% if not issue.is_archived and not issue.is_emergency and request.user.role in 'supervisor,manager,super_admin' %}
+<div id="escalate-confirm-card" class="mms-card mms-card--danger" hidden style="margin-bottom:1rem">
+    <div class="mms-card-header" style="background:#dc3545;color:#fff">
+        Confirm emergency escalation
+    </div>
+    <div class="mms-card-body">
+        <p><strong>This action will:</strong></p>
+        <ul>
+            <li>Set priority to <strong>CRITICAL</strong> and tag the issue as <strong>EMERGENCY</strong></li>
+            <li>Page the on-call technician and the maintenance manager</li>
+            <li>Auto-prioritise this issue at the top of the work-order queue</li>
+            <li>If a work order is later created from this issue, it will be created with <code>is_emergency=True</code></li>
+        </ul>
+        <p class="text-muted">This action is logged in the audit trail. It cannot be undone from this page.</p>
+        <form method="post" action="{% url 'issue_escalate' issue.pk %}" style="display:flex;gap:.5rem;margin-top:1rem">
+            {% csrf_token %}
+            <button type="submit" class="mms-btn mms-btn--danger">Yes, escalate to emergency</button>
+            <button type="button" class="mms-btn mms-btn--ghost" id="escalate-cancel">Cancel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 <style>
 .status-badge {
@@ -72,31 +109,32 @@
 .mms-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 9999; }
 .mms-lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; }
 .mms-lightbox-close { position: absolute; top: 1rem; right: 1rem; color: white; font-size: 2rem; cursor: pointer; background: none; border: none; }
+.mms-card--danger { border-left: 4px solid #dc3545; }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const listEl = document.getElementById('issue-photo-list');
-    if (!listEl) return;
+    if (listEl) {
+        const entity = listEl.dataset.entity;
+        const id = listEl.dataset.id;
 
-    const entity = listEl.dataset.entity;
-    const id = listEl.dataset.id;
-
-    fetch(`/attachments/${entity}/${id}/`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.attachments.length) {
-                listEl.innerHTML = '<p class="mms-empty">No photos yet.</p>';
-                return;
-            }
-            listEl.innerHTML = '<div class="mms-photo-gallery">' +
-                data.attachments.map(a => `
-                    <img src="${a.thumbnail_url || a.url}"
-                         alt="${a.filename}"
-                         class="mms-photo-thumb"
-                         onclick="openLightbox(this.src, '${a.filename}')">
-                `).join('') + '</div>';
-        });
+        fetch(`/attachments/${entity}/${id}/`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.attachments.length) {
+                    listEl.innerHTML = '<p class="mms-empty">No photos yet.</p>';
+                    return;
+                }
+                listEl.innerHTML = '<div class="mms-photo-gallery">' +
+                    data.attachments.map(a => `
+                        <img src="${a.thumbnail_url || a.url}"
+                             alt="${a.filename}"
+                             class="mms-photo-thumb"
+                             onclick="openLightbox(this.src, '${a.filename}')">
+                    `).join('') + '</div>';
+            });
+    }
 
     window.openLightbox = function(src, name) {
         const lb = document.createElement('div');
@@ -105,6 +143,23 @@ document.addEventListener('DOMContentLoaded', function() {
         lb.addEventListener('click', function(e) { if (e.target === lb) lb.remove(); });
         document.body.appendChild(lb);
     };
+
+    const trigger = document.getElementById('escalate-trigger');
+    const card = document.getElementById('escalate-confirm-card');
+    const cancel = document.getElementById('escalate-cancel');
+    if (trigger && card) {
+        trigger.addEventListener('click', function() {
+            card.hidden = false;
+            card.scrollIntoView({behavior: 'smooth', block: 'center'});
+            trigger.disabled = true;
+        });
+    }
+    if (cancel && card && trigger) {
+        cancel.addEventListener('click', function() {
+            card.hidden = true;
+            trigger.disabled = false;
+        });
+    }
 });
 </script>
 {% endblock %}

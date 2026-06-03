@@ -17,6 +17,18 @@
   {% if emergency_open is not None %}
   <div class="mms-kpi"><div class="mms-kpi-value">{{ emergency_open }}</div><div class="mms-kpi-label">Open emergency WO</div></div>
   {% endif %}
+  {% if pending_part_requests is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_part_requests }}</div><div class="mms-kpi-label">Pending part requests</div></div>
+  {% endif %}
+  {% if pending_external_repair_requests is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_external_repair_requests }}</div><div class="mms-kpi-label">Pending ext. repair req.</div></div>
+  {% endif %}
+  {% if paused_wos is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ paused_wos }}</div><div class="mms-kpi-label">Paused WO</div></div>
+  {% endif %}
+  {% if overdue_wos is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ overdue_wos }}</div><div class="mms-kpi-label">Overdue WO (&gt;7d)</div></div>
+  {% endif %}
   {% if pending_procurement %}
   <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_procurement }}</div><div class="mms-kpi-label">PR pending (officer)</div></div>
   {% endif %}
@@ -25,6 +37,12 @@
   {% endif %}
   {% if overdue_pm %}
   <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ overdue_pm|length }}</div><div class="mms-kpi-label">PM schedules overdue</div></div>
+  {% endif %}
+  {% if my_in_progress_wos is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ my_in_progress_wos }}</div><div class="mms-kpi-label">My in-progress WO</div></div>
+  {% endif %}
+  {% if my_pending_requests is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ my_pending_requests }}</div><div class="mms-kpi-label">My pending part req.</div></div>
   {% endif %}
 </div>
 
@@ -60,18 +78,64 @@
 {% endif %}
 
 <div class="mms-grid mms-grid--2" style="margin-top:1.25rem">
+  {% if perm_approve_part_request or perm_approve_external_repair_request or perm_close_or_review_wo %}
+  <div class="mms-card" style="border:2px solid var(--mms-accent,#0d6efd)">
+    <div class="mms-card-header">Quick actions — manager queue</div>
+    <div class="mms-card-body mms-stack">
+      {% if pending_part_requests %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_list' %}?has_pending_part=1">
+        {{ pending_part_requests }} part request{{ pending_part_requests|pluralize }} awaiting your approval
+      </a>
+      {% endif %}
+      {% if pending_external_repair_requests %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}">
+        {{ pending_external_repair_requests }} ext. repair request{{ pending_external_repair_requests|pluralize }} to review
+      </a>
+      {% endif %}
+      {% if pending_review %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_list' %}?status=pending_review">
+        {{ pending_review }} WO pending your review
+      </a>
+      {% endif %}
+      {% if paused_wos %}
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?status=paused">
+        {{ paused_wos }} paused WO
+      </a>
+      {% endif %}
+      {% if overdue_wos %}
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?overdue=1">
+        {{ overdue_wos }} overdue WO (&gt;7d)
+      </a>
+      {% endif %}
+      {% if nav_ero_returned %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}?status=returned">
+        {{ nav_ero_returned }} returned repair{{ nav_ero_returned|pluralize }} awaiting acceptance
+      </a>
+      {% endif %}
+      {% if not pending_part_requests and not pending_external_repair_requests and not pending_review and not paused_wos and not overdue_wos and not nav_ero_returned %}
+      <div class="mms-empty">All caught up. Nothing pending your decision.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
   <div class="mms-card">
     <div class="mms-card-header">Shortcuts</div>
     <div class="mms-card-body mms-stack">
       {% if perm_view_issues %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_list' %}">Issues</a>{% endif %}
       {% if perm_report_issue %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_create' %}">Report issue</a>{% endif %}
       {% if perm_view_work_orders %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}">Work orders</a>{% endif %}
+      {% if role == 'technician' %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'my_work_orders' %}">My work orders</a>{% endif %}
       {% if perm_view_stock %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'stock_dashboard' %}">Stock</a>{% endif %}
       {% if perm_machine_manage %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">Machines</a>{% endif %}
       {% if perm_consumables %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'consumables' %}">Consumables</a>{% endif %}
       {% if perm_view_procurement_requests %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_list' %}">Procurement</a>{% endif %}
       {% if perm_reports %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'reports' %}">Reports</a>{% endif %}
       {% if perm_kpi_dashboard %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'kpi_dashboard' %}">KPIs</a>{% endif %}
+      {% if perm_close_or_review_wo %}
+        <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_cost_report' %}">Machine cost report</a>
+        <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'repair_list' %}?status=returned">Pending repairs{% if nav_ero_returned %} ({{ nav_ero_returned }}){% endif %}</a>
+        <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?status=pending_review">Pending approvals{% if nav_wo_review %} ({{ nav_wo_review }}){% endif %}</a>
+      {% endif %}
       <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'notification_list' %}">Notifications</a>
     </div>
   </div>

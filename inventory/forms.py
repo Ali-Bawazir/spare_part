@@ -25,6 +25,66 @@ class IssuePartForm(forms.Form):
     supplier_name = forms.CharField(max_length=255, required=False, widget=forms.TextInput(attrs=_CTRL))
 
 
+class PartRequestForm(forms.Form):
+    """Phase 2.1: technician-initiated part request.
+
+    Only the part and quantity are required; cost/supplier/invoice
+    are filled by the manager at approval time.
+    """
+    part = forms.ModelChoiceField(
+        queryset=SparePart.objects.filter(status="active"),
+        widget=forms.Select(attrs=_SEL),
+    )
+    quantity = forms.DecimalField(
+        min_value=Decimal("0.001"),
+        max_digits=14,
+        decimal_places=3,
+        widget=forms.NumberInput(attrs={**_CTRL, "step": "0.001"}),
+    )
+    note = forms.CharField(
+        required=False,
+        max_length=500,
+        widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": "Optional note for the manager"}),
+    )
+
+
+class PartRequestDecisionForm(forms.Form):
+    """Phase 2.1: manager decision form for approve / edit / reject.
+
+    On reject, a reason is required. On edit, a new_qty is required.
+    """
+    action = forms.ChoiceField(
+        choices=[("approve", "Approve"), ("reject", "Reject"), ("edit", "Edit Qty")],
+        widget=forms.Select(attrs=_SEL),
+    )
+    new_qty = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0.001"),
+        max_digits=14,
+        decimal_places=3,
+        widget=forms.NumberInput(attrs={**_CTRL, "step": "0.001"}),
+    )
+    rejection_reason = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": "Required when rejecting"}),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        action = cleaned.get("action")
+        if action == "reject" and not (cleaned.get("rejection_reason") or "").strip():
+            raise forms.ValidationError(
+                {"rejection_reason": "Rejection reason is required."}
+            )
+        if action == "edit":
+            new_qty = cleaned.get("new_qty")
+            if not new_qty or new_qty <= 0:
+                raise forms.ValidationError(
+                    {"new_qty": "New qty is required when editing."}
+                )
+        return cleaned
+
+
 class ConsumableUseForm(forms.Form):
     part = forms.ModelChoiceField(
         queryset=SparePart.objects.filter(

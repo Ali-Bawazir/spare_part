@@ -32,6 +32,9 @@
       {% if perm_view_work_orders %}
       <a href="{% url 'work_order_list' %}" class="mms-nav-link{% if current_url_name and 'work_order' in current_url_name %} is-active{% endif %}">Work orders</a>
       {% endif %}
+      {% if user.role == 'technician' %}
+      <a href="{% url 'my_work_orders' %}" class="mms-nav-link{% if current_url_name == 'my_work_orders' %} is-active{% endif %}">My queue</a>
+      {% endif %}
       {% if perm_emergency_wo %}
       <a href="{% url 'emergency_wo_create' %}" class="mms-nav-link{% if current_url_name == 'emergency_wo_create' %} is-active{% endif %}">Emergency WO</a>
       {% endif %}
@@ -98,10 +101,23 @@
       {% if perm_reports %}
       <a href="{% url 'reports' %}" class="mms-nav-link{% if current_url_name == 'reports' %} is-active{% endif %}">Reports</a>
       {% endif %}
+      {% if perm_close_or_review_wo %}
+      <a href="{% url 'machine_cost_report' %}" class="mms-nav-link{% if current_url_name == 'machine_cost_report' %} is-active{% endif %}">
+        <span>Machine cost report</span>
+      </a>
+      <a href="{% url 'repair_list' %}?status=returned" class="mms-nav-link{% if current_url_name == 'repair_list' %} is-active{% endif %}">
+        <span>Pending repairs</span>
+        {% if nav_ero_returned %}<span class="mms-nav-badge mms-nav-badge--accent" title="Returned EROs awaiting manager acceptance">{{ nav_ero_returned }}</span>{% endif %}
+      </a>
+      <a href="{% url 'work_order_list' %}?status=pending_review" class="mms-nav-link{% if current_url_name == 'work_order_list' %} is-active{% endif %}">
+        <span>Pending approvals</span>
+        {% if nav_wo_review %}<span class="mms-nav-badge mms-nav-badge--accent" title="Work orders awaiting manager review/close">{{ nav_wo_review }}</span>{% endif %}
+      </a>
+      {% endif %}
     </nav>
     <div class="mms-sidebar-footer">
       {% if user.is_authenticated %}
-      <div style="margin-bottom:.5rem"><strong>{{ user.username }}</strong><br><span style="opacity:.85">{{ user.get_role_display }}</span></div>
+      <div style="margin-bottom:.5rem"><strong>{{ user.username }}</strong><br><span style="opacity:.85">{{ user|user_role }}</span></div>
       {% if user.is_staff %}
       <a href="{% url 'admin:index' %}" class="mms-nav-link">Admin</a>
       {% endif %}
@@ -300,6 +316,110 @@
     <a href="{% url 'tool_list' %}" class="{% if current_url_name and 'tool' in current_url_name %}is-active{% endif %}">
         <span class="mms-nav-icon">🔧</span>
         <span>Tools</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Technicians -->
+{% if user.role == 'technician' %}
+<nav class="mms-mobile-bottom-nav" aria-label="Mobile navigation">
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'my_work_orders' %}" class="{% if current_url_name == 'my_work_orders' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>My queue</span>
+        {% if nav_my_open_wo %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_my_open_wo }}</span>{% endif %}
+    </a>
+    <a href="{% url 'work_order_list' %}" class="{% if current_url_name == 'work_order_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📑</span>
+        <span>All WO</span>
+    </a>
+    <a href="{% url 'stock_lookup' %}" class="{% if current_url_name == 'stock_lookup' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📦</span>
+        <span>Stock</span>
+    </a>
+    <a href="{% url 'quick_log' %}" class="{% if current_url_name == 'quick_log' %}is-active{% endif %}">
+        <span class="mms-nav-icon">⚡</span>
+        <span>Quick log</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Maintenance Manager -->
+{% if user.role == 'manager' %}
+<nav class="mms-mobile-bottom-nav" aria-label="Mobile navigation">
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'work_order_list' %}" class="{% if current_url_name == 'work_order_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>WO</span>
+        {% if nav_wo_review %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_wo_review }}</span>{% endif %}
+    </a>
+    <a href="{% url 'issue_list' %}" class="{% if current_url_name == 'issue_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📋</span>
+        <span>Issues</span>
+    </a>
+    <a href="{% url 'emergency_wo_create' %}" class="{% if current_url_name == 'emergency_wo_create' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🚨</span>
+        <span>Emergency</span>
+    </a>
+    <a href="{% url 'reports' %}" class="{% if current_url_name == 'reports' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📊</span>
+        <span>Reports</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Maintenance Supply Officer -->
+{% if user.role == 'procurement' %}
+<nav class="mms-mobile-bottom-nav" aria-label="Mobile navigation">
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'purchase_list' %}" class="{% if current_url_name == 'purchase_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📑</span>
+        <span>Requests</span>
+        {% if nav_pr_pending %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_pr_pending }}</span>{% endif %}
+    </a>
+    <a href="{% url 'stock_dashboard' %}" class="{% if current_url_name == 'stock_dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📦</span>
+        <span>Stock</span>
+    </a>
+    <a href="{% url 'repair_list' %}" class="{% if current_url_name == 'repair_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>Repairs</span>
+    </a>
+    <a href="{% url 'supplier_list' %}" class="{% if current_url_name == 'supplier_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🤝</span>
+        <span>Suppliers</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Supervisor -->
+{% if user.role == 'supervisor' %}
+<nav class="mms-mobile-bottom-nav" aria-label="Mobile navigation">
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>Home</span>
+    </a>
+    <a href="{% url 'issue_list' %}" class="{% if current_url_name == 'issue_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📋</span>
+        <span>Issues</span>
+        {% if nav_issues_new %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_issues_new }}</span>{% endif %}
+    </a>
+    <a href="{% url 'work_order_list' %}" class="{% if current_url_name == 'work_order_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>WO</span>
+    </a>
+    <a href="{% url 'reports' %}" class="{% if current_url_name == 'reports' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📊</span>
+        <span>Reports</span>
     </a>
 </nav>
 {% endif %}

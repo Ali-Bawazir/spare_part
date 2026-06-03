@@ -47,6 +47,12 @@
         Started: {{ wo.labor_started_at|default:"-" }}<br>
         Stopped: {{ wo.labor_stopped_at|default:"-" }}
       </div>
+      {% if wo.status == 'paused' %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Pause reason</span><br>
+        <span class="mms-badge mms-badge--warning">{{ wo.get_pause_reason_display|default:"-" }}</span>
+        {% if wo.pause_note %}<div style="font-size:.8125rem;margin-top:.25rem;color:var(--mms-muted)">{{ wo.pause_note|linebreaksbr }}</div>{% endif %}
+      </div>
+      {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Downtime window</span><br>
         {{ wo.downtime_started_at|default:"-" }} -> {{ wo.downtime_ended_at|default:"-" }}
       </div>
@@ -66,6 +72,7 @@
 
       {% if perm_assign_technician or perm_issue_parts_to_wo or perm_create_purchase_request %}
         {% if wo.status != 'closed' %}
+          <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Manager actions</h3>
           {% if perm_assign_technician %}
             {% if wo.status == 'approved' or wo.status == 'assigned' or wo.status == 'paused' %}
           <form method="post" action="{% url 'work_order_assign' wo.pk %}" class="mms-stack">
@@ -79,7 +86,7 @@
           {% if perm_issue_parts_to_wo %}
           <form method="post" action="{% url 'work_order_issue_part' wo.pk %}" class="mms-stack">
             {% csrf_token %}
-            <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Issue spare part (full, partial, or procurement fallback)</p>
+            <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Direct issue (manager override — bypasses technician request flow)</p>
             {% for field in issue_part_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
             <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Issue to WO</button>
           </form>
@@ -91,11 +98,18 @@
       {% endif %}
 
       {% if perm_super_full or perm_execute_work_order and wo.assigned_technician_id == user.id %}
+        <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">My actions (technician)</h3>
+        {% if emergency_blocks_resume %}
+        <div class="mms-form-tip" style="background:#fff3cd;border-left:3px solid #f0ad4e;padding:.5rem .75rem">
+          <strong>Emergency override:</strong> You have another emergency work order currently IN_PROGRESS.
+          Finish it before starting or resuming this one.
+        </div>
+        {% endif %}
         <div class="mms-actions">
           {% if wo.status == 'assigned' or wo.status == 'paused' or wo.status == 'pending_parts' or wo.status == 'waiting_vendor' or wo.status == 'in_progress' %}
           <form method="post" action="{% url 'work_order_start' wo.pk %}">
             {% csrf_token %}
-            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">
+            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm" {% if emergency_blocks_resume %}disabled aria-disabled="true" title="Finish the active emergency WO first"{% endif %}>
               {% if wo.status == 'in_progress' %}
               Resume labor
               {% elif active_conflict %}
@@ -107,7 +121,25 @@
           </form>
           {% endif %}
           {% if wo.status == 'in_progress' %}
-          <form method="post" action="{% url 'work_order_pause' wo.pk %}">{% csrf_token %}<button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Pause</button></form>
+          <form method="post" action="{% url 'work_order_pause' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed;margin-top:.5rem">
+            <div class="mms-card-body">
+              <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Pause work</p>
+              {% csrf_token %}
+              <div class="mms-form-row">
+                <label for="id_pause_reason">Reason</label>
+                <select name="pause_reason" id="id_pause_reason" class="form-select" required>
+                  <option value="">— Select —</option>
+                  <option value="operational">Operational interruption</option>
+                  <option value="other">Other (note required)</option>
+                </select>
+              </div>
+              <div class="mms-form-row">
+                <label for="id_pause_note">Note <span style="font-weight:400;color:var(--mms-muted)">(required for Other)</span></label>
+                <textarea name="pause_note" id="id_pause_note" rows="2" class="form-control" maxlength="500" placeholder="Optional context"></textarea>
+              </div>
+              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Confirm pause</button>
+            </div>
+          </form>
           {% endif %}
         </div>
         {% if wo.status == 'in_progress' %}
@@ -143,9 +175,42 @@
         {% endif %}
       {% endif %}
 
+      {% if perm_request_part_on_wo and wo.status != 'closed' and wo.assigned_technician_id == user.id %}
+        <div class="mms-divider"></div>
+        <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Request a part (manager will approve)</h3>
+        <form method="post" action="{% url 'work_order_request_part' wo.pk %}" class="mms-stack">
+          {% csrf_token %}
+          <div class="mms-form-row">
+            <label for="id_part">Part</label>
+            <select name="part" id="id_part" class="form-select" data-last-prices="{{ last_prices_json|default:'{}' }}" required>
+              <option value="">— Select —</option>
+              {% for p in part_request_form.fields.part.queryset %}
+              <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>
+              {% endfor %}
+            </select>
+            <small id="id_part_last_price" class="mms-form-hint" style="display:block;margin-top:.25rem;color:var(--mms-muted);font-size:.8rem"></small>
+          </div>
+          <div class="mms-form-row">
+            <label for="id_quantity">Quantity</label>
+            <input type="number" name="quantity" id="id_quantity" min="0.001" step="0.001" class="form-control" required>
+          </div>
+          <div class="mms-form-row">
+            <label for="id_note">Note (optional)</label>
+            <textarea name="note" id="id_note" rows="2" class="form-control" maxlength="500" placeholder="Context for the manager"></textarea>
+          </div>
+          {% if wo.is_emergency %}
+          <div class="mms-form-tip" style="background:#f8d7da;border-left:3px solid #dc3545;padding:.5rem .75rem">
+            <strong>Emergency WO:</strong> Your request will be auto-approved and stock will be deducted immediately. Manager will review the cost afterward.
+          </div>
+          {% endif %}
+          <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Submit part request</button>
+        </form>
+      {% endif %}
+
       {% if perm_close_or_review_wo and wo.status == 'pending_review' %}
       <div class="mms-divider"></div>
-      <div class="mms-form-tip">Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure.</div>
+      <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Manager review (pending your decision)</h3>
+      <div class="mms-alert mms-alert--info">Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure.</div>
       {% if wo.rejected_at %}
       <div class="alert alert-info">
           <strong>Previously rejected:</strong> {{ wo.rejection_reason }}
@@ -170,17 +235,186 @@
 </div>
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Parts issued</div>
+  <div class="mms-card-header">Parts issued / requested</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Part</th><th>Qty</th><th>Unit cost</th><th>By</th></tr></thead>
+      <thead><tr><th>Part</th><th>Qty</th><th>Status</th><th>Requested by</th><th>Issued / Approved by</th><th>Notes</th></tr></thead>
       <tbody>
-      {% for p in part_issues %}<tr><td>{{ p.part.name }}</td><td>{{ p.quantity }}</td><td>{{ p.unit_cost }}</td><td>{{ p.issued_by }}</td></tr>
-      {% empty %}<tr><td colspan="4" class="mms-empty">No parts issued.</td></tr>{% endfor %}
+      {% for p in part_issues %}
+      <tr>
+        <td>{{ p.part.name }}</td>
+        <td>{{ p.quantity }}</td>
+        <td>
+          <span class="{{ p.status|part_status_badge_class }}">{{ p.get_status_display }}</span>
+          {% if p.status == 'approved' and p.is_emergency_auto_approved %}<span class="mms-badge mms-badge--danger" title="Auto-approved due to emergency">EMRG</span>{% endif %}
+        </td>
+        <td>{{ p.requested_by|default:"—" }}</td>
+        <td>
+          {% if p.status == 'approved' %}{{ p.approved_by|default:p.issued_by }}{% else %}{{ p.issued_by|default:"—" }}{% endif %}
+        </td>
+        <td>
+          {% if p.status == 'rejected' %}<span style="color:var(--mms-muted);font-size:.75rem">{{ p.rejection_reason|truncatechars:50 }}</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="mms-empty">No parts issued or requested.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+{% if pending_part_requests and perm_approve_part_request %}
+<div class="mms-card" style="margin-top:1rem;border-left:4px solid #f0ad4e">
+  <div class="mms-card-header" style="background:#fff8e1">Pending part requests ({{ pending_part_requests.count }})</div>
+  <div class="mms-card-body mms-stack">
+    {% for req in pending_part_requests %}
+    <form method="post" action="{% url 'work_order_decide_part' wo.pk req.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed">
+      <div class="mms-card-body mms-stack">
+        {% csrf_token %}
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <strong>{{ req.part.name }}</strong>
+          <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
+          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|date:"Y-m-d H:i" }}</span>
+        </div>
+        <div class="mms-form-row">
+          <label>Action</label>
+          <select name="action" class="form-select" required>
+            <option value="approve">Approve (deduct stock)</option>
+            <option value="edit">Edit quantity</option>
+            <option value="reject">Reject</option>
+          </select>
+        </div>
+        <div class="mms-form-row">
+          <label>New qty (when editing)</label>
+          <input type="number" name="new_qty" min="0.001" step="0.001" class="form-control" value="{{ req.quantity }}">
+        </div>
+        <div class="mms-form-row">
+          <label>Rejection reason (required when rejecting)</label>
+          <textarea name="rejection_reason" rows="2" class="form-control" maxlength="1000"></textarea>
+        </div>
+        <div class="mms-actions">
+          <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit decision</button>
+        </div>
+      </div>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ------------------------------------------------------------------ #}
+{# External Repair Request flow (Phase 2.2)                          #}
+{#   - Technician of own WO can submit a PENDING request             #}
+{#   - Manager sees pending requests and approves/rejects            #}
+{# ------------------------------------------------------------------ #}
+{% if wo.assigned_technician_id == request.user.id and wo.status != 'closed' and wo.status != 'completed' %}
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header" style="background:#e3f2fd">Request external repair (vendor)</div>
+  <div class="mms-card-body">
+    <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">
+      The Maintenance Manager will review your request and create the
+      External Repair Order (ERO). The supply officer will then send the
+      part to the vendor.
+    </p>
+    <form method="post" action="{% url 'work_order_request_external_repair' wo.pk %}">
+      {% csrf_token %}
+      <div class="mms-stack">
+        <div class="mms-form-row">
+          {{ external_repair_request_form.diagnosis_note.label_tag }}
+          {{ external_repair_request_form.diagnosis_note }}
+          {% if external_repair_request_form.diagnosis_note.errors %}
+            <div class="text-danger" style="font-size:.75rem">{{ external_repair_request_form.diagnosis_note.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mms-form-row">
+          {{ external_repair_request_form.part_description.label_tag }}
+          {{ external_repair_request_form.part_description }}
+          {% if external_repair_request_form.part_description.errors %}
+            <div class="text-danger" style="font-size:.75rem">{{ external_repair_request_form.part_description.errors }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <button class="mms-btn mms-btn-primary" type="submit">Submit request</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if pending_external_repair_requests %}
+  {% if request.user.role == 'manager' or request.user.is_superuser %}
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header" style="background:#fff8e1">
+    Manager queue — pending external-repair requests ({{ pending_external_repair_requests.count }})
+  </div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>Requested</th>
+        <th>Technician</th>
+        <th>Diagnosis</th>
+        <th>Part</th>
+        <th>Action</th>
+      </tr></thead>
+      <tbody>
+      {% for err in pending_external_repair_requests %}
+        <tr>
+          <td>{{ err.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ err.requested_by.get_full_name|default:err.requested_by.username }}</td>
+          <td style="max-width:240px;white-space:normal">{{ err.diagnosis_note|truncatechars:120 }}</td>
+          <td style="max-width:200px;white-space:normal">{{ err.part_description|truncatechars:80 }}</td>
+          <td>
+            <form method="post" action="{% url 'work_order_decide_external_repair' wo.pk err.pk %}" style="display:flex;flex-direction:column;gap:.35rem;min-width:220px">
+              {% csrf_token %}
+              <select name="action" class="form-select form-select-sm">
+                <option value="approve">Approve (create ERO)</option>
+                <option value="reject">Reject</option>
+              </select>
+              <textarea name="manager_note" class="form-control form-control-sm" rows="2" placeholder="Reason (required on reject)"></textarea>
+              <button class="mms-btn mms-btn-sm mms-btn-primary" type="submit">Submit</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+  {% endif %}
+{% endif %}
+
+{% if external_repair_requests %}
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">External-repair history</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>Submitted</th>
+        <th>Technician</th>
+        <th>Part</th>
+        <th>Request</th>
+        <th>ERO</th>
+      </tr></thead>
+      <tbody>
+      {% for err in external_repair_requests %}
+        <tr>
+          <td>{{ err.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ err.requested_by.get_full_name|default:err.requested_by.username }}</td>
+          <td style="max-width:200px;white-space:normal">{{ err.part_description|truncatechars:60 }}</td>
+          <td>
+            {% if err.status == 'pending' %}<span class="mms-badge mms-badge--warning">Pending</span>
+            {% elif err.status == 'approved' %}<span class="mms-badge mms-badge--success">Approved</span>
+            {% else %}<span class="mms-badge mms-badge--muted">Rejected</span>{% endif %}
+            {% if err.manager_note %}<div class="text-muted" style="font-size:.7rem">"{{ err.manager_note|truncatechars:80 }}"</div>{% endif %}
+          </td>
+          <td>{% if err.repair_order %}<a href="{% url 'repair_list' %}?rwo={{ err.repair_order.pk }}">ERO #{{ err.repair_order.pk }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 
 {% if linked_prs %}
 <div class="mms-card" style="margin-top:1rem">
@@ -189,7 +423,7 @@
     <table class="mms-table">
       <thead><tr><th>PR</th><th>Part</th><th>Qty</th><th>Status</th></tr></thead>
       <tbody>
-      {% for pr in linked_prs %}<tr><td>#{{ pr.id }}</td><td>{{ pr.part.sku }}</td><td>{{ pr.quantity }}</td><td>{{ pr.get_status_display }}</td></tr>{% endfor %}
+      {% for pr in linked_prs %}<tr><td>#{{ pr.id }}</td><td>{{ pr.part.sku }}</td><td>{{ pr.quantity }}</td><td><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -318,6 +552,23 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // P3.1 P1.5: show last received supplier price for the selected part.
+  const partSelect = document.getElementById('id_part');
+  const hintEl = document.getElementById('id_part_last_price');
+  if (partSelect && hintEl) {
+    let lastPrices = {};
+    try { lastPrices = JSON.parse(partSelect.dataset.lastPrices || '{}'); } catch (_) { lastPrices = {}; }
+    function updateHint() {
+      const v = partSelect.value;
+      const info = lastPrices[v];
+      if (!info) { hintEl.textContent = ''; return; }
+      hintEl.textContent = 'Last received: ' + info.unit_cost + ' / unit ('
+        + info.supplier_name + ', ' + info.date + ')';
+    }
+    partSelect.addEventListener('change', updateHint);
+    updateHint();
+  }
+
   const listEl = document.getElementById('attachment-list');
   if (!listEl) return;
 

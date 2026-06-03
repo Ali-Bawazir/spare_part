@@ -175,7 +175,23 @@ class StockMovement(models.Model):
 
 
 class PartIssueLine(models.Model):
-    """Parts issued against a work order (manager)."""
+    """Parts requested/issued against a work order.
+
+    Hybrid approval workflow (Phase 2.1):
+    - A technician on the assigned WO creates a PENDING request (no
+      inventory change).
+    - A manager approves (deducts stock + StockMovement) or rejects
+      (no inventory change). Managers can also edit qty before approval.
+    - Manager can also create a directly-APPROVED line via the legacy
+      "issue part" flow.
+    - Emergency exception: when the WO is_emergency, the technician's
+      request auto-deducts stock and is flagged for manager post-review.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
 
     work_order = models.ForeignKey(
         "maintenance.WorkOrder",
@@ -187,12 +203,75 @@ class PartIssueLine(models.Model):
     unit_cost = models.DecimalField(max_digits=12, decimal_places=4)
     invoice_ref = models.CharField(max_length=120, blank=True)
     supplier_name = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="part_issues_requested",
+        help_text="Technician who added the request (null when created by manager).",
+    )
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="part_issues_issued",
+        help_text=(
+            "The actor who caused the stock deduction. For manager direct-issue, "
+            "this is the manager. For technician emergency auto-approve, this is the "
+            "technician. Set at approval time for non-emergency approvals."
+        ),
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="part_issues_approved",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    is_emergency_auto_approved = models.BooleanField(
+        default=False,
+        help_text=(
+            "True when the line was auto-approved due to the parent WO being an "
+            "emergency. Manager should review the cost and edit the qty if needed."
+        ),
+    )
+    requested_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=0,
+        help_text=(
+            "What the technician originally requested. Mirrors `quantity` at "
+            "request time. Preserved through edits so audit trail is intact."
+        ),
+    )
+    approved_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=0,
+        help_text=(
+            "Quantity the manager approved (may differ from requested_qty). "
+            "Set on approval. 0 while PENDING."
+        ),
+    )
+    issued_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=0,
+        help_text=(
+            "Quantity actually deducted from stock on approval. May be less "
+            "than approved_qty if stock ran out between request and approval."
+        ),
+    )
+    shortage_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=0,
+        help_text=(
+            "Quantity covered by an auto-created PurchaseRequest. Computed as "
+            "max(0, requested_qty - approved_qty). Independent of whether the "
+            "manager edits approved_qty — PR is a separate procurement doc."
+        ),
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -200,6 +279,8 @@ class PartIssueLine(models.Model):
     def clean(self):
         if self.quantity <= 0:
             raise ValidationError("Quantity must be positive.")
+        if self.status == self.Status.REJECTED and not self.rejection_reason.strip():
+            raise ValidationError("Rejection reason is required when status is REJECTED.")
 
 
 class ConsumableAssignment(models.Model):

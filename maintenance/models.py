@@ -193,6 +193,22 @@ class MaintenanceIssue(models.Model):
     )
     validated_at = models.DateTimeField(null=True, blank=True)
     is_archived = models.BooleanField(default=False, db_index=True)
+    is_emergency = models.BooleanField(
+        default=False, db_index=True,
+        help_text=(
+            "P3.3: operator can flag an issue as emergency on creation, "
+            "or a supervisor/manager can escalate during validation. "
+            "When True, priority auto-sets to CRITICAL and any WO "
+            "created from this issue inherits is_emergency=True."
+        ),
+    )
+    escalated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="escalated_issues",
+        help_text="P3.3: user who escalated this issue to emergency status.",
+    )
+    escalated_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     archived_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -228,6 +244,18 @@ class WorkOrder(models.Model):
         PENDING_PARTS = "pending_parts", "Pending parts"
         PENDING_REVIEW = "pending_review", "Pending manager review"
         CLOSED = "closed", "Closed"
+
+    class PauseReason(models.TextChoices):
+        """Categorized reason for pausing a work order.
+
+        AWAITING_PARTS / AWAITING_VENDOR were removed in P3.5 (Phase 2.10
+        Q6 grill). A technician who is blocked on parts/vendor should
+        transition the WO to WAITING_FOR_PARTS / WAITING_FOR_VENDOR
+        (those are statuses with their own dedicated workflow).
+        """
+        EMERGENCY = "emergency", "Emergency override (auto-paused)"
+        OPERATIONAL = "operational", "Operational interruption"
+        OTHER = "other", "Other (note required)"
 
     number = models.PositiveIntegerField(unique=True, editable=False)
     category = models.CharField(
@@ -286,6 +314,16 @@ class WorkOrder(models.Model):
     )
     rejection_reason = models.CharField(max_length=500, blank=True)
     rejection_count = models.PositiveIntegerField(default=0)
+    pause_reason = models.CharField(
+        max_length=20,
+        choices=PauseReason.choices,
+        blank=True,
+        help_text="Why the work order was paused (set on every IN_PROGRESS→PAUSED transition).",
+    )
+    pause_note = models.TextField(
+        blank=True,
+        help_text="Free-text note for pause. Required when pause_reason='other'.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     tool = models.ForeignKey(
@@ -558,6 +596,9 @@ class Notification(models.Model):
         PROCUREMENT = "procurement", "Procurement"
         PM_OVERDUE = "pm_overdue", "PM overdue"
         REPAIR_RETURNED = "repair_returned", "Repair returned from vendor"
+        REPAIR_REQUESTED = "repair_requested", "External repair requested"
+        REPAIR_DRAFT = "repair_draft", "External repair order created (needs vendor)"
+        REPAIR_SENT = "repair_sent", "External repair sent to vendor"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -600,7 +641,17 @@ class ExternalRepairOrder(models.Model):
     description = models.TextField()
     vendor_name = models.CharField(max_length=255, blank=True)
     estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    actual_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    actual_cost = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text=(
+            "Final vendor invoice amount. Set by manager on UC-20 acceptance. "
+            "Required when status moves to CLOSED."
+        ),
+    )
+    invoice_ref = models.CharField(
+        max_length=120, blank=True,
+        help_text="Vendor invoice number. Required on UC-20 acceptance.",
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -619,12 +670,91 @@ class ExternalRepairOrder(models.Model):
         on_delete=models.SET_NULL,
         related_name="repair_orders_handled",
     )
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="repair_orders_closed",
+    )
     sent_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class ExternalRepairRequest(models.Model):
+    """Technician's request to send a part to an external vendor for repair.
+
+    Created by the assigned technician when they diagnose that a part
+    needs off-site repair. The Maintenance Manager reviews and either:
+      - APPROVES — an ExternalRepairOrder (DRAFT) is created on the WO
+      - REJECTS  — the request is closed with a reason
+
+    The technician cannot create an ExternalRepairOrder directly because
+    EROs create vendor engagement, cost, invoice, and financial
+    obligation — those are management decisions.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending manager review"
+        APPROVED = "approved", "Approved (ERO created)"
+        REJECTED = "rejected", "Rejected"
+
+    work_order = models.ForeignKey(
+        WorkOrder,
+        on_delete=models.CASCADE,
+        related_name="external_repair_requests",
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="external_repair_requests_made",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="external_repair_requests_reviewed",
+    )
+    diagnosis_note = models.TextField(
+        help_text="Technician's diagnosis: what's wrong with the part"
+    )
+    part_description = models.TextField(
+        help_text="Description of the part being sent out (name, part#, qty)"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    manager_note = models.TextField(
+        blank=True,
+        help_text="Manager's reason on approve/reject",
+    )
+    repair_order = models.OneToOneField(
+        "ExternalRepairOrder",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="origin_request",
+        help_text="Set when manager approves — links to the created ERO",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return (
+            f"ERR-{self.pk} ({self.get_status_display()}) "
+            f"on WO-{self.work_order.number}"
+        )
 
 
 class WorkOrderCost(models.Model):
@@ -678,6 +808,20 @@ class WorkOrderCost(models.Model):
         if not self.pk:
             self._auto_calculate()
         super().save(*args, **kwargs)
+
+    def recalculate(self):
+        """Recompute cost fields from linked records. Call this when
+        child records (PartIssueLine, ExternalRepairOrder, StockMovement)
+        change after the WorkOrderCost row already exists. Saves and
+        returns self.
+        """
+        self._auto_calculate()
+        super().save(update_fields=[
+            "parts_cost", "vendor_cost", "consumables_cost", "updated_at"
+        ] if hasattr(self, "updated_at") else [
+            "parts_cost", "vendor_cost", "consumables_cost",
+        ])
+        return self
 
     def _auto_calculate(self):
         from inventory.models import StockMovement

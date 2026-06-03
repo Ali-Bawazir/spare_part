@@ -150,6 +150,22 @@ def notify_emergency_work_order(wo) -> None:
             logging.getLogger(__name__).warning(f"Email notification failed: {e}")
 
 
+def notify_emergency_issue_reported(issue) -> None:
+    """P3.3: notify manager + on-call tech when an emergency issue is reported."""
+    title = f"EMERGENCY issue: {issue.machine.name}"
+    desc = (issue.description or "")[:500]
+    body = f"Reported by {issue.reported_by.username}. {desc}"
+    recipients = _emergency_wo_recipients()
+    _notify_users(
+        recipients,
+        kind=Notification.Kind.WO_EMERGENCY,
+        title=title,
+        body=body,
+        link=reverse("issue_detail", kwargs={"pk": issue.pk}),
+        is_critical=True,
+    )
+
+
 def notify_wo_pending_review(wo) -> None:
     title = f"WO-{wo.number} pending your review"
     body = f"{wo.machine.name} — technician submitted."
@@ -219,6 +235,87 @@ def notify_repair_returned(rwo: ExternalRepairOrder) -> None:
         title=title,
         body=body,
         link=reverse("repair_manager_accept", kwargs={"pk": rwo.pk}),
+    )
+    for recipient in recipients:
+        try:
+            _send_email_if_configured(recipient, title, body)
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Email notification failed: {e}")
+
+
+def notify_repair_request_created(err) -> None:
+    """Technician submitted a PENDING external-repair request → notify managers."""
+    title = f"External repair requested on WO-{err.work_order.number}"
+    body = (
+        f"Technician {err.requested_by.get_full_name() or err.requested_by.username} "
+        f"requests external repair for: {err.part_description[:120]}"
+    )
+    recipients = _managers_supers()
+    _notify_users(
+        recipients,
+        kind=Notification.Kind.REPAIR_REQUESTED,
+        title=title,
+        body=body,
+        link=reverse("work_order_detail", kwargs={"pk": err.work_order_id}),
+        is_critical=False,
+    )
+    for recipient in recipients:
+        try:
+            _send_email_if_configured(recipient, title, body)
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Email notification failed: {e}")
+
+
+def notify_repair_draft_created(ero) -> None:
+    """P3.7: manager approved the ERR → DRAFT ERO created → notify supply officers.
+
+    The supply officer is responsible for picking a vendor, requesting a quote,
+    sending the part out, and recording the return. Without this notification
+    they must poll /repairs/.
+    """
+    title = f"New external repair order: {ero.title}"
+    body = (
+        f"A new external repair order is awaiting vendor assignment. "
+        f"Linked to WO-{ero.work_order.number}. "
+        f"Action required: pick a vendor, request a quote, then mark as sent."
+    )
+    recipients = _procurement_supers()
+    _notify_users(
+        recipients,
+        kind=Notification.Kind.REPAIR_DRAFT,
+        title=title,
+        body=body,
+        link=reverse("repair_officer", kwargs={"pk": ero.pk}),
+    )
+    for recipient in recipients:
+        try:
+            _send_email_if_configured(recipient, title, body)
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Email notification failed: {e}")
+
+
+def notify_repair_sent_to_vendor(ero) -> None:
+    """P3.7: supply officer sent the part to the vendor → notify managers.
+
+    Gives the manager visibility that the repair actually left the facility
+    and is now in the vendor's hands.
+    """
+    title = f"ERO sent to vendor: {ero.title}"
+    body = (
+        f"The maintenance supply officer has sent this repair to "
+        f"{ero.vendor_name or 'the vendor'}. "
+        f"Sent at: "
+        f"{ero.sent_at.strftime('%Y-%m-%d %H:%M') if ero.sent_at else 'just now'}. "
+        f"Estimated cost: {ero.estimated_cost or 'not set'}. "
+        f"Status will move to RETURNED when the part comes back."
+    )
+    recipients = _managers_supers()
+    _notify_users(
+        recipients,
+        kind=Notification.Kind.REPAIR_SENT,
+        title=title,
+        body=body,
+        link=reverse("repair_officer", kwargs={"pk": ero.pk}),
     )
     for recipient in recipients:
         try:

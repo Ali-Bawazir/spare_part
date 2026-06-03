@@ -78,11 +78,16 @@
     <div class="mms-card-header">Technician efficiency</div>
     <div class="mms-table-wrap">
       <table class="mms-table">
-        <thead><tr><th>Technician</th><th>Closed WO (90d)</th><th>Avg repair hours</th></tr></thead>
+        <thead><tr><th>Technician</th><th>Closed WO (90d)</th><th>Avg repair hours</th><th></th></tr></thead>
         <tbody>
         {% for row in tech_efficiency %}
-        <tr><td>{{ row.username }}</td><td>{{ row.closed_count }}</td><td>{% if row.avg_repair_hours is not None %}{{ row.avg_repair_hours|floatformat:1 }}h{% else %}-{% endif %}</td></tr>
-        {% empty %}<tr><td colspan="3" class="mms-empty">No technician closure data yet.</td></tr>{% endfor %}
+        <tr>
+          <td>{{ row.username }}</td>
+          <td>{{ row.closed_count }}</td>
+          <td>{% if row.avg_repair_hours is not None %}{{ row.avg_repair_hours|floatformat:1 }}h{% else %}-{% endif %}</td>
+          <td><a href="{% url 'technician_report_detail' row.id %}" class="mms-btn mms-btn--ghost mms-btn--sm">Drill-down</a></td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="mms-empty">No technician closure data yet.</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>

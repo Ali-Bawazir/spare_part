@@ -14,6 +14,8 @@ from datetime import timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from datetime import timedelta as td
+import json
+from decimal import Decimal
 
 STALE_THRESHOLDS = {
     "critical": td(hours=1),
@@ -25,11 +27,26 @@ STALE_THRESHOLDS = {
 from accounts.capabilities import get_mms_capabilities
 from accounts.models import User
 from accounts.permissions import role_required
-from inventory.forms import ConsumableUseForm, IssuePartForm, SparePartCreateForm, StockInForm
+from inventory.forms import (
+    ConsumableUseForm,
+    IssuePartForm,
+    PartRequestDecisionForm,
+    PartRequestForm,
+    SparePartCreateForm,
+    StockInForm,
+)
 from inventory.models import Inventory, PartIssueLine, SparePart, StockMovement
-from decimal import Decimal
+
 from inventory.qr_utils import qr_scan_decode as decode_qr
-from inventory.services import consumable_use, issue_part_to_work_order, stock_in
+from inventory.services import (
+    approve_part_request,
+    consumable_use,
+    edit_part_request_qty,
+    issue_part_to_work_order,
+    reject_part_request,
+    request_part_on_wo,
+    stock_in,
+)
 from procurement.models import PurchaseRequest, Supplier
 from procurement.forms import SupplierForm
 
@@ -38,22 +55,27 @@ from .forms import (
     EmergencyWOForm,
     ExternalRepairForm,
     ExternalRepairOfficerForm,
+    ExternalRepairRequestDecisionForm,
+    ExternalRepairRequestForm,
     IssueReportForm,
     MachineForm,
     PMScheduleForm,
     QuickLogForm,
+    RepairManagerAcceptForm,
     TechVendorNoteForm,
     ToolAssignForm,
     ToolForm,
     ToolReturnForm,
     ValidateIssueForm,
     WorkOrderCompleteForm,
+    WorkOrderPauseForm,
 )
 from .models import (
     Attachment,
     Incident,
     AuditEntry,
     ExternalRepairOrder,
+    ExternalRepairRequest,
     Machine,
     MaintenanceIssue,
     Notification,
@@ -63,16 +85,23 @@ from .models import (
     ToolAssignment,
     WorkOrder,
     WorkOrderAssignmentHistory,
+    WorkOrderCost,
 )
 from .services import (
+    approve_external_repair_request,
     archive_maintenance_issue,
     archive_work_order,
+    escalate_issue_to_emergency,
     get_other_active_work_order,
+    has_active_emergency,
     log_audit,
     manager_close_work_order,
+    reject_external_repair_request,
+    request_external_repair,
     technician_mark_pending_parts,
     technician_mark_waiting_vendor,
     technician_start_work,
+    technician_stats,
     technician_submit_for_review,
     transition_work_order,
     validate_issue,
@@ -235,6 +264,40 @@ def dashboard(request):
         ctx["pending_review"] = WorkOrder.objects.filter(status=WorkOrder.Status.PENDING_REVIEW).count()
     if caps.get("view_procurement_requests"):
         ctx["pending_procurement"] = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).count()
+
+    # P3.6 — manager/supervisor action counters.
+    if caps.get("approve_part_request"):
+        from inventory.models import PartIssueLine
+        ctx["pending_part_requests"] = PartIssueLine.objects.filter(
+            status=PartIssueLine.Status.PENDING
+        ).count()
+    if caps.get("approve_external_repair_request"):
+        ctx["pending_external_repair_requests"] = ExternalRepairRequest.objects.filter(
+            status=ExternalRepairRequest.Status.PENDING
+        ).count()
+    if caps.get("view_work_orders"):
+        ctx["paused_wos"] = WorkOrder.objects.filter(
+            status=WorkOrder.Status.PAUSED
+        ).count()
+        ctx["overdue_wos"] = WorkOrder.objects.filter(
+            status__in=[
+                WorkOrder.Status.ASSIGNED, WorkOrder.Status.IN_PROGRESS,
+                WorkOrder.Status.PAUSED, WorkOrder.Status.PENDING_PARTS,
+                WorkOrder.Status.WAITING_FOR_VENDOR,
+            ],
+            created_at__lt=now - timedelta(days=7),
+        ).count()
+    # P3.6 — technician counters.
+    if role == User.Role.TECHNICIAN:
+        from inventory.models import PartIssueLine
+        ctx["my_pending_requests"] = PartIssueLine.objects.filter(
+            work_order__assigned_technician=request.user,
+            status=PartIssueLine.Status.PENDING,
+        ).count()
+        ctx["my_in_progress_wos"] = WorkOrder.objects.filter(
+            assigned_technician=request.user,
+            status=WorkOrder.Status.IN_PROGRESS,
+        ).count()
     return render(request, "maintenance/dashboard.html", ctx)
 
 
@@ -391,12 +454,31 @@ def issue_create(request):
         if form.is_valid():
             issue = form.save(commit=False)
             issue.reported_by = request.user
+            # P3.3: if operator flagged as emergency, auto-set priority
+            # to CRITICAL (form's clean() already did this; save it now).
+            if issue.is_emergency and not issue.priority:
+                issue.priority = MaintenanceIssue.Priority.CRITICAL
             issue.save()
-            log_audit(actor=request.user, action="issue_created", entity="MaintenanceIssue", object_id=issue.pk)
+            log_audit(
+                actor=request.user, action="issue_created",
+                entity="MaintenanceIssue", object_id=issue.pk,
+                payload={"is_emergency": issue.is_emergency},
+            )
             from .notifications import notify_new_issue
 
             notify_new_issue(issue)
-            messages.success(request, "Issue reported.")
+            if issue.is_emergency:
+                try:
+                    from .notifications import notify_emergency_issue_reported
+                    notify_emergency_issue_reported(issue)
+                except ImportError:
+                    pass
+                messages.warning(
+                    request,
+                    "Emergency issue reported. Manager has been paged.",
+                )
+            else:
+                messages.success(request, "Issue reported.")
 
             files = request.FILES.getlist("issue_photos")
             if files:
@@ -450,21 +532,96 @@ def issue_validate(request, pk):
 
 
 @login_required
+@require_POST
+@role_required(User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def issue_escalate(request, pk):
+    """P3.3: escalate a NEW or VALIDATED normal issue to emergency.
+    Visible to supervisor+manager+super_admin. Idempotent.
+    """
+    issue = get_object_or_404(MaintenanceIssue, pk=pk)
+    if issue.is_emergency:
+        messages.info(request, "Issue is already flagged as emergency.")
+        return redirect("issue_detail", pk=issue.pk)
+    escalate_issue_to_emergency(issue, actor=request.user)
+    messages.warning(
+        request,
+        f"Issue escalated to EMERGENCY (priority CRITICAL). "
+        f"Manager has been paged.",
+    )
+    return redirect("issue_detail", pk=issue.pk)
+
+
+def _technician_queue_queryset(user):
+    """Return the prioritized work-order queryset for a technician's own queue.
+
+    Same data shape as /work-orders/ for technicians — only the user's
+    assigned, non-closed WOs, ordered by queue priority + created_at.
+    Used by both the technician view of /work-orders/ and the dedicated
+    /work-orders/my/ URL.
+    """
+    return (
+        WorkOrder.objects.select_related("machine", "assigned_technician", "issue")
+        .filter(assigned_technician=user)
+        .exclude(status=WorkOrder.Status.CLOSED)
+        .annotate(queue_rank=_queue_priority_and_status_rank())
+        .order_by("queue_rank", "created_at")
+    )
+
+
+@login_required
 @role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_list(request):
     wos = WorkOrder.objects.select_related("machine", "assigned_technician", "issue").annotate(
         queue_rank=_queue_priority_and_status_rank(),
     )
     if request.user.role == User.Role.TECHNICIAN and not request.user.is_super_admin_role():
-        wos = wos.filter(assigned_technician=request.user).exclude(status=WorkOrder.Status.CLOSED)
+        wos = _technician_queue_queryset(request.user)
     st = request.GET.get("status")
     if st in dict(WorkOrder.Status.choices):
         wos = wos.filter(status=st)
+    if request.GET.get("overdue") == "1":
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        wos = wos.filter(
+            status__in=[
+                WorkOrder.Status.APPROVED,
+                WorkOrder.Status.ASSIGNED,
+                WorkOrder.Status.IN_PROGRESS,
+                WorkOrder.Status.PAUSED,
+                WorkOrder.Status.PENDING_PARTS,
+                WorkOrder.Status.WAITING_FOR_VENDOR,
+            ],
+            created_at__lt=seven_days_ago,
+        )
+    if request.GET.get("has_pending_part") == "1":
+        from inventory.models import PartIssueLine
+        wos = wos.filter(part_issues__status=PartIssueLine.Status.PENDING).distinct()
     wos = wos.order_by("queue_rank", "created_at")[:400]
     return render(
         request,
         "maintenance/workorder_list.html",
         {"work_orders": wos, "status_filter": st or "", "status_choices": WorkOrder.Status.choices},
+    )
+
+
+@login_required
+@role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
+def my_work_orders(request):
+    """Technician's personal queue (/work-orders/my/).
+
+    Same data as /work-orders/ for technicians, but with a clearer
+    page title, an "open WO" badge, and a back-to-dashboard link.
+    Super admins may also view the page (for support purposes).
+    """
+    wos = list(_technician_queue_queryset(request.user)[:200])
+    in_progress_count = sum(1 for wo in wos if wo.status == WorkOrder.Status.IN_PROGRESS)
+    return render(
+        request,
+        "maintenance/my_workorders.html",
+        {
+            "work_orders": wos,
+            "in_progress_count": in_progress_count,
+            "queue_total": len(wos),
+        },
     )
 
 
@@ -477,7 +634,14 @@ def work_order_detail(request, pk):
     )
     if request.user.role == User.Role.TECHNICIAN and wo.assigned_technician_id != request.user.id:
         raise Http404()
-    part_issues = wo.part_issues.select_related("part", "issued_by")
+    part_issues = wo.part_issues.select_related("part", "issued_by", "requested_by", "approved_by")
+    pending_part_requests = part_issues.filter(status=PartIssueLine.Status.PENDING)
+    external_repair_requests = wo.external_repair_requests.select_related(
+        "requested_by", "reviewed_by", "repair_order"
+    )
+    pending_external_repair_requests = external_repair_requests.filter(
+        status=ExternalRepairRequest.Status.PENDING
+    )
     logs = wo.state_logs.select_related("actor")[:50]
     issue_attachments = []
     if wo.issue_id:
@@ -488,12 +652,47 @@ def work_order_detail(request, pk):
     assign_form = AssignTechnicianForm()
     complete_form = WorkOrderCompleteForm(instance=wo)
     issue_part_form = IssuePartForm()
+    part_request_form = PartRequestForm()
+    part_decision_form = PartRequestDecisionForm()
+    external_repair_request_form = ExternalRepairRequestForm()
+    external_repair_decision_form = ExternalRepairRequestDecisionForm()
+
+    # P3.1 P1.5: last received supplier price per part — shown as a
+    # hint under the Part select in the request form so the technician
+    # knows roughly what the manager will see in the procurement note.
+    # SQLite doesn't support DISTINCT ON, so we do the dedupe in Python.
+    last_prices_by_part = {}
+    last_movements = (
+        StockMovement.objects.filter(
+            movement_type=StockMovement.MovementType.STOCK_IN,
+            unit_cost__gt=0,
+        )
+        .order_by("part_id", "-created_at")
+        .values("part_id", "unit_cost", "supplier_name", "created_at")
+    )
+    for m in last_movements:
+        pid = str(m["part_id"])
+        if pid in last_prices_by_part:
+            continue  # already have a more-recent one for this part
+        quantized = Decimal(m["unit_cost"]).quantize(Decimal("0.001"))
+        last_prices_by_part[pid] = {
+            "unit_cost": str(quantized),
+            "supplier_name": m["supplier_name"] or "—",
+            "date": m["created_at"].strftime("%Y-%m-%d"),
+        }
+    last_prices_json = json.dumps(last_prices_by_part)
     linked_prs = wo.purchase_requests.select_related("part", "supplier")[:25]
     tech_parts_note = TechVendorNoteForm(prefix="parts")
     tech_vendor_note = TechVendorNoteForm(prefix="vendor")
     active_conflict = None
+    emergency_blocks_resume = False
     if request.user.role == User.Role.TECHNICIAN and wo.assigned_technician_id == request.user.id:
         active_conflict = get_other_active_work_order(request.user, except_pk=wo.pk)
+        # True when another emergency WO is IN_PROGRESS for this tech and
+        # the current WO is NOT the emergency itself. Used to disable
+        # the start/resume button with a clear warning.
+        if not wo.is_emergency and has_active_emergency(request.user, except_pk=wo.pk):
+            emergency_blocks_resume = True
     return render(
         request,
         "maintenance/workorder_detail.html",
@@ -502,13 +701,22 @@ def work_order_detail(request, pk):
             "logs": logs,
             "issue_attachments": issue_attachments,
             "part_issues": part_issues,
+            "pending_part_requests": pending_part_requests,
+            "external_repair_requests": external_repair_requests,
+            "pending_external_repair_requests": pending_external_repair_requests,
             "assign_form": assign_form,
             "complete_form": complete_form,
             "issue_part_form": issue_part_form,
+            "part_request_form": part_request_form,
+            "part_decision_form": part_decision_form,
+            "external_repair_request_form": external_repair_request_form,
+            "external_repair_decision_form": external_repair_decision_form,
             "linked_prs": linked_prs,
             "tech_parts_note": tech_parts_note,
             "tech_vendor_note": tech_vendor_note,
             "active_conflict": active_conflict,
+            "emergency_blocks_resume": emergency_blocks_resume,
+            "last_prices_json": last_prices_json,
         },
     )
 
@@ -534,6 +742,8 @@ def work_order_create_from_issue(request, issue_pk):
         machine=issue.machine,
         status=WorkOrder.Status.APPROVED,
         created_by=request.user,
+        # P3.3: if the issue is flagged as emergency, the WO inherits it.
+        is_emergency=bool(issue.is_emergency),
     )
     issue.status = MaintenanceIssue.Status.CONVERTED
     issue.save(update_fields=["status"])
@@ -612,6 +822,16 @@ def work_order_start(request, pk):
     ):
         messages.error(request, "Cannot start work in this state.")
         return redirect("work_order_detail", pk=pk)
+    # Emergency precedence check (SRS UC-06 step 2D).
+    # A non-emergency WO cannot be transitioned to IN_PROGRESS while
+    # another emergency WO is already IN_PROGRESS for the same technician.
+    # Starting an emergency itself is always allowed.
+    if not wo.is_emergency and has_active_emergency(request.user, except_pk=wo.pk):
+        messages.error(
+            request,
+            "You have an active emergency work order. Finish it before starting another task.",
+        )
+        return redirect("work_order_detail", pk=wo.pk)
     conflicting_wo = get_other_active_work_order(request.user, except_pk=wo.pk)
     if conflicting_wo and wo.status != WorkOrder.Status.IN_PROGRESS and request.POST.get("confirm_switch") != "1":
         return render(
@@ -637,9 +857,24 @@ def work_order_pause(request, pk):
     if wo.status != WorkOrder.Status.IN_PROGRESS:
         messages.error(request, "Not in progress.")
         return redirect("work_order_detail", pk=pk)
+    form = WorkOrderPauseForm(request.POST)
+    if not form.is_valid():
+        for err in form.non_field_errors():
+            messages.error(request, err)
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f"{field}: {err}")
+        return redirect("work_order_detail", pk=pk)
+    reason = form.cleaned_data["pause_reason"]
+    note = (form.cleaned_data.get("pause_note") or "").strip()
     wo.labor_stopped_at = timezone.now()
-    wo.save(update_fields=["labor_stopped_at", "updated_at"])
-    transition_work_order(wo, WorkOrder.Status.PAUSED, actor=request.user, note="Paused")
+    wo.pause_reason = reason
+    wo.pause_note = note[:500]
+    wo.save(update_fields=["labor_stopped_at", "pause_reason", "pause_note", "updated_at"])
+    state_log_note = (
+        note if note else f"Paused: {dict(WorkOrder.PauseReason.choices)[reason]}"
+    )
+    transition_work_order(wo, WorkOrder.Status.PAUSED, actor=request.user, note=state_log_note)
     messages.info(request, "Paused.")
     return redirect("work_order_detail", pk=pk)
 
@@ -714,6 +949,231 @@ def work_order_issue_part(request, pk):
     )
     (messages.success if ok else messages.error)(request, msg)
     return redirect("work_order_detail", pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.1 — Hybrid part request workflow (technician request → manager approval)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+@require_POST
+@role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
+def work_order_request_part(request, pk):
+    """Technician adds a PENDING part request to their own assigned WO.
+
+    No inventory change. Manager reviews via work_order_approve_part.
+    Emergency exception: when wo.is_emergency=True, the request is
+    auto-approved and stock deducted immediately.
+    """
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
+        messages.error(request, "You can only request parts on work orders assigned to you.")
+        return redirect("work_order_detail", pk=wo.pk)
+    if wo.status == WorkOrder.Status.CLOSED:
+        messages.error(request, "Cannot request parts on a closed work order.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    form = PartRequestForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f"{field}: {err}")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    try:
+        line = request_part_on_wo(
+            wo=wo,
+            part=form.cleaned_data["part"],
+            quantity=form.cleaned_data["quantity"],
+            technician=request.user,
+            note=form.cleaned_data.get("note") or "",
+        )
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    if line.status == PartIssueLine.Status.PENDING:
+        messages.success(
+            request,
+            f"Part request submitted ({form.cleaned_data['quantity']} × "
+            f"{form.cleaned_data['part'].name}). Awaiting manager approval.",
+        )
+    else:
+        messages.success(
+            request,
+            f"Emergency auto-approval: {form.cleaned_data['quantity']} × "
+            f"{form.cleaned_data['part'].name} deducted from stock immediately. "
+            f"Manager will review.",
+        )
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_approve_part(request, pk, line_id):
+    """Manager approves a PENDING part request (deducts stock).
+
+    Reject and edit-qty are handled by work_order_decide_part to keep
+    decisioning in one place.
+    """
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    line = get_object_or_404(PartIssueLine, pk=line_id, work_order=wo)
+    if line.status != PartIssueLine.Status.PENDING:
+        messages.error(request, "Only PENDING requests can be approved.")
+        return redirect("work_order_detail", pk=wo.pk)
+    try:
+        approve_part_request(line=line, manager=request.user)
+        messages.success(
+            request,
+            f"Approved {line.quantity} × {line.part.name} — stock deducted.",
+        )
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_decide_part(request, pk, line_id):
+    """Manager chooses approve / reject / edit on a PENDING request.
+
+    One endpoint to keep decision flow tight. The form's `action` field
+    drives the behavior.
+    """
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    line = get_object_or_404(PartIssueLine, pk=line_id, work_order=wo)
+    if line.status != PartIssueLine.Status.PENDING:
+        messages.error(request, "Only PENDING requests can be decided.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    form = PartRequestDecisionForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f"{field}: {err}")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    action = form.cleaned_data["action"]
+    try:
+        if action == "approve":
+            approve_part_request(line=line, manager=request.user)
+            messages.success(
+                request,
+                f"Approved {line.quantity} × {line.part.name} — stock deducted.",
+            )
+        elif action == "reject":
+            reject_part_request(
+                line=line,
+                manager=request.user,
+                reason=form.cleaned_data["rejection_reason"],
+            )
+            messages.info(
+                request,
+                f"Rejected {line.part.name} request.",
+            )
+        elif action == "edit":
+            edit_part_request_qty(
+                line=line,
+                manager=request.user,
+                new_quantity=form.cleaned_data["new_qty"],
+            )
+            messages.success(
+                request,
+                f"Updated qty to {form.cleaned_data['new_qty']} for {line.part.name}.",
+            )
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+# ---------------------------------------------------------------------------
+# External Repair Request flow (Phase 2.2)
+# Technician requests, manager creates the ERO.
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_POST
+def work_order_request_external_repair(request, pk):
+    """Assigned technician submits a PENDING external-repair request.
+
+    The technician cannot create the ERO directly — EROs create vendor
+    engagement and financial obligations. The manager reviews the
+    request and either approves (which creates a DRAFT ERO on the WO)
+    or rejects it with a reason.
+    """
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician_id != request.user.id:
+        raise Http404()
+    form = ExternalRepairRequestForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f"{field}: {err}")
+        return redirect("work_order_detail", pk=wo.pk)
+    try:
+        err = request_external_repair(
+            work_order=wo,
+            requested_by=request.user,
+            diagnosis_note=form.cleaned_data["diagnosis_note"],
+            part_description=form.cleaned_data["part_description"],
+        )
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+    # Notify managers (best-effort; ignore if no notification helper)
+    try:
+        from .notifications import notify_repair_request_created
+        notify_repair_request_created(err)
+    except Exception:
+        pass
+    messages.success(
+        request,
+        "External repair request submitted. Manager has been notified.",
+    )
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_decide_external_repair(request, pk, err_id):
+    """Manager approves or rejects a PENDING external-repair request."""
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    err = get_object_or_404(ExternalRepairRequest, pk=err_id, work_order=wo)
+    if err.status != ExternalRepairRequest.Status.PENDING:
+        messages.error(request, "Only PENDING requests can be decided.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    form = ExternalRepairRequestDecisionForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f"{field}: {err}")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    action = form.cleaned_data["action"]
+    note = form.cleaned_data.get("manager_note", "")
+    try:
+        if action == "approve":
+            ero = approve_external_repair_request(
+                err=err, manager=request.user, manager_note=note
+            )
+            messages.success(
+                request,
+                f"External Repair Order #{ero.pk} created. The supply officer "
+                "can now send the part to the vendor.",
+            )
+        else:
+            reject_external_repair_request(
+                err=err, manager=request.user, manager_note=note
+            )
+            messages.info(request, "External repair request rejected.")
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect("work_order_detail", pk=wo.pk)
 
 
 @login_required
@@ -1389,8 +1849,12 @@ def repair_create(request):
 @login_required
 @role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def repair_list(request):
-    rows = ExternalRepairOrder.objects.order_by("-created_at")[:200]
-    return render(request, "maintenance/repair_list.html", {"repairs": rows})
+    qs = ExternalRepairOrder.objects.order_by("-created_at")
+    st = request.GET.get("status")
+    if st in dict(ExternalRepairOrder.Status.choices):
+        qs = qs.filter(status=st)
+    rows = qs[:200]
+    return render(request, "maintenance/repair_list.html", {"repairs": rows, "status_filter": st or ""})
 
 
 @login_required
@@ -1408,6 +1872,13 @@ def repair_officer(request, pk):
             if inst.status == ExternalRepairOrder.Status.CLOSED and not inst.closed_at:
                 inst.closed_at = timezone.now()
             inst.save()
+            if (
+                inst.status == ExternalRepairOrder.Status.SENT_TO_VENDOR
+                and old_status != ExternalRepairOrder.Status.SENT_TO_VENDOR
+            ):
+                from maintenance.notifications import notify_repair_sent_to_vendor
+
+                notify_repair_sent_to_vendor(inst)
             if (
                 inst.status == ExternalRepairOrder.Status.RETURNED
                 and old_status != ExternalRepairOrder.Status.RETURNED
@@ -1447,35 +1918,83 @@ def quick_log(request):
     User.Role.SUPER_ADMIN,
 )
 def reports_view(request):
-    most_issues = Machine.objects.annotate(ic=Count("issues")).order_by("-ic")[:10]
-    low_stock = SparePart.objects.filter(quantity_on_hand__lte=F("min_stock_level")).order_by("sku")[:50]
-    top_parts = (
-        PartIssueLine.objects.values("part__sku", "part__name")
-        .annotate(total_qty=Sum("quantity"))
-        .order_by("-total_qty")[:12]
+    """P3.4 — section-level role filter.
+
+    Section matrix:
+    | Section              | Admin | Manager | Supervisor | Supply |
+    |----------------------|-------|---------|------------|--------|
+    | wo_performance       |  ✓    |   ✓     |    ✓       |   ✗    |
+    | tech_performance     |  ✓    |   ✓     |    ✓       |   ✗    |
+    | spare_parts          |  ✓    |   ✓     |    ✓       |   ✓    |
+    """
+    role = request.user.role
+    ctx = {}
+    if role in (User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN):
+        ctx["wo_performance"] = {
+            "most_issues": Machine.objects.annotate(ic=Count("issues")).order_by("-ic")[:10],
+            "status_counts": [
+                {
+                    "code": row["status"],
+                    "label": dict(WorkOrder.Status.choices).get(row["status"], row["status"]),
+                    "count": row["c"],
+                }
+                for row in WorkOrder.objects.values("status").annotate(c=Count("id")).order_by("status")
+            ],
+        }
+        ctx["tech_performance"] = {
+            "tech_done": (
+                User.objects.filter(role=User.Role.TECHNICIAN)
+                .annotate(
+                    closed_wos=Count(
+                        "assigned_work_orders",
+                        filter=Q(assigned_work_orders__status=WorkOrder.Status.CLOSED),
+                    ),
+                )
+                .order_by("-closed_wos")[:10]
+            ),
+        }
+    if role in (User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN):
+        ctx["spare_parts"] = {
+            "low_stock": SparePart.objects.filter(
+                quantity_on_hand__lte=F("min_stock_level")
+            ).order_by("sku")[:50],
+            "top_parts": (
+                PartIssueLine.objects.values("part__sku", "part__name")
+                .annotate(total_qty=Sum("quantity"))
+                .order_by("-total_qty")[:12]
+            ),
+        }
+    return render(request, "maintenance/reports.html", ctx)
+
+
+@login_required
+def technician_report_detail(request, user_id):
+    """Per-technician drill-down /reports/technicians/<id>/.
+
+    Reports on:
+      - Completed WOs, in-progress WOs
+      - Average repair duration (labor minutes)
+      - Average response time (assignment → first start)
+      - Reopened jobs (sum of rejection_count)
+      - External repair count (WOs that went through WAITING_FOR_VENDOR)
+    Technicians may also view their own report.
+    Managers/supervisors/super admins can view any technician's report.
+    Other roles (operator) get a 404.
+    """
+    technician = get_object_or_404(User, pk=user_id, role=User.Role.TECHNICIAN)
+    is_self = request.user.id == technician.id
+    is_manager = request.user.role in (
+        User.Role.MANAGER,
+        User.Role.SUPER_ADMIN,
+        User.Role.SUPERVISOR,
     )
-    labels = dict(WorkOrder.Status.choices)
-    status_counts = [
-        {"code": row["status"], "label": labels.get(row["status"], row["status"]), "count": row["c"]}
-        for row in WorkOrder.objects.values("status").annotate(c=Count("id")).order_by("status")
-    ]
-    tech_done = (
-        User.objects.filter(role=User.Role.TECHNICIAN)
-        .annotate(
-            closed_wos=Count("assigned_work_orders", filter=Q(assigned_work_orders__status=WorkOrder.Status.CLOSED)),
-        )
-        .order_by("-closed_wos")[:10]
-    )
+    if not (is_self or is_manager):
+        raise Http404()
+    stats = technician_stats(technician)
     return render(
         request,
-        "maintenance/reports.html",
-        {
-            "most_issues": most_issues,
-            "low_stock": low_stock,
-            "top_parts": top_parts,
-            "status_counts": status_counts,
-            "tech_done": tech_done,
-        },
+        "maintenance/technician_report.html",
+        {"technician": technician, "stats": stats},
     )
 
 
@@ -1725,6 +2244,7 @@ def kpi_dashboard(request):
             avg_hours = sum(labor_values) / len(labor_values)
         tech_efficiency.append(
             {
+                "id": tech.id,
                 "username": tech.username,
                 "closed_count": len(tech_closed),
                 "avg_repair_hours": avg_hours,
@@ -1843,13 +2363,46 @@ def repair_manager_accept(request, pk):
         messages.error(request, "Repair must be in Returned status before manager acceptance (UC-20).")
         return redirect("repair_list")
     if request.method == "POST":
+        form = RepairManagerAcceptForm(request.POST)
+        if not form.is_valid():
+            for field, errs in form.errors.items():
+                for err in errs:
+                    messages.error(request, f"{field}: {err}")
+            return render(request, "maintenance/repair_accept.html", {"rwo": rwo, "form": form})
+        rwo.actual_cost = form.cleaned_data["actual_cost"]
+        rwo.invoice_ref = form.cleaned_data["invoice_ref"]
         rwo.status = ExternalRepairOrder.Status.CLOSED
         rwo.closed_at = timezone.now()
-        rwo.save(update_fields=["status", "closed_at"])
-        log_audit(actor=request.user, action="repair_manager_accept", entity="ExternalRepairOrder", object_id=rwo.pk)
-        messages.success(request, "Repair verified and closed.")
+        rwo.closed_by = request.user
+        rwo.save(update_fields=[
+            "actual_cost", "invoice_ref", "status", "closed_at", "closed_by",
+        ])
+        log_audit(
+            actor=request.user, action="repair_manager_accept",
+            entity="ExternalRepairOrder", object_id=rwo.pk,
+            payload={
+                "actual_cost": str(rwo.actual_cost),
+                "invoice_ref": rwo.invoice_ref,
+            },
+        )
+        # P3.2: push vendor_cost into WorkOrderCost so it rolls up into
+        # the machine cost report.
+        if rwo.work_order_id:
+            try:
+                cost = WorkOrderCost.objects.get(work_order_id=rwo.work_order_id)
+                cost.recalculate()
+            except WorkOrderCost.DoesNotExist:
+                WorkOrderCost.objects.create(work_order_id=rwo.work_order_id).recalculate()
+        messages.success(
+            request,
+            f"Repair verified and closed. Cost {rwo.actual_cost} added to WO cost rollup.",
+        )
         return redirect("repair_list")
-    return render(request, "maintenance/repair_accept.html", {"rwo": rwo})
+    return render(
+        request,
+        "maintenance/repair_accept.html",
+        {"rwo": rwo, "form": RepairManagerAcceptForm()},
+    )
 
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB

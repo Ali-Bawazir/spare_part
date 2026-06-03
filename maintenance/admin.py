@@ -6,6 +6,7 @@ from mms.admin_mixins import MMSAdminPermission
 from .models import (
     AuditEntry,
     ExternalRepairOrder,
+    ExternalRepairRequest,
     FailureCategory,
     FailureMode,
     Incident,
@@ -90,11 +91,12 @@ class WorkOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
         "status",
         "category",
         "is_emergency",
+        "pause_reason",
         "assigned_technician",
         "created_by",
         "created_at",
     )
-    list_filter = ("status", "category", "is_emergency", "machine")
+    list_filter = ("status", "category", "is_emergency", "pause_reason", "machine")
     search_fields = (
         "number",
         "machine__name",
@@ -133,6 +135,7 @@ class WorkOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
                 )
             },
         ),
+        ("Pause", {"fields": ("pause_reason", "pause_note"), "classes": ("collapse",)}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )
 
@@ -235,6 +238,38 @@ class ExternalRepairOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
         (None, {"fields": ("title", "description", "status", "work_order")}),
         ("Vendor & cost", {"fields": ("vendor_name", "estimated_cost", "actual_cost")}),
         ("People & dates", {"fields": ("created_by", "handled_by", "sent_at", "closed_at", "created_at")}),
+    )
+
+
+@admin.register(ExternalRepairRequest)
+class ExternalRepairRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = (
+        "work_order",
+        "status",
+        "requested_by",
+        "reviewed_by",
+        "repair_order",
+        "created_at",
+        "reviewed_at",
+    )
+    list_filter = ("status",)
+    search_fields = (
+        "diagnosis_note",
+        "part_description",
+        "manager_note",
+        "requested_by__username",
+        "work_order__number",
+    )
+    readonly_fields = ("created_at", "reviewed_at")
+    raw_id_fields = ("work_order", "requested_by", "reviewed_by", "repair_order")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+    fieldsets = (
+        (None, {"fields": ("work_order", "status", "repair_order")}),
+        ("Request", {"fields": ("requested_by", "diagnosis_note", "part_description")}),
+        ("Review", {"fields": ("reviewed_by", "reviewed_at", "manager_note")}),
+        ("Audit", {"fields": ("created_at",)}),
     )
 
 

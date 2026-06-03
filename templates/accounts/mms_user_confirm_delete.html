@@ -6,7 +6,7 @@
 <div class="mms-card mms-form-stack mms-form-stack--narrow">
   <div class="mms-card-body">
     <div class="mms-danger-zone">
-      <p class="mms-danger-zone__lead"><strong>{{ target.username }}</strong> — {{ target.get_role_display }}{% if not target.is_active %} <span class="text-muted">(already inactive)</span>{% endif %}</p>
+      <p class="mms-danger-zone__lead"><strong>{{ target.username }}</strong> — {{ target|user_role }}{% if not target.is_active %} <span class="text-muted">(already inactive)</span>{% endif %}</p>
       <form method="post" class="mms-form">
         {% csrf_token %}
         <button type="submit" class="mms-btn mms-btn--danger">Delete user permanently</button>
