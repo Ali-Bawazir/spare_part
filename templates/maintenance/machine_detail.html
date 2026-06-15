@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ machine.name }} — {{ machine.get_asset_level_display }}{% endblock %}
+{% block page_heading %}{{ machine.name }}{% endblock %}
+{% block content %}
+<!-- Breadcrumb -->
+<p class="mms-page-lead" style="font-size:0.9em">
+  {% if ancestors %}
+    {% for a in ancestors %}<a href="{% url 'machine_detail' a.pk %}" style="color:#666;text-decoration:none">{{ a.name }}</a> › {% endfor %}
+  {% endif %}
+  <strong>{{ machine.name }}</strong>
+  <span style="color:#666;font-size:0.85em">({{ machine.get_asset_level_display }})</span>
+</p>
+
+<!-- Asset details card -->
+    <div class="mms-card" style="margin-bottom:1rem">
+      <div class="mms-card-header">Asset Details</div>
+      <div class="mms-card-body">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280;width:35%">QR Code</th><td style="padding:0.3rem"><code>{{ machine.qr_code }}</code></td></tr>
+          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Asset Code</th><td style="padding:0.3rem">{% if machine.asset_code %}<code>{{ machine.asset_code }}</code>{% else %}—{% endif %}</td></tr>
+          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Level</th><td style="padding:0.3rem">{{ machine.get_asset_level_display }} (level {{ machine.asset_level }})</td></tr>
+          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Site</th><td style="padding:0.3rem">{{ machine.site.name|default:"—" }}</td></tr>
+          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Location</th><td style="padding:0.3rem">{{ machine.location|default:"—" }}</td></tr>
+          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Status</th><td style="padding:0.3rem">{% if machine.is_active %}<span class="mms-badge mms-badge--success">Active</span>{% else %}<span class="mms-badge mms-badge--muted">Inactive</span>{% endif %}</td></tr>
+          {% if is_component_level %}
+            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Serial</th><td style="padding:0.3rem">{{ machine.serial_number|default:"—" }}</td></tr>
+            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Manufacturer</th><td style="padding:0.3rem">{{ machine.manufacturer|default:"—" }}</td></tr>
+            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Model</th><td style="padding:0.3rem">{{ machine.model_number|default:"—" }}</td></tr>
+            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Criticality</th><td style="padding:0.3rem">{{ machine.get_criticality_display|default:"—" }}</td></tr>
+          {% endif %}
+        </table>
+      </div>
+      <div class="mms-card-body" style="border-top:1px solid #e5e7eb;display:flex;gap:0.5rem;flex-wrap:wrap">
+        <a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">Edit</a>
+        <a href="{% url 'machine_list' %}" class="mms-btn mms-btn--ghost">← Back to machines</a>
+      </div>
+    </div>
+
+    <!-- Asset Photos card -->
+    <div class="mms-card" style="margin-bottom:1rem">
+      <div class="mms-card-header">Asset Photos</div>
+      <div class="mms-card-body">
+        {% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title="Asset Photos" %}
+      </div>
+    </div>
+
+    <!-- Quick actions card -->
+    <div class="mms-card" style="margin-bottom:1rem">
+      <div class="mms-card-header">Quick Actions</div>
+      <div class="mms-card-body" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+        <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+           class="mms-btn mms-btn--primary">Report Issue</a>
+        <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+           class="mms-btn mms-btn--primary">Create Work Order</a>
+        <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+           class="mms-btn mms-btn--primary">Create PM</a>
+        <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+           class="mms-btn mms-btn--ghost">Create ERO</a>
+        <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+           class="mms-btn mms-btn--ghost">Create PR</a>
+      </div>
+    </div>
+
+    <!-- Related records -->
+    <div class="mms-card" style="margin-bottom:1rem">
+      <div class="mms-card-header">Related Records</div>
+      <div class="mms-card-body">
+        {% if related_wos %}
+          <h5 style="margin-top:0.5rem">Work Orders ({{ related_wos|length }})</h5>
+          <ul style="list-style:none;padding:0">
+            {% for wo in related_wos %}
+              <li style="padding:0.2rem 0">
+                <a href="{% url 'work_order_detail' wo.pk %}">{{ wo.wo_number|default:wo.pk }}</a>
+                — {{ wo.get_status_display }}{% if wo.component %} ({{ wo.component.name }}){% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if related_issues %}
+          <h5 style="margin-top:0.5rem">Issues ({{ related_issues|length }})</h5>
+          <ul style="list-style:none;padding:0">
+            {% for iss in related_issues %}
+              <li style="padding:0.2rem 0">
+                <a href="{% url 'issue_detail' iss.pk %}">#{{ iss.pk }}</a>
+                — {{ iss.get_status_display }} ({{ iss.get_priority_display }})
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if related_pms %}
+          <h5 style="margin-top:0.5rem">PM Schedules ({{ related_pms|length }})</h5>
+          <ul style="list-style:none;padding:0">
+            {% for pm in related_pms %}
+              <li style="padding:0.2rem 0">
+                <a href="{% url 'pm_execute' pm.pk %}">{{ pm.name }}</a>
+                {% if pm.frequency_days %}<span style="color:#666"> — every {{ pm.frequency_days }} days</span>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if related_eros %}
+          <h5 style="margin-top:0.5rem">External Repairs ({{ related_eros|length }})</h5>
+          <ul style="list-style:none;padding:0">
+            {% for ero in related_eros %}
+              <li style="padding:0.2rem 0">
+                <a href="{% url 'repair_officer' ero.pk %}">{{ ero.title|default:ero.pk }}</a>
+                — {{ ero.get_status_display }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if related_prs %}
+          <h5 style="margin-top:0.5rem">Purchase Requests ({{ related_prs|length }})</h5>
+          <ul style="list-style:none;padding:0">
+            {% for pr in related_prs %}
+              <li style="padding:0.2rem 0">
+                <a href="{% url 'pr_detail' pr.pk %}">#{{ pr.pk }}</a>
+                — {{ pr.part.name }} (qty {{ pr.quantity }})
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if not related_wos and not related_issues and not related_pms and not related_eros and not related_prs %}
+          <p class="text-muted" style="color:#6b7280;margin:0">No records attached to this asset yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Children (subassemblies/components) -->
+    {% if machine.children.all %}
+      <div class="mms-card" style="margin-bottom:1rem">
+        <div class="mms-card-header">
+          {% if is_machine_level %}Subassemblies & Components ({{ machine.children.count }}){% endif %}
+          {% if is_subassembly_level %}Components ({{ machine.children.count }}){% endif %}
+          {% if is_component_level %}No children (this is a leaf component){% endif %}
+        </div>
+        {% if machine.children.all and not is_component_level %}
+          <div class="mms-card-body">
+            <ul style="list-style:none;padding:0;margin:0">
+              {% for child in machine.children.all %}
+                <li style="padding:0.4rem 0;border-bottom:1px solid #f3f4f6">
+                  <a href="{% url 'machine_detail' child.pk %}">{{ child.name }}</a>
+                  <span style="color:#666;font-size:0.85em">— {{ child.get_asset_level_display }}{% if child.asset_code %} ({{ child.asset_code }}){% endif %}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+</div>
+
+{% include "maintenance/_asset_tree.html" %}
+{% endblock %}

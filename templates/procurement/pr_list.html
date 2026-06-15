@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Procurement{% endblock %}
+{% load mms_extras %}
+{% block title %}Supply — Requests{% endblock %}
 {% block page_heading %}Purchase requests{% endblock %}
 {% block content %}
 {% if perm_create_purchase_request %}
@@ -10,7 +11,7 @@
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>ID</th><th>WO</th><th>Part</th><th>Qty</th><th>Status</th><th>Emergency</th><th>Linked PO</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>WO</th><th>Part</th><th>Qty</th><th>Status</th><th>Linked PO</th><th></th></tr></thead>
       <tbody>
       {% for r in requests %}
       <tr style="cursor:pointer" onclick="window.location='{% url 'pr_detail' r.pk %}'">
@@ -18,20 +19,8 @@
         <td>{% if r.work_order %}{% if perm_view_work_orders %}<a href="{% url 'work_order_detail' r.work_order_id %}">WO-{{ r.work_order.number }}</a>{% else %}WO-{{ r.work_order.number }}{% endif %}{% else %}—{% endif %}</td>
         <td>{{ r.part.sku }}</td>
         <td>{{ r.quantity }}</td>
-        <td>
-          {% if r.status == 'converted_to_po' %}
-            <span class="status-badge status-converted">Converted to PO</span>
-          {% elif r.status == 'partially_fulfilled' %}
-            <span class="status-badge status-partial-fulfilled">Partially fulfilled</span>
-          {% elif r.status == 'fulfilled' %}
-            <span class="status-badge status-fulfilled">Fulfilled</span>
-          {% elif r.status == 'cancelled' %}
-            <span class="status-badge status-cancelled">Cancelled</span>
-          {% else %}
-            {{ r.get_status_display }}
-          {% endif %}
-        </td>
-        <td>{% if r.is_emergency %}<span class="mms-badge mms-badge--danger">Yes</span>{% else %}<span class="mms-badge mms-badge--muted">No</span>{% endif %}</td>
+        <td><span class="{{ r.status|pr_status_badge_class }}">{{ r.get_status_display }}</span></td>
+
         <td>
           {% if r.purchase_order %}
             <a href="{% url 'purchase_order_detail' r.purchase_order.pk %}">{{ r.purchase_order.po_number }}</a>
@@ -50,16 +39,9 @@
           {% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="8" class="mms-empty">No requests.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="7" class="mms-empty">No requests.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-
-<style>
-.status-converted { background: #e0e7ff; color: #3730a3; }
-.status-partial-fulfilled { background: #fef3c7; color: #92400e; }
-.status-fulfilled { background: #d1fae5; color: #065f46; }
-.status-cancelled { background: #f8d7da; color: #721c24; }
-</style>
 {% endblock %}

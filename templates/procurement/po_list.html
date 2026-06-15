@@ -1,7 +1,10 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}Purchase Orders{% endblock %}
 {% block page_heading %}Purchase Orders{% endblock %}
 {% block content %}
+
+<div class="mms-page-lead">Track every PO from creation through receiving. Filter by status, jump to detail, or open a new one.</div>
 
 {% if perms.procurement.add_purchaseorder %}
 <div class="mms-actions" style="margin-bottom:1rem">
@@ -9,6 +12,23 @@
 </div>
 {% endif %}
 
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
+    <strong style="font-size:0.85rem;color:#6b7280">Filter by status:</strong>
+    <a href="{% url 'purchase_order_list' %}"
+       class="mms-btn {% if not status_filter %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">
+       All
+    </a>
+    {% for value, label in status_choices %}
+      <a href="{% url 'purchase_order_list' %}?status={{ value }}"
+         class="mms-btn {% if status_filter == value %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">
+         {{ label }}
+      </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="mms-card">
 <table class="mms-table">
     <thead>
         <tr>
@@ -26,34 +46,28 @@
         <tr>
             <td><a href="{% url 'purchase_order_detail' po.pk %}">{{ po.po_number }}</a></td>
             <td>{{ po.supplier.name|default:"—" }}</td>
-            <td><span class="status-badge status-{{ po.status }}">{{ po.get_status_display }}</span></td>
+            <td><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></td>
             <td>{{ po.expected_delivery|default:"—" }}</td>
             <td>{{ po.total_ordered_value|default:"0" }}</td>
             <td>{{ po.created_at|date:"Y-m-d" }}</td>
             <td>
                 <a href="{% url 'purchase_order_detail' po.pk %}">View</a>
-                {% if po.status == 'draft' %}
+                {% if po.status == 'draft' or po.status == 'sent' or po.status == 'partial' %}
                 | <a href="{% url 'purchase_order_receive' po.pk %}">Receive</a>
                 {% endif %}
+                | <a href="{% url 'purchase_order_pdf' po.pk %}" target="_blank">PDF</a>
             </td>
         </tr>
     {% empty %}
-        <tr><td colspan="7">No purchase orders yet.</td></tr>
+        <tr><td colspan="7">
+            {% if status_filter %}
+              No purchase orders with status "{{ status_filter }}".
+            {% else %}
+              No purchase orders yet.
+            {% endif %}
+        </td></tr>
     {% endfor %}
     </tbody>
 </table>
-
-<style>
-.status-badge {
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.85em;
-}
-.status-draft { background: #e9ecef; }
-.status-sent { background: #cfe2ff; color: #084; }
-.status-partial { background: #fff3cd; color: #856404; }
-.status-received { background: #d4edda; color: #155724; }
-.status-closed_short { background: #f8d7da; color: #721c24; }
-.status-cancelled { background: #f8d7da; color: #721c24; }
-</style>
+</div>
 {% endblock %}

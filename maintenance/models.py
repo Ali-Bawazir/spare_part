@@ -66,7 +66,7 @@ class FailureMode(models.Model):
 
 
 class Machine(models.Model):
-    """Factory asset; QR resolves to `qr_code`."""
+    """Asset node in the hierarchy (Area > Line > Machine > Subassembly > Component)."""
 
     name = models.CharField(max_length=255)
     qr_code = models.SlugField(max_length=64, unique=True, db_index=True)
@@ -79,7 +79,7 @@ class Machine(models.Model):
     )
     asset_level = models.PositiveIntegerField(
         default=3,
-        choices=[(1, "Plant"), (2, "Line"), (3, "Machine"), (4, "Component")],
+        choices=[(1, "Area"), (2, "Production Line"), (3, "Machine"), (4, "Subassembly"), (5, "Component")],
     )
     asset_type = models.CharField(
         max_length=32, blank=True,
@@ -95,6 +95,25 @@ class Machine(models.Model):
     failure_category = models.ForeignKey(
         "FailureCategory", on_delete=models.SET_NULL,
         null=True, blank=True, related_name="machines"
+    )
+    serial_number = models.CharField(max_length=128, blank=True, help_text="Serial number (level-5 Component)")
+    manufacturer = models.CharField(max_length=255, blank=True, help_text="Manufacturer (level-5 Component)")
+    model_number = models.CharField(max_length=128, blank=True, help_text="Model number (level-5 Component)")
+    install_date = models.DateField(null=True, blank=True, help_text="Date installed (level-5 Component)")
+    expected_life_days = models.PositiveIntegerField(null=True, blank=True, help_text="Expected service life in days (level-5 Component)")
+    criticality = models.CharField(
+        max_length=20, blank=True,
+        choices=[("LOW", "Low"), ("MEDIUM", "Medium"), ("HIGH", "High"), ("CRITICAL", "Critical")],
+        help_text="Criticality rating (level-5 Component)",
+    )
+    status = models.CharField(
+        max_length=20, blank=True, default="active",
+        choices=[("active", "Active"), ("inactive", "Inactive"), ("retired", "Retired"), ("awaiting_repair", "Awaiting Repair")],
+        help_text="Component status",
+    )
+    asset_code = models.CharField(
+        max_length=128, blank=True, default="",
+        help_text="Hierarchical asset code (e.g. FM-01-CONV-BRG-001)",
     )
 
     class Meta:
@@ -125,6 +144,34 @@ class Machine(models.Model):
             current = current.parent
         return current
 
+    def get_ancestor_machines(self):
+        """Walk the parent chain and return all level-3 (Machine) ancestors in order closest-first."""
+        machines = []
+        current = self.parent
+        while current is not None:
+            if current.asset_level == 3:
+                machines.append(current)
+            current = current.parent
+        return machines
+
+    def get_descendant_components(self):
+        """Return all level-5 Machines (components) whose ancestor chain ends at this machine."""
+        components = []
+        for child in self.children.all():
+            if child.asset_level == 5:
+                components.append(child)
+            components.extend(child.get_descendant_components())
+        return components
+
+    def _generate_asset_code(self) -> str:
+        if self.parent and self.parent.asset_code:
+            return f"{self.parent.asset_code}-{self.qr_code}"
+        return self.qr_code or self.name.upper().replace(" ", "_")
+
+    def save(self, *args, **kwargs):
+        if not self.asset_code:
+            self.asset_code = self._generate_asset_code()
+        super().save(*args, **kwargs)
 
 class ActiveManager(models.Manager):
     def get_queryset(self):
@@ -149,6 +196,14 @@ class MaintenanceIssue(models.Model):
         LOW = "low", "Low"
 
     machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name="issues")
+    component = models.ForeignKey(
+        Machine,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="component_issues",
+        limit_choices_to={"asset_level": 5},
+    )
     reported_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -227,6 +282,12 @@ class MaintenanceIssue(models.Model):
     def __str__(self) -> str:
         return f"Issue #{self.pk} — {self.machine.name} ({self.status})"
 
+    def clean(self):
+        super().clean()
+        from .validators import validate_component_belongs_to_machine
+        if self.machine_id and self.component_id:
+            validate_component_belongs_to_machine(self.component, self.machine)
+
 
 class WorkOrder(models.Model):
     class Category(models.TextChoices):
@@ -273,6 +334,11 @@ class WorkOrder(models.Model):
         related_name="work_order",
     )
     machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name="work_orders", null=True, blank=True)
+    component = models.ForeignKey(
+        Machine, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="component_work_orders",
+        help_text="Level-5 Component this WO targets (optional)",
+    )
     status = models.CharField(
         max_length=32,
         choices=Status.choices,
@@ -342,6 +408,12 @@ class WorkOrder(models.Model):
             last = WorkOrder.objects.order_by("-number").values_list("number", flat=True).first()
             self.number = (last or 0) + 1
         super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        from .validators import validate_component_belongs_to_machine
+        if self.machine_id and self.component_id:
+            validate_component_belongs_to_machine(self.component, self.machine)
 
     def __str__(self) -> str:
         return f"WO-{self.number} ({self.get_status_display()})"
@@ -466,6 +538,11 @@ class QuickMaintenanceLog(models.Model):
 
 class PMSchedule(models.Model):
     machine = models.ForeignKey(Machine, on_delete=models.CASCADE, related_name="pm_schedules")
+    component = models.ForeignKey(
+        Machine, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="pm_component_schedules",
+        help_text="Level-5 Component this PM targets (optional)",
+    )
     title = models.CharField(max_length=255)
     frequency_days = models.PositiveIntegerField(default=30)
     checklist = models.TextField(blank=True, help_text="One line per checklist item")
@@ -478,6 +555,12 @@ class PMSchedule(models.Model):
 
     def __str__(self) -> str:
         return f"PM: {self.title} ({self.machine})"
+
+    def clean(self):
+        super().clean()
+        from .validators import validate_component_belongs_to_machine
+        if self.machine_id and self.component_id:
+            validate_component_belongs_to_machine(self.component, self.machine)
 
 
 class Tool(models.Model):
@@ -589,16 +672,30 @@ class Notification(models.Model):
     class Kind(models.TextChoices):
         ISSUE_NEW = "issue_new", "New issue"
         ISSUE_VALIDATED = "issue_validated", "Issue validated"
+        ISSUE_STALE = "issue_stale", "Stale issue (not validated)"
+        WO_CREATED = "wo_created", "Work order created from issue"
         WO_PENDING_REVIEW = "wo_review", "Work order pending review"
         WO_ASSIGNED = "wo_assigned", "Work order assigned"
+        WO_STARTED = "wo_started", "Work order started"
+        WO_PAUSED = "wo_paused", "Work order paused / waiting"
+        WO_CLOSED = "wo_closed", "Work order closed"
         WO_EMERGENCY = "wo_emergency", "Emergency work order"
         LOW_STOCK = "low_stock", "Low stock"
+        PART_SHORTAGE_REPORTED = "part_shortage", "Part shortage reported"
         PROCUREMENT = "procurement", "Procurement"
         PM_OVERDUE = "pm_overdue", "PM overdue"
         REPAIR_RETURNED = "repair_returned", "Repair returned from vendor"
         REPAIR_REQUESTED = "repair_requested", "External repair requested"
         REPAIR_DRAFT = "repair_draft", "External repair order created (needs vendor)"
         REPAIR_SENT = "repair_sent", "External repair sent to vendor"
+        # v4.9 B4: New notification kinds for richer procurement/return visibility
+        PART_RECEIVED = "part_received", "Part received against PO"
+        VENDOR_RETURN = "vendor_return", "Vendor returned spare part"
+        SHORTAGE_FOLLOWUP = "shortage_followup", "Shortage follow-up"
+        # v4.9.3: WO flow notifications requested by user
+        WO_PART_RECEIVED = "wo_part_received", "Part received from supplier (linked to WO)"
+        WO_PART_RETURNED = "wo_part_returned", "Part returned from vendor (linked to WO)"
+        WO_PART_REJECTED = "wo_part_rejected", "Part request rejected (linked to WO)"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -636,6 +733,21 @@ class ExternalRepairOrder(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="external_repairs",
+    )
+    machine = models.ForeignKey(
+        Machine,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="external_repair_orders",
+    )
+    component = models.ForeignKey(
+        Machine,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="component_external_repair_orders",
+        limit_choices_to={"asset_level": 5},
     )
     title = models.CharField(max_length=255)
     description = models.TextField()
@@ -683,6 +795,12 @@ class ExternalRepairOrder(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+    def clean(self):
+        super().clean()
+        from .validators import validate_component_belongs_to_machine
+        if self.machine_id and self.component_id:
+            validate_component_belongs_to_machine(self.component, self.machine)
 
 
 class ExternalRepairRequest(models.Model):
@@ -890,6 +1008,7 @@ class Attachment(models.Model):
         STOCK_MOVEMENT = "stock_movement"
         REPAIR_ORDER = "repair_order"
         CONSUMABLE_ASSIGNMENT = "consumable_assignment"
+        PM_SCHEDULE = "pm_schedule"
 
     entity_type = models.CharField(max_length=32, choices=EntityType.choices)
     entity_id = models.PositiveIntegerField()
@@ -910,6 +1029,19 @@ class Attachment(models.Model):
     )
     width = models.PositiveIntegerField(default=0, help_text="Original image width in px")
     height = models.PositiveIntegerField(default=0, help_text="Original image height in px")
+    is_primary = models.BooleanField(default=False, help_text="Primary/default image for this entity")
+    category = models.CharField(
+        max_length=20,
+        choices=[
+            ("PRODUCT", "Product"),
+            ("LABEL", "Label"),
+            ("PACKAGING", "Packaging"),
+            ("INSTALLED", "Installed"),
+            ("DOCUMENT", "Document"),
+        ],
+        default="PRODUCT",
+        help_text="Category of attachment image",
+    )
 
     class Meta:
         ordering = ["-uploaded_at"]

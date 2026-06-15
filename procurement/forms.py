@@ -1,8 +1,9 @@
 from decimal import Decimal
 
 from django import forms
+from django.core.exceptions import ValidationError
 
-from maintenance.models import WorkOrder
+from maintenance.models import Machine, WorkOrder
 
 from .models import PurchaseOrder, PurchaseOrderItem, PurchaseRequest, Supplier
 
@@ -12,25 +13,51 @@ _SEL = {"class": "form-select"}
 
 
 class PurchaseRequestForm(forms.ModelForm):
+    machine = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=3),
+        required=True,
+        widget=forms.Select(attrs=_SEL),
+    )
+    component = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=5),
+        required=False,
+        widget=forms.Select(attrs=_SEL),
+    )
+
     class Meta:
         model = PurchaseRequest
-        fields = ("part", "work_order", "quantity", "urgency", "is_emergency", "notes")
+        fields = ("part", "machine", "component", "work_order", "quantity", "notes")
         widgets = {
             "part": forms.Select(attrs=_SEL),
             "work_order": forms.Select(attrs=_SEL),
             "quantity": forms.NumberInput(attrs=_CTRL),
-            "urgency": forms.TextInput(attrs=_CTRL),
-            "is_emergency": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "notes": forms.Textarea(attrs={**_CTRL, "rows": 3}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lock_asset=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["quantity"].min_value = Decimal("0.001")
         self.fields["work_order"].required = False
         self.fields["work_order"].queryset = (
             WorkOrder.objects.exclude(status=WorkOrder.Status.CLOSED).select_related("machine").order_by("-number")[:500]
         )
+        if lock_asset:
+            self.fields["machine"].disabled = True
+            self.fields["component"].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        machine = cleaned.get("machine")
+        component = cleaned.get("component")
+        if machine and component:
+            from maintenance.validators import validate_component_belongs_to_machine
+            try:
+                validate_component_belongs_to_machine(component, machine)
+            except ValidationError as e:
+                for field, errors in e.message_dict.items():
+                    for error in errors:
+                        self.add_error(field, error)
+        return cleaned
 
 
 class PurchaseOfficerForm(forms.ModelForm):

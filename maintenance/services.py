@@ -171,6 +171,8 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
     wo.labor_stopped_at = None
     wo.save(update_fields=["downtime_started_at", "labor_started_at", "labor_stopped_at", "updated_at"])
     transition_work_order(wo, WorkOrder.Status.IN_PROGRESS, actor=technician, note="Start work")
+    from .notifications import notify_wo_started
+    notify_wo_started(wo)
 
 
 @transaction.atomic
@@ -196,6 +198,8 @@ def technician_mark_pending_parts(wo: WorkOrder, technician: User, note: str = "
         actor=technician,
         note=(note or "Waiting for spare parts")[:500],
     )
+    from .notifications import notify_wo_paused
+    notify_wo_paused(wo)
 
 
 @transaction.atomic
@@ -210,6 +214,8 @@ def technician_mark_waiting_vendor(wo: WorkOrder, technician: User, note: str = 
         actor=technician,
         note=(note or "Waiting for external vendor")[:500],
     )
+    from .notifications import notify_wo_paused
+    notify_wo_paused(wo)
 
 
 @transaction.atomic
@@ -232,6 +238,8 @@ def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool, reject
         wo.rejection_reason = ""
         wo.save(update_fields=["rejected_at", "rejected_by", "rejection_reason", "updated_at"])
         transition_work_order(wo, WorkOrder.Status.CLOSED, actor=manager, note="Approved & closed")
+        from .notifications import notify_wo_closed
+        notify_wo_closed(wo)
     else:
         if not rejection_reason or not rejection_reason.strip():
             raise ValueError("Rejection reason is required.")

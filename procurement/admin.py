@@ -57,8 +57,6 @@ class PurchaseRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
         "part",
         "quantity",
         "status",
-        "is_emergency",
-        "urgency",
         "work_order",
         "supplier",
         "unit_price",
@@ -66,7 +64,7 @@ class PurchaseRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
         "handled_by",
         "created_at",
     )
-    list_filter = ("status", "is_emergency", "urgency")
+    list_filter = ("status",)
     search_fields = (
         "notes",
         "part__sku",
@@ -87,8 +85,6 @@ class PurchaseRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
                 "fields": (
                     "part",
                     "quantity",
-                    "urgency",
-                    "is_emergency",
                     "notes",
                     "work_order",
                     "status",

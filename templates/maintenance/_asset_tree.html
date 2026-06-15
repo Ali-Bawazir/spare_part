@@ -1,0 +1,90 @@
+<div class="mms-card mms-asset-tree-bottom" style="margin-top:1.5rem">
+  <div class="mms-card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+    <span>📍 Asset Tree</span>
+    {% if machine %}
+    <small style="color:#6b7280;font-weight:normal">Site: {{ machine.site.name|default:"—" }}</small>
+    {% endif %}
+  </div>
+  <div class="mms-card-body">
+    <style>
+      .mms-asset-tree-bottom .mms-tree-wrap {
+        overflow-x: auto;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+      }
+      .mms-asset-tree-bottom ul.mms-tree {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        font-size: 0.9em;
+        min-width: max-content;
+      }
+      .mms-asset-tree-bottom .quick-create-row {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+      }
+      @media (max-width: 900px) {
+        .mms-asset-tree-bottom {
+          margin-top: 1rem;
+        }
+        .mms-asset-tree-bottom .mms-tree-link,
+        .mms-asset-tree-bottom .mms-tree-link-current {
+          padding: 0.4rem 0.6rem;
+          min-height: 2.25rem;
+          display: inline-flex;
+          align-items: center;
+        }
+        .mms-asset-tree-bottom .mms-btn--ghost {
+          padding: 0.4rem 0.6rem;
+          min-height: 2.25rem;
+        }
+      }
+    </style>
+
+    <!-- Quick-create row -->
+    {% if machine %}
+    <div class="quick-create-row">
+      {% if machine.asset_level == 3 or machine.asset_level == 4 %}
+        <a href="{% url 'machine_create' %}?parent={{ machine.pk }}&asset_level=4"
+           class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.25rem 0.5rem">
+           + Subassembly
+        </a>
+      {% endif %}
+      {% if machine.asset_level <= 4 %}
+        <a href="{% url 'machine_create' %}?parent={{ machine.pk }}&asset_level=5"
+           class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.25rem 0.5rem">
+           + Component
+        </a>
+      {% endif %}
+      <details style="position:relative">
+        <summary class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.25rem 0.5rem;cursor:pointer;list-style:none">+ Quick</summary>
+        <div style="position:absolute;right:0;top:100%;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:10;min-width:180px;padding:0.4rem">
+          <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Report Issue</a>
+          <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create WO</a>
+          <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create PM</a>
+          <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create ERO</a>
+          <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create PR</a>
+        </div>
+      </details>
+    </div>
+    {% endif %}
+
+    <!-- Tree (rendered as nested ul) -->
+    {% if machine %}
+    <div class="mms-tree-wrap">
+      <ul class="mms-tree">
+        {% include "maintenance/_asset_tree_node.html" with node=machine ancestors=ancestors level=0 %}
+      </ul>
+    </div>
+    {% else %}
+    <p style="color:#6b7280;font-style:italic;margin:0.5rem 0">No asset linked.</p>
+    {% endif %}
+  </div>
+</div>

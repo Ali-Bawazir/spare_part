@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}{{ page_heading }}{% endblock %}
 {% block page_heading %}{{ page_heading }}{% endblock %}
 {% block content %}
@@ -18,18 +19,102 @@
     <div class="mms-card-body">
         <form method="post" class="mms-form">
             {% csrf_token %}
-            {% for field in form %}
+
             <div class="mms-form-row">
-                {{ field.label_tag }}
-                {{ field }}
-                {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+                {{ form.supplier.label_tag }}
+                {{ form.supplier }}
+                <button type="button" onclick="document.getElementById('addSupplierModal').style.display='block'">+ Add New Supplier</button>
+                {% if form.supplier.errors %}<div class="mms-field-error">{{ form.supplier.errors }}</div>{% endif %}
             </div>
-            {% endfor %}
-            <div class="mms-form-actions">
-                <button class="mms-btn mms-btn--primary" type="submit">Save</button>
+
+            <div class="mms-form-row">
+                {{ form.invoice_ref.label_tag }}
+                {{ form.invoice_ref }}
+                {% if form.invoice_ref.errors %}<div class="mms-field-error">{{ form.invoice_ref.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.expected_delivery.label_tag }}
+                {{ form.expected_delivery }}
+                {% if form.expected_delivery.errors %}<div class="mms-field-error">{{ form.expected_delivery.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.notes.label_tag }}
+                {{ form.notes }}
+                {% if form.notes.errors %}<div class="mms-field-error">{{ form.notes.errors }}</div>{% endif %}
+            </div>
+
+            {% if form.handled_by %}
+            <div class="mms-form-row">
+                {{ form.handled_by.label_tag }}
+                {{ form.handled_by }}
+                {% if form.handled_by.errors %}<div class="mms-field-error">{{ form.handled_by.errors }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            {% if form.status %}
+            <div class="mms-form-row">
+                {{ form.status.label_tag }}
+                {{ form.status }}
+                {% if form.status.errors %}<div class="mms-field-error">{{ form.status.errors }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            <h3>Line Items</h3>
+            {{ formset.management_form }}
+            <div id="items-formset">
+                {% for item_form in formset.forms %}
+                <div class="item-row" style="display:flex; gap:0.5rem; align-items:end; margin-bottom:0.5rem">
+                    {{ item_form.id }}
+                    <div>{{ item_form.part.label_tag }}{{ item_form.part }}</div>
+                    <div>{{ item_form.ordered_qty.label_tag }}{{ item_form.ordered_qty }}</div>
+                    <div>{{ item_form.unit_price.label_tag }}{{ item_form.unit_price }}</div>
+                    {% if item_form.DELETE %}<label>{{ item_form.DELETE }} Delete</label>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if pending_prs %}
+            <h3>Merge from Purchase Requests</h3>
+            <table class="mms-table">
+                <thead><tr><th>Select</th><th>PR#</th><th>Part</th><th>Qty</th><th>WO</th><th>Status</th></tr></thead>
+                <tbody>
+                {% for pr in pending_prs %}
+                <tr>
+                    <td><input type="checkbox" name="selected_prs" value="{{ pr.pk }}"></td>
+                    <td><a href="{% url 'pr_detail' pr.pk %}">PR#{{ pr.pk }}</a></td>
+                    <td>{{ pr.part.name }}</td>
+                    <td>{{ pr.quantity }}</td>
+                    <td>{% if pr.work_order %}WO-{{ pr.work_order.number }}{% else %}—{% endif %}</td>
+                    <td><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <div class="mms-form-actions" style="margin-top:1rem">
+                <button class="mms-btn mms-btn--primary" type="submit">Save Purchase Order</button>
                 <a href="{% url 'purchase_order_list' %}" class="mms-btn mms-btn--ghost">Cancel</a>
             </div>
         </form>
     </div>
+</div>
+
+<!-- Add Supplier Modal -->
+<div id="addSupplierModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+  <div style="background:white; margin:10% auto; padding:20px; max-width:400px; border-radius:8px;">
+    <h3>Add New Supplier</h3>
+    <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
+      {% csrf_token %}
+      <p><input type="text" name="code" placeholder="SUP-001" required style="width:100%"></p>
+      <p><input type="text" name="name" placeholder="Supplier name" required style="width:100%"></p>
+      <p><input type="text" name="phone" placeholder="Phone" style="width:100%"></p>
+      <p><input type="email" name="email" placeholder="Email" style="width:100%"></p>
+      <button type="submit">Save Supplier</button>
+      <button type="button" onclick="document.getElementById('addSupplierModal').style.display='none'">Cancel</button>
+    </form>
+  </div>
 </div>
 {% endblock %}

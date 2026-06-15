@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}Reports{% endblock %}
 {% block page_heading %}Reports &amp; analytics{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Operational snapshots aligned with scope: machines, stock, parts usage, work order mix. Sections are filtered by your role.</p>
+<p class="mms-page-lead">Operational summaries — preview tables with links to full dedicated reports. Sections are filtered by your role.</p>
 
 {% if wo_performance %}
 <div class="mms-grid mms-grid--2">
@@ -16,6 +17,7 @@
         </tbody>
       </table>
     </div>
+    <div class="mms-card-footer"><a href="{% url wo_performance.view_all_machines_url %}" class="mms-btn mms-btn--ghost mms-btn--sm">View all machines →</a></div>
   </div>
   <div class="mms-card">
     <div class="mms-card-header">Work orders by status</div>
@@ -23,10 +25,11 @@
       <table class="mms-table">
         <thead><tr><th>Status</th><th>Count</th></tr></thead>
         <tbody>
-        {% for row in wo_performance.status_counts %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>{% empty %}<tr><td colspan="2" class="mms-empty">No work orders.</td></tr>{% endfor %}
+        {% for row in wo_performance.status_counts %}<tr><td><span class="{{ row.code|wo_status_badge_class }}">{{ row.label }}</span></td><td>{{ row.count }}</td></tr>{% empty %}<tr><td colspan="2" class="mms-empty">No work orders.</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>
+    <div class="mms-card-footer"><a href="{% url wo_performance.view_all_wo_url %}" class="mms-btn mms-btn--ghost mms-btn--sm">View all work orders →</a></div>
   </div>
 </div>
 {% endif %}
@@ -46,13 +49,14 @@
       </tbody>
     </table>
   </div>
+  <div class="mms-card-footer"><a href="{% url tech_performance.view_all_url %}" class="mms-btn mms-btn--ghost mms-btn--sm">View all technicians →</a></div>
 </div>
 {% endif %}
 
 {% if spare_parts %}
 <div class="mms-grid mms-grid--2" style="margin-top:1rem">
   <div class="mms-card">
-    <div class="mms-card-header">Low stock (≤ min)</div>
+    <div class="mms-card-header">Low stock (≤ min) — {{ spare_parts.low_stock_count }} item{{ spare_parts.low_stock_count|pluralize }}</div>
     <div class="mms-table-wrap">
       <table class="mms-table mms-table--warn">
         <thead><tr><th>SKU</th><th>Qty</th><th>Min</th></tr></thead>
@@ -61,9 +65,10 @@
         </tbody>
       </table>
     </div>
+    <div class="mms-card-footer"><a href="{% url spare_parts.view_all_low_stock_url %}" class="mms-btn mms-btn--ghost mms-btn--sm">View all stock →</a></div>
   </div>
   <div class="mms-card">
-    <div class="mms-card-header">Most issued parts (qty)</div>
+    <div class="mms-card-header">Most issued parts (qty) — top {{ spare_parts.top_parts|length }}</div>
     <div class="mms-table-wrap">
       <table class="mms-table">
         <thead><tr><th>SKU</th><th>Name</th><th>Total qty</th></tr></thead>
@@ -72,9 +77,20 @@
         </tbody>
       </table>
     </div>
+    <div class="mms-card-footer"><a href="{% url spare_parts.view_all_parts_url %}" class="mms-btn mms-btn--ghost mms-btn--sm">View all parts →</a></div>
   </div>
 </div>
 {% endif %}
+
+<div class="mms-grid mms-grid--2" style="margin-top:1rem">
+  <div class="mms-card">
+    <div class="mms-card-header">Machine cost report</div>
+    <div class="mms-card-body">
+      <p class="text-muted">Vendor cost, parts cost, consumables, and additional cost per machine over a configurable period.</p>
+      <a href="{% url 'machine_cost_report' %}" class="mms-btn mms-btn--primary mms-btn--sm">Open machine cost report →</a>
+    </div>
+  </div>
+</div>
 
 {% if not wo_performance and not tech_performance and not spare_parts %}
 <div class="mms-alert mms-alert--info">

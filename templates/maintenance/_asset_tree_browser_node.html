@@ -1,0 +1,21 @@
+<li style="padding:0.3rem 0;margin-left:{{ level }}em">
+  <a href="{% url 'machine_detail' node.pk %}" style="display:inline-block;padding:0.2rem 0.5rem;border-radius:4px;color:#0f766e;text-decoration:none;font-weight:500;transition:background 0.15s"
+     onmouseover="this.style.background='#f0fdfa';this.style.textDecoration='underline'"
+     onmouseout="this.style.background='transparent';this.style.textDecoration='none'">
+    {% if node.children.all %}<span style="color:#9ca3af;margin-right:0.25rem">▶</span>{% endif %}
+    <span style="color:#1f2937">{{ node.name }}</span>
+    {% if node.asset_code %}<span style="color:#6b7280;font-size:0.85em;margin-left:0.25rem">({{ node.asset_code }})</span>{% endif %}
+    <span style="color:#9ca3af;font-size:0.75em;margin-left:0.25rem">[L{{ node.asset_level }}]</span>
+    {% if node.children.all %}
+      <span style="background:#dbeafe;color:#1e40af;font-size:0.7rem;padding:0.1rem 0.4rem;border-radius:8px;margin-left:0.4rem">{{ node.children.count }}</span>
+    {% endif %}
+  </a>
+
+  {% if node.children.all %}
+    <ul style="list-style:none;padding:0;margin:0.25rem 0 0 1.5rem;border-left:2px solid #d1d5db">
+      {% for child in node.children.all %}
+        {% include "maintenance/_asset_tree_browser_node.html" with node=child level=level|add:1 %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+</li>

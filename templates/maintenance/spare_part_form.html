@@ -10,6 +10,13 @@
   {% endif %}
 </div>
 
+{% if part and part.image_status == "MISSING" %}
+<div class="mms-alert mms-alert--warning" style="margin-bottom:1rem">
+  <strong>⚠ This part has no primary image.</strong>
+  Save the part first, then upload a primary image on the detail page.
+</div>
+{% endif %}
+
 <div class="mms-form-stack" style="margin-top:1rem">
   <form method="post" class="mms-form" enctype="multipart/form-data">
     {% csrf_token %}

@@ -56,11 +56,12 @@ class FailureModeAdmin(MMSAdminPermission, admin.ModelAdmin):
 
 @admin.register(Machine)
 class MachineAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("name", "qr_code", "location", "is_active", "created_at")
-    list_filter = ("is_active",)
-    search_fields = ("name", "qr_code", "location")
+    list_display = ("name", "asset_code", "asset_level", "asset_type", "location", "is_active", "created_at")
+    list_filter = ("is_active", "asset_level", "asset_type", "status")
+    search_fields = ("name", "qr_code", "asset_code", "serial_number", "location")
     readonly_fields = ("created_at",)
-    ordering = ("name",)
+    ordering = ("asset_code", "name")
+    list_select_related = ("parent",)
 
 
 @admin.register(MaintenanceIssue)

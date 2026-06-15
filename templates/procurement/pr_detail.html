@@ -1,23 +1,81 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}PR #{{ pr.pk }}{% endblock %}
 {% block page_heading %}Purchase Request #{{ pr.pk }}{% endblock %}
 {% block content %}
 
+<style>
+.mms-detail-grid { display: grid; grid-template-columns: 280px 1fr; gap: 1rem; }
+@media (max-width: 900px) { .mms-detail-grid { grid-template-columns: 1fr; } }
+.mms-asset-tree { position: sticky; top: 1rem; align-self: start; }
+</style>
+
+<div class="mms-detail-grid">
+  <div>
+    {% include "maintenance/_asset_tree.html" %}
+  </div>
+  <div>
+
+{% if pr_voice_attachments %}
+<div class="mms-card" style="margin-bottom:1rem;border-left:4px solid #7c3aed">
+  <div class="mms-card-header" style="background:#f5f3ff">🎤 Voice notes</div>
+  <div class="mms-card-body">
+    <p class="text-muted" style="margin:0 0 0.5rem 0">All voice recordings attached to this PR (manager's context, officer's voicemail, etc.).</p>
+    {% for att in pr_voice_attachments %}
+    <div style="margin-bottom:0.75rem;padding:.5rem;border-bottom:1px dashed #e5e7eb">
+      <audio controls style="width:100%;"><source src="{{ att.file.url }}" type="{{ att.mime_type }}"></audio>
+      <small style="color:#6b7280">
+        🎤 <strong>{{ att.uploaded_by.get_full_name|default:att.uploaded_by.username }}</strong>
+        · {{ att.uploaded_at|date:"Y-m-d H:i" }}
+        {% if att.note %}· "{{ att.note }}"{% endif %}
+      </small>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# v4.9.4: Add voice comment section (manager, procurement, supervisor) #}
+{% if user.role == 'manager' or user.role == 'procurement' or user.role == 'supervisor' or user.role == 'super_admin' or perms.procurement.change_purchaserequest %}
+<div class="mms-card" style="margin-bottom:1rem;border-left:4px solid #16a34a">
+  <div class="mms-card-header" style="background:#f0fdf4">🎤 Add voice note</div>
+  <div class="mms-card-body">
+    <p class="text-muted" style="margin:0 0 .75rem 0;font-size:.85rem">
+      Record a voicemail, a supplier quote recap, or any verbal context. The recording is auto-stopped at 60s.
+    </p>
+    <form method="post" action="{% url 'purchase_request_add_voice' pr.pk %}">
+      {% csrf_token %}
+      <div class="mms-form-row" style="margin-bottom:.5rem">
+        <label for="voice-note-input" style="font-size:.85rem">Note (optional, shown alongside the recording)</label>
+        <input type="text" name="note" id="voice-note-input" maxlength="500"
+               class="form-control" placeholder="e.g. 'Supplier ABC confirmed 2-day delivery at $15/unit'">
+      </div>
+      {% include "maintenance/_voice_recorder.html" %}
+      <div class="mms-form-actions" style="margin-top:.5rem">
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">📤 Save voice note</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-body">
         <dl style="margin:0; display:grid; grid-template-columns: 150px 1fr; gap:0.5rem">
-            <dt>Part</dt><dd><a href="{% url 'spare_part_detail' pr.part.pk %}">{{ pr.part.name }}</a> ({{ pr.part.sku }})</dd>
-            <dt>Quantity</dt><dd>{{ pr.quantity }} {{ pr.part.unit }}</dd>
-            <dt>Urgency</dt><dd>{{ pr.urgency|capfirst }}{% if pr.is_emergency %} <span class="badge-emergency">EMERGENCY</span>{% endif %}</dd>
-            <dt>Status</dt>
+            <dt>Part</dt>
             <dd>
-                {% if pr.status == 'pending' %}<span class="status-badge status-pending">Pending</span>
-                {% elif pr.status == 'converted_to_po' %}<span class="status-badge status-converted">Converted to PO</span>
-                {% elif pr.status == 'partially_fulfilled' %}<span class="status-badge status-partial-fulfilled">Partially fulfilled</span>
-                {% elif pr.status == 'fulfilled' %}<span class="status-badge status-fulfilled">Fulfilled</span>
-                {% elif pr.status == 'cancelled' %}<span class="status-badge status-cancelled">Cancelled</span>
+                {% part_primary_image pr.part as img %}
+                {% if img %}
+                <a href="{{ img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+                    <img src="{{ img }}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;">
+                </a>
                 {% endif %}
+                <a href="{% url 'spare_part_detail' pr.part.pk %}">{{ pr.part.name }}</a> ({{ pr.part.sku }})
             </dd>
+            <dt>Quantity</dt><dd>{{ pr.quantity }} {{ pr.part.unit }}</dd>
+
+            <dt>Status</dt>
+            <dd><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></dd>
             <dt>Supplier</dt><dd>{{ pr.supplier.name|default:"—" }}</dd>
             <dt>Unit Price</dt><dd>{{ pr.unit_price|default:"—" }}</dd>
             <dt>Created By</dt><dd>{{ pr.created_by.get_full_name|default:pr.created_by.username }}</dd>
@@ -73,16 +131,6 @@
 </div>
 
 <style>
-.status-badge {
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.85em;
-}
-.status-pending { background: #e9ecef; color: #495057; }
-.status-converted { background: #e0e7ff; color: #3730a3; }
-.status-partial-fulfilled { background: #fef3c7; color: #92400e; }
-.status-fulfilled { background: #d1fae5; color: #065f46; }
-.status-cancelled { background: #f8d7da; color: #721c24; }
 .badge-emergency { background: #dc3545; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
 </style>
 
@@ -166,4 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAttachments('purchase_request', {{ pr.pk }}, 'attachment-list-purchase_request-{{ pr.pk }}');
 });
 </script>
+  </div>
+</div>
 {% endblock %}

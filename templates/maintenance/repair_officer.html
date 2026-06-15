@@ -10,6 +10,7 @@
       {{ form.as_p }}
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">Save</button>
+        <a href="{% url 'repair_order_pdf' rwo.pk %}" class="mms-btn mms-btn--ghost" target="_blank">📄 Download PDF</a>
       </div>
     </form>
   </div>
@@ -143,4 +144,6 @@ document.addEventListener('DOMContentLoaded', function() {
   loadAttachments('repair_order', {{ rwo.pk }}, 'attachment-list-repair_order-after-{{ rwo.pk }}');
 });
 </script>
+
+{% include "maintenance/_asset_tree.html" %}
 {% endblock %}

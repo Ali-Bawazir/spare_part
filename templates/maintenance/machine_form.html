@@ -14,11 +14,44 @@
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
-      <div class="mms-form-row">
-        {{ field.label_tag }}
-        {{ field }}
-        {% if field.help_text %}<div class="mms-form-tip">{{ field.help_text }}</div>{% endif %}
-        {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+      {% if preselected_parent %}
+        <div class="mms-alert mms-alert--info" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#e0f2fe;border-left:3px solid #0284c7;border-radius:4px;color:#0c4a6e">
+          <strong>Will be created under:</strong>
+          <a href="{% url 'machine_detail' preselected_parent.pk %}" style="color:#0c4a6e;text-decoration:underline">
+            {{ preselected_parent.name }} ({{ preselected_parent.qr_code }})
+          </a>
+        </div>
+      {% endif %}
+      <div class="mms-form-section">
+        <h4>Basic Information</h4>
+        <div class="mms-form-row">
+          <div>
+            <label for="{{ form.name.id_for_label }}">Name *</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="mms-field-error">{{ form.name.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.qr_code.id_for_label }}">QR Code *</label>
+            {{ form.qr_code }}
+            <small class="mms-help">Unique code used for QR-based issue reporting</small>
+            {% if form.qr_code.errors %}<div class="mms-field-error">{{ form.qr_code.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label for="{{ form.location.id_for_label }}">Location</label>
+            {{ form.location }}
+            <small class="mms-help">e.g. Hall A, Floor 2, Bay 3</small>
+            {% if form.location.errors %}<div class="mms-field-error">{{ form.location.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label>
+              {{ form.is_active }} Active
+            </label>
+            <small class="mms-help">Inactive assets are hidden from issue reporting</small>
+            {% if form.is_active.errors %}<div class="mms-field-error">{{ form.is_active.errors }}</div>{% endif %}
+          </div>
+        </div>
       </div>
       <div class="mms-form-section">
         <h4>Asset Hierarchy</h4>
@@ -41,6 +74,56 @@
           <div>
             <label>Asset Type</label>
             {{ form.asset_type }}
+          </div>
+        </div>
+      </div>
+      <div class="mms-form-section">
+        <h4>Component Tracking</h4>
+        <p class="mms-help">These fields apply to Component-level (level-5) assets — optional for other levels</p>
+        <div class="mms-form-row">
+          <div>
+            <label>Serial Number</label>
+            {{ form.serial_number }}
+          </div>
+          <div>
+            <label>Manufacturer</label>
+            {{ form.manufacturer }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>Model Number</label>
+            {{ form.model_number }}
+          </div>
+          <div>
+            <label>Install Date</label>
+            {{ form.install_date }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>Expected Life (days)</label>
+            {{ form.expected_life_days }}
+          </div>
+          <div>
+            <label>Criticality</label>
+            {{ form.criticality }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>Status</label>
+            {{ form.status }}
+          </div>
+          <div>
+            <label>Asset Code</label>
+            {{ form.asset_code }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>Failure Category</label>
+            {{ form.failure_category }}
           </div>
         </div>
       </div>

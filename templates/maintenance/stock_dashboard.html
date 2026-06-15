@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}Stock{% endblock %}
 {% block page_heading %}Stock levels — {{ selected_site.name }}{% endblock %}
 {% block content %}
@@ -55,6 +56,7 @@
     <table class="mms-table">
       <thead><tr>
         <th>SKU</th>
+        <th style="width:50px">Image</th>
         <th>Name</th>
         <th>Category</th>
         <th>Qty available</th>
@@ -74,6 +76,16 @@
         onclick="window.location='{% url 'spare_part_detail' p.pk %}?site={{ selected_site.pk }}'"
       >
         <td><code>{{ p.sku }}</code></td>
+        <td>
+          {% part_primary_image p as img %}
+          {% if img %}
+            <a href="{{ img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
+            </a>
+          {% else %}
+            <span class="mms-badge mms-badge--warning" title="This part has no primary image. Upload one in the part detail page.">⚠ Missing Image</span>
+          {% endif %}
+        </td>
         <td>{{ p.name }}</td>
         <td>{{ p.category|default:"—" }}</td>
         <td>
@@ -112,7 +124,7 @@
         <td><a href="/media/qr/parts/PART_{{ p.sku }}.png" target="_blank" title="Print QR">📋</a></td>
       </tr>
       {% empty %}
-      <tr><td colspan="11" class="mms-empty">No parts found.</td></tr>
+      <tr><td colspan="12" class="mms-empty">No parts found.</td></tr>
       {% endfor %}
       </tbody>
     </table>

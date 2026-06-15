@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}Receive PO {{ po.po_number }}{% endblock %}
 {% block page_heading %}Receive Items — PO {{ po.po_number }}{% endblock %}
 {% block content %}
@@ -7,7 +8,7 @@
     <div class="mms-card-body">
         <dl style="margin:0">
             <dt>Supplier</dt><dd>{{ po.supplier.name|default:"—" }}</dd>
-            <dt>Current Status</dt><dd>{{ po.get_status_display }}</dd>
+            <dt>Current Status</dt><dd><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></dd>
         </dl>
     </div>
 </div>

@@ -7,7 +7,46 @@
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
-      {{ form.as_p }}
+{% if locked_asset %}
+<div class="mms-alert" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#dbeafe;border-left:3px solid #2563eb;border-radius:4px;color:#1e3a8a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+  <div style="flex:1;min-width:200px">
+    <strong>🔒 Asset locked:</strong>
+    This record will be attached to:
+    <strong style="color:#1e40af">{{ locked_asset.breadcrumb }}</strong>
+    <div style="font-size:0.85em;color:#475569;margin-top:0.25rem">The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there.</div>
+  </div>
+  <a href="{% if locked_asset.machine_pk %}{% url 'machine_detail' locked_asset.machine_pk %}{% endif %}" class="mms-btn mms-btn--ghost" style="font-size:0.85em;flex-shrink:0">
+    ← Change asset
+  </a>
+</div>
+{% endif %}
+      {% if locked_asset %}
+        <input type="hidden" name="machine" value="{{ locked_asset.machine_pk }}">
+        {% if locked_asset.component_pk %}
+          <input type="hidden" name="component" value="{{ locked_asset.component_pk }}">
+        {% endif %}
+      {% endif %}
+      {% for field in form %}
+        {% if field.name == 'component' %}{% else %}
+        <div class="mms-form-row">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+
+      {% if not locked_asset %}
+      <div class="mms-form-row" id="component-row" style="display:none">
+        <label for="id_component">Component:</label>
+        {{ form.component }}
+        <small class="form-text text-muted" style="color:#6b7280">Optional. Only components under the selected machine are shown.</small>
+        {% if form.component.errors %}<div class="mms-field-error">{{ form.component.errors }}</div>{% endif %}
+      </div>
+      {% endif %}
+
+      {% include "maintenance/_voice_recorder.html" %}
+
 <div class="mms-form-actions">
   <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
 </div>
@@ -35,4 +74,8 @@
         </div>
     </div>
 </div>
+{% if not locked_asset %}
+  {% include "maintenance/_cascading_asset_select.html" %}
+{% endif %}
+{% include "maintenance/_asset_tree.html" %}
 {% endblock %}

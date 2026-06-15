@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}Inventory Lookup{% endblock %}
 {% block page_heading %}Inventory Lookup — {{ selected_site.name }}{% endblock %}
 {% block content %}
@@ -43,6 +44,7 @@ tbody tr td code {
     <table class="mms-table">
       <thead><tr>
         <th>SKU</th>
+        <th style="width:50px">Image</th>
         <th>Name</th>
         <th>Category</th>
         <th>Available</th>
@@ -52,6 +54,16 @@ tbody tr td code {
       {% for p in parts %}
       <tr>
         <td><code>{{ p.sku }}</code></td>
+        <td>
+          {% part_primary_image p as img %}
+          {% if img %}
+            <a href="{{ img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
+            </a>
+          {% else %}
+            <span class="mms-badge mms-badge--warning" title="This part has no primary image. Upload one in the part detail page.">⚠ Missing Image</span>
+          {% endif %}
+        </td>
         <td>{{ p.name }}</td>
         <td>{{ p.category|default:"—" }}</td>
         <td>
@@ -70,7 +82,7 @@ tbody tr td code {
         <td>{{ p.inv_rack|default:"—" }}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="5" class="mms-empty">No parts found.</td></tr>
+      <tr><td colspan="6" class="mms-empty">No parts found.</td></tr>
       {% endfor %}
       </tbody>
     </table>

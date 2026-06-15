@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}Close Short PO {{ po.po_number }}{% endblock %}
 {% block page_heading %}Close Short — PO {{ po.po_number }}{% endblock %}
 {% block content %}
@@ -6,6 +7,7 @@
 <div class="mms-card">
     <div class="mms-card-body">
         <p>You are about to <strong>close short</strong> PO {{ po.po_number }}.</p>
+        <p>Current status: <span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></p>
         <p>This will cancel all remaining undelivered quantities for this PO.</p>
         
         <table class="mms-table" style="margin:1rem 0">

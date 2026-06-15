@@ -1,0 +1,272 @@
+{% comment %}
+v4.9.3 — Reusable JS for the part-request + re-review forms.
+Provides: live stock badge, voice recorder.
+Required IDs in the calling template:
+  #part-select           — the <select> for the part
+  #part-availability-card — the badge container
+  #part-thumb            — <img> for the part image
+  #part-stock-state      — element to show stock state
+  #part-stock-detail     — element to show min level + breakdown
+  #part-history-line     — element to show "Used N times" line
+  #voice-recorder-section — voice recorder block
+  #voice-start-btn        — start recording
+  #voice-stop-btn         — stop recording
+  #voice-timer-display    — timer span
+  #voice-pulse            — pulse indicator
+  #voice-status-text      — status text
+  #voice-preview          — <audio> preview
+  #voice-attachment-id    — hidden input carrying the uploaded attachment id
+  #voice-discard-btn      — discard button
+Required globals (set by calling template):
+  WO_PK — int, the work order's primary key
+{% endcomment %}
+<script>
+(function() {
+  'use strict';
+  // Resolve WO_PK from whichever context the calling template provides.
+  // WO detail page: context['wo'].
+  // Re-review page:   context['line'] (with line.work_order).
+  {% if wo %}
+  const WO_PK = {{ wo.pk }};
+  {% elif line and line.work_order_id %}
+  const WO_PK = {{ line.work_order.pk }};
+  {% else %}
+  const WO_PK = 0;
+  {% endif %}
+  const CSRF = (function() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  })();
+
+  // ============ Part → 3-tier stock badge (live with auto-refresh) ============
+  const partSelect = document.getElementById('part-select');
+  const card = document.getElementById('part-availability-card');
+  const thumb = document.getElementById('part-thumb');
+  const stockState = document.getElementById('part-stock-state');
+  const stockDetail = document.getElementById('part-stock-detail');
+  const historyLine = document.getElementById('part-history-line');
+  const qtyInput = document.getElementById('quantity-input');
+  let lastFetchedAt = null;
+  let pollTimer = null;
+  let currentUsable = null;  // v4.9.3: live usable stock from last fetch
+  const POLL_INTERVAL_MS = 10000;
+
+  function updateQuantityWarning() {
+    if (!qtyInput) return;
+    const qty = parseFloat(qtyInput.value);
+    let warn = document.getElementById('quantity-warning');
+    if (isNaN(qty) || qty <= 0) {
+      if (warn) warn.remove();
+      return;
+    }
+    if (currentUsable === null || currentUsable === undefined) {
+      if (warn) warn.remove();
+      return;
+    }
+    if (qty > currentUsable) {
+      const needed = qty - currentUsable;
+      if (!warn) {
+        warn = document.createElement('div');
+        warn.id = 'quantity-warning';
+        warn.style.cssText = 'margin-top:.5rem;padding:.5rem .75rem;background:#fff3cd;border-left:3px solid #f0ad4e;border-radius:4px;font-size:.85em;color:#856404';
+        qtyInput.parentNode.appendChild(warn);
+      }
+      warn.innerHTML =
+        '⚠️ Requested <strong>' + qty + '</strong> but only <strong>' +
+        currentUsable + '</strong> in stock (short ' + needed + '). ' +
+        'Lower the qty, switch parts, or use the shortage flow on the WO page.';
+    } else if (warn) {
+      warn.remove();
+    }
+  }
+
+  function fetchAvailability(pid) {
+    if (!pid) { card.style.display = 'none'; currentUsable = null; updateQuantityWarning(); return; }
+    fetch('/work-orders/' + WO_PK + '/parts/' + pid + '/availability/')
+      .then(r => r.json())
+      .then(d => {
+        card.style.display = '';
+        if (d.image_url) { thumb.src = d.image_url; thumb.style.display = ''; }
+        else { thumb.style.display = 'none'; }
+        let color = '#198754';
+        if (d.stock_state === 'low') color = '#fd7e14';
+        if (d.stock_state === 'out') color = '#dc3545';
+        const refreshedTag = lastFetchedAt
+          ? ' <span style="font-size:.7em;color:#9ca3af;margin-left:.5rem">↻ live</span>'
+          : '';
+        stockState.innerHTML = '<span style="color:' + color + '">' + d.stock_label + '</span> — ' + d.stock_count + refreshedTag;
+        let detailText = d.min_label + (d.site ? ' · ' + d.site : '');
+        if (parseFloat(d.reserved) > 0) detailText += ' · Reserved: ' + d.reserved;
+        if (parseFloat(d.pending_total) > 0 && d.pending_breakdown && d.pending_breakdown.length > 0) {
+          const breakdown = d.pending_breakdown.map(function(r) {
+            const woTxt = r.wo_number ? ('WO-' + r.wo_number) : 'WO ?';
+            return r.quantity + ' to ' + woTxt;
+          }).join(', ');
+          detailText += ' · Pending requests: ' + breakdown;
+        }
+        stockDetail.textContent = detailText;
+        let hist = '';
+        if (d.used_on_asset > 0) hist += 'Used on this asset: <strong>' + d.used_on_asset + ' times</strong>';
+        else hist += 'No prior usage on this asset';
+        if (d.last_replaced_days >= 0) hist += ' · Last replaced: <strong>' + d.last_replaced_days + ' days ago</strong>';
+        historyLine.innerHTML = hist;
+        lastFetchedAt = new Date();
+        currentUsable = parseFloat(d.usable);
+        updateQuantityWarning();
+      })
+      .catch(() => { card.style.display = 'none'; currentUsable = null; updateQuantityWarning(); });
+  }
+
+  if (partSelect && card) {
+    partSelect.addEventListener('change', function() { fetchAvailability(partSelect.value); });
+    if (partSelect.value) fetchAvailability(partSelect.value);
+    pollTimer = setInterval(function() {
+      if (partSelect.value && document.visibilityState === 'visible') {
+        fetchAvailability(partSelect.value);
+      }
+    }, POLL_INTERVAL_MS);
+  }
+
+  // v4.9.3: re-check the warning whenever the user changes the quantity
+  if (qtyInput) {
+    qtyInput.addEventListener('input', updateQuantityWarning);
+  }
+
+  // ============ Voice recorder (30–60s) ============
+  const startBtn = document.getElementById('voice-start-btn');
+  const stopBtn  = document.getElementById('voice-stop-btn');
+  const voiceSection = document.getElementById('voice-recorder-section');
+  const voiceTimer = document.getElementById('voice-timer-display');
+  const voicePulse = document.getElementById('voice-pulse');
+  const voiceStatus = document.getElementById('voice-status-text');
+  const voicePreview = document.getElementById('voice-preview');
+  const voiceAttachmentId = document.getElementById('voice-attachment-id');
+  const voiceDiscardBtn = document.getElementById('voice-discard-btn');
+  if (startBtn && stopBtn) {
+    let mediaRecorder = null, chunks = [], startTime = 0, timer = null, currentStream = null;
+    const MAX_SEC = 60;
+
+    function pickMime() {
+      const candidates = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'];
+      for (const c of candidates) if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
+      return '';
+    }
+    function fmt(sec) { return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); }
+    function setState(state) {
+      if (!voiceSection) return;
+      voiceSection.classList.remove('mms-voice-recording','mms-voice-uploaded','mms-voice-error');
+      if (state) voiceSection.classList.add(state);
+    }
+    function resetUI() {
+      startBtn.style.display = '';
+      stopBtn.style.display = 'none';
+      voicePulse.style.display = 'none';
+      voiceTimer.textContent = '0:00';
+      voiceStatus.textContent = 'Tap Start to record. Auto-stops at 60s.';
+      voiceStatus.style.color = '';
+      voiceStatus.style.fontWeight = '';
+    }
+    function discard() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch (_) {} }
+      if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
+      clearInterval(timer);
+      mediaRecorder = null; chunks = [];
+      voicePreview.removeAttribute('src');
+      voicePreview.style.display = 'none';
+      voiceAttachmentId.value = '';
+      voiceDiscardBtn.style.display = 'none';
+      setState(null);
+      resetUI();
+    }
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        currentStream = stream;
+        const mime = pickMime();
+        mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        chunks = [];
+        mediaRecorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
+          const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          const ext = (mediaRecorder.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+          const file = new File([blob], 'voice-' + Date.now() + '.' + ext, { type: mediaRecorder.mimeType || 'audio/webm' });
+          voicePreview.src = URL.createObjectURL(blob);
+          voicePreview.style.display = '';
+          voiceDiscardBtn.style.display = '';
+          uploadVoiceFile(file);
+        };
+        mediaRecorder.start();
+        startTime = Date.now();
+        startBtn.style.display = 'none';
+        stopBtn.style.display = '';
+        voicePulse.style.display = '';
+        setState('mms-voice-recording');
+        voiceStatus.textContent = 'Recording…';
+        voiceStatus.style.color = '#dc3545';
+        voiceStatus.style.fontWeight = '700';
+        timer = setInterval(() => {
+          const sec = Math.floor((Date.now() - startTime) / 1000);
+          voiceTimer.textContent = fmt(sec);
+          if (sec >= MAX_SEC) stopRecording();
+        }, 250);
+      } catch (e) {
+        setState('mms-voice-error');
+        voiceStatus.textContent = 'Microphone access denied or unavailable.';
+        voiceStatus.style.color = '#dc3545';
+        voiceStatus.style.fontWeight = '700';
+        startBtn.style.display = '';
+        stopBtn.style.display = 'none';
+        voicePulse.style.display = 'none';
+      }
+    }
+    function stopRecording() {
+      clearInterval(timer);
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'none';
+      voicePulse.style.display = 'none';
+      voiceStatus.textContent = 'Processing recording…';
+    }
+    async function uploadVoiceFile(file) {
+      voiceStatus.textContent = '⏳ Uploading…';
+      voiceStatus.style.color = '';
+      voiceStatus.style.fontWeight = '';
+      const fd = new FormData();
+      fd.append('csrfmiddlewaretoken', CSRF);
+      fd.append('entity_type', 'work_order');
+      fd.append('entity_id', String(WO_PK));
+      fd.append('file', file);
+      fd.append('note', 'Voice note');
+      fd.append('category', 'PRODUCT');
+      try {
+        const r = await fetch('/attachments/upload/', { method: 'POST', body: fd });
+        if (r.ok) {
+          const data = await r.json();
+          voiceAttachmentId.value = data.id;
+          setState('mms-voice-uploaded');
+          voiceStatus.textContent = '✅ Voice note attached';
+          startBtn.style.display = '';
+          stopBtn.style.display = 'none';
+        } else {
+          const err = await r.json().catch(() => ({}));
+          setState('mms-voice-error');
+          voiceStatus.textContent = 'Upload failed: ' + (err.error || 'unknown');
+          voiceStatus.style.color = '#dc3545';
+          voiceStatus.style.fontWeight = '700';
+          startBtn.style.display = '';
+        }
+      } catch (e) {
+        setState('mms-voice-error');
+        voiceStatus.textContent = 'Upload failed: ' + e.message;
+        voiceStatus.style.color = '#dc3545';
+        voiceStatus.style.fontWeight = '700';
+        startBtn.style.display = '';
+      }
+    }
+    startBtn.addEventListener('click', startRecording);
+    stopBtn.addEventListener('click', stopRecording);
+    voiceDiscardBtn.addEventListener('click', discard);
+  }
+})();
+</script>

@@ -2,6 +2,8 @@ from django import template
 
 from accounts.utils import role_display_name
 
+from maintenance.models import Attachment
+
 register = template.Library()
 
 WO_STATUS_BADGE = {
@@ -19,6 +21,14 @@ WO_STATUS_BADGE = {
 @register.filter
 def wo_status_badge_class(value):
     return WO_STATUS_BADGE.get(value, "mms-badge mms-badge--muted")
+
+
+@register.filter
+def dict_get(d, key):
+    """Get a value from a dict by key, returning None if missing or non-dict."""
+    if isinstance(d, dict):
+        return d.get(key)
+    return None
 
 
 ISSUE_STATUS_BADGE = {
@@ -90,7 +100,7 @@ PR_STATUS_BADGE = {
     "converted_to_po": "mms-badge mms-badge--info",
     "partially_fulfilled": "mms-badge mms-badge--accent",
     "fulfilled": "mms-badge mms-badge--success",
-    "cancelled": "mms-badge mms-badge--muted",
+    "cancelled": "mms-badge mms-badge--danger",
 }
 
 
@@ -102,9 +112,9 @@ def pr_status_badge_class(value):
 PO_STATUS_BADGE = {
     "draft": "mms-badge mms-badge--muted",
     "sent": "mms-badge mms-badge--info",
-    "partially_received": "mms-badge mms-badge--accent",
-    "closed": "mms-badge mms-badge--success",
-    "closed_short": "mms-badge mms-badge--warning",
+    "partial": "mms-badge mms-badge--accent",
+    "received": "mms-badge mms-badge--success",
+    "closed_short": "mms-badge mms-badge--danger",
     "cancelled": "mms-badge mms-badge--danger",
 }
 
@@ -126,3 +136,20 @@ def user_role(value):
     if hasattr(value, "role"):
         return role_display_name(getattr(value, "role", "") or "")
     return role_display_name(value or "")
+
+
+@register.simple_tag
+def part_primary_image(part):
+    """Return the primary image URL for a spare part, or None."""
+    if not part or not part.pk:
+        return None
+    att = Attachment.objects.filter(
+        entity_type='spare_part',
+        entity_id=part.pk,
+        is_primary=True
+    ).first()
+    if att:
+        if att.thumbnail:
+            return att.thumbnail.url
+        return att.file.url
+    return None

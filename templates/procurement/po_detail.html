@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}PO {{ po.po_number }}{% endblock %}
 {% block page_heading %}PO {{ po.po_number }}{% endblock %}
 {% block content %}
@@ -8,7 +9,7 @@
         <div class="mms-card-body">
             <dl style="margin:0">
                 <dt>Supplier</dt><dd>{{ po.supplier.name|default:"—" }}</dd>
-                <dt>Status</dt><dd><span class="status-badge status-{{ po.status }}">{{ po.get_status_display }}</span></dd>
+                <dt>Status</dt><dd><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></dd>
                 <dt>Invoice Ref</dt><dd>{{ po.invoice_ref|default:"—" }}</dd>
                 <dt>Expected Delivery</dt><dd>{{ po.expected_delivery|default:"—" }}</dd>
                 <dt>Handled By</dt><dd>{{ po.handled_by|default:"—" }}</dd>
@@ -34,6 +35,7 @@
             {% if po.status == 'partial' or po.status == 'sent' %}
             <a href="{% url 'purchase_order_close_short' po.pk %}" class="mms-btn mms-btn--ghost" style="margin-bottom:0.5rem">Close Short</a>
             {% endif %}
+            <a href="{% url 'purchase_order_pdf' po.pk %}" class="mms-btn mms-btn--primary" target="_blank" style="margin-bottom:0.5rem">📄 Download PDF</a>
             <a href="{% url 'purchase_order_list' %}" class="mms-btn mms-btn--ghost" style="margin-bottom:0.5rem">← Back</a>
         </div>
     </div>
@@ -60,7 +62,15 @@
             <tbody>
             {% for item in items_with_inventory %}
                 <tr>
-                    <td>{{ item.item.part.name }}</td>
+                    <td>
+                        {% part_primary_image item.item.part as img %}
+                        {% if img %}
+                        <a href="{{ img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+                            <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+                        </a>
+                        {% endif %}
+                        {{ item.item.part.name }}
+                    </td>
                     <td>{{ item.item.part.sku }}</td>
                     <td>{{ item.item.ordered_qty }}</td>
                     <td>{{ item.item.received_qty }}</td>
@@ -100,19 +110,7 @@
     </div>
 </div>
 
-<style>
-.status-badge {
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.85em;
-}
-.status-draft { background: #e9ecef; }
-.status-sent { background: #cfe2ff; color: #084; }
-.status-partial { background: #fff3cd; color: #856404; }
-.status-received { background: #d4edda; color: #155724; }
-.status-closed_short { background: #f8d7da; color: #721c24; }
-.status-cancelled { background: #f8d7da; color: #721c24; }
-</style>
+
 
 <script>
 async function loadAttachments(entityType, entityId, containerId) {

@@ -3,30 +3,84 @@
 {% block page_heading %}Daily consumables{% endblock %}
 {% block content %}
 
-<p class="mms-page-lead">Log usage of approved consumables. No approval workflow — usage is logged and stock is deducted immediately.</p>
+<p class="mms-page-lead">
+    {% if perm_consume_consumables and perm_issue_consumables %}
+    Log your own usage or issue consumables to operators.
+    {% elif perm_consume_consumables %}
+    Log usage of approved consumables. No approval workflow — usage is logged and stock is deducted immediately.
+    {% elif perm_issue_consumables %}
+    Issue consumable items to operators or technicians.
+    {% else %}
+    View consumable items and usage history.
+    {% endif %}
+</p>
 
+<div class="mms-grid mms-grid--2" style="margin-top:0">
+{% if perm_consume_consumables %}
 <div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">Self-consumption</div>
     <div class="mms-card-body">
         <form method="post" class="mms-form">
             {% csrf_token %}
+            <input type="hidden" name="action" value="consume">
             <div class="mms-form-row">
                 <label for="id_part">Part</label>
-                {{ form.part }}
-                {% if form.part.errors %}<div class="mms-field-error">{{ form.part.errors }}</div>{% endif %}
+                {{ consume_form.part }}
+                {% if consume_form.part.errors %}<div class="mms-field-error">{{ consume_form.part.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-row">
                 <label for="id_quantity">Quantity <span id="unit-hint" style="font-weight:normal;color:var(--mms-text-muted)"></span></label>
-                {{ form.quantity }}
-                {% if form.quantity.errors %}<div class="mms-field-error">{{ form.quantity.errors }}</div>{% endif %}
+                {{ consume_form.quantity }}
+                {% if consume_form.quantity.errors %}<div class="mms-field-error">{{ consume_form.quantity.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-row" style="display:none">
-                {{ form.machine_id }}
+                {{ consume_form.machine_id }}
             </div>
             <div class="mms-form-actions">
                 <button class="mms-btn mms-btn--primary" type="submit">Log usage</button>
             </div>
         </form>
     </div>
+</div>
+{% endif %}
+
+{% if issue_form %}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">Issue to operator</div>
+    <div class="mms-card-body">
+        <form method="post" class="mms-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="issue">
+            <div class="mms-form-row">
+                <label for="{{ issue_form.consumed_by.id_for_label }}">Operator</label>
+                {{ issue_form.consumed_by }}
+                {% if issue_form.consumed_by.errors %}<div class="mms-field-error">{{ issue_form.consumed_by.errors }}</div>{% endif %}
+            </div>
+            <div class="mms-form-row">
+                <label for="{{ issue_form.part.id_for_label }}">Part</label>
+                {{ issue_form.part }}
+                {% if issue_form.part.errors %}<div class="mms-field-error">{{ issue_form.part.errors }}</div>{% endif %}
+            </div>
+            <div class="mms-form-row">
+                <label for="{{ issue_form.quantity.id_for_label }}">Quantity</label>
+                {{ issue_form.quantity }}
+                {% if issue_form.quantity.errors %}<div class="mms-field-error">{{ issue_form.quantity.errors }}</div>{% endif %}
+            </div>
+            <div class="mms-form-row" style="display:none">
+                {{ issue_form.machine_id }}
+            </div>
+            <div class="mms-form-row">
+                <label for="{{ issue_form.note.id_for_label }}">Note</label>
+                {{ issue_form.note }}
+                {% if issue_form.note.errors %}<div class="mms-field-error">{{ issue_form.note.errors }}</div>{% endif %}
+            </div>
+            <div class="mms-form-actions">
+                <button class="mms-btn mms-btn--primary" type="submit">Issue</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 </div>
 
 {% if assignments %}
@@ -49,6 +103,38 @@
                 <tr>
                     <td>{{ a.part.name }}</td>
                     <td>{{ a.quantity }} {{ a.part.unit }}</td>
+                    <td>{{ a.machine.name|default:"—" }}</td>
+                    <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if issued_assignments %}
+<div class="mms-card" style="margin-top:1rem">
+    <div class="mms-card-header">
+        <h5>Items I issued</h5>
+    </div>
+    <div class="mms-card-body" style="padding:0">
+        <table class="mms-table">
+            <thead>
+                <tr>
+                    <th>Part</th>
+                    <th>Qty</th>
+                    <th>Operator</th>
+                    <th>Machine</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in issued_assignments %}
+                <tr>
+                    <td>{{ a.part.name }}</td>
+                    <td>{{ a.quantity }} {{ a.part.unit }}</td>
+                    <td>{{ a.consumed_by.username }}</td>
                     <td>{{ a.machine.name|default:"—" }}</td>
                     <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
                 </tr>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Most Issued Parts{% endblock %}
+{% block page_heading %}Most Issued Parts{% endblock %}
+{% block content %}
+<p class="mms-page-lead">All spare parts issued against work orders, ranked by total quantity.</p>
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>#</th><th>SKU</th><th>Name</th><th>UOM</th><th>Total qty issued</th><th>Total cost</th></tr></thead>
+      <tbody>
+      {% for row in page_obj %}
+      <tr>
+        <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+        <td>{{ row.part__sku }}</td>
+        <td>{{ row.part__name }}</td>
+        <td>{{ row.part__unit|default:"-" }}</td>
+        <td>{{ row.total_qty }}</td>
+        <td>{% if row.total_cost %}${{ row.total_cost|floatformat:2 }}{% else %}-{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="mms-empty">No parts issued yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if page_obj.paginator.num_pages > 1 %}
+<nav style="margin-top:1rem;display:flex;gap:.5rem;align-items:center">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">← Previous</a>{% endif %}
+  <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} total)</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">Next →</a>{% endif %}
+</nav>
+{% endif %}
+<a href="{% url 'reports' %}" class="mms-btn mms-btn--ghost" style="margin-top:1rem">← Back to Reports</a>
+{% endblock %}

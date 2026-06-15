@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 
 from .models import (
     ExternalRepairOrder,
@@ -48,14 +49,14 @@ class IssueReportForm(forms.ModelForm):
 
     class Meta:
         model = MaintenanceIssue
-        fields = ("machine", "issue_type", "failure_mode", "description", "is_emergency")
+        fields = ("machine", "component", "issue_type", "failure_mode", "description", "is_emergency")
         widgets = {
             "machine": forms.Select(attrs=_SEL),
             "failure_mode": forms.Select(attrs=_SEL),
             "description": forms.Textarea(attrs={**_CTRL, "rows": 4, "placeholder": "Describe the problem…"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lock_asset=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["issue_type"].queryset = FailureCategory.objects.filter(is_active=True)
         self.fields["failure_mode"].queryset = FailureMode.objects.filter(is_active=True)
@@ -65,12 +66,26 @@ class IssueReportForm(forms.ModelForm):
                 is_active=True,
                 category_id=self.instance.machine.failure_category_id
             )
+        if lock_asset:
+            self.fields["machine"].disabled = True
+            if "component" in self.fields:
+                self.fields["component"].disabled = True
 
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("is_emergency"):
             # Emergency issues default to CRITICAL priority.
             cleaned["priority"] = MaintenanceIssue.Priority.CRITICAL
+        machine = cleaned.get("machine")
+        component = cleaned.get("component")
+        if machine and component:
+            from .validators import validate_component_belongs_to_machine
+            try:
+                validate_component_belongs_to_machine(component, machine)
+            except ValidationError as e:
+                for field, errors in e.message_dict.items():
+                    for error in errors:
+                        self.add_error(field, error)
         return cleaned
 
 
@@ -139,18 +154,28 @@ class QuickLogForm(forms.ModelForm):
 
 
 class PMScheduleForm(forms.ModelForm):
+    machine = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=3),
+        required=True,
+        widget=forms.Select(attrs=_SEL),
+    )
+    component = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=5),
+        required=False,
+        widget=forms.Select(attrs=_SEL),
+    )
+
     class Meta:
         model = PMSchedule
-        fields = ("machine", "title", "frequency_days", "checklist", "next_due_at", "is_active")
+        fields = ("machine", "component", "title", "frequency_days", "checklist", "next_due_at", "is_active")
         widgets = {
-            "machine": forms.Select(attrs=_SEL),
             "title": forms.TextInput(attrs=_CTRL),
             "frequency_days": forms.NumberInput(attrs=_CTRL),
             "checklist": forms.Textarea(attrs={**_CTRL, "rows": 5, "placeholder": "One checklist item per line"}),
             "next_due_at": forms.DateTimeInput(attrs={**_CTRL, "type": "datetime-local"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lock_asset=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["propagate_to_children"] = forms.BooleanField(
             required=False,
@@ -158,6 +183,23 @@ class PMScheduleForm(forms.ModelForm):
             help_text="If this machine has child machines, create PM work orders for each of them.",
             widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
         )
+        if lock_asset:
+            self.fields["machine"].disabled = True
+            self.fields["component"].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        machine = cleaned.get("machine")
+        component = cleaned.get("component")
+        if machine and component:
+            from .validators import validate_component_belongs_to_machine
+            try:
+                validate_component_belongs_to_machine(component, machine)
+            except ValidationError as e:
+                for field, errors in e.message_dict.items():
+                    for error in errors:
+                        self.add_error(field, error)
+        return cleaned
 
 
 class ToolAssignForm(forms.Form):
@@ -195,9 +237,20 @@ class ToolForm(forms.ModelForm):
 
 
 class ExternalRepairForm(forms.ModelForm):
+    machine = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=3),
+        required=True,
+        widget=forms.Select(attrs=_SEL),
+    )
+    component = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=5),
+        required=False,
+        widget=forms.Select(attrs=_SEL),
+    )
+
     class Meta:
         model = ExternalRepairOrder
-        fields = ("title", "description", "work_order", "estimated_cost")
+        fields = ("title", "description", "machine", "component", "work_order", "estimated_cost")
         widgets = {
             "title": forms.TextInput(attrs=_CTRL),
             "description": forms.Textarea(attrs={**_CTRL, "rows": 4}),
@@ -205,12 +258,29 @@ class ExternalRepairForm(forms.ModelForm):
             "estimated_cost": forms.NumberInput(attrs=_CTRL),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lock_asset=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["work_order"].required = False
         self.fields["work_order"].queryset = (
             WorkOrder.objects.exclude(status=WorkOrder.Status.CLOSED).select_related("machine").order_by("-number")[:300]
         )
+        if lock_asset:
+            self.fields["machine"].disabled = True
+            self.fields["component"].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        machine = cleaned.get("machine")
+        component = cleaned.get("component")
+        if machine and component:
+            from .validators import validate_component_belongs_to_machine
+            try:
+                validate_component_belongs_to_machine(component, machine)
+            except ValidationError as e:
+                for field, errors in e.message_dict.items():
+                    for error in errors:
+                        self.add_error(field, error)
+        return cleaned
 
 
 class ExternalRepairOfficerForm(forms.ModelForm):
@@ -227,7 +297,9 @@ class ExternalRepairOfficerForm(forms.ModelForm):
 class MachineForm(forms.ModelForm):
     class Meta:
         model = Machine
-        fields = ("name", "qr_code", "location", "is_active", "site", "parent", "asset_level", "asset_type")
+        fields = ("name", "qr_code", "location", "is_active", "site", "parent", "asset_level", "asset_type",
+                  "serial_number", "manufacturer", "model_number", "install_date", "expected_life_days",
+                  "criticality", "status", "asset_code", "failure_category")
         widgets = {
             "name": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Line A Press 1"}),
             "qr_code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. PRESS-01"}),
@@ -236,6 +308,14 @@ class MachineForm(forms.ModelForm):
             "parent": forms.Select(attrs=_SEL),
             "asset_level": forms.Select(attrs=_SEL),
             "asset_type": forms.Select(attrs=_SEL),
+            "serial_number": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. SN-12345"}),
+            "manufacturer": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Siemens"}),
+            "model_number": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. MDL-X100"}),
+            "install_date": forms.DateInput(attrs={**_CTRL, "type": "date"}),
+            "expected_life_days": forms.NumberInput(attrs={**_CTRL, "placeholder": "e.g. 3650"}),
+            "criticality": forms.Select(attrs=_SEL),
+            "status": forms.Select(attrs=_SEL),
+            "asset_code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. FM-01-CONV-BRG-001"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -246,11 +326,23 @@ class MachineForm(forms.ModelForm):
 
 class EmergencyWOForm(forms.Form):
     machine = forms.ModelChoiceField(
-        queryset=Machine.objects.filter(is_active=True),
+        queryset=Machine.objects.filter(is_active=True, asset_level=3),
         widget=forms.Select(attrs=_SEL),
+    )
+    component = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=5),
+        required=False,
+        widget=forms.Select(attrs=_SEL),
+        help_text="Optional: Target a specific component (level-5)",
     )
     title = forms.CharField(max_length=255, widget=forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Line stop — hydraulic leak"}))
     detail = forms.CharField(widget=forms.Textarea(attrs={**_CTRL, "rows": 4}))
+
+    def __init__(self, *args, lock_asset=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if lock_asset:
+            self.fields["machine"].disabled = True
+            self.fields["component"].disabled = True
 
 
 class TechVendorNoteForm(forms.Form):

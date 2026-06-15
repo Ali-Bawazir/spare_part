@@ -117,7 +117,9 @@
 <script>
 async function loadAttachments(entityType, entityId, containerId) {
     try {
-        const response = await fetch(`/attachments/${entityType}/${entityId}/`);
+        const response = await fetch(`/attachments/${entityType}/${entityId}/`, {
+            credentials: 'same-origin'
+        });
         const data = await response.json();
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -168,11 +170,14 @@ async function uploadAttachment(file, entityType, entityId) {
     const response = await fetch('/attachments/upload/', {
         method: 'POST',
         body: formData,
+        credentials: 'same-origin',
         headers: { 'X-CSRFToken': getCSRFToken() }
     });
     if (!response.ok) {
-        const err = await response.json();
-        alert('Upload failed: ' + (err.error || 'Unknown error'));
+        const text = await response.text();
+        let msg = `Upload failed (${response.status})`;
+        try { const err = JSON.parse(text); msg = err.error || msg; } catch (_) {}
+        alert(msg);
     }
     return response.json();
 }
@@ -181,6 +186,7 @@ async function deleteAttachment(attId, containerId, entityType, entityId) {
     if (!confirm('Delete this attachment?')) return;
     const response = await fetch(`/attachments/${attId}/delete/`, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'X-CSRFToken': getCSRFToken() }
     });
     if (response.ok) {
@@ -195,8 +201,14 @@ function formatFileSize(bytes) {
 }
 
 function getCSRFToken() {
-    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    let value = null;
+    document.cookie.split(';').forEach(cookie => {
+        const c = cookie.trim();
+        if (c.startsWith('csrftoken=')) {
+            value = decodeURIComponent(c.substring('csrftoken='.length));
+        }
+    });
+    return value || '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {

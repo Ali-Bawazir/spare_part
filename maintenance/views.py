@@ -1,15 +1,16 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Q, Sum
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, Count, F, IntegerField, Max, OuterRef, Q, Subquery, Sum, Value, When
+from django.db import transaction
+from django.db.models.functions import Coalesce
 from django.http import Http404
-from django.http import JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from datetime import timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -35,7 +36,7 @@ from inventory.forms import (
     SparePartCreateForm,
     StockInForm,
 )
-from inventory.models import Inventory, PartIssueLine, SparePart, StockMovement
+from inventory.models import Inventory, PartIssueLine, PartShortageReport, SparePart, StockMovement
 
 from inventory.qr_utils import qr_scan_decode as decode_qr
 from inventory.services import (
@@ -81,6 +82,7 @@ from .models import (
     Notification,
     PMSchedule,
     QuickMaintenanceLog,
+    Site,
     Tool,
     ToolAssignment,
     WorkOrder,
@@ -195,6 +197,36 @@ def _decode_uploaded_qr(uploaded_file) -> str:
 
 
 @login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def reorder_suggestions(request):
+    """Parts below minimum stock with suggested reorder quantities."""
+    from decimal import Decimal
+    from maintenance.models import Site
+    site = Site.objects.filter(is_default=True).first()
+    low = SparePart.objects.filter(status="active", min_stock_level__gt=0).annotate(
+        effective_qty=Coalesce(
+            Subquery(
+                Inventory.objects.filter(part=OuterRef("pk"), site=site)
+                .values("quantity_available")[:1]
+            ),
+            Value(Decimal("0")),
+        ),
+    ).filter(Q(effective_qty=0) | Q(effective_qty__lt=F("min_stock_level"))).order_by("sku")
+
+    for p in low:
+        p.suggested_qty = max(p.min_stock_level * 2 - p.effective_qty, 1)
+        if p.max_stock_level:
+            p.suggested_qty = min(p.suggested_qty, p.max_stock_level - p.effective_qty)
+            if p.suggested_qty < 1:
+                p.suggested_qty = 1
+
+    return render(request, "maintenance/reorder_suggestions.html", {
+        "parts": low,
+        "count": low.count(),
+    })
+
+
+@login_required
 def dashboard(request):
     role = getattr(request.user, "role", "")
     stale_before = timezone.now() - timedelta(hours=24)
@@ -212,6 +244,12 @@ def dashboard(request):
         "pending_procurement": None,
         "stale_new_issues": 0,
         "overdue_pm": [],
+        "supply_pending_prs": None,
+        "supply_low_stock": None,
+        "supply_draft_eros": None,
+        "supply_returned_eros": None,
+        "supply_open_vendor_orders": None,
+        "supply_monthly_cost": None,
         "notif_feed": Notification.objects.filter(recipient=request.user).order_by("-created_at")[:8],
     }
     if caps.get("view_issues"):
@@ -253,6 +291,10 @@ def dashboard(request):
     })
     if role == User.Role.OPERATOR:
         ctx["my_issues"] = MaintenanceIssue.objects.filter(reported_by=request.user)[:10]
+    if role == User.Role.SUPERVISOR:
+        ctx["issues_pending_validation"] = MaintenanceIssue.objects.filter(
+            status=MaintenanceIssue.Status.NEW,
+        ).order_by("created_at")[:20]
     if role in (User.Role.TECHNICIAN,):
         ctx["my_queue"] = (
             WorkOrder.objects.filter(assigned_technician=request.user)
@@ -264,6 +306,47 @@ def dashboard(request):
         ctx["pending_review"] = WorkOrder.objects.filter(status=WorkOrder.Status.PENDING_REVIEW).count()
     if caps.get("view_procurement_requests"):
         ctx["pending_procurement"] = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).count()
+
+    # Supply Officer KPIs and queue.
+    if role == User.Role.PROCUREMENT:
+        from datetime import datetime
+        from maintenance.models import Site
+        ctx["supply_pending_prs"] = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).count()
+        ctx["supply_draft_eros"] = ExternalRepairOrder.objects.filter(status=ExternalRepairOrder.Status.DRAFT).count()
+        ctx["supply_returned_eros"] = ExternalRepairOrder.objects.filter(status=ExternalRepairOrder.Status.RETURNED).count()
+        ctx["supply_open_vendor_orders"] = ExternalRepairOrder.objects.filter(
+            status=ExternalRepairOrder.Status.SENT_TO_VENDOR
+        ).count()
+        ctx["supply_monthly_cost"] = StockMovement.objects.filter(
+            movement_type=StockMovement.MovementType.STOCK_IN,
+            created_at__month=datetime.now().month,
+            created_at__year=datetime.now().year,
+        ).aggregate(total=Sum(F("unit_cost") * F("quantity")))["total"] or 0
+        # Low-stock count using same logic as is_low_stock()
+        from decimal import Decimal
+        from maintenance.models import Site
+        default_site = Site.objects.filter(is_default=True).first()
+        if default_site:
+            low_stock_count = SparePart.objects.filter(status="active", min_stock_level__gt=0).annotate(
+                effective_qty=Coalesce(
+                    Subquery(
+                        Inventory.objects.filter(part=OuterRef("pk"), site=default_site)
+                        .values("quantity_available")[:1]
+                    ),
+                    Value(Decimal("0")),
+                ),
+            ).filter(
+                Q(effective_qty=0) | Q(effective_qty__lte=F("min_stock_level"))
+            ).count()
+        else:
+            low_stock_count = 0
+        ctx["supply_low_stock"] = low_stock_count
+
+        # Queue items
+        ctx["supply_queue_pr"] = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).order_by("-created_at")[:10]
+        ctx["supply_queue_ero_draft"] = ExternalRepairOrder.objects.filter(status=ExternalRepairOrder.Status.DRAFT).order_by("-created_at")[:10]
+        ctx["supply_queue_ero_sent"] = ExternalRepairOrder.objects.filter(status=ExternalRepairOrder.Status.SENT_TO_VENDOR).order_by("-created_at")[:10]
+        ctx["supply_queue_ero_returned"] = ExternalRepairOrder.objects.filter(status=ExternalRepairOrder.Status.RETURNED).order_by("-created_at")[:10]
 
     # P3.6 — manager/supervisor action counters.
     if caps.get("approve_part_request"):
@@ -287,6 +370,13 @@ def dashboard(request):
             ],
             created_at__lt=now - timedelta(days=7),
         ).count()
+    if caps.get("view_stock"):
+        parts_with_primary = Attachment.objects.filter(
+            entity_type="spare_part", is_primary=True
+        ).values_list("entity_id", flat=True)
+        ctx["missing_image_count"] = SparePart.objects.exclude(
+            pk__in=parts_with_primary
+        ).filter(status="active").count()
     # P3.6 — technician counters.
     if role == User.Role.TECHNICIAN:
         from inventory.models import PartIssueLine
@@ -364,33 +454,87 @@ def qr_scan_decode(request):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def machine_list(request):
-    machines = (
-        Machine.objects.annotate(
-            issue_count=Count("issues", distinct=True),
-            open_work_orders=Count(
-                "work_orders",
-                filter=~Q(work_orders__status=WorkOrder.Status.CLOSED),
-                distinct=True,
-            ),
+    view_mode = request.GET.get("view", "list")
+    context = {"view_mode": view_mode}
+
+    if view_mode == "tree":
+        # Fetch all root-level machines (no parent), then the tree is rendered
+        # recursively in the template via _asset_tree_browser_node.html
+        roots = Machine.objects.filter(parent__isnull=True).order_by("name")
+        context["asset_tree"] = roots
+    else:
+        machines = (
+            Machine.objects.annotate(
+                issue_count=Count("issues", distinct=True),
+                open_work_orders=Count(
+                    "work_orders",
+                    filter=~Q(work_orders__status=WorkOrder.Status.CLOSED),
+                    distinct=True,
+                ),
+            )
+            .order_by("name")
         )
-        .order_by("name")
-    )
-    return render(request, "maintenance/machine_list.html", {"machines": machines})
+        context["machines"] = machines
+
+    return render(request, "maintenance/machine_list.html", context)
 
 
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def machine_create(request):
+    # Read pre-fill hints from GET params (when first loading the form)
+    initial = {}
+    preselected_parent = None
+    page_title = "Add machine"
+
+    if request.method == "GET":
+        parent_id = request.GET.get("parent")
+        asset_level = request.GET.get("asset_level")
+        if parent_id:
+            try:
+                preselected_parent = Machine.objects.get(pk=int(parent_id))
+                initial["parent"] = preselected_parent.pk
+                if asset_level:
+                    try:
+                        initial["asset_level"] = int(asset_level)
+                    except (ValueError, TypeError):
+                        pass
+                # Default asset_level based on parent's level if not specified
+                if not asset_level:
+                    if preselected_parent.asset_level == 3:
+                        initial["asset_level"] = 4  # default to Subassembly under Machine
+                    elif preselected_parent.asset_level == 4:
+                        initial["asset_level"] = 5  # default to Component under Subassembly
+                    else:
+                        initial["asset_level"] = 3  # default to Machine
+                # Set page title based on context
+                level_label = {1: "Area", 2: "Production Line", 3: "Machine", 4: "Subassembly", 5: "Component"}.get(initial["asset_level"], "Asset")
+                page_title = f"Add {level_label.lower()} under {preselected_parent.name}"
+            except (Machine.DoesNotExist, ValueError):
+                pass
+        elif asset_level:
+            try:
+                initial["asset_level"] = int(asset_level)
+                level_label = {1: "Area", 2: "Production Line", 3: "Machine", 4: "Subassembly", 5: "Component"}.get(initial["asset_level"], "Asset")
+                page_title = f"Add {level_label.lower()}"
+            except (ValueError, TypeError):
+                pass
+
     if request.method == "POST":
         form = MachineForm(request.POST)
         if form.is_valid():
             machine = form.save()
             log_audit(actor=request.user, action="machine_created", entity="Machine", object_id=machine.pk)
-            messages.success(request, "Machine saved.")
-            return redirect("machine_list")
+            messages.success(request, f"{machine.name} saved.")
+            return redirect("machine_detail", pk=machine.pk)
     else:
-        form = MachineForm()
-    return render(request, "maintenance/machine_form.html", {"form": form, "page_title": "Add machine"})
+        form = MachineForm(initial=initial)
+
+    return render(request, "maintenance/machine_form.html", {
+        "form": form,
+        "page_title": page_title,
+        "preselected_parent": preselected_parent,
+    })
 
 
 @login_required
@@ -410,6 +554,77 @@ def machine_edit(request, pk):
 
 
 @login_required
+@role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def machine_detail(request, pk):
+    """Asset detail page — handles Machine (level 3), Subassembly (level 4), and Component (level 5).
+
+    The page shows the asset's full info plus:
+    - Tree sidebar (rendered by template tag)
+    - Big action buttons to create PM, ERO, PR, Issue, WO
+    - 'Related records' panel listing the records attached to this asset
+    """
+    machine = get_object_or_404(
+        Machine.objects.select_related("parent", "site", "failure_category"),
+        pk=pk,
+    )
+
+    # Compute the vertical chain (ancestors) for breadcrumbs
+    ancestors = []
+    current = machine.parent
+    while current is not None:
+        ancestors.insert(0, current)
+        current = current.parent
+
+    # Related records attached to this asset (or its root machine, for subassembly/component)
+    # Per CONTEXT.md, all 5 record types (Issue, WO, PM, ERO, PR) can be filed at any level
+    from maintenance.models import (
+        MaintenanceIssue, WorkOrder, PMSchedule, ExternalRepairOrder,
+    )
+    from procurement.models import PurchaseRequest
+
+    # For subassembly/component, "this asset" = this asset
+    # For machine, "this asset" = this machine (records can be filed directly against the machine)
+    # In all cases, both machine=this and component=this records are relevant
+    related_issues = MaintenanceIssue.objects.filter(
+        Q(machine=machine) | Q(component=machine)
+    ).select_related("reported_by", "machine", "component").order_by("-created_at")[:20]
+
+    related_wos = WorkOrder.objects.filter(
+        Q(machine=machine) | Q(component=machine)
+    ).select_related("machine", "component", "assigned_technician").order_by("-created_at")[:20]
+
+    related_pms = PMSchedule.objects.filter(
+        Q(machine=machine) | Q(component=machine)
+    ).select_related("machine", "component").order_by("-created_at")[:20]
+
+    related_eros = ExternalRepairOrder.objects.filter(
+        Q(machine=machine) | Q(component=machine)
+    ).select_related("machine", "component").order_by("-created_at")[:20]
+
+    related_prs = PurchaseRequest.objects.filter(
+        Q(machine=machine) | Q(component=machine)
+    ).select_related("machine", "component", "part", "supplier").order_by("-created_at")[:20]
+
+    context = {
+        "machine": machine,
+        "ancestors": ancestors,
+        "related_issues": related_issues,
+        "related_wos": related_wos,
+        "related_pms": related_pms,
+        "related_eros": related_eros,
+        "related_prs": related_prs,
+        "is_machine_level": machine.asset_level == 3,
+        "is_subassembly_level": machine.asset_level == 4,
+        "is_component_level": machine.asset_level == 5,
+    }
+    if machine is not None:
+        context["attachments"] = Attachment.objects.filter(
+            entity_type="machine", entity_id=machine.pk
+        ).select_related("uploaded_by").order_by("-uploaded_at")
+    return render(request, "maintenance/machine_detail.html", context)
+
+
+@login_required
 @role_required(User.Role.OPERATOR, User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def issue_list(request):
     qs = MaintenanceIssue.objects.select_related("machine", "reported_by")
@@ -423,13 +638,45 @@ def issue_list(request):
 def issue_detail(request, pk):
     """Operator issue detail page — read only."""
     issue = get_object_or_404(
-        MaintenanceIssue.objects.select_related("machine", "reported_by", "validated_by"),
+        MaintenanceIssue.objects.select_related("machine", "component", "reported_by", "validated_by"),
         pk=pk,
     )
     if request.user.role == User.Role.OPERATOR and not request.user.is_super_admin_role():
         if issue.reported_by_id != request.user.id:
             raise Http404()
-    return render(request, "maintenance/issue_detail.html", {"issue": issue})
+
+    # Compute the vertical chain (ancestors) for the asset tree
+    ancestors = []
+    current = issue.component if issue.component_id else issue.machine
+    if current is not None:
+        parent = current.parent
+        while parent is not None:
+            ancestors.insert(0, parent)
+            parent = parent.parent
+
+    # The "current" node for the tree highlight is the issue's component (or machine if no component)
+    tree_node = issue.component if issue.component_id else issue.machine
+
+    return render(request, "maintenance/issue_detail.html", {
+        "issue": issue,
+        "machine": tree_node,
+        "ancestors": ancestors,
+        "related_issues": MaintenanceIssue.objects.filter(
+            machine=issue.machine, component=issue.component
+        ).exclude(pk=issue.pk)[:10],
+        "related_wos": WorkOrder.objects.filter(
+            machine=issue.machine, component=issue.component
+        )[:10],
+        "related_pms": PMSchedule.objects.filter(
+            machine=issue.machine, component=issue.component
+        )[:10],
+        "related_eros": ExternalRepairOrder.objects.filter(
+            machine=issue.machine, component=issue.component
+        )[:10],
+        "related_prs": PurchaseRequest.objects.filter(
+            machine=issue.machine, component=issue.component
+        )[:10],
+    })
 
 
 @login_required
@@ -449,6 +696,7 @@ def failure_modes_by_category(request):
 def issue_create(request):
     qr = request.GET.get("qr", "").strip()
     matched_machine = Machine.objects.filter(qr_code=qr).first() if qr else None
+    locked_asset = None
     if request.method == "POST":
         form = IssueReportForm(request.POST)
         if form.is_valid():
@@ -494,14 +742,89 @@ def issue_create(request):
                         mime_type=content_type,
                         uploaded_by=request.user,
                     )
+
+            # v4.9 B2: link pending voice attachment to this issue
+            pending_voice_id = request.POST.get("voice_attachment_id", "").strip()
+            if pending_voice_id and pending_voice_id.isdigit():
+                try:
+                    from .models import Attachment
+                    att = Attachment.objects.get(
+                        pk=int(pending_voice_id),
+                        entity_type='pending_voice',
+                        uploaded_by=request.user,
+                    )
+                    att.entity_type = 'maintenance_issue'
+                    att.entity_id = issue.pk
+                    att.save(update_fields=['entity_type', 'entity_id'])
+                except Attachment.DoesNotExist:
+                    pass
+
+            if files:
                 return JsonResponse({"redirect_url": reverse("issue_list")})
 
             return redirect("issue_list")
     else:
+        # Pre-fill from URL params. If component is a level-5 Component, walk
+        # the parent chain to find the level-3 Machine (since Issue.machine
+        # doesn't have a strict level requirement, but we lock at the level-3
+        # ancestor for consistency with other forms).
         initial = {}
         if matched_machine:
             initial["machine"] = matched_machine.pk
-        form = IssueReportForm(initial=initial)
+        machine_param = request.GET.get("machine")
+        component_param = request.GET.get("component")
+        resolved_machine_id = None
+        resolved_component_id = None
+        if component_param:
+            try:
+                comp = Machine.objects.get(pk=int(component_param))
+                resolved_component_id = comp.pk
+                root_machine = comp.get_ancestor_machines()
+                if root_machine:
+                    resolved_machine_id = root_machine[0].pk
+                elif comp.asset_level == 3:
+                    resolved_machine_id = comp.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if machine_param and not resolved_machine_id:
+            try:
+                m = Machine.objects.get(pk=int(machine_param))
+                if m.asset_level == 3:
+                    resolved_machine_id = m.pk
+                elif m.asset_level == 5:
+                    resolved_machine_id = m.pk
+                    resolved_component_id = m.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if resolved_machine_id:
+            initial["machine"] = resolved_machine_id
+        if resolved_component_id:
+            initial["component"] = resolved_component_id
+
+        # Determine if the user came from a deep-link (asset page). If so,
+        # LOCK the machine + component fields so the user can't accidentally
+        # attach the record to a different asset.
+        has_deep_link = bool(initial.get("machine") and initial.get("component"))
+        lock_asset = has_deep_link
+        form = IssueReportForm(initial=initial, lock_asset=lock_asset)
+
+        def _ancestors(node):
+            result = []
+            current = node.parent
+            while current is not None:
+                result.insert(0, current.name)
+                current = current.parent
+            return result
+
+        if has_deep_link and resolved_machine_id:
+            target = Machine.objects.filter(pk=resolved_component_id or resolved_machine_id).first()
+            if target:
+                breadcrumb = _ancestors(target) + [target.name]
+                locked_asset = {
+                    "machine_pk": resolved_machine_id,
+                    "component_pk": resolved_component_id,
+                    "breadcrumb": " > ".join(breadcrumb),
+                }
     return render(
         request,
         "maintenance/issue_form.html",
@@ -509,6 +832,9 @@ def issue_create(request):
             "form": form,
             "qr_value": qr,
             "matched_machine": matched_machine,
+            "locked_asset": locked_asset,
+            "machine": Machine.objects.filter(pk=resolved_machine_id).first() if resolved_machine_id else Machine.objects.filter(parent__isnull=True, is_active=True).order_by("pk").first(),
+            "ancestors": [],
         },
     )
 
@@ -569,7 +895,7 @@ def _technician_queue_queryset(user):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def work_order_list(request):
     wos = WorkOrder.objects.select_related("machine", "assigned_technician", "issue").annotate(
         queue_rank=_queue_priority_and_status_rank(),
@@ -595,6 +921,13 @@ def work_order_list(request):
     if request.GET.get("has_pending_part") == "1":
         from inventory.models import PartIssueLine
         wos = wos.filter(part_issues__status=PartIssueLine.Status.PENDING).distinct()
+    # v4.8: filter by shortage status (any report in that state on the WO)
+    shortage_status = request.GET.get("shortage_status")
+    if shortage_status and shortage_status in dict(PartShortageReport.Status.choices):
+        wos = wos.filter(shortage_reports__status=shortage_status).distinct()
+    # v4.8: WOs that have any shortage report
+    if request.GET.get("has_pending_shortage") == "1":
+        wos = wos.filter(shortage_reports__isnull=False).distinct()
     wos = wos.order_by("queue_rank", "created_at")[:400]
     return render(
         request,
@@ -626,8 +959,12 @@ def my_work_orders(request):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def work_order_detail(request, pk):
+    # Sprint 1 (Step 6): pop the stashed result from the part-request redirect
+    # so the alert block in the template can show the outcome.
+    last_request_result = request.session.pop("wo_last_request_result", None)
+
     wo = get_object_or_404(
         WorkOrder.objects.select_related("machine", "assigned_technician", "issue"),
         pk=pk,
@@ -636,6 +973,10 @@ def work_order_detail(request, pk):
         raise Http404()
     part_issues = wo.part_issues.select_related("part", "issued_by", "requested_by", "approved_by")
     pending_part_requests = part_issues.filter(status=PartIssueLine.Status.PENDING)
+    # v4.9 A5: refused part requests (for tech re-review panel)
+    refused_part_requests = part_issues.filter(status=PartIssueLine.Status.REJECTED)
+    if request.user.role not in (User.Role.MANAGER, User.Role.SUPER_ADMIN):
+        refused_part_requests = refused_part_requests.filter(requested_by=request.user)
     external_repair_requests = wo.external_repair_requests.select_related(
         "requested_by", "reviewed_by", "repair_order"
     )
@@ -693,6 +1034,83 @@ def work_order_detail(request, pk):
         # the start/resume button with a clear warning.
         if not wo.is_emergency and has_active_emergency(request.user, except_pk=wo.pk):
             emergency_blocks_resume = True
+
+    # Compute the vertical chain (ancestors) for the asset tree widget.
+    # The "current" node is the WO's component (if set) else the WO's machine.
+    # The tree highlights that node; ancestors are the parent chain above it.
+    ancestors = []
+    tree_node = wo.component if wo.component_id else wo.machine
+    if tree_node is not None:
+        parent = tree_node.parent
+        while parent is not None:
+            ancestors.insert(0, parent)
+            parent = parent.parent
+
+    # Related records attached to this WO's asset (machine+component pair).
+    # A WO is filed at both levels: it has a machine FK and an optional
+    # component FK. Records that share that pair are "related" — they're
+    # either earlier WOs on the same machine, PM schedules, etc.
+    from django.db.models import Q
+
+    related_issues = MaintenanceIssue.objects.filter(
+        Q(machine=wo.machine) & Q(component=wo.component)
+    ).select_related("reported_by", "machine", "component").order_by("-created_at")[:10]
+
+    related_wos = WorkOrder.objects.filter(
+        Q(machine=wo.machine) & Q(component=wo.component)
+    ).select_related("machine", "component", "assigned_technician").order_by("-created_at")[:10]
+
+    related_pms = PMSchedule.objects.filter(
+        Q(machine=wo.machine) & Q(component=wo.component)
+    ).select_related("machine", "component").order_by("-created_at")[:10]
+
+    related_eros = ExternalRepairOrder.objects.filter(
+        Q(machine=wo.machine) & Q(component=wo.component)
+    ).select_related("machine", "component").order_by("-created_at")[:10]
+
+    related_prs = PurchaseRequest.objects.filter(
+        Q(machine=wo.machine) & Q(component=wo.component)
+    ).select_related("machine", "component", "part", "supplier").order_by("-created_at")[:10]
+
+    # Sprint 1 (Step 6): shortage reports + components for the new template sections.
+    pending_shortage_reports = PartShortageReport.objects.filter(
+        work_order=wo, status=PartShortageReport.Status.PENDING_REVIEW,
+    ).select_related("part", "reported_by").order_by("-created_at")
+    approved_shortage_reports = PartShortageReport.objects.filter(
+        work_order=wo, status=PartShortageReport.Status.APPROVED,
+    ).select_related("part", "reported_by", "reviewed_by").order_by("-reviewed_at")
+
+    # v4.8: All decided shortage reports (approved, in_fulfillment, fulfilled,
+    # blocked, closed, rejected) for the "Decisions Recorded" panel.
+    from inventory.models import PartShortageDecision
+    decided_shortage_reports = (
+        PartShortageReport.objects
+        .filter(work_order=wo)
+        .exclude(status=PartShortageReport.Status.PENDING_REVIEW)
+        .select_related("part", "decision", "reported_by", "reviewed_by")
+        .order_by("-reviewed_at")
+    )
+
+    # v4.8: Pending Warehouse Issue items — approved reports with an active
+    # decision where approved_issue_qty > qty_issued.
+    pending_warehouse_issues = []
+    for r in approved_shortage_reports:
+        if not hasattr(r, "decision") or r.decision is None:
+            continue
+        if r.decision.decision_type != "approve":
+            continue
+        if r.decision.approved_issue_qty <= 0:
+            continue
+        remaining = r.decision.approved_issue_qty - r.qty_issued
+        if remaining > 0:
+            pending_warehouse_issues.append({
+                "report": r,
+                "decision": r.decision,
+                "remaining_to_issue": remaining,
+            })
+
+    active_parts = SparePart.objects.filter(status="active").order_by("name")
+
     return render(
         request,
         "maintenance/workorder_detail.html",
@@ -702,6 +1120,7 @@ def work_order_detail(request, pk):
             "issue_attachments": issue_attachments,
             "part_issues": part_issues,
             "pending_part_requests": pending_part_requests,
+            "refused_part_requests": refused_part_requests,
             "external_repair_requests": external_repair_requests,
             "pending_external_repair_requests": pending_external_repair_requests,
             "assign_form": assign_form,
@@ -717,6 +1136,19 @@ def work_order_detail(request, pk):
             "active_conflict": active_conflict,
             "emergency_blocks_resume": emergency_blocks_resume,
             "last_prices_json": last_prices_json,
+            "ancestors": ancestors,
+            "machine": tree_node,
+            "related_issues": related_issues,
+            "related_wos": related_wos,
+            "related_pms": related_pms,
+            "related_eros": related_eros,
+            "related_prs": related_prs,
+            "pending_shortage_reports": pending_shortage_reports,
+            "approved_shortage_reports": approved_shortage_reports,
+            "decided_shortage_reports": decided_shortage_reports,
+            "pending_warehouse_issues": pending_warehouse_issues,
+            "active_parts": active_parts,
+            "last_request_result": last_request_result,
         },
     )
 
@@ -725,7 +1157,7 @@ def work_order_detail(request, pk):
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_create_from_issue(request, issue_pk):
     issue = get_object_or_404(
-        MaintenanceIssue.objects.select_related("machine", "reported_by", "validated_by"),
+        MaintenanceIssue.objects.select_related("machine", "component", "reported_by", "validated_by"),
         pk=issue_pk,
     )
     if issue.status != MaintenanceIssue.Status.VALIDATED:
@@ -740,11 +1172,24 @@ def work_order_create_from_issue(request, issue_pk):
         category=WorkOrder.Category.BREAKDOWN,
         issue=issue,
         machine=issue.machine,
+        component=issue.component,
         status=WorkOrder.Status.APPROVED,
         created_by=request.user,
         # P3.3: if the issue is flagged as emergency, the WO inherits it.
         is_emergency=bool(issue.is_emergency),
     )
+    # v4.9 A7: carry over all issue attachments (photos, voice, PDFs) to the new WO
+    from .models import Attachment
+    issue_atts = Attachment.objects.filter(
+        entity_type='maintenance_issue',
+        entity_id=issue.pk,
+    )
+    for att in issue_atts:
+        att.pk = None
+        att.entity_type = 'work_order'
+        att.entity_id = wo.pk
+        att.uploaded_at = timezone.now()
+        att.save()
     issue.status = MaintenanceIssue.Status.CONVERTED
     issue.save(update_fields=["status"])
     transition_work_order(
@@ -754,6 +1199,8 @@ def work_order_create_from_issue(request, issue_pk):
         note=f"Created from validated issue #{issue.pk}",
     )
     log_audit(actor=request.user, action="wo_created", entity="WorkOrder", object_id=wo.pk)
+    from .notifications import notify_wo_created
+    notify_wo_created(wo)
     messages.success(request, f"Work order WO-{wo.number} created.")
     return redirect("work_order_detail", pk=wo.pk)
 
@@ -982,13 +1429,14 @@ def work_order_request_part(request, pk):
         return redirect("work_order_detail", pk=wo.pk)
 
     try:
-        line = request_part_on_wo(
+        result = request_part_on_wo(
             wo=wo,
             part=form.cleaned_data["part"],
             quantity=form.cleaned_data["quantity"],
             technician=request.user,
             note=form.cleaned_data.get("note") or "",
         )
+        line = result["line"]
     except ValueError as e:
         messages.error(request, str(e))
         return redirect("work_order_detail", pk=wo.pk)
@@ -1006,7 +1454,187 @@ def work_order_request_part(request, pk):
             f"{form.cleaned_data['part'].name} deducted from stock immediately. "
             f"Manager will review.",
         )
+    # Sprint 1 (Step 6): stash a JSON-serializable summary so the redirect-target
+    # can render an alert block (and the "📦 Raise Shortage Request" button when
+    # there's a shortage). The dict is JSON-safe — no model instances.
+    request.session["wo_last_request_result"] = {
+        "line_id": line.pk,
+        "line_quantity": str(line.quantity),
+        "part_id": line.part_id,
+        "part_name": line.part.name,
+        "shortage": result["shortage"],
+        "shortage_qty": str(result["shortage_qty"]),
+        "usable_qty_snapshot": str(result.get("usable_qty_snapshot", "0")),
+        "suggested_action": result["suggested_action"],
+    }
     return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+def work_order_request_part_re_review(request, line_pk):
+    """v4.9.2 A5: Tech edits a refused part line and submits it for re-review.
+
+    GET → shows an edit form pre-filled with the refused line's part, qty, note.
+          Tech can change the part (different spare), adjust qty, or rewrite the note.
+    POST → creates a NEW PENDING line with the edited values. The original
+           REJECTED line stays intact for audit trail. The new line has
+           `previous_attempt` FK pointing to the old one.
+    """
+    line = get_object_or_404(PartIssueLine, pk=line_pk)
+    if line.requested_by_id != request.user.id:
+        return HttpResponseForbidden("You can only re-review your own requests.")
+    if line.status != PartIssueLine.Status.REJECTED:
+        messages.error(request, "Only rejected lines can be re-reviewed.")
+        return redirect("work_order_detail", pk=line.work_order_id)
+
+    # Load active parts for the picker (same as part request form)
+    active_parts = (
+        SparePart.objects.filter(status="active")
+        .order_by("name")
+        .select_related()
+    )
+
+    if request.method != "POST":
+        # GET — show the edit form
+        form = PartRequestForm(initial={
+            "part": line.part_id,
+            "quantity": line.quantity,
+            "note": line.manager_note or "",
+        })
+        return render(
+            request,
+            "maintenance/workorder_part_re_review.html",
+            {
+                "line": line,
+                "form": form,
+                "active_parts": active_parts,
+            },
+        )
+
+    # POST — process the edited re-review
+    form = PartRequestForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f"{field}: {err}")
+        return render(
+            request,
+            "maintenance/workorder_part_re_review.html",
+            {
+                "line": line,
+                "form": form,
+                "active_parts": active_parts,
+            },
+        )
+
+    new_part = form.cleaned_data["part"]
+    new_qty = form.cleaned_data["quantity"]
+    new_note = form.cleaned_data.get("note") or ""
+
+    # v4.9.3 A5 enhancement: same stock check as the part-request flow.
+    # If usable stock < requested, refuse with a clear message. Tech must
+    # either lower the qty, switch to a different part, or rely on the
+    # shortage flow (raise_shortage_request). When no Inventory row exists
+    # at all, the part is treated as out-of-stock (the shortage flow will
+    # be raised by the manager after submission).
+    from inventory.services import _get_default_site
+    site = _get_default_site()
+    inv = Inventory.objects.filter(part=new_part, site=site).first() if site else None
+    if inv is None:
+        on_hand = Decimal("0")
+        reserved = Decimal("0")
+    else:
+        on_hand = inv.quantity_available
+        reserved = inv.quantity_reserved
+    usable = on_hand - reserved
+    if usable < new_qty:
+        # Only refuse if SOME stock exists but it's insufficient. If
+        # zero stock exists, allow the request — the manager will see
+        # a shortage and raise a shortage report.
+        if on_hand > 0:
+            stock_error = (
+                f"Only {usable:g} in stock for {new_part.sku}. "
+                f"Edit qty to {usable:g}, switch to a different part, or use the shortage flow."
+            )
+            messages.error(request, stock_error)
+            return render(
+                request,
+                "maintenance/workorder_part_re_review.html",
+                {
+                    "line": line,
+                    "form": form,
+                    "active_parts": active_parts,
+                    "stock_error": stock_error,
+                },
+            )
+        # else: zero stock — allow submission; manager handles via shortage flow
+
+    # Compare to original — if nothing changed, still allow (the act of re-reviewing
+    # after seeing the reason is meaningful) but mention it.
+    unchanged = (new_part.pk == line.part_id and new_qty == line.quantity)
+
+    new_line = PartIssueLine.objects.create(
+        work_order=line.work_order,
+        part=new_part,
+        quantity=new_qty,
+        requested_qty=new_qty,
+        requested_by=request.user,
+        status=PartIssueLine.Status.PENDING,
+        manager_note=(
+            f"Re-review of #{line.pk}"
+            + ("" if unchanged else f" — edited: {line.part.sku} qty {line.quantity} → {new_part.sku} qty {new_qty}")
+            + (f". Tech note: {new_note}" if new_note else "")
+        ),
+        previous_attempt=line,
+        unit_cost=new_part.last_purchase_cost or new_part.avg_cost or 0,
+        issued_by=request.user,
+    )
+    from .notifications import notify_part_request_re_review
+    notify_part_request_re_review(new_line, line)
+    messages.success(
+        request,
+        f"Re-review submitted: {new_qty:g}× {new_part.name}. "
+        f"{'Same as before' if unchanged else 'Edits sent to manager'}.",
+    )
+    return redirect("work_order_detail", pk=line.work_order_id)
+
+
+@login_required
+@require_POST
+def work_order_add_voice(request, pk):
+    """v4.9.5: Add a voice note to an existing WO.
+
+    POST-only. The voice is uploaded via /attachments/upload-pending/ which
+    creates a pending Attachment. This view re-links it to the WO and
+    optionally stores a short note in the attachment's note field.
+    """
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    if request.method != "POST":
+        return redirect("work_order_detail", pk=pk)
+    pending_voice_id = request.POST.get("voice_attachment_id", "").strip()
+    note = request.POST.get("note", "").strip()
+    if not (pending_voice_id and pending_voice_id.isdigit()):
+        messages.error(request, "Please record a voice note before submitting.")
+        return redirect("work_order_detail", pk=pk)
+    try:
+        from .models import Attachment
+        att = Attachment.objects.get(
+            pk=int(pending_voice_id),
+            entity_type='pending_voice',
+            uploaded_by=request.user,
+        )
+        att.entity_type = 'work_order'
+        att.entity_id = wo.pk
+        if note:
+            att.note = note[:500]
+            att.save(update_fields=['entity_type', 'entity_id', 'note'])
+        else:
+            att.save(update_fields=['entity_type', 'entity_id'])
+    except Attachment.DoesNotExist:
+        messages.error(request, "Voice attachment not found or not owned by you.")
+        return redirect("work_order_detail", pk=pk)
+    messages.success(request, f"Voice note added to WO-{wo.number}.")
+    return redirect("work_order_detail", pk=pk)
 
 
 @login_required
@@ -1065,14 +1693,19 @@ def work_order_decide_part(request, pk, line_id):
                 f"Approved {line.quantity} × {line.part.name} — stock deducted.",
             )
         elif action == "reject":
+            reason = form.cleaned_data["rejection_reason"]
             reject_part_request(
                 line=line,
                 manager=request.user,
-                reason=form.cleaned_data["rejection_reason"],
+                reason=reason,
             )
+            # v4.9.3: notify the tech (and WO creator) so they can re-submit,
+            # switch parts, or use the shortage flow.
+            from .notifications import notify_wo_part_rejected
+            notify_wo_part_rejected(line, reason, request.user)
             messages.info(
                 request,
-                f"Rejected {line.part.name} request.",
+                f"Rejected {line.part.name} request. Tech has been notified.",
             )
         elif action == "edit":
             edit_part_request_qty(
@@ -1186,6 +1819,7 @@ def emergency_work_order_create(request):
                 category=WorkOrder.Category.EMERGENCY,
                 is_emergency=True,
                 machine=form.cleaned_data["machine"],
+                component=form.cleaned_data.get("component"),
                 status=WorkOrder.Status.APPROVED,
                 created_by=request.user,
                 notes=f"{form.cleaned_data['title']}\n\n{form.cleaned_data['detail']}",
@@ -1198,8 +1832,78 @@ def emergency_work_order_create(request):
             messages.success(request, f"Emergency work order WO-{wo.number} created.")
             return redirect("work_order_detail", pk=wo.pk)
     else:
-        form = EmergencyWOForm()
-    return render(request, "maintenance/emergency_wo.html", {"form": form})
+        # Pre-fill from URL params so the asset tree can deep-link here.
+        # If the user came from a Component-level page, both machine and
+        # component params point to the Component. We need to walk the parent
+        # chain to find the level-3 Machine (since WO.machine is required to
+        # be level-3 per the asset FK pattern).
+        initial = {}
+        machine_id = request.GET.get("machine")
+        component_id = request.GET.get("component")
+        resolved_machine_id = None
+        resolved_component_id = None
+        if component_id:
+            try:
+                comp = Machine.objects.get(pk=int(component_id))
+                resolved_component_id = comp.pk
+                root_machine = comp.get_ancestor_machines()
+                if root_machine:
+                    resolved_machine_id = root_machine[0].pk
+                else:
+                    if comp.asset_level == 3:
+                        resolved_machine_id = comp.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if machine_id and not resolved_machine_id:
+            try:
+                m = Machine.objects.get(pk=int(machine_id))
+                if m.asset_level == 3:
+                    resolved_machine_id = m.pk
+                elif m.asset_level == 5:
+                    resolved_machine_id = m.pk
+                    resolved_component_id = m.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if resolved_machine_id:
+            initial["machine"] = resolved_machine_id
+        if resolved_component_id:
+            initial["component"] = resolved_component_id
+
+        # Determine if the user came from a deep-link (asset page). If so,
+        # LOCK the machine + component fields so the user can't accidentally
+        # attach the record to a different asset.
+        has_deep_link = bool(machine_id and component_id)
+        lock_asset = has_deep_link
+        form = EmergencyWOForm(initial=initial, lock_asset=lock_asset)
+
+        def _ancestors(node):
+            result = []
+            current = node.parent
+            while current is not None:
+                result.insert(0, current.name)
+                current = current.parent
+            return result
+
+        locked_asset = None
+        if has_deep_link and resolved_machine_id:
+            target = Machine.objects.filter(pk=resolved_component_id or resolved_machine_id).first()
+            if target:
+                breadcrumb = _ancestors(target) + [target.name]
+                locked_asset = {
+                    "machine_pk": resolved_machine_id,
+                    "component_pk": resolved_component_id,
+                    "breadcrumb": " > ".join(breadcrumb),
+                }
+    return render(
+        request,
+        "maintenance/emergency_wo.html",
+        {
+            "form": form,
+            "locked_asset": locked_asset,
+            "machine": Machine.objects.filter(pk=resolved_machine_id).first() if resolved_machine_id else Machine.objects.filter(parent__isnull=True, is_active=True).order_by("pk").first(),
+            "ancestors": [],
+        },
+    )
 
 
 @login_required
@@ -1315,6 +2019,13 @@ def stock_dashboard(request):
     if request.GET.get("consumable") == "1":
         parts_qs = parts_qs.filter(is_consumable=True)
 
+    if request.GET.get("missing_image") == "1":
+        from maintenance.models import Attachment
+        parts_with_primary = Attachment.objects.filter(
+            entity_type="spare_part", is_primary=True
+        ).values_list("entity_id", flat=True)
+        parts_qs = parts_qs.exclude(pk__in=parts_with_primary)
+
     parts_qs = parts_qs.order_by("name")[:500]
 
     categories = list(
@@ -1374,25 +2085,57 @@ def stock_in_view(request):
 @login_required
 @role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def consumables_view(request):
+    from inventory.forms import IssueConsumableForm
+    from inventory.services import issue_consumable
+    caps = get_mms_capabilities(request.user)
+    consume_form = ConsumableUseForm()
+    issue_form = IssueConsumableForm() if caps.get("issue_consumables") else None
+
     if request.method == "POST":
-        form = ConsumableUseForm(request.POST)
-        if form.is_valid():
-            ok, msg = consumable_use(
-                part=form.cleaned_data["part"],
-                quantity=form.cleaned_data["quantity"],
-                consumed_by=request.user,
-                note="",
-                machine_id=form.cleaned_data.get("machine_id"),
-            )
-            (messages.success if ok else messages.error)(request, msg)
+        action = request.POST.get("action", "")
+        if action == "issue" and issue_form:
+            issue_form = IssueConsumableForm(request.POST)
+            if issue_form.is_valid():
+                ok, msg = issue_consumable(
+                    part=issue_form.cleaned_data["part"],
+                    quantity=issue_form.cleaned_data["quantity"],
+                    consumed_by=issue_form.cleaned_data["consumed_by"],
+                    issued_by=request.user,
+                    note=issue_form.cleaned_data.get("note", ""),
+                    machine_id=issue_form.cleaned_data.get("machine_id"),
+                )
+                (messages.success if ok else messages.error)(request, msg)
+                return redirect("consumables")
+        elif action == "consume" and caps.get("consume_consumables"):
+            consume_form = ConsumableUseForm(request.POST)
+            if consume_form.is_valid():
+                ok, msg = consumable_use(
+                    part=consume_form.cleaned_data["part"],
+                    quantity=consume_form.cleaned_data["quantity"],
+                    consumed_by=request.user,
+                    note="",
+                    machine_id=consume_form.cleaned_data.get("machine_id"),
+                )
+                (messages.success if ok else messages.error)(request, msg)
+                return redirect("consumables")
+        else:
+            messages.error(request, "You do not have permission to perform this action.")
             return redirect("consumables")
-    else:
-        form = ConsumableUseForm()
     from inventory.models import ConsumableAssignment
     assignments = ConsumableAssignment.objects.filter(
         consumed_by=request.user
     ).select_related("part", "machine").order_by("-created_at")[:20]
-    return render(request, "maintenance/consumables.html", {"form": form, "assignments": assignments})
+    issued_assignments = ConsumableAssignment.objects.none()
+    if caps.get("issue_consumables"):
+        issued_assignments = ConsumableAssignment.objects.filter(
+            issued_by=request.user
+        ).exclude(consumed_by=request.user).select_related("part", "machine", "consumed_by").order_by("-created_at")[:20]
+    return render(request, "maintenance/consumables.html", {
+        "consume_form": consume_form,
+        "issue_form": issue_form,
+        "assignments": assignments,
+        "issued_assignments": issued_assignments,
+    })
 
 
 @login_required
@@ -1519,7 +2262,7 @@ def spare_part_detail(request, pk):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def spare_part_create(request):
     """Create a new spare part from operations — /stock/new/"""
     from decimal import Decimal
@@ -1581,6 +2324,7 @@ def pm_list(request):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def pm_create(request):
+    locked_asset = None
     if request.method == "POST":
         form = PMScheduleForm(request.POST)
         if form.is_valid():
@@ -1588,8 +2332,75 @@ def pm_create(request):
             messages.success(request, "PM schedule saved.")
             return redirect("pm_list")
     else:
-        form = PMScheduleForm(initial={"next_due_at": timezone.now()})
-    return render(request, "maintenance/pm_form.html", {"form": form})
+        # Pre-fill from URL params. If component is a level-5 Component, walk
+        # the parent chain to find the level-3 Machine (since PMSchedule.machine
+        # is required to be level-3).
+        initial = {"next_due_at": timezone.now()}
+        machine_param = request.GET.get("machine")
+        component_param = request.GET.get("component")
+        resolved_machine_id = None
+        resolved_component_id = None
+        if component_param:
+            try:
+                comp = Machine.objects.get(pk=int(component_param))
+                resolved_component_id = comp.pk
+                root_machine = comp.get_ancestor_machines()
+                if root_machine:
+                    resolved_machine_id = root_machine[0].pk
+                elif comp.asset_level == 3:
+                    resolved_machine_id = comp.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if machine_param and not resolved_machine_id:
+            try:
+                m = Machine.objects.get(pk=int(machine_param))
+                if m.asset_level == 3:
+                    resolved_machine_id = m.pk
+                elif m.asset_level == 5:
+                    resolved_machine_id = m.pk
+                    resolved_component_id = m.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if resolved_machine_id:
+            initial["machine"] = resolved_machine_id
+        if resolved_component_id:
+            initial["component"] = resolved_component_id
+
+        # Determine if the user came from a deep-link (asset page). If so,
+        # LOCK the machine + component fields so the user can't accidentally
+        # attach the record to a different asset.
+        has_deep_link = bool(machine_param and component_param)
+        lock_asset = has_deep_link
+        form = PMScheduleForm(initial=initial, lock_asset=lock_asset)
+
+        def _ancestors(node):
+            result = []
+            current = node.parent
+            while current is not None:
+                result.insert(0, current.name)
+                current = current.parent
+            return result
+
+        locked_asset = None
+        if has_deep_link and resolved_machine_id:
+            target = Machine.objects.filter(pk=resolved_component_id or resolved_machine_id).first()
+            if target:
+                breadcrumb = _ancestors(target) + [target.name]
+                locked_asset = {
+                    "machine_pk": resolved_machine_id,
+                    "component_pk": resolved_component_id,
+                    "breadcrumb": " > ".join(breadcrumb),
+                }
+    return render(
+        request,
+        "maintenance/pm_form.html",
+        {
+            "form": form,
+            "locked_asset": locked_asset,
+            "machine": Machine.objects.filter(pk=resolved_machine_id).first() if resolved_machine_id else Machine.objects.filter(parent__isnull=True, is_active=True).order_by("pk").first(),
+            "ancestors": [],
+        },
+    )
 
 
 @login_required
@@ -1678,16 +2489,51 @@ def pm_execute(request, pk):
     else:
         form = WorkOrderCompleteForm(instance=wo)
 
+    from procurement.models import PurchaseRequest
+
+    tree_node = wo.component if wo.component_id else wo.machine
+    ancestors = []
+    current = tree_node.parent if tree_node is not None else None
+    while current is not None:
+        ancestors.insert(0, current)
+        current = current.parent
+
+    related_issues = MaintenanceIssue.objects.filter(
+        machine=wo.machine, component=wo.component
+    )[:10]
+    related_wos = WorkOrder.objects.filter(
+        machine=wo.machine, component=wo.component
+    )[:10]
+    related_pms = PMSchedule.objects.filter(
+        machine=wo.machine, component=wo.component
+    ).exclude(pk=sched.pk if sched else None)[:10]
+    related_eros = ExternalRepairOrder.objects.filter(
+        machine=wo.machine, component=wo.component
+    )[:10]
+    related_prs = PurchaseRequest.objects.filter(
+        machine=wo.machine, component=wo.component
+    )[:10]
+
     return render(request, "maintenance/pm_execute.html", {
         "wo": wo,
         "sched": sched,
         "checklist_items": checklist_items,
+        "schedule_attachments": Attachment.objects.filter(
+            entity_type="pm_schedule", entity_id=sched.pk
+        ).select_related("uploaded_by").order_by("-uploaded_at") if sched else Attachment.objects.none(),
         "form": form,
+        "machine": tree_node,
+        "ancestors": ancestors,
+        "related_issues": related_issues,
+        "related_wos": related_wos,
+        "related_pms": related_pms,
+        "related_eros": related_eros,
+        "related_prs": related_prs,
     })
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.OPERATOR, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def tool_list(request):
     tools = Tool.objects.all()
     available_tools = tools.filter(status=Tool.Status.AVAILABLE)
@@ -1721,7 +2567,7 @@ def tool_list(request):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def tool_create(request):
     if request.method == "POST":
         form = ToolForm(request.POST)
@@ -1736,7 +2582,7 @@ def tool_create(request):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def tool_edit(request, pk):
     tool = get_object_or_404(Tool, pk=pk)
     if request.method == "POST":
@@ -1752,7 +2598,7 @@ def tool_edit(request, pk):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def tool_assign(request):
     if request.method != "POST":
         return redirect("tool_list")
@@ -1774,7 +2620,7 @@ def tool_assign(request):
 
 
 @login_required
-@role_required(User.Role.OPERATOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@role_required(User.Role.OPERATOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def tool_return(request, assignment_pk):
     ta = get_object_or_404(ToolAssignment.objects.select_related("tool"), pk=assignment_pk)
     if ta.user_id != request.user.id and not request.user.is_super_admin_role():
@@ -1840,14 +2686,81 @@ def repair_create(request):
             r.created_by = request.user
             r.save()
             messages.success(request, "Repair request created.")
-            return redirect("repair_list")
+            return redirect("repair_officer", pk=r.pk)
+        locked_asset = None
     else:
-        form = ExternalRepairForm()
-    return render(request, "maintenance/repair_form.html", {"form": form})
+        # Pre-fill from URL params. If component is a level-5 Component, walk
+        # the parent chain to find the level-3 Machine.
+        initial = {}
+        machine_param = request.GET.get("machine")
+        component_param = request.GET.get("component")
+        resolved_machine_id = None
+        resolved_component_id = None
+        if component_param:
+            try:
+                comp = Machine.objects.get(pk=int(component_param))
+                resolved_component_id = comp.pk
+                root_machine = comp.get_ancestor_machines()
+                if root_machine:
+                    resolved_machine_id = root_machine[0].pk
+                elif comp.asset_level == 3:
+                    resolved_machine_id = comp.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if machine_param and not resolved_machine_id:
+            try:
+                m = Machine.objects.get(pk=int(machine_param))
+                if m.asset_level == 3:
+                    resolved_machine_id = m.pk
+                elif m.asset_level == 5:
+                    resolved_machine_id = m.pk
+                    resolved_component_id = m.pk
+            except (Machine.DoesNotExist, ValueError, TypeError):
+                pass
+        if resolved_machine_id:
+            initial["machine"] = resolved_machine_id
+        if resolved_component_id:
+            initial["component"] = resolved_component_id
+
+        # Determine if the user came from a deep-link (asset page). If so,
+        # LOCK the machine + component fields so the user can't accidentally
+        # attach the record to a different asset.
+        has_deep_link = bool(machine_param and component_param)
+        lock_asset = has_deep_link
+        form = ExternalRepairForm(initial=initial, lock_asset=lock_asset)
+
+        def _ancestors(node):
+            result = []
+            current = node.parent
+            while current is not None:
+                result.insert(0, current.name)
+                current = current.parent
+            return result
+
+        locked_asset = None
+        if has_deep_link and resolved_machine_id:
+            target = Machine.objects.filter(pk=resolved_component_id or resolved_machine_id).first()
+            if target:
+                breadcrumb = _ancestors(target) + [target.name]
+                locked_asset = {
+                    "machine_pk": resolved_machine_id,
+                    "component_pk": resolved_component_id,
+                    "breadcrumb": " > ".join(breadcrumb),
+                }
+    return render(
+        request,
+        "maintenance/repair_form.html",
+        {
+            "form": form,
+            "locked_asset": locked_asset,
+            "machine": Machine.objects.filter(pk=resolved_machine_id).first() if resolved_machine_id else Machine.objects.filter(parent__isnull=True, is_active=True).order_by("pk").first(),
+            "ancestors": [],
+        },
+    )
 
 
 @login_required
-@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def repair_list(request):
     qs = ExternalRepairOrder.objects.order_by("-created_at")
     st = request.GET.get("status")
@@ -1883,14 +2796,143 @@ def repair_officer(request, pk):
                 inst.status == ExternalRepairOrder.Status.RETURNED
                 and old_status != ExternalRepairOrder.Status.RETURNED
             ):
-                from maintenance.notifications import notify_repair_returned
+                from maintenance.notifications import notify_repair_returned, notify_wo_part_returned
+                from inventory.models import SparePart
 
                 notify_repair_returned(inst)
+
+                # v4.9.3: also notify the WO tech/manager if this ERO is
+                # linked to a WO. Helps them re-install the part promptly.
+                if inst.work_order_id:
+                    # Try to find a related part by title keyword (best-effort)
+                    part_obj = None
+                    if inst.title:
+                        part_obj = SparePart.objects.filter(
+                            name__icontains=inst.title.split()[0] if inst.title else ""
+                        ).first()
+                    if part_obj is None and inst.work_order_id:
+                        # Fallback: pick the most-recently-issued part on the WO
+                        from inventory.models import PartIssueLine
+                        part_obj = PartIssueLine.objects.filter(
+                            work_order=inst.work_order,
+                            status=PartIssueLine.Status.APPROVED,
+                        ).order_by("-approved_at").values_list("part", flat=True).first()
+                        if part_obj:
+                            part_obj = SparePart.objects.filter(pk=part_obj).first()
+                    if part_obj:
+                        notify_wo_part_returned(
+                            work_order=inst.work_order,
+                            part=part_obj,
+                            ero=inst,
+                            actor=request.user,
+                        )
             messages.success(request, "Repair order updated.")
             return redirect("repair_list")
     else:
         form = ExternalRepairOfficerForm(instance=rwo)
-    return render(request, "maintenance/repair_officer.html", {"rwo": rwo, "form": form})
+
+    ancestors = []
+    current = rwo.component if rwo.component_id else rwo.machine
+    if current is not None:
+        parent = current.parent
+        while parent is not None:
+            ancestors.insert(0, parent)
+            parent = parent.parent
+
+    tree_node = rwo.component if rwo.component_id else rwo.machine
+
+    return render(
+        request,
+        "maintenance/repair_officer.html",
+        {
+            "rwo": rwo,
+            "form": form,
+            "machine": tree_node,
+            "ancestors": ancestors,
+            "related_issues": MaintenanceIssue.objects.filter(
+                machine=rwo.machine, component=rwo.component
+            )[:10],
+            "related_wos": WorkOrder.objects.filter(
+                machine=rwo.machine, component=rwo.component
+            )[:10],
+            "related_pms": PMSchedule.objects.filter(
+                machine=rwo.machine, component=rwo.component
+            )[:10],
+            "related_eros": ExternalRepairOrder.objects.filter(
+                machine=rwo.machine, component=rwo.component
+            ).exclude(pk=rwo.pk)[:10],
+            "related_prs": PurchaseRequest.objects.filter(
+                machine=rwo.machine, component=rwo.component
+            )[:10],
+        },
+    )
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def repair_order_pdf(request, pk):
+    """Generate a PDF export of an external repair order (vendor handover document)."""
+    from maintenance.pdf_utils import (
+        _field_table,
+        _header_table,
+        _section,
+        build_pdf_response,
+        getSampleStyleSheet,
+        Paragraph,
+        Spacer,
+        colors,
+        mm,
+    )
+
+    rwo = get_object_or_404(
+        ExternalRepairOrder.objects.select_related("work_order__machine"),
+        pk=pk,
+    )
+    buf, doc = build_pdf_response(f"ERO-{rwo.pk}.pdf")
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(_header_table())
+    elements.append(Spacer(1, 4 * mm))
+    elements.append(Paragraph(f"<b>EXTERNAL REPAIR ORDER</b>", styles["Normal"]))
+
+    elements += _section("Repair Order")
+    elements.append(_field_table([
+        ("ERO Number", f"#{rwo.pk}"),
+        ("WO Number", f"WO-{rwo.work_order.number}" if rwo.work_order else "—"),
+        ("Asset / Machine", rwo.work_order.machine.name if rwo.work_order and rwo.work_order.machine else "—"),
+        ("Serial Number", getattr(rwo.work_order.machine, "serial_number", "—") if rwo.work_order and rwo.work_order.machine else "—"),
+        ("Description", rwo.description or "—"),
+    ]))
+
+    elements += _section("Vendor")
+    elements.append(_field_table([
+        ("Vendor", rwo.vendor_name or "—"),
+    ]))
+
+    elements += _section("Timeline")
+    elements.append(_field_table([
+        ("Sent Date", rwo.sent_at.strftime("%Y-%m-%d %H:%M") if rwo.sent_at else "—"),
+    ]))
+
+    elements += _section("Cost")
+    elements.append(_field_table([
+        ("Estimated Cost", str(rwo.estimated_cost or "—")),
+        ("Actual Cost", str(rwo.actual_cost or "—")),
+    ]))
+
+    elements += _section("Approval")
+    elements.append(Paragraph("Authorised by Maintenance Manager:", styles["Normal"]))
+    elements.append(Spacer(1, 6 * mm))
+    from maintenance.pdf_utils import signature_block
+    elements.append(signature_block())
+
+    doc.build(elements)
+    pdf_bytes = buf.getvalue()
+    buf.close()
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="ERO-{rwo.pk}.pdf"'
+    return response
 
 
 @login_required
@@ -1918,7 +2960,7 @@ def quick_log(request):
     User.Role.SUPER_ADMIN,
 )
 def reports_view(request):
-    """P3.4 — section-level role filter.
+    """P3.4 — section-level role filter + hub with preview tables + View All links.
 
     Section matrix:
     | Section              | Admin | Manager | Supervisor | Supply |
@@ -1931,7 +2973,7 @@ def reports_view(request):
     ctx = {}
     if role in (User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN):
         ctx["wo_performance"] = {
-            "most_issues": Machine.objects.annotate(ic=Count("issues")).order_by("-ic")[:10],
+            "most_issues": Machine.objects.annotate(ic=Count("issues")).order_by("-ic")[:5],
             "status_counts": [
                 {
                     "code": row["status"],
@@ -1940,6 +2982,9 @@ def reports_view(request):
                 }
                 for row in WorkOrder.objects.values("status").annotate(c=Count("id")).order_by("status")
             ],
+            "most_issues_count": Machine.objects.annotate(ic=Count("issues")).count(),
+            "view_all_wo_url": "reports_work_orders",
+            "view_all_machines_url": "reports_machines",
         }
         ctx["tech_performance"] = {
             "tech_done": (
@@ -1950,19 +2995,37 @@ def reports_view(request):
                         filter=Q(assigned_work_orders__status=WorkOrder.Status.CLOSED),
                     ),
                 )
-                .order_by("-closed_wos")[:10]
+                .order_by("-closed_wos")[:5]
             ),
+            "tech_count": User.objects.filter(role=User.Role.TECHNICIAN).count(),
+            "view_all_url": "reports_technicians",
         }
     if role in (User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN):
+        from decimal import Decimal
+        from maintenance.models import Site
+        default_site = Site.objects.filter(is_default=True).first()
+        low_stock_qs = SparePart.objects.filter(status="active", min_stock_level__gt=0).annotate(
+            effective_qty=Coalesce(
+                Subquery(
+                    Inventory.objects.filter(part=OuterRef("pk"), site=default_site)
+                    .values("quantity_available")[:1]
+                ),
+                Value(Decimal("0")),
+            ),
+        ).filter(
+            Q(effective_qty=0) | Q(effective_qty__lte=F("min_stock_level"))
+        )
         ctx["spare_parts"] = {
-            "low_stock": SparePart.objects.filter(
-                quantity_on_hand__lte=F("min_stock_level")
-            ).order_by("sku")[:50],
+            "low_stock": low_stock_qs.order_by("sku")[:5],
+            "low_stock_count": low_stock_qs.count(),
             "top_parts": (
                 PartIssueLine.objects.values("part__sku", "part__name")
                 .annotate(total_qty=Sum("quantity"))
-                .order_by("-total_qty")[:12]
+                .order_by("-total_qty")[:5]
             ),
+            "top_parts_count": PartIssueLine.objects.values("part__sku").distinct().count(),
+            "view_all_low_stock_url": "reports_low_stock",
+            "view_all_parts_url": "reports_parts_issued",
         }
     return render(request, "maintenance/reports.html", ctx)
 
@@ -2001,80 +3064,312 @@ def technician_report_detail(request, user_id):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def machine_cost_report(request):
-    """Machine cost report: parts + vendor + consumables + additional per machine over period."""
-    from decimal import Decimal
-    from django.db.models import Sum, F, Q
-    from datetime import timedelta
-    from inventory.models import StockMovement
+    """Hierarchical asset maintenance cost report + current stock value.
 
+    Builds a three-level cost tree (Machine → Subassembly → Component) of
+    CLOSED work orders in the period. Each node's own_cost is the sum of
+    cost buckets of WOs filed directly against it; descendant_cost rolls
+    up from the children; total = own + descendant.
+
+    Also computes a balance-sheet stock summary across all sites (qty on
+    hand + estimated value at last_purchase_cost, falling back to
+    avg_cost when null).
+    """
     now = timezone.now()
     period_days = int(request.GET.get("period", 90))
     period_start = now - timedelta(days=period_days)
 
-    wos = WorkOrder.objects.filter(
-        status=WorkOrder.Status.CLOSED,
-        updated_at__gte=period_start,
-    ).select_related("machine").prefetch_related(
-        "part_issues", "external_repairs", "cost_record"
+    def zero_buckets():
+        return {
+            "parts": Decimal("0"),
+            "vendor": Decimal("0"),
+            "consumables": Decimal("0"),
+            "additional": Decimal("0"),
+            "total": Decimal("0"),
+            "wo_count": 0,
+        }
+
+    def add_buckets(target, parts, vendor, consumables, additional):
+        target["parts"] += parts
+        target["vendor"] += vendor
+        target["consumables"] += consumables
+        target["additional"] += additional
+        target["total"] = (
+            target["parts"] + target["vendor"]
+            + target["consumables"] + target["additional"]
+        )
+
+    wos = (
+        WorkOrder.objects
+        .filter(status=WorkOrder.Status.CLOSED, updated_at__gte=period_start)
+        .select_related("machine", "component")
+        .prefetch_related("part_issues", "external_repairs", "cost_record")
     )
 
-    machine_costs = {}
+    own_cost_by_node = {}
     for wo in wos:
-        machine = wo.machine
-        if machine is None:
-            continue
-        if machine not in machine_costs:
-            machine_costs[machine] = {
-                "machine": machine,
-                "parts_cost": Decimal("0"),
-                "vendor_cost": Decimal("0"),
-                "consumables_cost": Decimal("0"),
-                "additional_cost": Decimal("0"),
-                "total_cost": Decimal("0"),
-                "wo_count": 0,
-            }
-
-        mc = machine_costs[machine]
-        mc["wo_count"] += 1
-
-        if hasattr(wo, 'cost_record') and wo.cost_record:
-            mc["parts_cost"] += wo.cost_record.parts_cost or Decimal("0")
-            mc["vendor_cost"] += wo.cost_record.vendor_cost or Decimal("0")
-            mc["consumables_cost"] += wo.cost_record.consumables_cost or Decimal("0")
-            mc["additional_cost"] += wo.cost_record.additional_cost or Decimal("0")
+        cr = getattr(wo, "cost_record", None)
+        if cr is not None:
+            parts = cr.parts_cost or Decimal("0")
+            vendor = cr.vendor_cost or Decimal("0")
+            consumables = cr.consumables_cost or Decimal("0")
+            additional = cr.additional_cost or Decimal("0")
         else:
-            for pi in wo.part_issues.all():
-                mc["parts_cost"] += (pi.quantity or Decimal("0")) * (pi.unit_cost or Decimal("0"))
-            for er in wo.external_repairs.all():
-                mc["vendor_cost"] += er.actual_cost or Decimal("0")
+            parts = sum(
+                (pi.quantity or Decimal("0")) * (pi.unit_cost or Decimal("0"))
+                for pi in wo.part_issues.all()
+            )
+            vendor = sum(
+                er.actual_cost or Decimal("0")
+                for er in wo.external_repairs.all()
+            )
+            consumables = Decimal("0")
+            additional = Decimal("0")
 
-    machine_costs = {k: v for k, v in machine_costs.items() if v["wo_count"] > 0}
+        for target in (wo.machine, wo.component):
+            if target is None:
+                continue
+            node = own_cost_by_node.get(target.id)
+            if node is None:
+                node = {"machine": target, **zero_buckets()}
+                own_cost_by_node[target.id] = node
+            add_buckets(node, parts, vendor, consumables, additional)
+            node["wo_count"] += 1
 
-    for mc in machine_costs.values():
-        mc["total_cost"] = mc["parts_cost"] + mc["vendor_cost"] + mc["consumables_cost"] + mc["additional_cost"]
+    def has_any_cost(buckets):
+        return buckets["total"] > Decimal("0") or buckets["wo_count"] > 0
 
-    sorted_machines = sorted(
-        machine_costs.values(),
-        key=lambda x: x["total_cost"],
-        reverse=True,
+    def build_row(machine, depth):
+        own = own_cost_by_node.get(machine.id, {"machine": machine, **zero_buckets()})
+        descendant_buckets = zero_buckets()
+        child_rows = []
+        for child in machine.children.all():
+            child_row = build_row(child, depth + 1)
+            for key in ("parts", "vendor", "consumables", "additional", "total"):
+                descendant_buckets[key] += child_row["total"][key]
+            descendant_buckets["wo_count"] += child_row["own"]["wo_count"] + child_row["descendant"]["wo_count"]
+            child_rows.append(child_row)
+
+        total_buckets = zero_buckets()
+        for key in ("parts", "vendor", "consumables", "additional", "total"):
+            total_buckets[key] = own[key] + descendant_buckets[key]
+        total_buckets["wo_count"] = own["wo_count"] + descendant_buckets["wo_count"]
+
+        return {
+            "machine": machine,
+            "own": own,
+            "descendant": descendant_buckets,
+            "total": total_buckets,
+            "children": child_rows,
+            "depth": depth,
+        }
+
+    site_roots = Machine.objects.filter(parent__isnull=True).order_by("name")
+    tree_rows = []
+    for root in site_roots:
+        row = build_row(root, 0)
+        # Always include site roots so the full hierarchy is visible.
+        # Leaf subassemblies/components with no cost are still shown as $0 rows.
+        tree_rows.append(row)
+
+    grand = zero_buckets()
+    for row in tree_rows:
+        for key in ("parts", "vendor", "consumables", "additional", "total"):
+            grand[key] += row["total"][key]
+        grand["wo_count"] += row["total"]["wo_count"]
+
+    inv_qs = (
+        Inventory.objects
+        .select_related("part", "site")
+        .all()
     )
+    total_qty = Decimal("0")
+    total_value = Decimal("0")
+    sites_map = {}
+    multiple_sites = Site.objects.filter(is_active=True).count() > 1
+    for inv in inv_qs:
+        qty = inv.quantity_available or Decimal("0")
+        total_qty += qty
+        unit_cost = inv.part.last_purchase_cost
+        if unit_cost is None:
+            unit_cost = inv.part.avg_cost
+        line_value = qty * (unit_cost or Decimal("0")) if unit_cost is not None else None
+        if line_value is not None:
+            total_value += line_value
+        if multiple_sites:
+            site_entry = sites_map.setdefault(
+                inv.site_id,
+                {
+                    "site": inv.site,
+                    "qty": Decimal("0"),
+                    "value": Decimal("0"),
+                },
+            )
+            site_entry["qty"] += qty
+            if line_value is not None:
+                site_entry["value"] += line_value
 
-    grand_parts = sum(m["parts_cost"] for m in sorted_machines)
-    grand_vendor = sum(m["vendor_cost"] for m in sorted_machines)
-    grand_consumables = sum(m["consumables_cost"] for m in sorted_machines)
-    grand_additional = sum(m["additional_cost"] for m in sorted_machines)
-    grand_total = grand_parts + grand_vendor + grand_consumables + grand_additional
+    sites_list = []
+    if multiple_sites:
+        for entry in sites_map.values():
+            sites_list.append(entry)
+        sites_list.sort(key=lambda s: s["site"].name)
+
+    default_site = Site.objects.filter(is_default=True).first() or Site.objects.first()
+    site_label = default_site.name if default_site else ""
+
+    stock_summary = {
+        "total_qty": total_qty,
+        "total_value": total_value,
+        "sites": sites_list,
+    }
+
+    def flatten(rows, out):
+        for row in rows:
+            out.append(row)
+            flatten(row["children"], out)
+
+    flat_rows = []
+    flatten(tree_rows, flat_rows)
 
     return render(request, "maintenance/machine_cost_report.html", {
-        "machine_costs": sorted_machines,
+        "tree_rows": tree_rows,
+        "flat_rows": flat_rows,
+        "stock_summary": stock_summary,
+        "site_label": site_label,
         "period_days": period_days,
         "period_start": period_start,
-        "grand_parts": grand_parts,
-        "grand_vendor": grand_vendor,
-        "grand_consumables": grand_consumables,
-        "grand_additional": grand_additional,
-        "grand_total": grand_total,
         "period_choices": [30, 90, 180, 365],
+        "grand_parts": grand["parts"],
+        "grand_vendor": grand["vendor"],
+        "grand_consumables": grand["consumables"],
+        "grand_additional": grand["additional"],
+        "grand_total": grand["total"],
+        "grand_wo_count": grand["wo_count"],
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def reports_parts_issued(request):
+    parts = (
+        PartIssueLine.objects.values("part__sku", "part__name", "part__unit")
+        .annotate(total_qty=Sum("quantity"), total_cost=Sum(F("quantity") * F("unit_cost")))
+        .order_by("-total_qty")
+    )
+    paginator = Paginator(parts, 50)
+    page = request.GET.get("page")
+    return render(request, "maintenance/reports_parts_issued.html", {
+        "page_obj": paginator.get_page(page),
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def reports_low_stock(request):
+    from decimal import Decimal
+    from inventory.models import StockMovement
+    from maintenance.models import Site
+
+    default_site = Site.objects.filter(is_default=True).first()
+    low_stock_parts = SparePart.objects.filter(status="active", min_stock_level__gt=0).annotate(
+        effective_qty=Coalesce(
+            Subquery(
+                Inventory.objects.filter(part=OuterRef("pk"), site=default_site)
+                .values("quantity_available")[:1]
+            ),
+            Value(Decimal("0")),
+        ),
+    ).filter(
+        Q(effective_qty=0) | Q(effective_qty__lte=F("min_stock_level"))
+    ).order_by("sku")
+    all_parts = SparePart.objects.filter(status="active").order_by("sku")
+    paginator = Paginator(all_parts, 50)
+    page = request.GET.get("page")
+    return render(request, "maintenance/reports_low_stock.html", {
+        "page_obj": paginator.get_page(page),
+        "low_stock_count": low_stock_parts.count(),
+        "all_count": SparePart.objects.filter(status="active").count(),
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def reports_machines(request):
+    most_issues = Machine.objects.annotate(
+        ic=Count("issues"),
+        open_wos=Count("work_orders", filter=~Q(work_orders__status=WorkOrder.Status.CLOSED)),
+    ).order_by("-ic")
+    paginator = Paginator(most_issues, 50)
+    page = request.GET.get("page")
+    return render(request, "maintenance/reports_machines.html", {
+        "page_obj": paginator.get_page(page),
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+def reports_work_orders(request):
+    from datetime import timedelta
+
+    st = request.GET.get("status")
+    qs = WorkOrder.objects.select_related("machine", "assigned_technician").order_by("-created_at")
+    if st in dict(WorkOrder.Status.choices):
+        qs = qs.filter(status=st)
+    status_counts = [
+        {"code": row["status"], "label": dict(WorkOrder.Status.choices).get(row["status"], row["status"]), "count": row["c"]}
+        for row in WorkOrder.objects.values("status").annotate(c=Count("id")).order_by("status")
+    ]
+    now = timezone.now()
+    overdue_threshold = now - timedelta(days=7)
+    overdue_count = qs.filter(
+        status__in=[
+            WorkOrder.Status.APPROVED, WorkOrder.Status.ASSIGNED, WorkOrder.Status.IN_PROGRESS,
+            WorkOrder.Status.PAUSED, WorkOrder.Status.PENDING_PARTS, WorkOrder.Status.WAITING_FOR_VENDOR,
+        ],
+        created_at__lt=overdue_threshold,
+    ).count()
+    paginator = Paginator(qs, 50)
+    page = request.GET.get("page")
+    return render(request, "maintenance/reports_work_orders.html", {
+        "page_obj": paginator.get_page(page),
+        "status_counts": status_counts,
+        "status_filter": st or "",
+        "overdue_count": overdue_count,
+        "status_choices": WorkOrder.Status.choices,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def reports_technicians(request):
+    from datetime import timedelta
+    now = timezone.now()
+    td90 = now - timedelta(days=90)
+    techs = (
+        User.objects.filter(role=User.Role.TECHNICIAN)
+        .annotate(
+            closed_wos=Count("assigned_work_orders", filter=Q(assigned_work_orders__status=WorkOrder.Status.CLOSED)),
+            in_progress_wos=Count("assigned_work_orders", filter=Q(assigned_work_orders__status=WorkOrder.Status.IN_PROGRESS)),
+        )
+        .order_by("-closed_wos")
+    )
+    for tech in techs:
+        tech_wos = list(tech.assigned_work_orders.filter(
+            status=WorkOrder.Status.CLOSED, updated_at__gte=td90
+        ))
+        labor_vals = []
+        for wo in tech_wos:
+            if wo.labor_started_at and wo.labor_stopped_at:
+                h = (wo.labor_stopped_at - wo.labor_started_at).total_seconds() / 3600
+                if h >= 0:
+                    labor_vals.append(h)
+        tech.avg_repair_hours = round(sum(labor_vals) / len(labor_vals), 1) if labor_vals else None
+        tech.rejection_sum = sum(wo.rejection_count for wo in tech_wos)
+    paginator = Paginator(techs, 50)
+    page = request.GET.get("page")
+    return render(request, "maintenance/reports_technicians.html", {
+        "page_obj": paginator.get_page(page),
     })
 
 
@@ -2120,7 +3415,6 @@ def audit_log_list(request):
 def kpi_dashboard(request):
     now = timezone.now()
     td90 = now - timedelta(days=90)
-    td180 = now - timedelta(days=180)
     td365 = now - timedelta(days=365)
 
     closed = list(
@@ -2135,13 +3429,10 @@ def kpi_dashboard(request):
     )
     downtime_hours = []
     repair_hours = []
-    downtime_by_month = {}
     for w in closed:
         down_h = (w.downtime_ended_at - w.downtime_started_at).total_seconds() / 3600
         if down_h >= 0:
             downtime_hours.append(down_h)
-            month_key = w.downtime_ended_at.strftime("%Y-%m")
-            downtime_by_month[month_key] = downtime_by_month.get(month_key, 0) + down_h
         if w.labor_started_at and w.labor_stopped_at:
             labor_h = (w.labor_stopped_at - w.labor_started_at).total_seconds() / 3600
             if labor_h >= 0:
@@ -2172,11 +3463,8 @@ def kpi_dashboard(request):
         .order_by("machine_id", "created_at")
     )
     gaps = []
-    machine_failure_rows = {}
     prev_by_machine = {}
     for issue in issue_rows:
-        machine_failure_rows.setdefault(issue.machine_id, {"machine": issue.machine, "count": 0})
-        machine_failure_rows[issue.machine_id]["count"] += 1
         prev_issue = prev_by_machine.get(issue.machine_id)
         if prev_issue:
             gap_h = (issue.created_at - prev_issue.created_at).total_seconds() / 3600
@@ -2194,138 +3482,12 @@ def kpi_dashboard(request):
     pm_active = PMSchedule.objects.filter(is_active=True).count()
     pm_compliance_pct = int((pm_closed / max(pm_closed + pm_due, 1)) * 100) if (pm_closed or pm_due) else None
 
-    repeat_failures = (
-        Machine.objects.annotate(
-            recent_failures=Count("issues", filter=Q(issues__created_at__gte=td180))
-        )
-        .filter(recent_failures__gte=2)
-        .order_by("-recent_failures")[:15]
-    )
-
-    most_used_parts = (
-        PartIssueLine.objects.values("part__name", "part__sku")
-        .annotate(total_qty=Sum("quantity"))
-        .order_by("-total_qty")[:10]
-    )
-
-    machine_failure_rate = sorted(
-        (
-            {
-                "machine": row["machine"],
-                "failure_count": row["count"],
-                "monthly_rate": round(row["count"] / 12, 2),
-            }
-            for row in machine_failure_rows.values()
-        ),
-        key=lambda row: row["failure_count"],
-        reverse=True,
-    )[:10]
-
-    tech_efficiency = []
-    tech_rows = (
-        User.objects.filter(role=User.Role.TECHNICIAN)
-        .prefetch_related("assigned_work_orders")
-        .order_by("username")
-    )
-    for tech in tech_rows:
-        tech_closed = [
-            wo
-            for wo in tech.assigned_work_orders.all()
-            if wo.status == WorkOrder.Status.CLOSED and wo.updated_at >= td90
-        ]
-        avg_hours = None
-        labor_values = []
-        for wo in tech_closed:
-            if wo.labor_started_at and wo.labor_stopped_at:
-                labor_h = (wo.labor_stopped_at - wo.labor_started_at).total_seconds() / 3600
-                if labor_h >= 0:
-                    labor_values.append(labor_h)
-        if labor_values:
-            avg_hours = sum(labor_values) / len(labor_values)
-        tech_efficiency.append(
-            {
-                "id": tech.id,
-                "username": tech.username,
-                "closed_count": len(tech_closed),
-                "avg_repair_hours": avg_hours,
-            }
-        )
-    tech_efficiency.sort(key=lambda row: row["closed_count"], reverse=True)
-    tech_efficiency = tech_efficiency[:10]
-
     tool_returns = ToolAssignment.objects.exclude(returned_at__isnull=True)
     tool_lost_count = tool_returns.filter(return_condition=ToolAssignment.ReturnCondition.LOST).count()
     tool_returned_count = tool_returns.count()
     tool_loss_rate_pct = (
         round((tool_lost_count / tool_returned_count) * 100, 1) if tool_returned_count else None
     )
-
-    supplier_costs = {}
-    for pr in PurchaseRequest.objects.filter(updated_at__gte=td365).select_related("supplier", "part"):
-        if not pr.supplier_id or pr.unit_price is None:
-            continue
-        supplier_costs.setdefault(
-            pr.supplier_id,
-            {"supplier": pr.supplier.name, "total_cost": 0, "requests": 0},
-        )
-        supplier_costs[pr.supplier_id]["total_cost"] += float(pr.quantity) * float(pr.unit_price)
-        supplier_costs[pr.supplier_id]["requests"] += 1
-    supplier_cost_ranking = sorted(
-        supplier_costs.values(),
-        key=lambda row: row["total_cost"],
-        reverse=True,
-    )[:10]
-
-    downtime_trends = [
-        {"month": month, "hours": round(hours, 1)}
-        for month, hours in sorted(downtime_by_month.items())
-    ]
-
-    # === STOCK TURNOVER ANALYSIS ===
-    from django.db.models import Avg
-    from inventory.models import Inventory, StockMovement
-    from decimal import Decimal
-
-    consumption_qs = (
-        StockMovement.objects.filter(
-            movement_type__in=[
-                StockMovement.MovementType.CONSUMABLE_USE,
-                StockMovement.MovementType.ISSUE_TO_WO,
-            ],
-            created_at__gte=td90,
-        )
-        .values("part__pk", "part__sku", "part__name")
-        .annotate(total_consumed=Sum("quantity"))
-        .order_by("-total_consumed")[:30]
-    )
-
-    stock_turnover = []
-    for row in consumption_qs:
-        inv_items = Inventory.objects.filter(part_id=row["part__pk"])
-        if inv_items.exists():
-            avg_qty = sum(
-                float(inv.quantity_available or 0) for inv in inv_items
-            ) / inv_items.count()
-        else:
-            avg_qty = 0
-
-        consumed = float(row["total_consumed"] or 0)
-        turnover = (consumed / avg_qty) if avg_qty > 0 else None
-
-        stock_turnover.append({
-            "part_pk": row["part__pk"],
-            "sku": row["part__sku"],
-            "name": row["part__name"],
-            "total_consumed_90d": row["total_consumed"],
-            "avg_inventory": round(avg_qty, 2),
-            "turnover_rate": round(turnover, 2) if turnover is not None else None,
-            "is_dead_stock": avg_qty > 0 and consumed < (avg_qty * 0.1),
-            "is_slow_moving": turnover is not None and turnover < 1,
-        })
-
-    dead_stock = [r for r in stock_turnover if r["is_dead_stock"]]
-    slow_movers = [r for r in stock_turnover if r["is_slow_moving"] and not r["is_dead_stock"]]
-    top_turnover = [r for r in stock_turnover if r["turnover_rate"] is not None][:10]
 
     ctx = {
         "mttr_hours": mttr_hours,
@@ -2336,20 +3498,11 @@ def kpi_dashboard(request):
         "pm_closed_90d": pm_closed,
         "pm_active_schedules": pm_active,
         "pm_due_count": pm_due,
-        "repeat_failures": repeat_failures,
         "open_emergency_wos": WorkOrder.objects.filter(is_emergency=True)
         .exclude(status=WorkOrder.Status.CLOSED)
         .count(),
-        "most_used_parts": most_used_parts,
-        "machine_failure_rate": machine_failure_rate,
-        "tech_efficiency": tech_efficiency,
         "tool_lost_count": tool_lost_count,
         "tool_loss_rate_pct": tool_loss_rate_pct,
-        "supplier_cost_ranking": supplier_cost_ranking,
-        "downtime_trends": downtime_trends,
-        "stock_turnover": top_turnover,
-        "dead_stock": dead_stock,
-        "slow_movers": slow_movers,
     }
 
     return render(request, "maintenance/kpi.html", ctx)
@@ -2405,13 +3558,21 @@ def repair_manager_accept(request, pk):
     )
 
 
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_IMAGE_SIZE = 5 * 1024 * 1024       # 5MB for images and PDF
+MAX_VIDEO_SIZE = 30 * 1024 * 1024      # 30MB for video
+MAX_AUDIO_SIZE = 30 * 1024 * 1024     # 30MB for audio (Sprint 1 voice notes)
 MAX_ATTACHMENTS_PER_ENTITY = 10
 ALLOWED_CONTENT_TYPES = [
     'image/jpeg',
-    'image/png', 
+    'image/png',
     'image/webp',
     'application/pdf',
+    'video/mp4',
+    'video/quicktime',
+    'audio/webm',   # Sprint 1: voice notes
+    'audio/mp4',    # Safari voice m4a
+    'audio/ogg',
+    'audio/wav',
 ]
 
 
@@ -2428,14 +3589,32 @@ def attachment_upload(request):
     if not entity_type or not entity_id or not file:
         return JsonResponse({"error": "Missing entity_type, entity_id, or file."}, status=400)
 
-    # Validate file size
-    if file.size > MAX_FILE_SIZE:
-        return JsonResponse({"error": "File exceeds 5MB limit."}, status=400)
+    # Get content type early so we can validate it and use it for size limits
+    content_type = getattr(file, 'content_type', '') or ''
 
     # Validate content type
-    content_type = getattr(file, 'content_type', '') or ''
     if content_type not in ALLOWED_CONTENT_TYPES:
-        return JsonResponse({"error": "Only JPG, PNG, WEBP, and PDF files are allowed."}, status=400)
+        return JsonResponse(
+            {"error": "Only JPG, PNG, WEBP, PDF, MP4, and MOV files are allowed."},
+            status=400,
+        )
+
+    # Validate file size (split by MIME: images/PDF 5MB, video 30MB, audio 30MB)
+    content_type_lower = content_type.lower()
+    if content_type_lower.startswith('video/'):
+        max_size = MAX_VIDEO_SIZE
+        size_limit_mb = 30
+    elif content_type_lower.startswith('audio/'):
+        max_size = MAX_AUDIO_SIZE
+        size_limit_mb = 30
+    else:
+        max_size = MAX_IMAGE_SIZE
+        size_limit_mb = 5
+    if file.size > max_size:
+        return JsonResponse(
+            {"error": f"File exceeds {size_limit_mb}MB limit for this file type."},
+            status=400,
+        )
 
     # Validate entity_type is a valid choice
     try:
@@ -2451,16 +3630,38 @@ def attachment_upload(request):
     if existing_count >= MAX_ATTACHMENTS_PER_ENTITY:
         return JsonResponse({"error": f"Maximum {MAX_ATTACHMENTS_PER_ENTITY} attachments per {entity_type}."}, status=400)
 
-    att = Attachment.objects.create(
-        entity_type=entity_type,
-        entity_id=int(entity_id),
-        file=file,
-        filename=file.name,
-        size_bytes=file.size or 0,
-        mime_type=content_type,
-        uploaded_by=request.user,
-        note=note,
-    )
+    is_primary_raw = request.POST.get("is_primary", "false")
+    is_primary = is_primary_raw.lower() in ("true", "1", "on", "yes")
+
+    category = request.POST.get("category", "PRODUCT")
+    valid_categories = [c[0] for c in Attachment._meta.get_field("category").choices]
+    if category not in valid_categories:
+        category = "PRODUCT"
+
+    is_first_upload = existing_count == 0
+    if is_first_upload:
+        is_primary = True
+
+    with transaction.atomic():
+        att = Attachment.objects.create(
+            entity_type=entity_type,
+            entity_id=int(entity_id),
+            file=file,
+            filename=file.name,
+            size_bytes=file.size or 0,
+            mime_type=content_type,
+            uploaded_by=request.user,
+            note=note,
+            is_primary=is_primary,
+            category=category,
+        )
+        if is_primary:
+            Attachment.objects.filter(
+                entity_type=entity_type,
+                entity_id=int(entity_id),
+                is_primary=True,
+            ).exclude(pk=att.pk).update(is_primary=False)
+
     return JsonResponse({
         "id": att.pk,
         "filename": att.filename,
@@ -2472,7 +3673,38 @@ def attachment_upload(request):
         "url": att.file.url if att.file else "",
         "width": att.width,
         "height": att.height,
+        "is_primary": att.is_primary,
+        "category": att.category,
+        "note": att.note,
     })
+
+
+@login_required
+@require_POST
+def attachment_upload_pending(request):
+    """v4.9 B2: Upload a file (typically voice) before the parent entity is saved.
+
+    Creates an Attachment with entity_type='pending_voice' and entity_id=0.
+    Caller must re-link via voice_attachment_id form field after parent is saved.
+    """
+    from .models import Attachment
+    f = request.FILES.get("file")
+    if not f:
+        return JsonResponse({"error": "No file"}, status=400)
+    if f.size > MAX_AUDIO_SIZE:
+        return JsonResponse({"error": f"File exceeds 30MB audio limit."}, status=400)
+    content_type = getattr(f, "content_type", "") or "audio/webm"
+    att = Attachment.objects.create(
+        entity_type='pending_voice',
+        entity_id=0,
+        file=f,
+        filename=f.name,
+        size_bytes=f.size,
+        mime_type=content_type,
+        category="OTHER",
+        uploaded_by=request.user,
+    )
+    return JsonResponse({"id": att.pk, "url": att.file.url})
 
 
 @login_required
@@ -2494,8 +3726,45 @@ def attachment_list(request, entity_type, entity_id):
         "thumbnail_url": a.thumbnail.url if a.thumbnail else "",
         "width": a.width,
         "height": a.height,
+        "is_primary": a.is_primary,
+        "category": a.category,
     } for a in attachments]
     return JsonResponse({"attachments": data})
+
+
+@login_required
+def machine_components(request, pk):
+    """Return the descendant level-5 Components of a given Machine.
+
+    Used by the issue report form to populate a cascading Component dropdown
+    that only shows components belonging to the selected Machine.
+
+    Response shape:
+        {"components": [{"id": 5, "name": "Hydraulic Pump", "asset_code": "PUMP-01"}], "has_components": true}
+
+    Returns an empty list (and has_components=False) when the machine has no
+    descendant components, or when the machine itself is a level-5 Component
+    (in which case the machine IS the component — return [self]).
+    """
+    machine = get_object_or_404(Machine, pk=pk)
+    if machine.asset_level == 5:
+        comps = [machine]
+    elif machine.asset_level == 3:
+        comps = machine.get_descendant_components()
+    else:
+        comps = [c for c in machine.get_descendants() if c.asset_level == 5]
+    data = [
+        {
+            "id": c.pk,
+            "name": c.name,
+            "asset_code": c.asset_code or "",
+        }
+        for c in comps
+    ]
+    return JsonResponse({
+        "components": data,
+        "has_components": len(data) > 0,
+    })
 
 
 @login_required
@@ -2508,6 +3777,32 @@ def attachment_delete(request, pk):
         return JsonResponse({"error": "Not authorized."}, status=403)
     att.delete()
     return JsonResponse({"status": "deleted"})
+
+
+@login_required
+@require_POST
+def attachment_set_primary(request, pk):
+    """Atomically set an attachment as the primary for its entity. Unsets the previous primary."""
+    from .models import Attachment
+    att = get_object_or_404(Attachment, pk=pk)
+
+    if att.uploaded_by != request.user and not request.user.is_super_admin_role():
+        return JsonResponse({"error": "Not authorized."}, status=403)
+
+    with transaction.atomic():
+        Attachment.objects.filter(
+            entity_type=att.entity_type,
+            entity_id=att.entity_id,
+            is_primary=True,
+        ).exclude(pk=att.pk).update(is_primary=False)
+        att.is_primary = True
+        att.save(update_fields=["is_primary"])
+
+    return JsonResponse({
+        "id": att.pk,
+        "is_primary": att.is_primary,
+        "message": "Primary image updated.",
+    })
 
 
 @login_required
@@ -2537,89 +3832,6 @@ def work_order_archive(request, pk):
     messages.success(request, f"Work order WO-{wo.number} has been archived.")
     return redirect("work_order_list")
 
-
-@login_required
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
-def spare_part_create(request):
-    """Create a new spare part from operations — /stock/new/"""
-    from decimal import Decimal
-    from inventory.models import Inventory, SparePart
-    from maintenance.models import Site
-
-    if request.method == "POST":
-        form = SparePartCreateForm(request.POST)
-        if form.is_valid():
-            part = form.save()
-            opening_qty = form.cleaned_data.get("opening_qty") or Decimal("0")
-            rack = form.cleaned_data.get("rack_location", "").strip()
-            if opening_qty > 0:
-                default_site = Site.objects.filter(is_default=True).first()
-                if default_site:
-                    Inventory.objects.create(
-                        part=part,
-                        site=default_site,
-                        quantity_available=opening_qty,
-                        rack_location=rack,
-                    )
-                    part.quantity_on_hand = opening_qty
-                    part.save(update_fields=["quantity_on_hand"])
-            messages.success(request, f"Part '{part.name}' created. SKU: {part.sku}")
-            return redirect("spare_part_detail", pk=part.pk)
-    else:
-        form = SparePartCreateForm()
-    return render(request, "maintenance/spare_part_form.html", {
-        "form": form,
-        "part": None,
-        "page_heading": "New spare part",
-    })
-
-
-@login_required
-@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
-def spare_part_detail(request, pk):
-    """Operational spare part detail — /stock/<pk>/"""
-    from inventory.models import Inventory, StockMovement
-    from maintenance.models import Site
-
-    part = get_object_or_404(SparePart, pk=pk)
-    sites = Site.objects.filter(is_active=True).order_by("name")
-    selected_site_id = request.GET.get("site")
-    if selected_site_id:
-        try:
-            selected_site = sites.get(pk=int(selected_site_id))
-        except (ValueError, Site.DoesNotExist):
-            selected_site = sites.filter(is_default=True).first()
-    else:
-        selected_site = sites.filter(is_default=True).first()
-
-    inv = None
-    if selected_site and part:
-        inv = part.inventory_items.filter(site=selected_site).first()
-
-    movements_qs = StockMovement.objects.filter(part=part).select_related(
-        "performed_by", "work_order", "site"
-    ).order_by("-created_at")
-
-    recent_wo_ids = movements_qs.filter(work_order__isnull=False).values_list(
-        "work_order", flat=True
-    ).distinct()[:10]
-    recent_wos = WorkOrder.objects.filter(pk__in=list(recent_wo_ids)).select_related(
-        "machine"
-    ).order_by("-created_at")[:10]
-
-    recent_prs = part.purchase_requests.filter(
-        status=PurchaseRequest.Status.PENDING
-    ).order_by("-created_at")[:5]
-
-    return render(request, "maintenance/spare_part_detail.html", {
-        "part": part,
-        "sites": sites,
-        "selected_site": selected_site,
-        "inv": inv,
-        "movements": list(movements_qs[:50]),
-        "recent_wos": recent_wos,
-        "recent_prs": recent_prs,
-    })
 
 
 @login_required
@@ -2801,4 +4013,568 @@ def stock_lookup(request):
         "sites": sites,
         "selected_site": selected_site,
         "q": q,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Sprint 1: shortage flow + stock badge + component-first selector
+# (Plan v7 Step 4 — Views + URLs)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+@require_GET
+def work_order_part_availability(request, pk, part_id):
+    """Live stock badge for a part on a WO.
+
+    Response shape:
+        {
+            "part_id": int, "part_name": str, "part_sku": str,
+            "image_url": str|null,
+            "on_hand": str, "reserved": str, "usable": str,
+            "min_level": str, "is_low": bool,
+            "stock_state": "available"|"low"|"out",
+            "stock_label": "🟢 Available"|"🟡 Low Stock"|"🔴 Out of Stock",
+            "stock_count": "N pcs"|"0 pcs",
+            "min_label": "Min: 5",
+            "used_on_asset": int,                # count of past PartIssueLine for this WO's machine/component
+            "last_replaced_days": int,           # -1 if never
+            "site": "Main Factory"|null
+        }
+    """
+    from inventory.models import Inventory, SparePart, PartIssueLine
+    from inventory.services import _get_default_site
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    part = get_object_or_404(SparePart, pk=part_id)
+    site = wo.machine.site if wo.machine and wo.machine.site else _get_default_site()
+    inv = Inventory.objects.filter(part=part, site=site).first()
+    on_hand   = (inv.quantity_available if inv else Decimal("0"))
+    reserved  = (inv.quantity_reserved  if inv else Decimal("0"))
+    usable    = on_hand - reserved
+
+    # 3-tier rule
+    if usable <= 0:
+        stock_state = "out"
+        stock_label = "🔴 Out of Stock"
+        stock_count = "0 pcs"
+    elif usable <= part.min_stock_level:
+        stock_state = "low"
+        stock_label = "🟡 Low Stock"
+        stock_count = f"{usable:g} pcs left"  # :g strips trailing zeros
+    else:
+        stock_state = "available"
+        stock_label = "🟢 Available"
+        stock_count = f"{usable:g} pcs available"
+
+    # Maintenance intelligence: count + last-replaced on this asset
+    asset_q = Q(work_order__machine=wo.machine)
+    if wo.component_id:
+        asset_q |= Q(work_order__component=wo.component)
+    past = PartIssueLine.objects.filter(
+        asset_q,
+        part=part,
+        status=PartIssueLine.Status.APPROVED,
+    )
+    used_count = past.count()
+    last_dt = past.aggregate(Max("created_at"))["created_at__max"]
+    last_days = (timezone.now().date() - last_dt.date()).days if last_dt else -1
+
+    # Primary image (first Attachment with is_primary=True)
+    primary = Attachment.objects.filter(
+        entity_type="spare_part", entity_id=part.pk, is_primary=True
+   ).first()
+    image_url = None
+    if primary and primary.thumbnail:
+        try:
+            image_url = primary.thumbnail.url
+        except ValueError:
+            pass
+
+    # v4.9.2 B1: pending-request breakdown by WO — helps tech see what's
+    # requested (but not yet approved) when they switch contexts. This is
+    # informational only; the actual reservation lock is held in
+    # approve_part_request via select_for_update.
+    pending_lines = PartIssueLine.objects.filter(
+        part=part,
+        status=PartIssueLine.Status.PENDING,
+    ).select_related("work_order").order_by("-created_at")[:5]
+    pending_total = PartIssueLine.objects.filter(
+        part=part,
+        status=PartIssueLine.Status.PENDING,
+    ).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+    # Normalize to 3-decimal string for consistency with on_hand/reserved
+    pending_total_str = f"{pending_total:.3f}"
+    pending_breakdown = [
+        {
+            "wo_number": rl.work_order.number if rl.work_order_id else None,
+            "wo_pk": rl.work_order_id,
+            "quantity": str(rl.quantity),
+            "requested_by": rl.requested_by.username if rl.requested_by_id else None,
+        }
+        for rl in pending_lines
+    ]
+
+    return JsonResponse({
+        "part_id": part.pk,
+        "part_name": part.name,
+        "part_sku": part.sku,
+        "image_url": image_url,
+        "on_hand": str(on_hand),
+        "reserved": str(reserved),
+        "usable": str(usable),
+        "min_level": str(part.min_stock_level),
+        "is_low": usable <= part.min_stock_level,
+        "stock_state": stock_state,
+        "stock_label": stock_label,
+        "stock_count": stock_count,
+        "min_label": f"Min: {part.min_stock_level:g}",
+        "used_on_asset": used_count,
+        "last_replaced_days": last_days,
+        "site": site.name if site else None,
+        "pending_total": pending_total_str,
+        "pending_breakdown": pending_breakdown,
+    })
+
+
+@login_required
+@require_GET
+def work_order_components(request, pk):
+    """Level-5 components of the WO's machine (or self if WO.component is set)."""
+    wo = get_object_or_404(WorkOrder.objects.select_related("machine", "component"), pk=pk)
+    if wo.component_id and wo.component.asset_level == 5:
+        comps = [wo.component]
+    elif wo.machine_id:
+        comps = list(wo.machine.get_descendant_components())
+    else:
+        comps = []
+
+    return JsonResponse({
+        "components": [
+            {
+                "id": c.pk,
+                "name": c.name,
+                "asset_code": c.asset_code or "",
+                "criticality": c.criticality or "",
+            }
+            for c in comps
+        ],
+        "has_components": bool(comps),
+    })
+
+
+@login_required
+@require_GET
+def work_order_component_parts(request, pk):
+    """Parts used on the given component, ordered by recent usage.
+
+    ?component=<id> is required. If the component has no history,
+    returns the 50 most recently used active parts across the whole site.
+    """
+    from inventory.models import SparePart, PartIssueLine
+
+    pk = int(pk)  # unused parameter, but keep the URL signature
+    component_id = request.GET.get("component")
+    if not component_id:
+        return JsonResponse({"parts": []})
+
+    try:
+        component_pk = int(component_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"parts": []})
+
+    # Parts used on this component (WOs that targeted this component)
+    used = (
+        PartIssueLine.objects
+        .filter(work_order__component_id=component_pk)
+        .values("part_id")
+        .annotate(uses=Count("id"), last=Max("created_at"))
+        .order_by("-last")[:50]
+    )
+    part_ids = [row["part_id"] for row in used]
+
+    if not part_ids:
+        # Fallback: all active parts, alphabetical
+        part_ids = list(
+            SparePart.objects.filter(status="active")
+            .order_by("name")
+            .values_list("pk", flat=True)[:50]
+        )
+
+    # Preserve the "recently used" order
+    order = {pid: i for i, pid in enumerate(part_ids)}
+    parts = list(SparePart.objects.filter(pk__in=part_ids, status="active"))
+    parts.sort(key=lambda p: order.get(p.pk, 999))
+
+    return JsonResponse({
+        "parts": [
+            {
+                "id": p.pk,
+                "name": p.name,
+                "sku": p.sku,
+                "is_consumable": p.is_consumable,
+            }
+            for p in parts
+        ],
+    })
+
+
+@login_required
+@require_POST
+@role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
+def work_order_request_shortage(request, pk):
+    """Technician's "📦 Raise Shortage Request" button handler.
+
+    Calls raise_shortage_request() in inventory.services, which creates
+    (or updates) a PENDING PartShortageReport and notifies the managers.
+    """
+    from inventory.services import raise_shortage_request
+    from inventory.models import SparePart
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
+        messages.error(request, "You can only raise shortage requests on work orders assigned to you.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    part_id = request.POST.get("part_id")
+    if not part_id:
+        messages.error(request, "Missing part_id.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    part = get_object_or_404(SparePart, pk=part_id)
+    note = request.POST.get("note", "")
+
+    try:
+        report = raise_shortage_request(
+            wo=wo, part=part, technician=request.user, note=note,
+        )
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    messages.success(
+        request,
+        f"📦 Shortage raised for {report.shortage_qty:g} × {part.name}. Manager has been notified.",
+    )
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_decide_shortage(request, pk, report_id):
+    """Manager records the first decision on a PartShortageReport (v4.8).
+
+    Creates a PartShortageDecision (OneToOne). Editing an existing
+    decision (before execution) is handled by work_order_edit_shortage.
+    """
+    from datetime import date
+    from decimal import Decimal, InvalidOperation
+    from inventory.models import PartShortageReport
+    from inventory.services import create_shortage_decision
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    report = get_object_or_404(PartShortageReport, pk=report_id, work_order=wo)
+    if report.status != PartShortageReport.Status.PENDING_REVIEW:
+        messages.error(request, f"Report is in {report.status}; only PENDING_REVIEW reports can be decided.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    decision_type = request.POST.get("decision_type", "").strip()
+    if decision_type not in ("approve", "reject"):
+        messages.error(request, "Invalid decision type.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    note = (request.POST.get("decision_note") or "").strip()
+    reason = ""
+    rejected = Decimal("0")
+    approved_issue = Decimal("0")
+    approved_procure = Decimal("0")
+
+    if decision_type == "reject":
+        reason = (request.POST.get("rejection_reason") or "").strip()
+        if len(reason) < 15:
+            messages.error(request, "Rejection reason is required (min 15 characters).")
+            return redirect("work_order_detail", pk=wo.pk)
+        rejected = report.qty_requested
+    else:
+        try:
+            approved_issue   = Decimal(request.POST.get("approved_issue_qty") or "0")
+            approved_procure = Decimal(request.POST.get("approved_procurement_qty") or "0")
+            rejected         = Decimal(request.POST.get("rejected_qty") or "0")
+        except (InvalidOperation, ValueError):
+            messages.error(request, "Quantities must be numbers.")
+            return redirect("work_order_detail", pk=wo.pk)
+        if any(v < 0 for v in (approved_issue, approved_procure, rejected)):
+            messages.error(request, "Quantities cannot be negative.")
+            return redirect("work_order_detail", pk=wo.pk)
+        if approved_issue + approved_procure + rejected != report.qty_requested:
+            messages.error(
+                request,
+                f"Books must balance: issue({approved_issue:g}) + procure({approved_procure:g}) + "
+                f"reject({rejected:g}) = {approved_issue + approved_procure + rejected:g} "
+                f"!= requested({report.qty_requested:g}).",
+            )
+            return redirect("work_order_detail", pk=wo.pk)
+        if approved_issue == 0 and approved_procure == 0:
+            messages.error(request, "Approve with both 0 makes no sense — use Reject instead.")
+            return redirect("work_order_detail", pk=wo.pk)
+
+    eta_raw = (request.POST.get("expected_availability_date") or "").strip()
+    eta = None
+    if eta_raw:
+        try:
+            eta = date.fromisoformat(eta_raw)
+        except ValueError:
+            messages.warning(request, "Invalid expected_availability_date; skipped.")
+
+    try:
+        decision = create_shortage_decision(
+            report=report,
+            decision_type=decision_type,
+            approved_issue_qty=approved_issue,
+            approved_procurement_qty=approved_procure,
+            rejected_qty=rejected,
+            decided_by=request.user,
+            expected_availability_date=eta,
+            decision_note=note,
+            rejection_reason=reason,
+        )
+    except Exception as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    log_audit(
+        actor=request.user, action="part_shortage_decided",
+        entity="PartShortageReport", object_id=str(report.pk),
+        payload={
+            "decision_id": str(decision.pk),
+            "decision_type": decision_type,
+            "wo": str(wo.pk), "part": report.part.sku,
+            "qty_requested": str(report.qty_requested),
+            "approved_issue_qty": str(approved_issue) if decision_type == "approve" else "0",
+            "approved_procurement_qty": str(approved_procure) if decision_type == "approve" else "0",
+            "rejected_qty": str(rejected),
+            "expected_availability_date": str(eta) if eta else "",
+        },
+    )
+
+    if decision_type == "approve":
+        messages.success(
+            request,
+            f"✅ Shortage decided for {report.part.name}: "
+            f"issue {approved_issue:g}, procure {approved_procure:g}, reject {rejected:g}.",
+        )
+    else:
+        messages.success(request, f"❌ Shortage rejected for {report.part.name}.")
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_edit_shortage(request, pk, report_id):
+    """Edit a decision on an APPROVED report. Refused once execution starts.
+
+    v4.8 procurement lock: refuses to change approved_procurement_qty
+    after a PurchaseRequest has been auto-created.
+    """
+    from decimal import Decimal, InvalidOperation
+    from inventory.models import PartShortageReport
+    from inventory.services import edit_shortage_decision
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    report = get_object_or_404(PartShortageReport, pk=report_id, work_order=wo)
+
+    if report.is_decision_locked:
+        messages.error(
+            request,
+            f"🔒 Decision is locked: report is in {report.status}. "
+            f"Close this report and create a new shortage if fulfillment needs to change."
+        )
+        return redirect("work_order_detail", pk=wo.pk)
+
+    try:
+        approved_issue   = Decimal(request.POST.get("approved_issue_qty") or "0")
+        approved_procure = Decimal(request.POST.get("approved_procurement_qty") or "0")
+        rejected         = Decimal(request.POST.get("rejected_qty") or "0")
+    except (InvalidOperation, ValueError):
+        messages.error(request, "Quantities must be numbers.")
+        return redirect("work_order_detail", pk=wo.pk)
+    if any(v < 0 for v in (approved_issue, approved_procure, rejected)):
+        messages.error(request, "Quantities cannot be negative.")
+        return redirect("work_order_detail", pk=wo.pk)
+    if approved_issue + approved_procure + rejected != report.qty_requested:
+        messages.error(
+            request,
+            f"Books must balance: {approved_issue}+{approved_procure}+{rejected}={approved_issue+approved_procure+rejected} != {report.qty_requested}.",
+        )
+        return redirect("work_order_detail", pk=wo.pk)
+
+    note = (request.POST.get("decision_note") or "").strip()
+
+    try:
+        decision = edit_shortage_decision(
+            report=report,
+            approved_issue_qty=approved_issue,
+            approved_procurement_qty=approved_procure,
+            rejected_qty=rejected,
+            edited_by=request.user,
+            decision_note=note,
+        )
+    except Exception as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    log_audit(
+        actor=request.user, action="part_shortage_decision_edited",
+        entity="PartShortageReport", object_id=str(report.pk),
+        payload={
+            "decision_id": str(decision.pk),
+            "wo": str(wo.pk), "part": report.part.sku,
+            "approved_issue_qty": str(approved_issue),
+            "approved_procurement_qty": str(approved_procure),
+            "rejected_qty": str(rejected),
+        },
+    )
+    messages.success(request, f"✎ Decision edited for {report.part.name}.")
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_close_shortage(request, pk, report_id):
+    """Manager closes a shortage report (releases reservation, cancels PRs)."""
+    from inventory.models import PartShortageReport
+    from inventory.services import transition_shortage_status
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    report = get_object_or_404(PartShortageReport, pk=report_id, work_order=wo)
+    note = (request.POST.get("note") or "").strip()
+
+    try:
+        transition_shortage_status(
+            report, PartShortageReport.Status.CLOSED, actor=request.user, note=note,
+        )
+    except Exception as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    messages.success(request, f"🗙 Shortage closed for {report.part.name}.")
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_block_shortage(request, pk, report_id):
+    """Manager blocks a shortage (operational problem). Strict v4.8: no reservation release."""
+    from inventory.models import PartShortageReport
+    from inventory.services import transition_shortage_status
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    report = get_object_or_404(PartShortageReport, pk=report_id, work_order=wo)
+    note = (request.POST.get("note") or "").strip()
+
+    try:
+        transition_shortage_status(
+            report, PartShortageReport.Status.BLOCKED, actor=request.user, note=note,
+        )
+    except Exception as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    messages.warning(request, f"⚠ Shortage blocked for {report.part.name}.")
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_warehouse_issue(request, pk, line_id):
+    """Warehouse executes the issue against current stock (v4.8).
+
+    Validates quantity_available (physical on-hand), releases the
+    shortage's reservation, deducts, and transitions the related
+    shortage report to IN_FULFILLMENT on the first execution.
+    """
+    from decimal import Decimal, InvalidOperation
+    from inventory.models import PartIssueLine
+    from inventory.services import execute_warehouse_issue
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    line = get_object_or_404(PartIssueLine, pk=line_id, work_order=wo)
+    try:
+        qty = Decimal(request.POST.get("qty") or "0")
+    except (InvalidOperation, ValueError):
+        messages.error(request, "Issue qty must be a number.")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    try:
+        result = execute_warehouse_issue(line=line, qty=qty, actor=request.user)
+    except Exception as e:
+        messages.error(request, f"⚠️ Could not issue {qty} × {line.part.name}: {e}")
+        return redirect("work_order_detail", pk=wo.pk)
+
+    messages.success(
+        request,
+        f"📤 Issued {result['actual_issued']:g} × {line.part.name}. "
+        f"Stock: {result['stock_after']} remaining.",
+    )
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_mark_fulfilled(request, pk, report_id):
+    """Manager marks a shortage as FULFILLED (manual verification, v4.8)."""
+    from inventory.models import PartShortageReport
+    from inventory.services import mark_shortage_fulfilled
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    report = get_object_or_404(PartShortageReport, pk=report_id, work_order=wo)
+
+    try:
+        mark_shortage_fulfilled(report=report, actor=request.user)
+    except Exception as e:
+        messages.error(request, str(e))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    messages.success(request, f"✓ Shortage marked fulfilled for {report.part.name}.")
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+def shortage_dashboard(request):
+    """Manager's shortage dashboard: counts by state, oldest pending, top parts."""
+    from inventory.models import PartShortageReport
+    from django.db.models import Count, F, ExpressionWrapper, fields
+
+    qs = PartShortageReport.objects.all()
+    counts = {s.value: qs.filter(status=s.value).count() for s in PartShortageReport.Status}
+
+    pending_qs = qs.filter(status=PartShortageReport.Status.PENDING_REVIEW).order_by("created_at")
+    oldest_pending = pending_qs.select_related("work_order", "part", "reported_by")[:10]
+
+    in_fulfillment = qs.filter(status=PartShortageReport.Status.IN_FULFILLMENT).order_by("reviewed_at")
+    in_fulfillment_list = in_fulfillment.select_related("work_order", "part")[:20]
+
+    top_parts = (
+        qs.filter(status__in=[
+            PartShortageReport.Status.PENDING_REVIEW,
+            PartShortageReport.Status.APPROVED,
+            PartShortageReport.Status.IN_FULFILLMENT,
+        ])
+        .values("part__sku", "part__name")
+        .annotate(active=Count("id"))
+        .order_by("-active")[:10]
+    )
+
+    return render(request, "maintenance/shortage_dashboard.html", {
+        "counts": counts,
+        "oldest_pending": oldest_pending,
+        "in_fulfillment_list": in_fulfillment_list,
+        "top_parts": top_parts,
+        "STATUS_CHOICES": PartShortageReport.Status.choices,
     })

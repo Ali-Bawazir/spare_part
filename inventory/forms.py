@@ -98,6 +98,33 @@ class ConsumableUseForm(forms.Form):
     machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL))
 
 
+class IssueConsumableForm(forms.Form):
+    """Manager/supervisor issues consumable to an operator (source = SUPERVISOR_ISSUE)."""
+    consumed_by = forms.ModelChoiceField(
+        queryset=None,  # Set in __init__
+        widget=forms.Select(attrs=_SEL),
+        label="Operator",
+    )
+    part = forms.ModelChoiceField(
+        queryset=SparePart.objects.filter(
+            is_consumable=True,
+            status="active",
+        ),
+        widget=forms.Select(attrs=_SEL),
+    )
+    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL))
+    machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL))
+    note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": "Optional note"}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from accounts.models import User
+        self.fields["consumed_by"].queryset = User.objects.filter(
+            is_active=True,
+            role__in=[User.Role.OPERATOR, User.Role.TECHNICIAN],
+        ).order_by("username")
+
+
 class SparePartForm(forms.ModelForm):
     """Operational spare part form — used in stock module (not Django admin)."""
 

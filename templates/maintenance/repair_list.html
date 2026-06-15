@@ -3,7 +3,7 @@
 {% block title %}Repairs{% endblock %}
 {% block page_heading %}External repair orders{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Vendor repairs (UC-19/20). Procurement updates status; maintenance manager accepts after return.</p>
+<p class="mms-page-lead">Vendor repairs (UC-19/20). Supply Officer updates status; maintenance manager accepts after return.</p>
 {% if perm_repair_create %}
 <p class="mms-actions"><a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_create' %}">New repair request</a></p>
 {% endif %}
@@ -20,6 +20,7 @@
         <td style="white-space:nowrap">
           {% if perm_repair_officer %}
           <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'repair_officer' r.pk %}">Officer</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'repair_order_pdf' r.pk %}" target="_blank">PDF</a>
           {% endif %}
           {% if perm_repair_manager_accept %}
             {% if r.status == 'returned' %}

@@ -10,6 +10,9 @@
 {% endif %}
 <p class="mms-page-lead">
   {{ wo.machine.name }}
+  {% if wo.component %}
+    → Component: {{ wo.component.name }} ({{ wo.component.asset_code }})
+  {% endif %}
   <span class="{{ wo.status|wo_status_badge_class }}">{{ wo.get_status_display }}</span>
   <span class="mms-badge mms-badge--muted">{{ wo.get_category_display }}</span>
   {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">Emergency</span>{% endif %}
@@ -32,15 +35,26 @@
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Issue photos</span><br>
         <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem">
           {% for att in issue_attachments %}
+            {% if att.mime_type|slice:":5" == "audio" %}
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:80px;height:80px;background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:4px">
+                <span style="font-size:1.2rem">🎤</span>
+                <span style="font-size:0.6rem;color:#166534;font-weight:600">AUDIO</span>
+                <audio src="{{ att.file.url }}" controls style="height:24px;width:70px;margin-top:2px"></audio>
+              </div>
+            {% else %}
     <a href="{{ att.file.url }}" target="_blank" title="{{ att.filename }}">
       <img src="{% if att.thumbnail %}{{ att.thumbnail.url }}{% else %}{{ att.file.url }}{% endif %}" alt="{{ att.filename }}" style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #ddd">
     </a>
+            {% endif %}
           {% endfor %}
         </div>
       </div>
       {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Reporter / validator</span><br>{{ wo.issue.reported_by.username }}{% if wo.issue.validated_by %} / {{ wo.issue.validated_by.username }}{% endif %}</div>
       <div class="mms-divider"></div>
+      {% endif %}
+      {% if wo.component %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Component</span><br>{{ wo.component.name }} ({{ wo.component.asset_code }})</div>
       {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Technician</span><br>{{ wo.assigned_technician|default:"-" }}</div>
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Labor</span><br>
@@ -93,6 +107,260 @@
           {% endif %}
           {% if perm_create_purchase_request %}
           <p style="font-size:.8rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_create' %}?wo={{ wo.pk }}">New purchase request for this WO</a></p>
+          {% endif %}
+
+          {# ============ Manager: Pending shortage reports (Sprint 1 / Step 6 + v4.8) ============ #}
+          {% if perm_decide_part_shortage_report and pending_shortage_reports %}
+            <div class="mms-card" style="margin-top:1rem">
+              <div class="mms-card-header">📦 Parts Awaiting Decision ({{ pending_shortage_reports|length }})</div>
+              <div class="mms-card-body">
+                <table class="mms-table mms-shortage-table">
+                  <thead><tr>
+                    <th>Part</th>
+                    <th>Need</th>
+                    <th>Stock</th>
+                    <th>Reported</th>
+                  </tr></thead>
+                  <tbody>
+                    {% for r in pending_shortage_reports %}
+                    <tr>
+                      <td>
+                        <strong>{{ r.part.name }}</strong>
+                        {% if r.part.sku %}<br><small class="text-muted">{{ r.part.sku }}</small>{% endif %}
+                        {% if r.wo_priority_snapshot %}
+                          <span class="mms-badge mms-badge--{% if r.wo_priority_snapshot == 'critical' %}danger{% elif r.wo_priority_snapshot == 'high' %}warning{% else %}info{% endif %}" style="margin-left:.35rem">
+                            {{ r.wo_priority_snapshot|upper }}
+                          </span>
+                        {% endif %}
+                      </td>
+                      <td>{{ r.qty_requested }}</td>
+                      <td>
+                        {% if r.usable_qty_snapshot|add:0 == 0 %}🔴 0{% else %}🟡 {{ r.usable_qty_snapshot }}{% endif %}
+                        <br><small>Min: {{ r.min_qty_snapshot|default:r.usable_qty_snapshot }}</small>
+                        <br><small>avail: {{ r.available_qty_snapshot }} / reserved: {{ r.reserved_qty_snapshot }}</small>
+                      </td>
+                      <td>
+                        {{ r.reported_by.username }}
+                        <br><small class="text-muted">{{ r.created_at|timesince }} ago ({{ r.created_at|date:"d M H:i" }})</small>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="4" style="padding:0">
+                        <details>
+                          <summary style="padding:.5rem .75rem; cursor:pointer; background:#fafafa; border-top:1px solid #eee">
+                            Review shortage for {{ r.part.name }} ▾
+                          </summary>
+                          <form method="post" action="{% url 'work_order_decide_shortage' wo.pk r.pk %}" style="padding:.75rem; background:#fafafa; border-top:1px solid #eee">
+                            {% csrf_token %}
+                            <div class="mms-form-row">
+                              <label>Decision type</label>
+                              <select name="decision_type" class="form-select">
+                                <option value="approve" selected>✅ Approve (issue and/or procure)</option>
+                                <option value="reject">❌ Reject</option>
+                              </select>
+                            </div>
+                            <div class="mms-form-row">
+                              <label>Issue from stock</label>
+                              <input type="number" name="approved_issue_qty" min="0" step="0.001" value="{{ r.qty_requested }}" class="form-control">
+                              <small style="color:#6b7280">Default = {{ r.qty_requested }}. Edit to commit less.</small>
+                            </div>
+                            <div class="mms-form-row">
+                              <label>Procure (via PR)</label>
+                              <input type="number" name="approved_procurement_qty" min="0" step="0.001" value="0" class="form-control">
+                            </div>
+                            <div class="mms-form-row">
+                              <label>Reject (not needed)</label>
+                              <input type="number" name="rejected_qty" min="0" step="0.001" value="0" class="form-control">
+                            </div>
+                            <div class="mms-form-row">
+                              <label>Expected availability (procure ETA)</label>
+                              <input type="date" name="expected_availability_date" class="form-control">
+                            </div>
+                            <div class="mms-form-row">
+                              <label>Rejection reason (reject only, min 15 chars)</label>
+                              <textarea name="rejection_reason" minlength="15" rows="2" class="form-control"></textarea>
+                            </div>
+                            <div class="mms-form-row">
+                              <label>Decision note (optional)</label>
+                              <textarea name="decision_note" rows="2" class="form-control"></textarea>
+                            </div>
+                            <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Submit Decision</button>
+                          </form>
+                        </details>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endif %}
+
+          {# ============ v4.8: Pending Warehouse Issue panel ============ #}
+          {% if pending_warehouse_issues %}
+            <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
+              <div class="mms-card-header">📤 Pending Warehouse Issue ({{ pending_warehouse_issues|length }})</div>
+              <div class="mms-card-body">
+                <ul style="margin:0; padding:0; list-style:none">
+                  {% for item in pending_warehouse_issues %}
+                    <li style="padding:.5rem 0; border-bottom:1px solid #eee">
+                      <strong>{{ item.report.part.name }}</strong>
+                      — Manager approved: <strong>{{ item.decision.approved_issue_qty }}</strong> from stock
+                      <small style="color:#6b7280">(already issued: {{ item.report.qty_issued }})</small>
+                      <form method="post" action="{% url 'work_order_warehouse_issue' wo.pk item.report.issue_lines.first.pk %}" style="display:inline; margin-left:.5rem">
+                        {% csrf_token %}
+                        <input type="hidden" name="qty" value="{{ item.remaining_to_issue }}">
+                        <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">
+                          📤 Issue {{ item.remaining_to_issue }} from stock
+                        </button>
+                      </form>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          {% endif %}
+
+          {# ============ v4.8: Decisions Recorded panel (read-only summary) ============ #}
+          {% if decided_shortage_reports %}
+            <div class="mms-card" style="margin-top:1rem">
+              <div class="mms-card-header">📦 Decisions Recorded ({{ decided_shortage_reports|length }})</div>
+              <div class="mms-card-body">
+                <table class="mms-table">
+                  <thead><tr>
+                    <th>Part</th>
+                    <th>Decision</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr></thead>
+                  <tbody>
+                    {% for r in decided_shortage_reports %}
+                    <tr>
+                      <td>
+                        <strong>{{ r.part.name }}</strong>
+                        {% if r.part.sku %}<br><small class="text-muted">{{ r.part.sku }}</small>{% endif %}
+                      </td>
+                      <td>
+                        {% if r.decision %}
+                          {% if r.decision.decision_type == "approve" %}
+                            <span class="mms-badge mms-badge--success">✅ Approve</span>
+                            <br><small>
+                              Issue: <strong>{{ r.decision.approved_issue_qty }}</strong> ·
+                              Procure: <strong>{{ r.decision.approved_procurement_qty }}</strong> ·
+                              Reject: <strong>{{ r.decision.rejected_qty }}</strong>
+                              {% if r.decision.expected_availability_date %}
+                                · ETA: <strong>{{ r.decision.expected_availability_date|date:"d M Y" }}</strong>
+                              {% endif %}
+                            </small>
+                          {% else %}
+                            <span class="mms-badge mms-badge--danger">❌ Reject</span>
+                            {% if r.decision.rejection_reason %}
+                              <br><small>{{ r.decision.rejection_reason|truncatechars:60 }}</small>
+                            {% endif %}
+                          {% endif %}
+                          {% if r.decision.decision_note %}
+                            <br><small style="color:#6b7280">📝 {{ r.decision.decision_note|truncatechars:60 }}</small>
+                          {% endif %}
+                        {% else %}
+                          <em style="color:#6b7280">Legacy (no decision row)</em>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <span class="mms-badge mms-badge--info">{{ r.get_status_display }}</span>
+                        <br><small>Decided {{ r.reviewed_at|date:"d M H:i" }}</small>
+                      </td>
+                      <td>
+                        {% if r.status == "approved" and r.decision and r.decision.decision_type == "approve" %}
+                          <details style="margin-bottom:.25rem">
+                            <summary style="cursor:pointer; color:#0d6efd; font-size:.85em">✎ Edit decision</summary>
+                            <form method="post" action="{% url 'work_order_edit_shortage' wo.pk r.pk %}" style="padding:.5rem; margin-top:.25rem; background:#fafafa; border-radius:4px">
+                              {% csrf_token %}
+                              <div class="mms-form-row">
+                                <label>Issue from stock</label>
+                                <input type="number" name="approved_issue_qty" min="0" step="0.001" value="{{ r.decision.approved_issue_qty }}" class="form-control">
+                              </div>
+                              <div class="mms-form-row">
+                                <label>Procure (via PR)</label>
+                                <input type="number" name="approved_procurement_qty" min="0" step="0.001" value="{{ r.decision.approved_procurement_qty }}" class="form-control">
+                                {% if r.purchase_requests.first %}
+                                  <small style="color:#b45309">⚠ PR #{{ r.purchase_requests.first.pk }} already created. Procurement qty cannot be changed.</small>
+                                {% endif %}
+                              </div>
+                              <div class="mms-form-row">
+                                <label>Reject (not needed)</label>
+                                <input type="number" name="rejected_qty" min="0" step="0.001" value="{{ r.decision.rejected_qty }}" class="form-control">
+                              </div>
+                              <div class="mms-form-row">
+                                <label>Decision note</label>
+                                <textarea name="decision_note" rows="2" class="form-control">{{ r.decision.decision_note }}</textarea>
+                              </div>
+                              <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Save Edit</button>
+                            </form>
+                          </details>
+                        {% elif r.is_decision_locked %}
+                          <small style="color:#6b7280">🔒 Decision locked</small>
+                        {% endif %}
+
+                        {% if r.status == "in_fulfillment" and r.decision and r.decision.decision_type == "approve" and r.qty_issued >= r.decision.approved_issue_qty %}
+                          <form method="post" action="{% url 'work_order_mark_fulfilled' wo.pk r.pk %}" style="display:inline">
+                            {% csrf_token %}
+                            <button class="mms-btn mms-btn--success mms-btn--sm" type="submit">✓ Mark as Fulfilled</button>
+                          </form>
+                          {% if r.decision.approved_procurement_qty > 0 %}
+                            <div class="mms-warning" style="margin-top:.25rem; font-size:.8em; color:#b45309; background:#fef3c7; padding:.25rem .5rem; border-left:3px solid #f59e0b">
+                              ⚠️ Procurement receipt tracking will be added in Sprint 4. Verify the {{ r.decision.approved_procurement_qty }} procurement unit(s) have been received outside the system before marking FULFILLED.
+                            </div>
+                          {% endif %}
+                        {% endif %}
+
+                        {% if r.status in "approved,in_fulfillment" %}
+                          <form method="post" action="{% url 'work_order_block_shortage' wo.pk r.pk %}" style="display:inline; margin-left:.25rem">
+                            {% csrf_token %}
+                            <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title="Mark as blocked (operational problem)">⚠ Block</button>
+                          </form>
+                        {% endif %}
+
+                        {% if r.status in "approved,in_fulfillment,blocked,fulfilled" %}
+                          <form method="post" action="{% url 'work_order_close_shortage' wo.pk r.pk %}" style="display:inline; margin-left:.25rem">
+                            {% csrf_token %}
+                            <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title="Close this shortage report (releases reservation, cancels PRs)">🗙 Close</button>
+                          </form>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endif %}
+
+          {# ============ v4.8: Awaiting Procurement (PR created) ============ #}
+          {% if approved_shortage_reports %}
+            <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
+              <div class="mms-card-body">
+                <strong>📦 Awaiting Procurement</strong>
+                <ul style="margin:.25rem 0 0 1rem; padding:0">
+                  {% for r in approved_shortage_reports %}
+                    {% if r.decision and r.decision.decision_type == "approve" and r.decision.approved_procurement_qty > 0 %}
+                      {% with pr=r.purchase_requests.first %}
+                        <li>
+                          {{ r.decision.approved_procurement_qty }} × {{ r.part.name }} —
+                          {% if r.expected_availability_date %}
+                            Expected: <strong>{{ r.expected_availability_date|date:"d M Y" }}</strong>
+                          {% else %}
+                            Expected: TBD
+                          {% endif %}
+                          {% if pr %}
+                            · <a href="{% url 'pr_detail' pr.pk %}">PR #{{ pr.pk }}</a>
+                          {% endif %}
+                        </li>
+                      {% endwith %}
+                    {% endif %}
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
           {% endif %}
         {% endif %}
       {% endif %}
@@ -173,38 +441,96 @@
           <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit for review</button>
         </form>
         {% endif %}
-      {% endif %}
 
-      {% if perm_request_part_on_wo and wo.status != 'closed' and wo.assigned_technician_id == user.id %}
+        {# ============ Sprint 1 (Step 6): component-first part-request form ============ #}
+        {% if perm_request_part_on_wo and wo.status != 'closed' %}
         <div class="mms-divider"></div>
-        <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Request a part (manager will approve)</h3>
-        <form method="post" action="{% url 'work_order_request_part' wo.pk %}" class="mms-stack">
+        <h4 style="font-size:.8rem;margin:1rem 0 .5rem 0;color:var(--mms-muted)">Request a part (manager will approve)</h4>
+        <form method="post" action="{% url 'work_order_request_part' wo.pk %}" class="mms-stack" id="part-request-form">
           {% csrf_token %}
+
           <div class="mms-form-row">
-            <label for="id_part">Part</label>
-            <select name="part" id="id_part" class="form-select" data-last-prices="{{ last_prices_json|default:'{}' }}" required>
-              <option value="">— Select —</option>
-              {% for p in part_request_form.fields.part.queryset %}
-              <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>
+            <label for="part-select">Part</label>
+            <select id="part-select" name="part" class="form-select" required>
+              <option value="">— Select a part —</option>
+              {% for p in active_parts %}
+                <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>
               {% endfor %}
             </select>
-            <small id="id_part_last_price" class="mms-form-hint" style="display:block;margin-top:.25rem;color:var(--mms-muted);font-size:.8rem"></small>
+            <small style="color:var(--mms-muted)">All active parts shown</small>
           </div>
+
+          <div id="part-availability-card" class="mms-card" style="display:none; margin:.5rem 0; padding:.75rem; background:#f8f9fa">
+            <div style="display:flex; align-items:center; gap:.75rem">
+              <img id="part-thumb" src="" alt="" style="width:56px; height:56px; object-fit:cover; border-radius:8px; display:none; background:#fff">
+              <div style="flex:1">
+                <div id="part-stock-state" style="font-weight:700; font-size:1.05rem"></div>
+                <div id="part-stock-detail" style="color:var(--mms-muted); font-size:.85em"></div>
+              </div>
+            </div>
+            <div id="part-history-line" style="margin-top:.5rem; font-size:.8em; color:var(--mms-muted)"></div>
+          </div>
+
           <div class="mms-form-row">
-            <label for="id_quantity">Quantity</label>
-            <input type="number" name="quantity" id="id_quantity" min="0.001" step="0.001" class="form-control" required>
+            <label for="quantity-input">Quantity</label>
+            <input type="number" name="quantity" id="quantity-input" min="0.001" step="0.001" required class="form-control">
           </div>
+
           <div class="mms-form-row">
-            <label for="id_note">Note (optional)</label>
-            <textarea name="note" id="id_note" rows="2" class="form-control" maxlength="500" placeholder="Context for the manager"></textarea>
+            <label for="note-input">Note (optional, shown to manager)</label>
+            <textarea name="note" id="note-input" rows="2" maxlength="500" class="form-control"></textarea>
           </div>
+
           {% if wo.is_emergency %}
           <div class="mms-form-tip" style="background:#f8d7da;border-left:3px solid #dc3545;padding:.5rem .75rem">
             <strong>Emergency WO:</strong> Your request will be auto-approved and stock will be deducted immediately. Manager will review the cost afterward.
           </div>
           {% endif %}
-          <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Submit part request</button>
+
+          <button class="mms-btn mms-btn--primary" type="submit">Submit part request</button>
         </form>
+
+        {# ============ Result message after submit (rendered server-side) ============ #}
+        {% if last_request_result %}
+          {% if last_request_result.suggested_action == "fully_issued" or last_request_result.suggested_action == "awaiting_manager_approval" %}
+            <div class="mms-alert mms-alert--success" style="margin-top:1rem; padding:.75rem; background:#d1e7dd; border-left:3px solid #198754; border-radius:4px">
+              <strong>✅ {{ last_request_result.line_quantity }} × {{ last_request_result.part_name }} requested. Awaiting manager approval.</strong>
+              <div style="font-size:.85em; margin-top:.25rem">Stock is available; the manager will approve and deduct the stock.</div>
+            </div>
+          {% elif last_request_result.shortage %}
+            <div class="mms-alert mms-alert--warning" style="margin-top:1rem; padding:.75rem; background:#fff3cd; border-left:3px solid #f0ad4e; border-radius:4px">
+              <strong>⚠️ Requested {{ last_request_result.line_quantity }}, in stock {{ last_request_result.usable_qty_snapshot }} × {{ last_request_result.part_name }}.</strong>
+              <div style="font-size:.85em; margin-top:.25rem">
+                <strong>The manager has NOT been notified yet.</strong> Click below to escalate the shortage.
+              </div>
+              <form method="post" action="{% url 'work_order_request_shortage' wo.pk %}" style="margin-top:.5rem; display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="part_id" value="{{ last_request_result.part_id }}">
+                <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">
+                  📦 Raise Shortage Request → Manager
+                </button>
+              </form>
+            </div>
+          {% endif %}
+        {% endif %}
+
+        {# ============ Awaiting Procurement (ETA display for tech) ============ #}
+        {% if approved_shortage_reports %}
+          <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
+            <div class="mms-card-body">
+              <strong>📦 Awaiting Procurement</strong>
+              <ul style="margin: .25rem 0 0 1rem; padding: 0">
+                {% for r in approved_shortage_reports %}
+                  <li>
+                    {{ r.qty_requested }} × {{ r.part.name }} —
+                    Expected: <strong>{{ r.expected_availability_date|default:"TBD"|date:"d M Y" }}</strong>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        {% endif %}
+        {% endif %}
       {% endif %}
 
       {% if perm_close_or_review_wo and wo.status == 'pending_review' %}
@@ -242,7 +568,15 @@
       <tbody>
       {% for p in part_issues %}
       <tr>
-        <td>{{ p.part.name }}</td>
+        <td>
+          {% part_primary_image p.part as img %}
+          {% if img %}
+            <a href="{{ p.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;">
+            </a>
+          {% endif %}
+          {{ p.part.name }}
+        </td>
         <td>{{ p.quantity }}</td>
         <td>
           <span class="{{ p.status|part_status_badge_class }}">{{ p.get_status_display }}</span>
@@ -262,40 +596,91 @@
   </div>
 </div>
 
-{% if pending_part_requests and perm_approve_part_request %}
+{% if pending_part_requests %}
 <div class="mms-card" style="margin-top:1rem;border-left:4px solid #f0ad4e">
-  <div class="mms-card-header" style="background:#fff8e1">Pending part requests ({{ pending_part_requests.count }})</div>
+  <div class="mms-card-header" style="background:#fff8e1">
+    Pending part requests ({{ pending_part_requests.count }})
+    {% if not perm_approve_part_request %}
+    <span style="font-size:.75rem;color:#6b7280;font-weight:normal;margin-left:.5rem">read-only</span>
+    {% endif %}
+  </div>
   <div class="mms-card-body mms-stack">
     {% for req in pending_part_requests %}
-    <form method="post" action="{% url 'work_order_decide_part' wo.pk req.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed">
+    <div class="mms-card" style="box-shadow:none;border-style:dashed">
       <div class="mms-card-body mms-stack">
-        {% csrf_token %}
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          {% part_primary_image req.part as img %}
+          {% if img %}
+            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+            </a>
+          {% endif %}
           <strong>{{ req.part.name }}</strong>
           <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
           <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|date:"Y-m-d H:i" }}</span>
         </div>
-        <div class="mms-form-row">
-          <label>Action</label>
-          <select name="action" class="form-select" required>
-            <option value="approve">Approve (deduct stock)</option>
-            <option value="edit">Edit quantity</option>
-            <option value="reject">Reject</option>
-          </select>
-        </div>
-        <div class="mms-form-row">
-          <label>New qty (when editing)</label>
-          <input type="number" name="new_qty" min="0.001" step="0.001" class="form-control" value="{{ req.quantity }}">
-        </div>
-        <div class="mms-form-row">
-          <label>Rejection reason (required when rejecting)</label>
-          <textarea name="rejection_reason" rows="2" class="form-control" maxlength="1000"></textarea>
-        </div>
-        <div class="mms-actions">
-          <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit decision</button>
-        </div>
+        {% if perm_approve_part_request %}
+        <form method="post" action="{% url 'work_order_decide_part' wo.pk req.pk %}">
+          {% csrf_token %}
+          <div class="mms-form-row">
+            <label>Action</label>
+            <select name="action" class="form-select" required>
+              <option value="approve">Approve (deduct stock)</option>
+              <option value="edit">Edit quantity</option>
+              <option value="reject">Reject</option>
+            </select>
+          </div>
+          <div class="mms-form-row">
+            <label>New qty (when editing)</label>
+            <input type="number" name="new_qty" min="0.001" step="0.001" class="form-control" value="{{ req.quantity }}">
+          </div>
+          <div class="mms-form-row">
+            <label>Rejection reason (required when rejecting)</label>
+            <textarea name="rejection_reason" rows="2" class="form-control" maxlength="1000"></textarea>
+          </div>
+          <div class="mms-actions">
+            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit decision</button>
+          </div>
+        </form>
+        {% endif %}
       </div>
-    </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if refused_part_requests %}
+<div class="mms-card" style="margin-top:1rem;border-left:4px solid #dc2626">
+  <div class="mms-card-header" style="background:#fef2f2">
+    Refused part requests ({{ refused_part_requests.count }})
+  </div>
+  <div class="mms-card-body mms-stack">
+    {% for req in refused_part_requests %}
+    <div class="mms-card" style="box-shadow:none;border-style:dashed">
+      <div class="mms-card-body mms-stack">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          {% part_primary_image req.part as img %}
+          {% if img %}
+            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+            </a>
+          {% endif %}
+          <strong>{{ req.part.name }}</strong>
+          <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
+          <span class="mms-badge mms-badge--danger">Refused</span>
+          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|date:"Y-m-d H:i" }}</span>
+        </div>
+        {% if req.rejection_reason %}
+        <div style="font-size:.85rem;color:#7f1d1d">
+          <strong>Reason:</strong> {{ req.rejection_reason }}
+        </div>
+        {% endif %}
+        {% if request.user == req.requested_by %}
+        <a href="{% url 'work_order_request_part_re_review' req.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">✏️ Edit & re-submit</a>
+        {% endif %}
+      </div>
+    </div>
     {% endfor %}
   </div>
 </div>
@@ -423,7 +808,15 @@
     <table class="mms-table">
       <thead><tr><th>PR</th><th>Part</th><th>Qty</th><th>Status</th></tr></thead>
       <tbody>
-      {% for pr in linked_prs %}<tr><td>#{{ pr.id }}</td><td>{{ pr.part.sku }}</td><td>{{ pr.quantity }}</td><td><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></td></tr>{% endfor %}
+      {% for pr in linked_prs %}<tr><td>#{{ pr.id }}</td><td>
+        {% part_primary_image pr.part as img %}
+        {% if img %}
+          <a href="{{ pr.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+            <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+          </a>
+        {% endif %}
+        {{ pr.part.name }} ({{ pr.part.sku }})
+      </td><td>{{ pr.quantity }}</td><td><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -512,6 +905,30 @@
 </section>
 {% endif %}
 
+{% if perm_request_part_on_wo or perm_close_or_review_wo or perm_approve_part_request or perm_decide_part_shortage_report %}
+<div class="mms-card" style="margin-top:1rem;border-left:4px solid #16a34a">
+  <div class="mms-card-header" style="background:#f0fdf4">🎤 Add voice note</div>
+  <div class="mms-card-body">
+    <p class="text-muted" style="margin:0 0 .75rem 0;font-size:.85rem">
+      Record a verbal note (e.g. supplier update, vendor callback, work log) and save it as an attachment to this WO.
+      The recording is auto-stopped at 60s and the file is linked to WO-{{ wo.number }}.
+    </p>
+    <form method="post" action="{% url 'work_order_add_voice' wo.pk %}">
+      {% csrf_token %}
+      <div class="mms-form-row" style="margin-bottom:.5rem">
+        <label for="wo-voice-note-input" style="font-size:.85rem">Note (optional, shown alongside the recording)</label>
+        <input type="text" name="note" id="wo-voice-note-input" maxlength="500"
+               class="form-control" placeholder="e.g. 'Called supplier ABC, they will deliver Friday'">
+      </div>
+      {% include "maintenance/_voice_recorder.html" %}
+      <div class="mms-form-actions" style="margin-top:.5rem">
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">📤 Save voice note</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 <section class="mms-section mms-attachments">
   <h3>Attachments</h3>
   <div id="attachment-list"
@@ -548,6 +965,69 @@
 .mms-form-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
 .mms-form-row input[type="file"] { flex: 1; min-width: 200px; }
 .mms-badge--archived { background: #e0e0e0; color: #666; }
+
+/* ============ Voice recorder (Sprint 1 UX) ============ */
+.mms-voice-recorder {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem;
+  background: #f6f7f9;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  flex: 1;
+  min-width: 260px;
+}
+.mms-voice-recorder.mms-voice-recording {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+.mms-voice-recorder.mms-voice-uploaded {
+  border-color: #198754;
+  background: #f1f9f4;
+}
+.mms-voice-recorder.mms-voice-error {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+.mms-voice-controls {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.mms-voice-timer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #212529;
+  min-width: 3ch;
+}
+.mms-voice-recorder.mms-voice-recording .mms-voice-timer {
+  color: #dc3545;
+}
+.mms-voice-pulse {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc3545;
+  animation: mms-pulse 1s ease-in-out infinite;
+}
+@keyframes mms-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(1.4); }
+}
+.mms-voice-status {
+  font-size: .85em;
+  color: var(--mms-muted);
+}
+.mms-voice-recorder.mms-voice-recording .mms-voice-status {
+  color: #dc3545;
+  font-weight: 700;
+}
+.mms-shortage-table details[open] > summary { background: #eef2f7; }
+.mms-shortage-table details form { max-width: 960px; }
 </style>
 
 <script>
@@ -583,16 +1063,23 @@ document.addEventListener('DOMContentLoaded', function() {
         listEl.innerHTML = '<p class="mms-empty">No attachments yet.</p>';
         return;
       }
-      listEl.innerHTML = data.attachments.map(a => `
-        <div class="mms-attachment-item">
-          <div class="mms-attachment-info">
+      listEl.innerHTML = data.attachments.map(a => {
+        const isAudio = a.mime_type && a.mime_type.startsWith('audio/');
+        const player = isAudio
+          ? `<audio controls style="width:100%;max-width:400px;margin-top:4px"><source src="${a.url}" type="${a.mime_type}"></audio>`
+          : '';
+        return `
+        <div class="mms-attachment-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+          <div class="mms-attachment-info" style="width:100%">
             <a href="${a.url}" target="_blank">${a.filename}</a>
             <span class="mms-meta">${(a.size/1024).toFixed(1)} KB</span>
             <span class="mms-meta">${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}</span>
           </div>
+          ${player}
           ${listEl.dataset.permUpload === 'true' ? `<button class="btn btn-sm btn-danger" onclick="deleteAtt(${a.id})">×</button>` : ''}
         </div>
-      `).join('');
+        `;
+      }).join('');
     });
 
   // Upload form
@@ -620,4 +1107,7 @@ function deleteAtt(id) {
     .then(() => location.reload());
 }
 </script>
+
+{% include "maintenance/_asset_tree.html" %}
+{% include "maintenance/_part_request_js.html" %}
 {% endblock %}

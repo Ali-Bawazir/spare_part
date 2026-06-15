@@ -65,9 +65,22 @@ class PurchaseRequest(models.Model):
         on_delete=models.SET_NULL,
         related_name="purchase_requests",
     )
+    machine = models.ForeignKey(
+        "maintenance.Machine",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="purchase_requests",
+    )
+    component = models.ForeignKey(
+        "maintenance.Machine",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="component_purchase_requests",
+        limit_choices_to={"asset_level": 5},
+    )
     quantity = models.DecimalField(max_digits=14, decimal_places=3)
-    urgency = models.CharField(max_length=32, default="normal")
-    is_emergency = models.BooleanField(default=False, db_index=True)
     notes = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
@@ -94,6 +107,18 @@ class PurchaseRequest(models.Model):
         on_delete=models.SET_NULL,
         related_name="purchase_requests",
     )
+    source_shortage_report = models.ForeignKey(
+        "inventory.PartShortageReport",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="purchase_requests",
+        help_text=(
+            "Set when this PR was auto-created from a shortage decision. "
+            "Null for manual PRs. SET_NULL on delete (closing the shortage "
+            "does not delete the PR)."
+        ),
+    )
     unit_price = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     handled_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -110,6 +135,12 @@ class PurchaseRequest(models.Model):
 
     def __str__(self) -> str:
         return f"PR #{self.pk} — {self.part.sku} x{self.quantity}"
+
+    def clean(self):
+        super().clean()
+        from maintenance.validators import validate_component_belongs_to_machine
+        if self.machine_id and self.component_id:
+            validate_component_belongs_to_machine(self.component, self.machine)
 
 
 class PurchaseOrder(models.Model):
