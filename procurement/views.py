@@ -1,22 +1,25 @@
+import logging
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.db import models, transaction
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from decimal import Decimal
-
 from django.utils import timezone
-from django.db import models
 
 from accounts.models import User
 from accounts.permissions import role_required
 from inventory.models import Inventory, StockMovement
 from inventory.services import stock_in
+from inventory.services_allocation import PartAllocationService
 from maintenance.models import Machine, Site
-
-from django.http import JsonResponse
+from maintenance.services_notifications import notify_po_received_summary
 
 from .forms import PurchaseOfficerForm, PurchaseRequestForm, PurchaseOrderForm, SupplierQuickForm
 from .models import PurchaseRequest, PurchaseOrder, PurchaseOrderItem, Supplier
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -431,102 +434,182 @@ def purchase_order_detail(request, pk):
 @login_required
 @role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def purchase_order_receive(request, pk):
-    """Receive items against a PO — separate endpoint per spec."""
+    """Receive items against a PO with v2 features: per-line condition,
+    supplier invoice capture, reallocation, atomic transaction, and
+    summary notification.
+
+    POST form fields per line item:
+      - good_qty_<pk>: units received in good condition
+      - damaged_qty_<pk>: units received damaged (go to quarantine)
+      - rejected_qty_<pk>: units rejected at inspection (no stock change)
+      - actual_unit_price_<pk>: actual invoiced unit price (overrides negotiated)
+
+    PO-level:
+      - supplier_invoice_ref: vendor invoice number (free text)
+    """
     po = get_object_or_404(
-        PurchaseOrder.objects.prefetch_related("items", "items__part"),
-        pk=pk
+        PurchaseOrder.objects.prefetch_related(
+            "items", "items__part", "purchase_requests"
+        ),
+        pk=pk,
     )
-    if po.status == PurchaseOrder.Status.RECEIVED:
-        messages.warning(request, "PO is already fully received.")
-        return redirect("purchase_order_detail", pk=pk)
-    if po.status == PurchaseOrder.Status.CLOSED_SHORT:
-        messages.warning(request, "PO is closed short.")
-        return redirect("purchase_order_detail", pk=pk)
-    if po.status == PurchaseOrder.Status.CANCELLED:
-        messages.warning(request, "PO is cancelled.")
+    if po.status in {PurchaseOrder.Status.RECEIVED, PurchaseOrder.Status.CLOSED_SHORT, PurchaseOrder.Status.CANCELLED}:
+        messages.warning(request, f"PO is {po.get_status_display().lower()} — cannot receive.")
         return redirect("purchase_order_detail", pk=pk)
 
-    if request.method == "POST":
-        received_data = []
+    if request.method != "POST":
+        return render(request, "procurement/po_receive.html", {"po": po})
+
+    # Pre-flight: validate totals
+    site = Site.objects.filter(is_default=True).first()
+    if not site:
+        messages.error(request, "No default site configured.")
+        return redirect("purchase_order_detail", pk=pk)
+
+    supplier_invoice_ref = (request.POST.get("supplier_invoice_ref") or "").strip()
+    line_changes: list[dict] = []  # for the summary notification
+
+    with transaction.atomic():
         for item in po.items.all():
-            received_key = f"received_qty_{item.pk}"
-            received_qty = request.POST.get(received_key)
-            if received_qty and Decimal(str(received_qty)) > 0:
-                qty = Decimal(str(received_qty))
-                remaining = item.ordered_qty - item.received_qty
-                if qty > remaining:
-                    qty = remaining
+            good = _to_decimal(request.POST.get(f"good_qty_{item.pk}")) or Decimal("0")
+            damaged = _to_decimal(request.POST.get(f"damaged_qty_{item.pk}")) or Decimal("0")
+            rejected = _to_decimal(request.POST.get(f"rejected_qty_{item.pk}")) or Decimal("0")
+            actual_price = _to_decimal(request.POST.get(f"actual_unit_price_{item.pk}"))
+            total_received = good + damaged + rejected
 
-                recent = StockMovement.objects.filter(
-                    part=item.part,
-                    invoice_ref=f"{po.po_number}",
-                    quantity=qty,
-                    created_at__gte=timezone.now() - timezone.timedelta(seconds=10),
-                ).exists()
-                if recent:
-                    messages.warning(request, f"Duplicate receipt detected for {item.part.sku}.")
-                    continue
+            if total_received <= 0 and not actual_price:
+                continue  # nothing to do for this line
 
-                site = Site.objects.filter(is_default=True).first()
+            remaining = item.ordered_qty - item.received_qty
+            if total_received > remaining and remaining > 0:
+                messages.warning(
+                    request,
+                    f"{item.part.sku}: receiving {total_received} exceeds remaining {remaining} — capped.",
+                )
+                # proportionally scale (or just cap the good portion)
+                ratio = remaining / total_received
+                good = (good * ratio).quantize(Decimal("0.001"))
+                damaged = (damaged * ratio).quantize(Decimal("0.001"))
+                rejected = (rejected * ratio).quantize(Decimal("0.001"))
+                total_received = good + damaged + rejected
+
+            # Update item fields
+            item.received_qty += total_received
+            item.damaged_qty += damaged
+            item.rejected_qty += rejected
+            if actual_price and actual_price > 0:
+                item.actual_unit_price = actual_price
+            update_fields = ["received_qty", "damaged_qty", "rejected_qty"]
+            if actual_price and actual_price > 0:
+                update_fields.append("actual_unit_price")
+            item.save(update_fields=update_fields)
+
+            # Stock in good units (to available)
+            if good > 0:
                 stock_in(
                     part=item.part,
-                    quantity=qty,
+                    quantity=good,
                     performed_by=request.user,
                     supplier_name=po.supplier.name if po.supplier else "",
-                    unit_cost=item.negotiated_unit_price,
-                    invoice_ref=f"{po.po_number}",
-                    note=f"Received against PO {po.po_number}",
+                    unit_cost=actual_price or item.negotiated_unit_price,
+                    invoice_ref=supplier_invoice_ref or f"{po.po_number}",
+                    note=f"Received against PO {po.po_number} (good)",
                     site=site,
                 )
 
-                item.received_qty += qty
-                item.save(update_fields=["received_qty"])
-
-                received_data.append({"part": item.part.name, "qty": qty})
-
-        if po.items.filter(received_qty__lt=models.F("ordered_qty")).exists():
-            po.status = PurchaseOrder.Status.PARTIAL_RECEIVED
-        else:
-            po.status = PurchaseOrder.Status.RECEIVED
-        po.save(update_fields=["status", "updated_at"])
-
-        for pr in po.purchase_requests.all():
-            if po.status == PurchaseOrder.Status.RECEIVED:
-                pr.status = PurchaseRequest.Status.FULFILLED
-            else:
-                pr.status = PurchaseRequest.Status.PARTIALLY_FULFILLED
-            pr.save(update_fields=["status"])
-
-        if received_data:
-            items_str = ", ".join([f"{d['part']} x{d['qty']}" for d in received_data])
-            messages.success(request, f"Received: {items_str}")
-
-        # v4.9.3: notify the WO tech + manager when a part is received and
-        # linked to a WO. Helps them continue work without checking the PO
-        # manually.
-        from maintenance.notifications import notify_wo_part_received
-        for pr in po.purchase_requests.all():
-            if not pr.work_order_id:
-                continue
-            for d in received_data:
-                # d["part"] is a name; we need the part object — re-find it
-                part_obj = next(
-                    (item.part for item in po.items.all() if item.part.name == d["part"]),
-                    None,
+            # Damaged → quarantine
+            if damaged > 0:
+                inv, _ = Inventory.objects.select_for_update().get_or_create(
+                    part=item.part, site=site,
+                    defaults={"quantity_available": Decimal("0")},
                 )
-                if part_obj:
+                inv.quantity_quarantine += damaged
+                inv.save(update_fields=["quantity_quarantine"])
+                StockMovement.objects.create(
+                    part=item.part,
+                    movement_type=StockMovement.MovementType.ADJUSTMENT,
+                    quantity=damaged,
+                    quantity_before=inv.quantity_quarantine - damaged,
+                    quantity_after=inv.quantity_quarantine,
+                    work_order=None,
+                    site=site,
+                    performed_by=request.user,
+                    supplier_name=po.supplier.name if po.supplier else "",
+                    unit_cost=actual_price or item.negotiated_unit_price,
+                    invoice_ref=supplier_invoice_ref or f"{po.po_number}",
+                    reference={
+                        "destination": "quarantine",
+                        "reason": "damaged on receipt",
+                        "po_number": po.po_number,
+                    },
+                )
+
+            # Reallocate any part whose stock changed
+            if good > 0 or damaged > 0:
+                try:
+                    PartAllocationService.reallocate_for_part(item.part)
+                except Exception as e:
+                    logger.warning("reallocate_for_part(%s) failed: %s", item.part.sku, e)
+
+            # Per-line notification (legacy path — still works)
+            from maintenance.notifications import notify_wo_part_received
+            for pr in po.purchase_requests.all():
+                if pr.work_order_id and good > 0:
                     notify_wo_part_received(
                         work_order=pr.work_order,
-                        part=part_obj,
-                        qty=d["qty"],
+                        part=item.part,
+                        qty=good,
                         po=po,
                         actor=request.user,
                     )
-        return redirect("purchase_order_detail", pk=pk)
 
-    return render(request, "procurement/po_receive.html", {
-        "po": po,
-    })
+            if total_received > 0 or actual_price:
+                line_changes.append({
+                    "sku": item.part.sku,
+                    "name": item.part.name,
+                    "good": good,
+                    "damaged": damaged,
+                    "rejected": rejected,
+                })
+
+        # Update PO status
+        if not po.items.filter(received_qty__lt=models.F("ordered_qty")).exists():
+            po.status = PurchaseOrder.Status.RECEIVED
+        else:
+            po.status = PurchaseOrder.Status.PARTIAL_RECEIVED
+        po.save(update_fields=["status", "updated_at"])
+
+        # Update PR statuses
+        for pr in po.purchase_requests.all():
+            pr.status = (
+                PurchaseRequest.Status.FULFILLED
+                if po.status == PurchaseOrder.Status.RECEIVED
+                else PurchaseRequest.Status.PARTIALLY_FULFILLED
+            )
+            pr.save(update_fields=["status"])
+
+    # Outside atomic: fire summary notification
+    if line_changes:
+        notify_po_received_summary(po, request.user)
+        items_str = ", ".join(
+            f"{c['sku']} ({c['good']}g/{c['damaged']}d/{c['rejected']}r)"
+            for c in line_changes
+        )
+        messages.success(request, f"Received: {items_str}")
+        if supplier_invoice_ref:
+            messages.info(request, f"Supplier invoice ref: {supplier_invoice_ref}")
+
+    return redirect("purchase_order_detail", pk=pk)
+
+
+def _to_decimal(value) -> Decimal:
+    """Parse a Decimal from a string, returning Decimal('0') for None/empty/invalid."""
+    if not value:
+        return Decimal("0")
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
 
 
 @login_required
