@@ -13,7 +13,7 @@
   {% if wo.component %}
     → Component: {{ wo.component.name }} ({{ wo.component.asset_code }})
   {% endif %}
-  <span class="{{ wo.status|wo_status_badge_class }}">{{ wo.get_status_display }}</span>
+  <span class="{{ wo.lifecycle_status|wo_status_badge_class }}">{{ wo.get_lifecycle_status_display }}</span>
   <span class="mms-badge mms-badge--muted">{{ wo.get_category_display }}</span>
   {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">Emergency</span>{% endif %}
   {% if wo.issue %}<span class="mms-badge mms-badge--info">Issue #{{ wo.issue.id }}</span>{% endif %}
@@ -61,10 +61,9 @@
         Started: {{ wo.labor_started_at|default:"-" }}<br>
         Stopped: {{ wo.labor_stopped_at|default:"-" }}
       </div>
-      {% if wo.status == 'paused' %}
+      {% if wo.operational_status == 'paused' %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Pause reason</span><br>
-        <span class="mms-badge mms-badge--warning">{{ wo.get_pause_reason_display|default:"-" }}</span>
-        {% if wo.pause_note %}<div style="font-size:.8125rem;margin-top:.25rem;color:var(--mms-muted)">{{ wo.pause_note|linebreaksbr }}</div>{% endif %}
+        <span class="mms-badge mms-badge--warning">Paused</span>
       </div>
       {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Downtime window</span><br>
@@ -226,7 +225,7 @@
 {#   - Technician of own WO can submit a PENDING request             #}
 {#   - Manager sees pending requests and approves/rejects            #}
 {# ------------------------------------------------------------------ #}
-{% if wo.assigned_technician_id == request.user.id and wo.status != 'closed' and wo.status != 'completed' %}
+{% if wo.assigned_technician_id == request.user.id and wo.lifecycle_status != 'closed' %}
 <div class="mms-card" style="margin-top:1rem">
   <div class="mms-card-header" style="background:#e3f2fd">Request external repair (vendor)</div>
   <div class="mms-card-body">

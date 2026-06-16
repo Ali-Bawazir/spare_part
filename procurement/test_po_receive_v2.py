@@ -97,7 +97,7 @@ class PurchaseOrderReceiveV2Tests(TestCase):
         # A PurchaseRequest linked to a WO (so notify_wo_part_received has a target)
         self.wo = WorkOrder.objects.create(
             machine=self.machine, created_by=self.manager,
-            status=WorkOrder.Status.APPROVED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
         )
         self.pr = PurchaseRequest.objects.create(
             part=self.part_a, work_order=self.wo,

@@ -46,14 +46,12 @@ def _make_wo(
     machine: Machine = None,
     created_by: User,
     assigned_technician: User = None,
-    status: str = WorkOrder.Status.IN_PROGRESS,
     lifecycle_status: str = WorkOrder.LifecycleStatus.IN_PROGRESS,
     **kwargs,
 ) -> WorkOrder:
     defaults = {
         "machine": machine,
         "created_by": created_by,
-        "status": status,
         "lifecycle_status": lifecycle_status,
         "assigned_technician": assigned_technician,
     }
@@ -75,7 +73,6 @@ class WorkOrderPauseViewTests(TestCase):
         self.wo = _make_wo(
             machine=None, created_by=self.manager,
             assigned_technician=self.tech,
-            status=WorkOrder.Status.IN_PROGRESS,
             lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
         )
 
@@ -171,7 +168,6 @@ class WorkOrderDetailRoleGatingTests(TestCase):
         self.wo = _make_wo(
             machine=None, created_by=self.manager,
             assigned_technician=self.tech,
-            status=WorkOrder.Status.IN_PROGRESS,
             lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
         )
 
@@ -189,7 +185,7 @@ class WorkOrderDetailRoleGatingTests(TestCase):
 
     def test_tech_sees_tech_actions_partial(self):
         """Assigned tech → response contains tech actions (e.g.
-        "My actions (technician)", "Resume labor", "Pause work")."""
+        "My actions (technician)", "Start work", "Pause work")."""
         self.client.force_login(self.tech)
         response = self.client.get(
             reverse("work_order_detail", kwargs={"pk": self.wo.pk})
@@ -197,8 +193,8 @@ class WorkOrderDetailRoleGatingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
         self.assertIn("My actions (technician)", body)
-        # WO is IN_PROGRESS → button is "Resume labor"
-        self.assertIn("Resume labor", body)
+        # WO is IN_PROGRESS with no labor → button is "Start work"
+        self.assertIn("Start work", body)
         self.assertIn("Pause work", body)
 
     def test_other_tech_does_not_see_tech_partial(self):
@@ -242,7 +238,6 @@ class WorkOrderPauseRoleInteractionTests(TestCase):
         self.wo = _make_wo(
             machine=None, created_by=self.manager,
             assigned_technician=self.tech,
-            status=WorkOrder.Status.IN_PROGRESS,
             lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
         )
 

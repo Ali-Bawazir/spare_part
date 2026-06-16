@@ -55,7 +55,7 @@ def _make_wo(*, machine=None, created_by: User, **kwargs) -> WorkOrder:
     defaults = {
         "machine": machine,
         "created_by": created_by,
-        "status": WorkOrder.Status.APPROVED,
+        "lifecycle_status": WorkOrder.LifecycleStatus.ASSIGNED,
     }
     defaults.update(kwargs)
     return WorkOrder.objects.create(**defaults)

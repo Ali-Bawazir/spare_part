@@ -61,18 +61,12 @@ def mms_nav(request):
             status=ExternalRepairOrder.Status.RETURNED
         ).count()
     if caps.get("close_or_review_wo"):
-        ctx["nav_wo_review"] = WorkOrder.objects.filter(status=WorkOrder.Status.PENDING_REVIEW).count()
+        ctx["nav_wo_review"] = WorkOrder.objects.filter(lifecycle_status=WorkOrder.LifecycleStatus.PENDING_REVIEW).count()
         seven_days_ago = timezone.now() - timedelta(days=7)
         ctx["nav_wo_overdue"] = WorkOrder.objects.filter(
-            status__in=[
-                WorkOrder.Status.APPROVED,
-                WorkOrder.Status.ASSIGNED,
-                WorkOrder.Status.IN_PROGRESS,
-                WorkOrder.Status.PAUSED,
-                WorkOrder.Status.PENDING_PARTS,
-                WorkOrder.Status.WAITING_FOR_VENDOR,
-            ],
             created_at__lt=seven_days_ago,
+        ).exclude(
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
         ).count()
 
     if caps.get("view_procurement_requests"):
@@ -92,7 +86,7 @@ def mms_nav(request):
 
     if role == User.Role.TECHNICIAN:
         ctx["nav_my_open_wo"] = WorkOrder.objects.filter(assigned_technician=u).exclude(
-            status=WorkOrder.Status.CLOSED
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED
         ).count()
 
     # v4.8 shortage counters (for users who can decide shortage reports)

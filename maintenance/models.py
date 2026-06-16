@@ -355,25 +355,15 @@ class WorkOrder(models.Model):
         null=True, blank=True, related_name="component_work_orders",
         help_text="Level-5 Component this WO targets (optional)",
     )
-    status = models.CharField(
-        max_length=32,
-        choices=Status.choices,
-        default=Status.APPROVED,
-        db_index=True,
-    )
     lifecycle_status = models.CharField(
         max_length=20, choices=LifecycleStatus.choices,
         default=LifecycleStatus.ASSIGNED, db_index=True,
-        help_text="Explicit, user-driven state. Replaces the legacy 'status' field for new code."
+        help_text="Explicit, user-driven state."
     )
     operational_status = models.CharField(
         max_length=20, choices=OperationalStatus.choices,
         default=OperationalStatus.PAUSED, db_index=True,
         help_text="Derived from open blockers + labor state. Always computed; do not write directly."
-    )
-    blocker_system_version = models.IntegerField(
-        default=0, db_index=True,
-        help_text="0=created before blocker system; 1+=created under the new system."
     )
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancelled_by = models.ForeignKey(
@@ -415,16 +405,6 @@ class WorkOrder(models.Model):
     )
     rejection_reason = models.CharField(max_length=500, blank=True)
     rejection_count = models.PositiveIntegerField(default=0)
-    pause_reason = models.CharField(
-        max_length=20,
-        choices=PauseReason.choices,
-        blank=True,
-        help_text="Why the work order was paused (set on every IN_PROGRESS→PAUSED transition).",
-    )
-    pause_note = models.TextField(
-        blank=True,
-        help_text="Free-text note for pause. Required when pause_reason='other'.",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     tool = models.ForeignKey(
@@ -442,13 +422,6 @@ class WorkOrder(models.Model):
         if not self.number:
             last = WorkOrder.objects.order_by("-number").values_list("number", flat=True).first()
             self.number = (last or 0) + 1
-        # Phase 2A: new WOs created via the ORM are part of the blocker
-        # system from day one. Legacy WOs keep the field default of 0 until
-        # a real domain event (new part request, new pause, etc.) bumps
-        # the version. See ADR-0007 sub-decision 1 / blocker-system_version
-        # field docstring.
-        if self.pk is None and self.blocker_system_version == 0:
-            self.blocker_system_version = 1
         super().save(*args, **kwargs)
 
     def clean(self):
@@ -458,7 +431,7 @@ class WorkOrder(models.Model):
             validate_component_belongs_to_machine(self.component, self.machine)
 
     def __str__(self) -> str:
-        return f"WO-{self.number} ({self.get_status_display()})"
+        return f"WO-{self.number} ({self.get_lifecycle_status_display()})"
 
     @property
     def total_downtime_minutes(self) -> int:

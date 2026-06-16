@@ -23,7 +23,7 @@
         <td><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>{% if w.is_emergency %} <span class="mms-badge mms-badge--danger">EMRG</span>{% endif %}{% if w.rejection_count > 0 %} <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">↩ {{ w.rejection_count }}</span>{% endif %}</td>
         <td><a href="{% url 'work_order_detail' w.pk %}">{{ w.machine.name }}</a></td>
         <td>{% if w.component %}{{ w.component.name }}{% else %}—{% endif %}</td>
-        <td><span class="{{ w.status|wo_status_badge_class }}">{{ w.get_status_display }}</span></td>
+        <td><span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span></td>
         <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">n/a</span>{% endif %}</td>
 <td>{{ w.get_category_display }}</td>
         <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>

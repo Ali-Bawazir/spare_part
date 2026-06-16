@@ -1,10 +1,10 @@
 {# Phase 3B: Manager actions block (extracted from workorder_detail.html). #}
 {# Self-gated to managers (capability-gated, same as the original inline block). #}
 {% if perm_assign_technician or perm_issue_parts_to_wo or perm_create_purchase_request %}
-  {% if wo.status != 'closed' %}
+  {% if wo.lifecycle_status != 'closed' %}
     <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Manager actions</h3>
     {% if perm_assign_technician %}
-      {% if wo.status == 'approved' or wo.status == 'assigned' or wo.status == 'paused' %}
+      {% if wo.lifecycle_status == 'assigned' or wo.lifecycle_status == 'in_progress' %}
     <form method="post" action="{% url 'work_order_assign' wo.pk %}" class="mms-stack">
       {% csrf_token %}
       <div class="mms-form-row">{{ assign_form.technician.label_tag }}{{ assign_form.technician }}</div>

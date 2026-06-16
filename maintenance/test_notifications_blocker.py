@@ -49,7 +49,7 @@ def _make_wo(*, machine: Machine = None, created_by: User, assigned_technician: 
     defaults = {
         "machine": machine,
         "created_by": created_by,
-        "status": WorkOrder.Status.APPROVED,
+        "lifecycle_status": WorkOrder.LifecycleStatus.ASSIGNED,
     }
     if assigned_technician is not None:
         defaults["assigned_technician"] = assigned_technician

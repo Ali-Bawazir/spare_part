@@ -9,11 +9,11 @@
   </div>
   {% endif %}
   <div class="mms-actions">
-    {% if wo.status == 'assigned' or wo.status == 'paused' or wo.status == 'pending_parts' or wo.status == 'waiting_vendor' or wo.status == 'in_progress' %}
+    {% if wo.lifecycle_status == 'assigned' or wo.operational_status == 'paused' or wo.operational_status == 'pending_parts' or wo.operational_status == 'waiting_vendor' or wo.lifecycle_status == 'in_progress' %}
     <form method="post" action="{% url 'work_order_start' wo.pk %}">
       {% csrf_token %}
       <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm" {% if emergency_blocks_resume %}disabled aria-disabled="true" title="Finish the active emergency WO first"{% endif %}>
-        {% if wo.status == 'in_progress' %}
+        {% if wo.lifecycle_status == 'in_progress' and wo.operational_status == 'active' %}
         Resume labor
         {% elif active_conflict %}
         Start work / switch task
@@ -23,7 +23,7 @@
       </button>
     </form>
     {% endif %}
-    {% if wo.status == 'in_progress' %}
+    {% if wo.lifecycle_status == 'in_progress' %}
     <form method="post" action="{% url 'work_order_pause' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed;margin-top:.5rem">
       <div class="mms-card-body">
         <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Pause work</p>
@@ -45,7 +45,7 @@
     </form>
     {% endif %}
   </div>
-  {% if wo.status == 'in_progress' %}
+  {% if wo.lifecycle_status == 'in_progress' %}
   <div class="mms-divider"></div>
   {% if wo.category == 'preventive' %}
   <a href="{% url 'pm_execute' wo.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">Execute PM Checklist</a>
@@ -62,7 +62,7 @@
   {% endif %}
 
   {# ============ Sprint 1 (Step 6): component-first part-request form ============ #}
-  {% if perm_request_part_on_wo and wo.status != 'closed' %}
+  {% if perm_request_part_on_wo and wo.lifecycle_status != 'closed' %}
   <div class="mms-divider"></div>
   <h4 style="font-size:.8rem;margin:1rem 0 .5rem 0;color:var(--mms-muted)">Request a part (manager will approve)</h4>
   <form method="post" action="{% url 'work_order_request_part' wo.pk %}" class="mms-stack" id="part-request-form">

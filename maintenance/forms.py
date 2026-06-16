@@ -262,7 +262,7 @@ class ExternalRepairForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["work_order"].required = False
         self.fields["work_order"].queryset = (
-            WorkOrder.objects.exclude(status=WorkOrder.Status.CLOSED).select_related("machine").order_by("-number")[:300]
+            WorkOrder.objects.exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED).select_related("machine").order_by("-number")[:300]
         )
         if lock_asset:
             self.fields["machine"].disabled = True

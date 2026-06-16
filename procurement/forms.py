@@ -39,7 +39,7 @@ class PurchaseRequestForm(forms.ModelForm):
         self.fields["quantity"].min_value = Decimal("0.001")
         self.fields["work_order"].required = False
         self.fields["work_order"].queryset = (
-            WorkOrder.objects.exclude(status=WorkOrder.Status.CLOSED).select_related("machine").order_by("-number")[:500]
+            WorkOrder.objects.exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED).select_related("machine").order_by("-number")[:500]
         )
         if lock_asset:
             self.fields["machine"].disabled = True

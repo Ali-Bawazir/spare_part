@@ -125,14 +125,14 @@ class MaintenanceFlowTests(TestCase):
         active = WorkOrder.objects.create(
             issue=issue_medium,
             machine=self.machine,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
         queued = WorkOrder.objects.create(
             issue=issue_high,
             machine=self.machine,
-            status=WorkOrder.Status.ASSIGNED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
@@ -166,7 +166,7 @@ class MaintenanceFlowTests(TestCase):
         issue.refresh_from_db()
         wo = WorkOrder.objects.get(issue=issue)
         self.assertEqual(issue.status, MaintenanceIssue.Status.CONVERTED)
-        self.assertEqual(wo.status, WorkOrder.Status.APPROVED)
+        self.assertEqual(wo.lifecycle_status, WorkOrder.LifecycleStatus.ASSIGNED)
         self.assertEqual(wo.machine, self.machine)
 
     def test_starting_new_work_order_prompts_for_switch_when_another_is_active(self):
@@ -187,14 +187,14 @@ class MaintenanceFlowTests(TestCase):
         active = WorkOrder.objects.create(
             issue=issue_active,
             machine=self.machine,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
         queued = WorkOrder.objects.create(
             issue=issue_next,
             machine=self.machine,
-            status=WorkOrder.Status.ASSIGNED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
@@ -209,8 +209,8 @@ class MaintenanceFlowTests(TestCase):
 
         active.refresh_from_db()
         queued.refresh_from_db()
-        self.assertEqual(active.status, WorkOrder.Status.PAUSED)
-        self.assertEqual(queued.status, WorkOrder.Status.IN_PROGRESS)
+        self.assertEqual(active.operational_status, WorkOrder.OperationalStatus.PAUSED)
+        self.assertEqual(queued.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
     def test_kpi_dashboard_exposes_pdf_aligned_metrics(self):
         closed_issue = MaintenanceIssue.objects.create(
@@ -223,7 +223,7 @@ class MaintenanceFlowTests(TestCase):
         WorkOrder.objects.create(
             issue=closed_issue,
             machine=self.machine,
-            status=WorkOrder.Status.CLOSED,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
             assigned_technician=self.tech,
             created_by=self.manager,
             labor_started_at=timezone.now() - timedelta(hours=5),
@@ -971,7 +971,7 @@ class MaintenanceFlowTests(TestCase):
 
 
 class WorkOrderPauseReasonTests(TestCase):
-    """Phase 2.3 — pause reason categorization."""
+    """Phase 2.3 — pause reason categorization (Phase 5: uses blockers)."""
 
     def setUp(self):
         self.manager = User.objects.create_user(
@@ -983,7 +983,7 @@ class WorkOrderPauseReasonTests(TestCase):
         self.machine = Machine.objects.create(name="Press 1", qr_code="PRESS-01")
         self.wo = WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
@@ -994,78 +994,88 @@ class WorkOrderPauseReasonTests(TestCase):
         payload.update(data)
         return self.client.post(reverse("work_order_pause", args=[self.wo.pk]), payload)
 
-    def test_pause_with_operational_reason_records_field(self):
+    def test_pause_with_operational_reason_does_not_create_blocker(self):
+        """Micro-pause (operational, empty note) → no blocker, status stays ACTIVE."""
         response = self._start_pause(pause_reason="operational")
         self.assertEqual(response.status_code, 302)
         self.wo.refresh_from_db()
-        self.assertEqual(self.wo.status, WorkOrder.Status.PAUSED)
-        self.assertEqual(self.wo.pause_reason, WorkOrder.PauseReason.OPERATIONAL)
-        self.assertEqual(self.wo.pause_note, "")
+        self.assertEqual(self.wo.operational_status, WorkOrder.OperationalStatus.ACTIVE)
+        self.assertEqual(self.wo.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
+        from maintenance.models import WorkOrderBlocker
+        blockers = WorkOrderBlocker.objects.filter(work_order=self.wo)
+        self.assertEqual(blockers.count(), 0)
 
     def test_pause_with_other_requires_note(self):
         response = self._start_pause(pause_reason="other")
-        # Should redirect back, not 200, and not transition
         self.assertEqual(response.status_code, 302)
         self.wo.refresh_from_db()
-        self.assertEqual(self.wo.status, WorkOrder.Status.IN_PROGRESS)
-        self.assertEqual(self.wo.pause_reason, "")
+        self.assertEqual(self.wo.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
-    def test_pause_with_other_and_note_succeeds(self):
+    def test_pause_with_other_and_note_creates_blocker(self):
         response = self._start_pause(pause_reason="other", pause_note="Power outage in Hall A")
         self.assertEqual(response.status_code, 302)
         self.wo.refresh_from_db()
-        self.assertEqual(self.wo.status, WorkOrder.Status.PAUSED)
-        self.assertEqual(self.wo.pause_reason, WorkOrder.PauseReason.OTHER)
-        self.assertEqual(self.wo.pause_note, "Power outage in Hall A")
+        self.assertEqual(self.wo.operational_status, WorkOrder.OperationalStatus.PAUSED)
+        from maintenance.models import WorkOrderBlocker
+        blockers = WorkOrderBlocker.objects.filter(work_order=self.wo)
+        self.assertEqual(blockers.count(), 1)
+        self.assertEqual(blockers.first().kind, WorkOrderBlocker.Kind.OPERATIONAL)
+        self.assertEqual(blockers.first().pause_reason, WorkOrder.PauseReason.OTHER)
 
     def test_pause_without_reason_is_rejected(self):
         self.client.force_login(self.tech)
         response = self.client.post(reverse("work_order_pause", args=[self.wo.pk]), {})
         self.assertEqual(response.status_code, 302)
         self.wo.refresh_from_db()
-        self.assertEqual(self.wo.status, WorkOrder.Status.IN_PROGRESS)
+        self.assertEqual(self.wo.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
-    def test_emergency_start_auto_pauses_other_with_emergency_reason(self):
+    def test_emergency_start_auto_pauses_other_with_emergency_blocker(self):
+        from maintenance.models import WorkOrderBlocker
         other = WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
         em_wo = WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.ASSIGNED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
             assigned_technician=self.tech,
             created_by=self.manager,
             is_emergency=True,
         )
         self.client.force_login(self.tech)
-        # confirm_switch is required when another WO is IN_PROGRESS
         self.client.post(reverse("work_order_start", args=[em_wo.pk]), {"confirm_switch": "1"})
         other.refresh_from_db()
         em_wo.refresh_from_db()
-        self.assertEqual(other.status, WorkOrder.Status.PAUSED)
-        self.assertEqual(other.pause_reason, WorkOrder.PauseReason.EMERGENCY)
-        self.assertEqual(em_wo.status, WorkOrder.Status.IN_PROGRESS)
+        self.assertEqual(other.operational_status, WorkOrder.OperationalStatus.PAUSED)
+        blockers = WorkOrderBlocker.objects.filter(work_order=other)
+        self.assertEqual(blockers.count(), 1)
+        self.assertEqual(blockers.first().kind, WorkOrderBlocker.Kind.OPERATIONAL)
+        self.assertEqual(blockers.first().source_work_order, em_wo)
+        self.assertEqual(em_wo.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
-    def test_non_emergency_start_auto_pauses_with_operational_reason(self):
+    def test_non_emergency_start_auto_pauses_with_operational_blocker(self):
+        from maintenance.models import WorkOrderBlocker
         other = WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
         next_wo = WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.ASSIGNED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
         self.client.force_login(self.tech)
         self.client.post(reverse("work_order_start", args=[next_wo.pk]), {"confirm_switch": "1"})
         other.refresh_from_db()
-        self.assertEqual(other.status, WorkOrder.Status.PAUSED)
-        self.assertEqual(other.pause_reason, WorkOrder.PauseReason.OPERATIONAL)
+        self.assertEqual(other.operational_status, WorkOrder.OperationalStatus.PAUSED)
+        blockers = WorkOrderBlocker.objects.filter(work_order=other)
+        self.assertEqual(blockers.count(), 1)
+        self.assertEqual(blockers.first().kind, WorkOrderBlocker.Kind.OPERATIONAL)
 
 
 class WorkOrderResumeValidationTests(TestCase):
@@ -1084,10 +1094,10 @@ class WorkOrderResumeValidationTests(TestCase):
         self.machine = Machine.objects.create(name="Press 1", qr_code="PRESS-01")
         self.other_machine = Machine.objects.create(name="Press 2", qr_code="PRESS-02")
 
-    def _make_wo(self, *, status, is_emergency=False, **extra):
+    def _make_wo(self, *, lifecycle_status, is_emergency=False, **extra):
         defaults = {
             "machine": self.machine,
-            "status": status,
+            "lifecycle_status": lifecycle_status,
             "assigned_technician": self.tech,
             "created_by": self.manager,
             "is_emergency": is_emergency,
@@ -1095,12 +1105,27 @@ class WorkOrderResumeValidationTests(TestCase):
         defaults.update(extra)
         return WorkOrder.objects.create(**defaults)
 
+    def _make_paused_wo(self, is_emergency=False):
+        from maintenance.models import WorkOrderBlocker
+        wo = self._make_wo(
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
+            is_emergency=is_emergency,
+        )
+        WorkOrderBlocker.objects.create(
+            work_order=wo,
+            kind=WorkOrderBlocker.Kind.OPERATIONAL,
+            status=WorkOrderBlocker.Status.OPEN,
+            opened_by=self.tech,
+        )
+        wo.refresh_from_db()
+        return wo
+
     def test_resume_paused_blocked_when_other_emergency_in_progress(self):
         """SRS UC-06 step 2D: emergency must finish first."""
         emergency = self._make_wo(
-            status=WorkOrder.Status.IN_PROGRESS, is_emergency=True
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, is_emergency=True
         )
-        paused = self._make_wo(status=WorkOrder.Status.PAUSED)
+        paused = self._make_paused_wo()
 
         self.client.force_login(self.tech)
         response = self.client.post(
@@ -1110,8 +1135,8 @@ class WorkOrderResumeValidationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         paused.refresh_from_db()
         emergency.refresh_from_db()
-        self.assertEqual(paused.status, WorkOrder.Status.PAUSED)
-        self.assertEqual(emergency.status, WorkOrder.Status.IN_PROGRESS)
+        self.assertEqual(paused.operational_status, WorkOrder.OperationalStatus.PAUSED)
+        self.assertEqual(emergency.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
     def test_resume_paused_blocked_when_emergency_in_pending_parts(self):
         """Even if the emergency is PENDING_PARTS, that's still 'free' for the
@@ -1120,41 +1145,48 @@ class WorkOrderResumeValidationTests(TestCase):
         """
         # An emergency that is NOT in progress (e.g. waiting for parts)
         # should NOT block resuming a paused non-emergency.
+        from maintenance.models import WorkOrderBlocker
         emergency = self._make_wo(
-            status=WorkOrder.Status.PENDING_PARTS, is_emergency=True
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, is_emergency=True
         )
-        paused = self._make_wo(status=WorkOrder.Status.PAUSED)
+        WorkOrderBlocker.objects.create(
+            work_order=emergency,
+            kind=WorkOrderBlocker.Kind.PART,
+            status=WorkOrderBlocker.Status.OPEN,
+            opened_by=self.tech,
+        )
+        emergency.refresh_from_db()
+        paused = self._make_paused_wo()
 
         self.client.force_login(self.tech)
-        # It will go through the switch-confirm flow? No — get_other_active
-        # only finds IN_PROGRESS, so no conflict, no confirm, just start.
+        # No active emergency → no switch-confirm, just start.
         response = self.client.post(
             reverse("work_order_start", args=[paused.pk])
         )
         self.assertEqual(response.status_code, 302)
         paused.refresh_from_db()
         # This should succeed (no active emergency in progress)
-        self.assertEqual(paused.status, WorkOrder.Status.IN_PROGRESS)
+        self.assertEqual(paused.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
     def test_resume_paused_allowed_when_no_emergency_active(self):
-        paused = self._make_wo(status=WorkOrder.Status.PAUSED)
+        paused = self._make_paused_wo()
         self.client.force_login(self.tech)
         response = self.client.post(
             reverse("work_order_start", args=[paused.pk])
         )
         self.assertEqual(response.status_code, 302)
         paused.refresh_from_db()
-        self.assertEqual(paused.status, WorkOrder.Status.IN_PROGRESS)
+        self.assertEqual(paused.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
     def test_starting_emergency_itself_unaffected_by_other_emergency(self):
         """A new emergency WO can be started even if another emergency
         is already IN_PROGRESS for the same tech (manager-controlled
         scenario: two emergencies in flight, new one replaces old)."""
         old_emergency = self._make_wo(
-            status=WorkOrder.Status.IN_PROGRESS, is_emergency=True
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, is_emergency=True
         )
         new_emergency = self._make_wo(
-            status=WorkOrder.Status.ASSIGNED, is_emergency=True
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED, is_emergency=True
         )
 
         self.client.force_login(self.tech)
@@ -1175,25 +1207,25 @@ class WorkOrderResumeValidationTests(TestCase):
         self.assertEqual(second.status_code, 302)
         old_emergency.refresh_from_db()
         new_emergency.refresh_from_db()
-        self.assertEqual(old_emergency.status, WorkOrder.Status.PAUSED)
-        self.assertEqual(new_emergency.status, WorkOrder.Status.IN_PROGRESS)
+        self.assertEqual(old_emergency.operational_status, WorkOrder.OperationalStatus.PAUSED)
+        self.assertEqual(new_emergency.lifecycle_status, WorkOrder.LifecycleStatus.IN_PROGRESS)
 
     def test_has_active_emergency_helper(self):
         from maintenance.services import has_active_emergency
         # No WOs at all
         self.assertFalse(has_active_emergency(self.tech))
         # Active emergency
-        self._make_wo(status=WorkOrder.Status.IN_PROGRESS, is_emergency=True)
+        self._make_wo(lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, is_emergency=True)
         self.assertTrue(has_active_emergency(self.tech))
         # Non-emergency IN_PROGRESS
-        self._make_wo(status=WorkOrder.Status.IN_PROGRESS, is_emergency=False)
+        self._make_wo(lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, is_emergency=False)
         self.assertTrue(has_active_emergency(self.tech))
 
     def test_template_disables_button_when_emergency_blocks(self):
-        emergency = self._make_wo(
-            status=WorkOrder.Status.IN_PROGRESS, is_emergency=True
+        self._make_wo(
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, is_emergency=True
         )
-        paused = self._make_wo(status=WorkOrder.Status.PAUSED)
+        paused = self._make_paused_wo()
 
         self.client.force_login(self.tech)
         response = self.client.get(
@@ -1236,10 +1268,10 @@ class PartRequestWorkflowTests(TestCase):
             part=self.part, site=self.site, quantity_available=Decimal("10")
         )
 
-    def _make_wo(self, *, status=WorkOrder.Status.ASSIGNED, is_emergency=False, technician=None):
+    def _make_wo(self, *, lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED, is_emergency=False, technician=None):
         return WorkOrder.objects.create(
             machine=self.machine,
-            status=status,
+            lifecycle_status=lifecycle_status,
             assigned_technician=technician or self.tech,
             created_by=self.manager,
             is_emergency=is_emergency,
@@ -1884,10 +1916,10 @@ class ExternalRepairRequestFlowTests(TestCase):
         )
         self.machine = Machine.objects.create(name="Press 1", qr_code="PRESS-01")
 
-    def _make_wo(self, *, technician=None, status=WorkOrder.Status.ASSIGNED):
+    def _make_wo(self, *, technician=None, lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED):
         return WorkOrder.objects.create(
             machine=self.machine,
-            status=status,
+            lifecycle_status=lifecycle_status,
             assigned_technician=technician or self.tech,
             created_by=self.manager,
         )
@@ -2185,10 +2217,10 @@ class MyWorkOrdersViewTests(TestCase):
         )
         self.machine = Machine.objects.create(name="Press 1", qr_code="PRESS-01")
 
-    def _wo(self, *, technician=None, status=WorkOrder.Status.ASSIGNED):
+    def _wo(self, *, technician=None, lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED):
         return WorkOrder.objects.create(
             machine=self.machine,
-            status=status,
+            lifecycle_status=lifecycle_status,
             assigned_technician=technician or self.tech,
             created_by=self.manager,
         )
@@ -2203,8 +2235,8 @@ class MyWorkOrdersViewTests(TestCase):
         self.assertNotContains(response, f"WO-{not_mine.number}")
 
     def test_excludes_closed_wos(self):
-        open_wo = self._wo(status=WorkOrder.Status.ASSIGNED)
-        closed_wo = self._wo(status=WorkOrder.Status.CLOSED)
+        open_wo = self._wo(lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED)
+        closed_wo = self._wo(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED)
         self.client.force_login(self.tech)
         response = self.client.get(reverse("my_work_orders"))
         self.assertEqual(response.status_code, 200)
@@ -2212,9 +2244,9 @@ class MyWorkOrdersViewTests(TestCase):
         self.assertNotContains(response, f"WO-{closed_wo.number}")
 
     def test_in_progress_badge_in_count(self):
-        self._wo(status=WorkOrder.Status.ASSIGNED)
-        self._wo(status=WorkOrder.Status.IN_PROGRESS)
-        self._wo(status=WorkOrder.Status.IN_PROGRESS)
+        self._wo(lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED)
+        self._wo(lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS)
+        self._wo(lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS)
         self.client.force_login(self.tech)
         response = self.client.get(reverse("my_work_orders"))
         self.assertEqual(response.status_code, 200)
@@ -2270,7 +2302,7 @@ class TechnicianReportTests(TestCase):
         for i in range(3):
             WorkOrder.objects.create(
                 machine=self.machine,
-                status=WorkOrder.Status.CLOSED,
+                lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
                 assigned_technician=self.tech,
                 created_by=self.manager,
                 labor_started_at=now - timedelta(hours=2),
@@ -2279,7 +2311,7 @@ class TechnicianReportTests(TestCase):
         # 1 in progress
         WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
@@ -2292,14 +2324,14 @@ class TechnicianReportTests(TestCase):
         from maintenance.services import technician_stats
         WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.CLOSED,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
             assigned_technician=self.tech,
             created_by=self.manager,
             rejection_count=2,
         )
         WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech,
             created_by=self.manager,
             rejection_count=1,
@@ -2337,7 +2369,7 @@ class TechnicianReportTests(TestCase):
     def test_reports_page_links_to_drill_down(self):
         WorkOrder.objects.create(
             machine=self.machine,
-            status=WorkOrder.Status.CLOSED,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
             assigned_technician=self.tech,
             created_by=self.manager,
         )
@@ -2368,7 +2400,7 @@ class ExternalRepairAcceptanceTests(TestCase):
         )
         self.machine = Machine.objects.create(name="Press 1", qr_code="PRESS-PR3")
         self.wo = WorkOrder.objects.create(
-            machine=self.machine, status=WorkOrder.Status.WAITING_FOR_VENDOR,
+            machine=self.machine, lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech, created_by=self.manager,
         )
         self.ero = ExternalRepairOrder.objects.create(
@@ -2698,7 +2730,7 @@ class PauseReasonEnumTests(TestCase):
         )
         self.machine = Machine.objects.create(name="Press 3", qr_code="PRESS-P5")
         self.wo = WorkOrder.objects.create(
-            machine=self.machine, status=WorkOrder.Status.IN_PROGRESS,
+            machine=self.machine, lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech, created_by=self.manager,
         )
 
@@ -2858,7 +2890,7 @@ class MediaAndCostRollupTests(TestCase):
         wo = WorkOrder.objects.create(
             machine=self.machine,
             component=self.component_a,
-            status=WorkOrder.Status.CLOSED,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
             created_by=self.manager,
             assigned_technician=self.tech,
         )
@@ -3017,7 +3049,7 @@ class DashboardActionCountersTests(TestCase):
         )
         self.machine = Machine.objects.create(name="Press 4", qr_code="PRESS-P6")
         self.wo = WorkOrder.objects.create(
-            machine=self.machine, status=WorkOrder.Status.IN_PROGRESS,
+            machine=self.machine, lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
             assigned_technician=self.tech, created_by=self.manager,
         )
         # Pending part request
@@ -3160,7 +3192,7 @@ class Sprint1InventoryIntegrityTests(TestCase):
             machine=self.machine,
             component=self.component,
             issue=self.issue,
-            status=WorkOrder.Status.ASSIGNED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
             created_by=self.manager,
             assigned_technician=self.technician,
         )
@@ -3172,12 +3204,6 @@ class Sprint1InventoryIntegrityTests(TestCase):
         return u
 
     def _login_manager(self):
-        """Spec says c.login(username='manager', password='demo123'); the
-        _make_user helper above creates users with password='x', so the
-        spec's literal login call wouldn't succeed against a fresh test
-        DB. We use the test client's force_login which bypasses password
-        verification entirely. (Deviation: documented in the report.)
-        """
         self.client.force_login(self.manager)
 
     # ----- 3 flows + zero stock (request_part_on_wo) -----
@@ -3544,7 +3570,7 @@ class V48ShortageDecisionTests(TestCase):
         )
         self.wo = WorkOrder.objects.create(
             machine=self.machine, component=self.component, issue=self.issue,
-            status=WorkOrder.Status.ASSIGNED, created_by=self.manager,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED, created_by=self.manager,
             assigned_technician=self.technician,
         )
 
@@ -4028,10 +4054,10 @@ class V49FixesAndFeaturesTests(TestCase):
             part=self.part, site=self.site, quantity_available=Decimal("10")
         )
 
-    def _make_wo(self, *, status=WorkOrder.Status.ASSIGNED, technician=None):
+    def _make_wo(self, *, lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED, technician=None):
         return WorkOrder.objects.create(
             machine=self.machine,
-            status=status,
+            lifecycle_status=lifecycle_status,
             assigned_technician=technician or self.tech,
             created_by=self.manager,
         )

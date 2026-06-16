@@ -1,6 +1,6 @@
 {# Phase 3B: Manager review block (extracted from workorder_detail.html). #}
 {# Self-gated: only managers with a WO in pending_review see this. #}
-{% if perm_close_or_review_wo and wo.status == 'pending_review' %}
+{% if perm_close_or_review_wo and wo.lifecycle_status == 'pending_review' %}
 <div class="mms-divider"></div>
 <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Manager review (pending your decision)</h3>
 <div class="mms-alert mms-alert--info">Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure.</div>

@@ -7,14 +7,15 @@ from maintenance.models import Attachment
 register = template.Library()
 
 WO_STATUS_BADGE = {
-    "approved": "mms-badge mms-badge--muted",
     "assigned": "mms-badge mms-badge--info",
     "in_progress": "mms-badge mms-badge--primary",
-    "paused": "mms-badge mms-badge--warning",
-    "waiting_vendor": "mms-badge mms-badge--warning",
-    "pending_parts": "mms-badge mms-badge--warning",
     "pending_review": "mms-badge mms-badge--accent",
     "closed": "mms-badge mms-badge--success",
+    "cancelled": "mms-badge mms-badge--muted",
+    "paused": "mms-badge mms-badge--warning",
+    "pending_parts": "mms-badge mms-badge--warning",
+    "waiting_vendor": "mms-badge mms-badge--warning",
+    "active": "mms-badge mms-badge--info",
 }
 
 

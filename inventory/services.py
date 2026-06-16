@@ -191,7 +191,7 @@ def issue_part_to_work_order(
         return False, "No default site configured."
     if quantity <= 0:
         return False, "Quantity must be positive."
-    if wo.status == WorkOrder.Status.CLOSED:
+    if wo.lifecycle_status == WorkOrder.LifecycleStatus.CLOSED:
         return False, "Cannot issue parts to a closed work order."
 
     existing = PartIssueLine.objects.filter(work_order=wo, part=part).exists()
@@ -481,7 +481,7 @@ def request_part_on_wo(
     """
     if quantity <= 0:
         raise ValueError("Quantity must be positive.")
-    if wo.status == WorkOrder.Status.CLOSED:
+    if wo.lifecycle_status == WorkOrder.LifecycleStatus.CLOSED:
         raise ValueError("Cannot request parts on a closed work order.")
 
     # Idempotency: one PENDING line per (WO, part)

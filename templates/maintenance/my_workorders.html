@@ -54,8 +54,8 @@
           <td>{{ w.machine.name }}</td>
           <td>{% if w.component %}{{ w.component.name }}{% else %}—{% endif %}</td>
           <td>
-            <span class="{{ w.status|wo_status_badge_class }}">{{ w.get_status_display }}</span>
-            {% if w.status == 'in_progress' %}<span class="mms-badge mms-badge--accent">●</span>{% endif %}
+            <span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span>
+            {% if w.lifecycle_status == 'in_progress' %}<span class="mms-badge mms-badge--accent">●</span>{% endif %}
           </td>
           <td>
             {% if w.issue and w.issue.priority %}

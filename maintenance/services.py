@@ -28,11 +28,11 @@ def transition_work_order(
     actor: Optional[User],
     note: str = "",
 ) -> None:
-    from_status = wo.status
+    from_status = wo.lifecycle_status
     if from_status == to_status:
         return
-    wo.status = to_status
-    wo.save(update_fields=["status", "updated_at"])
+    wo.lifecycle_status = to_status
+    wo.save(update_fields=["lifecycle_status", "updated_at"])
     WorkOrderStateLog.objects.create(
         work_order=wo,
         from_status=from_status,
@@ -83,23 +83,20 @@ def pause_other_in_progress(
         )
     qs = WorkOrder.objects.filter(
         assigned_technician=technician,
-        status=WorkOrder.Status.IN_PROGRESS,
+        lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
     ).select_for_update()
     if except_pk:
         qs = qs.exclude(pk=except_pk)
     for other in qs:
         other.labor_stopped_at = timezone.now()
-        other.pause_reason = reason
-        other.pause_note = note[:500] if note else ""
         other.save(update_fields=[
-            "labor_stopped_at", "pause_reason", "pause_note", "updated_at"
+            "labor_stopped_at", "updated_at"
         ])
-        transition_work_order(
-            other,
-            WorkOrder.Status.PAUSED,
-            actor=technician,
-            note=(note or f"Auto-pause: {dict(WorkOrder.PauseReason.choices)[reason]}")[:500],
-        )
+        from maintenance.services_wo_status import WorkOrderService
+        try:
+            WorkOrderService.recompute_operational_status(other)
+        except Exception:
+            pass
         prev_assignment = WorkOrderAssignmentHistory.objects.filter(
             work_order=other, technician=technician, unassigned_at__isnull=True
         ).first()
@@ -153,16 +150,13 @@ def work_order_pause(
     wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
     now = timezone.now()
     wo.labor_stopped_at = now
-    wo.pause_reason = pause_reason
-    wo.pause_note = (pause_note or "")[:500]
     wo.save(update_fields=[
-        "labor_stopped_at", "pause_reason", "pause_note", "updated_at"
+        "labor_stopped_at", "updated_at"
     ])
     state_log_note = (
-        wo.pause_note if wo.pause_note
+        (pause_note or "")[:500] if (pause_note or "").strip()
         else f"Paused: {dict(WorkOrder.PauseReason.choices)[pause_reason]}"
     )
-    transition_work_order(wo, WorkOrder.Status.PAUSED, actor=actor, note=state_log_note)
     # Phase 2B: open OPERATIONAL blocker if the pause is "significant".
     # Content-based rule (ADR-0007 sub-decision 6).
     from maintenance.services_blocker import WorkOrderBlockerService
@@ -197,7 +191,7 @@ def work_order_pause(
 def get_other_active_work_order(technician: User, except_pk: int | None = None) -> WorkOrder | None:
     qs = WorkOrder.objects.filter(
         assigned_technician=technician,
-        status=WorkOrder.Status.IN_PROGRESS,
+        lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
     )
     if except_pk:
         qs = qs.exclude(pk=except_pk)
@@ -214,7 +208,7 @@ def has_active_emergency(technician: User, except_pk: int | None = None) -> bool
     """
     qs = WorkOrder.objects.filter(
         assigned_technician=technician,
-        status=WorkOrder.Status.IN_PROGRESS,
+        lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
         is_emergency=True,
     )
     if except_pk:
@@ -235,7 +229,7 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
             start_time=timezone.now(),
             reason=f"WO started — {'Emergency' if wo.is_emergency else 'Breakdown'}",
         )
-    if wo.status == WorkOrder.Status.IN_PROGRESS:
+    if wo.lifecycle_status == WorkOrder.LifecycleStatus.IN_PROGRESS:
         return
     # If the WO being started is an emergency, auto-pausing other WOs
     # uses the EMERGENCY pause reason for clearer reporting. Otherwise
@@ -247,7 +241,7 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
     )
     pause_other_in_progress(technician, except_pk=wo.pk, reason=pause_reason)
     now = timezone.now()
-    if wo.status == WorkOrder.Status.IN_PROGRESS:
+    if wo.lifecycle_status == WorkOrder.LifecycleStatus.IN_PROGRESS:
         wo.labor_started_at = now
         wo.labor_stopped_at = None
         wo.save(update_fields=["labor_started_at", "labor_stopped_at", "updated_at"])
@@ -264,7 +258,7 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
     wo.labor_started_at = now
     wo.labor_stopped_at = None
     wo.save(update_fields=["downtime_started_at", "labor_started_at", "labor_stopped_at", "updated_at"])
-    transition_work_order(wo, WorkOrder.Status.IN_PROGRESS, actor=technician, note="Start work")
+    transition_work_order(wo, WorkOrder.LifecycleStatus.IN_PROGRESS, actor=technician, note="Start work")
     from .notifications import notify_wo_started
     notify_wo_started(wo)
     # Phase 2B: resolve all open OPERATIONAL blockers on this WO. This
@@ -301,7 +295,7 @@ def technician_submit_for_review(wo: WorkOrder, technician: User) -> None:
     now = timezone.now()
     wo.labor_stopped_at = now
     wo.save(update_fields=["labor_stopped_at", "updated_at"])
-    transition_work_order(wo, WorkOrder.Status.PENDING_REVIEW, actor=technician, note="Submitted for review")
+    transition_work_order(wo, WorkOrder.LifecycleStatus.PENDING_REVIEW, actor=technician, note="Submitted for review")
     from .notifications import notify_wo_pending_review
 
     notify_wo_pending_review(wo)
@@ -309,32 +303,30 @@ def technician_submit_for_review(wo: WorkOrder, technician: User) -> None:
 
 @transaction.atomic
 def technician_mark_pending_parts(wo: WorkOrder, technician: User, note: str = "") -> None:
-    if wo.status != WorkOrder.Status.IN_PROGRESS:
+    if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
         raise ValueError("Work order must be in progress.")
     wo.labor_stopped_at = timezone.now()
     wo.save(update_fields=["labor_stopped_at", "updated_at"])
-    transition_work_order(
-        wo,
-        WorkOrder.Status.PENDING_PARTS,
-        actor=technician,
-        note=(note or "Waiting for spare parts")[:500],
-    )
+    from maintenance.services_wo_status import WorkOrderService
+    try:
+        WorkOrderService.recompute_operational_status(wo)
+    except Exception:
+        pass
     from .notifications import notify_wo_paused
     notify_wo_paused(wo)
 
 
 @transaction.atomic
 def technician_mark_waiting_vendor(wo: WorkOrder, technician: User, note: str = "") -> None:
-    if wo.status != WorkOrder.Status.IN_PROGRESS:
+    if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
         raise ValueError("Work order must be in progress.")
     wo.labor_stopped_at = timezone.now()
     wo.save(update_fields=["labor_stopped_at", "updated_at"])
-    transition_work_order(
-        wo,
-        WorkOrder.Status.WAITING_FOR_VENDOR,
-        actor=technician,
-        note=(note or "Waiting for external vendor")[:500],
-    )
+    from maintenance.services_wo_status import WorkOrderService
+    try:
+        WorkOrderService.recompute_operational_status(wo)
+    except Exception:
+        pass
     from .notifications import notify_wo_paused
     notify_wo_paused(wo)
 
@@ -358,7 +350,7 @@ def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool, reject
         wo.rejected_by = None
         wo.rejection_reason = ""
         wo.save(update_fields=["rejected_at", "rejected_by", "rejection_reason", "updated_at"])
-        transition_work_order(wo, WorkOrder.Status.CLOSED, actor=manager, note="Approved & closed")
+        transition_work_order(wo, WorkOrder.LifecycleStatus.CLOSED, actor=manager, note="Approved & closed")
         from .notifications import notify_wo_closed
         notify_wo_closed(wo)
     else:
@@ -375,7 +367,7 @@ def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool, reject
             "labor_started_at", "labor_stopped_at", "updated_at"
         ])
         transition_work_order(
-            wo, WorkOrder.Status.IN_PROGRESS, 
+            wo, WorkOrder.LifecycleStatus.IN_PROGRESS, 
             actor=manager, 
             note=f"Rejected: {rejection_reason.strip()[:200]}"
         )
@@ -643,18 +635,18 @@ def technician_stats(technician: User) -> dict:
     from .models import WorkOrder, WorkOrderAssignmentHistory
 
     closed = WorkOrder.objects.filter(
-        assigned_technician=technician, status=WorkOrder.Status.CLOSED
+        assigned_technician=technician, lifecycle_status=WorkOrder.LifecycleStatus.CLOSED
     )
     completed_count = closed.count()
     in_progress_count = WorkOrder.objects.filter(
-        assigned_technician=technician, status=WorkOrder.Status.IN_PROGRESS
+        assigned_technician=technician, lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS
     ).count()
     reopened_count = sum(
         wo.rejection_count or 0
         for wo in WorkOrder.objects.filter(assigned_technician=technician)
     )
     external_repair_count = closed.filter(
-        state_logs__to_status=WorkOrder.Status.WAITING_FOR_VENDOR
+        state_logs__to_status="waiting_vendor"
     ).distinct().count()
 
     # Average repair duration (labor minutes) on closed WOs

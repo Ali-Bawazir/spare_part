@@ -3,22 +3,15 @@ WorkOrder operational status computation.
 
 The `lifecycle_status` is explicit (user-driven).
 The `operational_status` is DERIVED from open blockers + labor state.
-
-During the migration window (Phase 1-4), the derivation has a dual-read
-fallback: if a WO has no blocker rows, query the external entities
-directly. After 2 release cycles (Phase 5), the fallback is removed.
 """
 from __future__ import annotations
 
 from typing import Iterable
 
 from .models import (
-    ExternalRepairOrder,
-    ExternalRepairRequest,
     WorkOrder,
     WorkOrderBlocker,
 )
-from inventory.models import PartIssueLine, PartShortageReport
 
 
 _PART_SHORTAGE_KINDS = (
@@ -28,7 +21,7 @@ _PART_SHORTAGE_KINDS = (
 
 
 def _open_blockers(wo: WorkOrder) -> Iterable[WorkOrderBlocker]:
-    """Return the OPEN blockers for a WO (uses the new table directly)."""
+    """Return the OPEN blockers for a WO."""
     return wo.blockers.filter(status=WorkOrderBlocker.Status.OPEN)
 
 
@@ -57,11 +50,8 @@ class WorkOrderService:
         5. If labor is actively running        -> "active"
         6. Default                             -> "paused"
 
-        Saves the WO only if operational_status actually changed
-        (avoid log noise). Returns the new operational_status.
-
-        During Phase 1-4, also has a dual-read fallback for legacy WOs
-        (no blockers) — query external entities directly.
+        Saves the WO only if operational_status actually changed.
+        Returns the new operational_status.
         """
         # Step 4: terminal states — never auto-modify.
         if wo.lifecycle_status in (
@@ -80,47 +70,11 @@ class WorkOrderService:
         if any(b.kind == WorkOrderBlocker.Kind.OPERATIONAL for b in open_blockers):
             return _set_if_changed(wo, WorkOrder.OperationalStatus.PAUSED)
 
-        # Dual-read fallback (Phase 1-4): if the WO has no blocker rows
-        # at all, query the authoritative external entities directly.
-        # See ADR-0007 sub-decision 5.
-        if not open_blockers:
-            if PartIssueLine.objects.filter(
-                work_order=wo,
-                status__in=[
-                    PartIssueLine.Status.PENDING,
-                    PartIssueLine.Status.APPROVED,
-                    PartIssueLine.Status.ALLOCATED,
-                ],
-            ).exists() or PartShortageReport.objects.filter(
-                work_order=wo,
-                status__in=[
-                    PartShortageReport.Status.PENDING_REVIEW,
-                    PartShortageReport.Status.APPROVED,
-                    PartShortageReport.Status.IN_FULFILLMENT,
-                    PartShortageReport.Status.BLOCKED,
-                ],
-            ).exists():
-                return _set_if_changed(wo, WorkOrder.OperationalStatus.PENDING_PARTS)
-            if ExternalRepairRequest.objects.filter(
-                work_order=wo,
-                status=ExternalRepairRequest.Status.PENDING,
-            ).exists() or ExternalRepairOrder.objects.filter(
-                work_order=wo,
-                status__in=[
-                    ExternalRepairOrder.Status.DRAFT,
-                    ExternalRepairOrder.Status.SENT_TO_VENDOR,
-                    ExternalRepairOrder.Status.RETURNED,
-                ],
-            ).exists():
-                return _set_if_changed(wo, WorkOrder.OperationalStatus.WAITING_VENDOR)
-            if getattr(wo, "pause_reason", ""):
-                return _set_if_changed(wo, WorkOrder.OperationalStatus.PAUSED)
-
-        # Step 5: labor is actively running.
-        if wo.labor_started_at and not wo.labor_stopped_at:
+        # Step 5: lifecycle IN_PROGRESS with no blockers → active.
+        if wo.lifecycle_status == WorkOrder.LifecycleStatus.IN_PROGRESS:
             return _set_if_changed(wo, WorkOrder.OperationalStatus.ACTIVE)
 
-        # Step 6: default.
+        # Step 6: default (assigned/draft with no labor and no blockers).
         return _set_if_changed(wo, WorkOrder.OperationalStatus.PAUSED)
 
 

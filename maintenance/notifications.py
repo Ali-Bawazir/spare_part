@@ -365,9 +365,9 @@ def notify_wo_started(wo) -> None:
 
 def notify_wo_paused(wo) -> None:
     """WO paused or moved to waiting status → notify managers, supervisors, super admins."""
-    status_label = wo.get_status_display()
+    status_label = wo.get_lifecycle_status_display()
     title = f"WO-{wo.number} {status_label}"
-    body = f"{wo.machine.name} — status changed to {status_label}."
+    body = f"{wo.machine.name} — lifecycle changed to {status_label}."
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.WO_PAUSED,

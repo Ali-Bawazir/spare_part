@@ -120,18 +120,17 @@ def _queue_priority_and_status_rank():
     4. Status rank as tiebreaker
     """
     return Case(
-        When(status=WorkOrder.Status.IN_PROGRESS, then=Value(0)),
+        When(lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, then=Value(0)),
         When(is_emergency=True, then=Value(1)),
         When(issue__priority=MaintenanceIssue.Priority.CRITICAL, then=Value(2)),
         When(issue__priority=MaintenanceIssue.Priority.HIGH, then=Value(3)),
         When(issue__priority=MaintenanceIssue.Priority.MEDIUM, then=Value(4)),
         When(issue__priority=MaintenanceIssue.Priority.LOW, then=Value(5)),
-        When(status=WorkOrder.Status.ASSIGNED, then=Value(6)),
-        When(status=WorkOrder.Status.PAUSED, then=Value(7)),
-        When(status=WorkOrder.Status.PENDING_PARTS, then=Value(8)),
-        When(status=WorkOrder.Status.WAITING_FOR_VENDOR, then=Value(9)),
-        When(status=WorkOrder.Status.PENDING_REVIEW, then=Value(10)),
-        When(status=WorkOrder.Status.APPROVED, then=Value(11)),
+        When(lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED, then=Value(6)),
+        When(operational_status=WorkOrder.OperationalStatus.PAUSED, then=Value(7)),
+        When(operational_status=WorkOrder.OperationalStatus.PENDING_PARTS, then=Value(8)),
+        When(operational_status=WorkOrder.OperationalStatus.WAITING_VENDOR, then=Value(9)),
+        When(lifecycle_status=WorkOrder.LifecycleStatus.PENDING_REVIEW, then=Value(10)),
         default=Value(12),
         output_field=IntegerField(),
     )
@@ -150,13 +149,12 @@ def _priority_rank():
 
 def _queue_status_rank():
     return Case(
-        When(status=WorkOrder.Status.IN_PROGRESS, then=Value(0)),
-        When(status=WorkOrder.Status.ASSIGNED, then=Value(1)),
-        When(status=WorkOrder.Status.PAUSED, then=Value(2)),
-        When(status=WorkOrder.Status.PENDING_PARTS, then=Value(3)),
-        When(status=WorkOrder.Status.WAITING_FOR_VENDOR, then=Value(4)),
-        When(status=WorkOrder.Status.PENDING_REVIEW, then=Value(5)),
-        When(status=WorkOrder.Status.APPROVED, then=Value(6)),
+        When(lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS, then=Value(0)),
+        When(lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED, then=Value(1)),
+        When(operational_status=WorkOrder.OperationalStatus.PAUSED, then=Value(2)),
+        When(operational_status=WorkOrder.OperationalStatus.PENDING_PARTS, then=Value(3)),
+        When(operational_status=WorkOrder.OperationalStatus.WAITING_VENDOR, then=Value(4)),
+        When(lifecycle_status=WorkOrder.LifecycleStatus.PENDING_REVIEW, then=Value(5)),
         default=Value(7),
         output_field=IntegerField(),
     )
@@ -256,9 +254,9 @@ def dashboard(request):
     if caps.get("view_issues"):
         ctx["open_issues"] = MaintenanceIssue.objects.filter(status=MaintenanceIssue.Status.NEW).count()
     if caps.get("view_work_orders"):
-        ctx["open_wos"] = WorkOrder.objects.exclude(status=WorkOrder.Status.CLOSED).count()
+        ctx["open_wos"] = WorkOrder.objects.exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED).count()
         ctx["emergency_open"] = WorkOrder.objects.filter(is_emergency=True).exclude(
-            status=WorkOrder.Status.CLOSED
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED
         ).count()
     if role in (User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN) or request.user.is_superuser:
         ctx["stale_new_issues"] = MaintenanceIssue.objects.filter(
@@ -299,12 +297,12 @@ def dashboard(request):
     if role in (User.Role.TECHNICIAN,):
         ctx["my_queue"] = (
             WorkOrder.objects.filter(assigned_technician=request.user)
-            .exclude(status=WorkOrder.Status.CLOSED)
+            .exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED)
             .annotate(queue_rank=_queue_priority_and_status_rank())
             .order_by("queue_rank", "created_at")[:20]
         )
     if caps.get("close_or_review_wo"):
-        ctx["pending_review"] = WorkOrder.objects.filter(status=WorkOrder.Status.PENDING_REVIEW).count()
+        ctx["pending_review"] = WorkOrder.objects.filter(lifecycle_status=WorkOrder.LifecycleStatus.PENDING_REVIEW).count()
     if caps.get("view_procurement_requests"):
         ctx["pending_procurement"] = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).count()
 
@@ -361,15 +359,15 @@ def dashboard(request):
         ).count()
     if caps.get("view_work_orders"):
         ctx["paused_wos"] = WorkOrder.objects.filter(
-            status=WorkOrder.Status.PAUSED
+            operational_status=WorkOrder.OperationalStatus.PAUSED
         ).count()
         ctx["overdue_wos"] = WorkOrder.objects.filter(
-            status__in=[
-                WorkOrder.Status.ASSIGNED, WorkOrder.Status.IN_PROGRESS,
-                WorkOrder.Status.PAUSED, WorkOrder.Status.PENDING_PARTS,
-                WorkOrder.Status.WAITING_FOR_VENDOR,
+            lifecycle_status__in=[
+                WorkOrder.LifecycleStatus.ASSIGNED, WorkOrder.LifecycleStatus.IN_PROGRESS,
             ],
             created_at__lt=now - timedelta(days=7),
+        ).exclude(
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
         ).count()
     if caps.get("view_stock"):
         parts_with_primary = Attachment.objects.filter(
@@ -387,7 +385,7 @@ def dashboard(request):
         ).count()
         ctx["my_in_progress_wos"] = WorkOrder.objects.filter(
             assigned_technician=request.user,
-            status=WorkOrder.Status.IN_PROGRESS,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
         ).count()
     return render(request, "maintenance/dashboard.html", ctx)
 
@@ -469,7 +467,7 @@ def machine_list(request):
                 issue_count=Count("issues", distinct=True),
                 open_work_orders=Count(
                     "work_orders",
-                    filter=~Q(work_orders__status=WorkOrder.Status.CLOSED),
+                    filter=~Q(work_orders__lifecycle_status=WorkOrder.LifecycleStatus.CLOSED),
                     distinct=True,
                 ),
             )
@@ -889,7 +887,7 @@ def _technician_queue_queryset(user):
     return (
         WorkOrder.objects.select_related("machine", "assigned_technician", "issue")
         .filter(assigned_technician=user)
-        .exclude(status=WorkOrder.Status.CLOSED)
+        .exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED)
         .annotate(queue_rank=_queue_priority_and_status_rank())
         .order_by("queue_rank", "created_at")
     )
@@ -904,20 +902,16 @@ def work_order_list(request):
     if request.user.role == User.Role.TECHNICIAN and not request.user.is_super_admin_role():
         wos = _technician_queue_queryset(request.user)
     st = request.GET.get("status")
-    if st in dict(WorkOrder.Status.choices):
-        wos = wos.filter(status=st)
+    if st in dict(WorkOrder.LifecycleStatus.choices):
+        wos = wos.filter(lifecycle_status=st)
+    elif st in dict(WorkOrder.OperationalStatus.choices):
+        wos = wos.filter(operational_status=st)
     if request.GET.get("overdue") == "1":
         seven_days_ago = timezone.now() - timedelta(days=7)
         wos = wos.filter(
-            status__in=[
-                WorkOrder.Status.APPROVED,
-                WorkOrder.Status.ASSIGNED,
-                WorkOrder.Status.IN_PROGRESS,
-                WorkOrder.Status.PAUSED,
-                WorkOrder.Status.PENDING_PARTS,
-                WorkOrder.Status.WAITING_FOR_VENDOR,
-            ],
             created_at__lt=seven_days_ago,
+        ).exclude(
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
         )
     if request.GET.get("has_pending_part") == "1":
         from inventory.models import PartIssueLine
@@ -933,7 +927,7 @@ def work_order_list(request):
     return render(
         request,
         "maintenance/workorder_list.html",
-        {"work_orders": wos, "status_filter": st or "", "status_choices": WorkOrder.Status.choices},
+        {"work_orders": wos, "status_filter": st or "", "status_choices": WorkOrder.LifecycleStatus.choices, "operational_status_choices": WorkOrder.OperationalStatus.choices},
     )
 
 
@@ -947,7 +941,7 @@ def my_work_orders(request):
     Super admins may also view the page (for support purposes).
     """
     wos = list(_technician_queue_queryset(request.user)[:200])
-    in_progress_count = sum(1 for wo in wos if wo.status == WorkOrder.Status.IN_PROGRESS)
+    in_progress_count = sum(1 for wo in wos if wo.lifecycle_status == WorkOrder.LifecycleStatus.IN_PROGRESS)
     return render(
         request,
         "maintenance/my_workorders.html",
@@ -1197,7 +1191,7 @@ def work_order_create_from_issue(request, issue_pk):
         issue=issue,
         machine=issue.machine,
         component=issue.component,
-        status=WorkOrder.Status.APPROVED,
+        lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
         created_by=request.user,
         # P3.3: if the issue is flagged as emergency, the WO inherits it.
         is_emergency=bool(issue.is_emergency),
@@ -1218,7 +1212,7 @@ def work_order_create_from_issue(request, issue_pk):
     issue.save(update_fields=["status"])
     transition_work_order(
         wo,
-        WorkOrder.Status.APPROVED,
+        WorkOrder.LifecycleStatus.ASSIGNED,
         actor=request.user,
         note=f"Created from validated issue #{issue.pk}",
     )
@@ -1234,11 +1228,9 @@ def work_order_create_from_issue(request, issue_pk):
 def work_order_assign(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
     previous_technician_id = wo.assigned_technician_id
-    if wo.status not in (
-        WorkOrder.Status.APPROVED,
-        WorkOrder.Status.ASSIGNED,
-        WorkOrder.Status.PAUSED,
-    ):
+    if wo.lifecycle_status not in (
+        WorkOrder.LifecycleStatus.ASSIGNED,
+    ) and wo.operational_status != WorkOrder.OperationalStatus.PAUSED:
         messages.error(request, "Work order cannot be assigned in current state.")
         return redirect("work_order_detail", pk=pk)
     if request.method != "POST":
@@ -1250,7 +1242,7 @@ def work_order_assign(request, pk):
     new_technician = form.cleaned_data["technician"]
     wo.assigned_technician = new_technician
     wo.save(update_fields=["assigned_technician", "updated_at"])
-    transition_work_order(wo, WorkOrder.Status.ASSIGNED, actor=request.user, note="Technician assigned")
+    transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="Technician assigned")
     WorkOrderAssignmentHistory.objects.create(
         work_order=wo,
         technician=new_technician,
@@ -1284,12 +1276,13 @@ def work_order_start(request, pk):
         return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
-    if wo.status not in (
-        WorkOrder.Status.ASSIGNED,
-        WorkOrder.Status.PAUSED,
-        WorkOrder.Status.PENDING_PARTS,
-        WorkOrder.Status.WAITING_FOR_VENDOR,
-        WorkOrder.Status.IN_PROGRESS,
+    if wo.lifecycle_status not in (
+        WorkOrder.LifecycleStatus.ASSIGNED,
+        WorkOrder.LifecycleStatus.IN_PROGRESS,
+    ) and wo.operational_status not in (
+        WorkOrder.OperationalStatus.PAUSED,
+        WorkOrder.OperationalStatus.PENDING_PARTS,
+        WorkOrder.OperationalStatus.WAITING_VENDOR,
     ):
         messages.error(request, "Cannot start work in this state.")
         return redirect("work_order_detail", pk=pk)
@@ -1304,7 +1297,7 @@ def work_order_start(request, pk):
         )
         return redirect("work_order_detail", pk=wo.pk)
     conflicting_wo = get_other_active_work_order(request.user, except_pk=wo.pk)
-    if conflicting_wo and wo.status != WorkOrder.Status.IN_PROGRESS and request.POST.get("confirm_switch") != "1":
+    if conflicting_wo and wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS and request.POST.get("confirm_switch") != "1":
         return render(
             request,
             "maintenance/workorder_switch_confirm.html",
@@ -1325,7 +1318,7 @@ def work_order_pause(request, pk):
     if wo.assigned_technician != request.user:
         messages.error(request, "You can only pause work orders assigned to you.")
         return redirect("work_order_detail", pk=wo.pk)
-    if wo.status != WorkOrder.Status.IN_PROGRESS:
+    if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
         messages.error(request, "Not in progress.")
         return redirect("work_order_detail", pk=wo.pk)
     form = WorkOrderPauseForm(request.POST)
@@ -1356,7 +1349,7 @@ def work_order_submit(request, pk):
         return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
-    if wo.status != WorkOrder.Status.IN_PROGRESS:
+    if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
         messages.error(request, "Submit for review is only available while work is in progress.")
         return redirect("work_order_detail", pk=pk)
     form = WorkOrderCompleteForm(request.POST, instance=wo)
@@ -1373,7 +1366,7 @@ def work_order_submit(request, pk):
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_close(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
-    if wo.status != WorkOrder.Status.PENDING_REVIEW:
+    if wo.lifecycle_status != WorkOrder.LifecycleStatus.PENDING_REVIEW:
         messages.error(request, "Work order is not pending review.")
         return redirect("work_order_detail", pk=pk)
     if request.method != "POST":
@@ -1437,7 +1430,7 @@ def work_order_request_part(request, pk):
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         messages.error(request, "You can only request parts on work orders assigned to you.")
         return redirect("work_order_detail", pk=wo.pk)
-    if wo.status == WorkOrder.Status.CLOSED:
+    if wo.lifecycle_status == WorkOrder.LifecycleStatus.CLOSED:
         messages.error(request, "Cannot request parts on a closed work order.")
         return redirect("work_order_detail", pk=wo.pk)
 
@@ -1840,11 +1833,11 @@ def emergency_work_order_create(request):
                 is_emergency=True,
                 machine=form.cleaned_data["machine"],
                 component=form.cleaned_data.get("component"),
-                status=WorkOrder.Status.APPROVED,
+                lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
                 created_by=request.user,
                 notes=f"{form.cleaned_data['title']}\n\n{form.cleaned_data['detail']}",
             )
-            transition_work_order(wo, WorkOrder.Status.APPROVED, actor=request.user, note="Emergency WO created")
+            transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="Emergency WO created")
             log_audit(actor=request.user, action="emergency_wo", entity="WorkOrder", object_id=wo.pk)
             from .notifications import notify_emergency_work_order
 
@@ -2433,22 +2426,22 @@ def pm_spawn_wo(request, pk):
             wo = WorkOrder.objects.create(
                 category=WorkOrder.Category.PREVENTIVE,
                 machine=sched.machine,
-                status=WorkOrder.Status.APPROVED,
+                lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
                 created_by=request.user,
                 notes=f"PM: {sched.title}",
             )
-            transition_work_order(wo, WorkOrder.Status.APPROVED, actor=request.user, note="PM work order")
+            transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="PM work order")
             if form.cleaned_data.get("propagate_to_children") and sched.machine.children.exists():
                 child_count = 0
                 for child_machine in sched.machine.children.all():
                     child_wo = WorkOrder.objects.create(
                         category=WorkOrder.Category.PREVENTIVE,
                         machine=child_machine,
-                        status=WorkOrder.Status.APPROVED,
+                        lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
                         created_by=request.user,
                         notes=f"PM spawned from {sched.machine.name} → {child_machine.name}",
                     )
-                    transition_work_order(child_wo, WorkOrder.Status.APPROVED, actor=request.user,
+                    transition_work_order(child_wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user,
                                          note=f"PM for {child_machine.name} (child of {sched.machine.name})")
                     child_count += 1
                 if child_count:
@@ -2668,7 +2661,7 @@ def tool_return(request, assignment_pk):
                 ta.tool.save(update_fields=["status"])
                 wo = WorkOrder(
                     category=WorkOrder.Category.REPAIR,
-                    status=WorkOrder.Status.PENDING_REVIEW,
+                    lifecycle_status=WorkOrder.LifecycleStatus.PENDING_REVIEW,
                     tool=ta.tool,
                     created_by=request.user,
                     notes=f"Tool returned damaged: {ta.tool.name} (code: {ta.tool.code})",
@@ -2996,11 +2989,11 @@ def reports_view(request):
             "most_issues": Machine.objects.annotate(ic=Count("issues")).order_by("-ic")[:5],
             "status_counts": [
                 {
-                    "code": row["status"],
-                    "label": dict(WorkOrder.Status.choices).get(row["status"], row["status"]),
+                    "code": row["lifecycle_status"],
+                    "label": dict(WorkOrder.LifecycleStatus.choices).get(row["lifecycle_status"], row["lifecycle_status"]),
                     "count": row["c"],
                 }
-                for row in WorkOrder.objects.values("status").annotate(c=Count("id")).order_by("status")
+                for row in WorkOrder.objects.values("lifecycle_status").annotate(c=Count("id")).order_by("lifecycle_status")
             ],
             "most_issues_count": Machine.objects.annotate(ic=Count("issues")).count(),
             "view_all_wo_url": "reports_work_orders",
@@ -3012,7 +3005,7 @@ def reports_view(request):
                 .annotate(
                     closed_wos=Count(
                         "assigned_work_orders",
-                        filter=Q(assigned_work_orders__status=WorkOrder.Status.CLOSED),
+                        filter=Q(assigned_work_orders__lifecycle_status=WorkOrder.LifecycleStatus.CLOSED),
                     ),
                 )
                 .order_by("-closed_wos")[:5]
@@ -3121,7 +3114,7 @@ def machine_cost_report(request):
 
     wos = (
         WorkOrder.objects
-        .filter(status=WorkOrder.Status.CLOSED, updated_at__gte=period_start)
+        .filter(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED, updated_at__gte=period_start)
         .select_related("machine", "component")
         .prefetch_related("part_issues", "external_repairs", "cost_record")
     )
@@ -3318,7 +3311,7 @@ def reports_low_stock(request):
 def reports_machines(request):
     most_issues = Machine.objects.annotate(
         ic=Count("issues"),
-        open_wos=Count("work_orders", filter=~Q(work_orders__status=WorkOrder.Status.CLOSED)),
+        open_wos=Count("work_orders", filter=~Q(work_orders__lifecycle_status=WorkOrder.LifecycleStatus.CLOSED)),
     ).order_by("-ic")
     paginator = Paginator(most_issues, 50)
     page = request.GET.get("page")
@@ -3334,20 +3327,20 @@ def reports_work_orders(request):
 
     st = request.GET.get("status")
     qs = WorkOrder.objects.select_related("machine", "assigned_technician").order_by("-created_at")
-    if st in dict(WorkOrder.Status.choices):
-        qs = qs.filter(status=st)
+    if st in dict(WorkOrder.LifecycleStatus.choices):
+        qs = qs.filter(lifecycle_status=st)
+    elif st in dict(WorkOrder.OperationalStatus.choices):
+        qs = qs.filter(operational_status=st)
     status_counts = [
-        {"code": row["status"], "label": dict(WorkOrder.Status.choices).get(row["status"], row["status"]), "count": row["c"]}
-        for row in WorkOrder.objects.values("status").annotate(c=Count("id")).order_by("status")
+        {"code": row["lifecycle_status"], "label": dict(WorkOrder.LifecycleStatus.choices).get(row["lifecycle_status"], row["lifecycle_status"]), "count": row["c"]}
+        for row in WorkOrder.objects.values("lifecycle_status").annotate(c=Count("id")).order_by("lifecycle_status")
     ]
     now = timezone.now()
     overdue_threshold = now - timedelta(days=7)
     overdue_count = qs.filter(
-        status__in=[
-            WorkOrder.Status.APPROVED, WorkOrder.Status.ASSIGNED, WorkOrder.Status.IN_PROGRESS,
-            WorkOrder.Status.PAUSED, WorkOrder.Status.PENDING_PARTS, WorkOrder.Status.WAITING_FOR_VENDOR,
-        ],
         created_at__lt=overdue_threshold,
+    ).exclude(
+        lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
     ).count()
     paginator = Paginator(qs, 50)
     page = request.GET.get("page")
@@ -3356,7 +3349,7 @@ def reports_work_orders(request):
         "status_counts": status_counts,
         "status_filter": st or "",
         "overdue_count": overdue_count,
-        "status_choices": WorkOrder.Status.choices,
+        "status_choices": WorkOrder.LifecycleStatus.choices,
     })
 
 
@@ -3369,14 +3362,14 @@ def reports_technicians(request):
     techs = (
         User.objects.filter(role=User.Role.TECHNICIAN)
         .annotate(
-            closed_wos=Count("assigned_work_orders", filter=Q(assigned_work_orders__status=WorkOrder.Status.CLOSED)),
-            in_progress_wos=Count("assigned_work_orders", filter=Q(assigned_work_orders__status=WorkOrder.Status.IN_PROGRESS)),
+            closed_wos=Count("assigned_work_orders", filter=Q(assigned_work_orders__lifecycle_status=WorkOrder.LifecycleStatus.CLOSED)),
+            in_progress_wos=Count("assigned_work_orders", filter=Q(assigned_work_orders__lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS)),
         )
         .order_by("-closed_wos")
     )
     for tech in techs:
         tech_wos = list(tech.assigned_work_orders.filter(
-            status=WorkOrder.Status.CLOSED, updated_at__gte=td90
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED, updated_at__gte=td90
         ))
         labor_vals = []
         for wo in tech_wos:
@@ -3439,7 +3432,7 @@ def kpi_dashboard(request):
 
     closed = list(
         WorkOrder.objects.filter(
-            status=WorkOrder.Status.CLOSED,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
             downtime_started_at__isnull=False,
             downtime_ended_at__isnull=False,
             downtime_ended_at__gte=td90,
@@ -3495,7 +3488,7 @@ def kpi_dashboard(request):
 
     pm_closed = WorkOrder.objects.filter(
         category=WorkOrder.Category.PREVENTIVE,
-        status=WorkOrder.Status.CLOSED,
+        lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
         updated_at__gte=td90,
     ).count()
     pm_due = PMSchedule.objects.filter(is_active=True, next_due_at__lt=now).count()
@@ -3519,7 +3512,7 @@ def kpi_dashboard(request):
         "pm_active_schedules": pm_active,
         "pm_due_count": pm_due,
         "open_emergency_wos": WorkOrder.objects.filter(is_emergency=True)
-        .exclude(status=WorkOrder.Status.CLOSED)
+        .exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED)
         .count(),
         "tool_lost_count": tool_lost_count,
         "tool_loss_rate_pct": tool_loss_rate_pct,
@@ -4625,49 +4618,12 @@ def shortage_dashboard(request):
 
 
 def reconciliation_dashboard(request):
-    """Legacy WO reconciliation: shows WOs with blocker_system_version=0."""
-    from maintenance.models import WorkOrder
-    from django.db.models import Q
-
-    qs = WorkOrder.objects.filter(blocker_system_version=0).select_related(
-        "machine", "assigned_technician"
-    )
-
-    lifecycle_status = request.GET.get("lifecycle_status", "")
-    q = request.GET.get("q", "")
-    created_after = request.GET.get("created_after", "")
-    created_before = request.GET.get("created_before", "")
-
-    filters = {}
-    if lifecycle_status:
-        qs = qs.filter(lifecycle_status=lifecycle_status)
-        filters["lifecycle_status"] = lifecycle_status
-    if q:
-        import re
-        num_match = re.search(r"(\d+)", q)
-        if num_match:
-            qs = qs.filter(Q(number=num_match.group(1)))
-        else:
-            qs = qs.filter(machine__name__icontains=q)
-        filters["q"] = q
-    if created_after:
-        qs = qs.filter(created_at__gte=created_after)
-        filters["created_after"] = created_after
-    if created_before:
-        qs = qs.filter(created_at__lte=created_before)
-        filters["created_before"] = created_before
-
-    qs = qs.order_by("-created_at")
-    total_count = qs.count()
-
-    paginator = Paginator(qs, 25)
-    page = request.GET.get("page")
-    legacy_wos = paginator.get_page(page)
-
+    """All WorkOrders are on the blocker system. Shows banner and empty results."""
+    total_count = 0
     return render(request, "maintenance/reconciliation_dashboard.html", {
-        "legacy_wos": legacy_wos,
+        "legacy_wos": [],
         "total_count": total_count,
-        "filters": filters,
+        "filters": {},
         "status_choices": WorkOrder.LifecycleStatus.choices,
     })
 

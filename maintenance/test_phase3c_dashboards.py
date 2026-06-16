@@ -2,7 +2,7 @@
 Phase 3C — WorkOrder Blocker System: Reconciliation and Active Blockers dashboards.
 
 Covers:
-- reconciliation_dashboard: lists legacy WOs (blocker_system_version=0)
+- reconciliation_dashboard: all-WOs-migrated banner (Phase 5)
 - active_blockers_dashboard: lists open blockers sorted by impact
 """
 from __future__ import annotations
@@ -33,28 +33,20 @@ def _make_wo(
     machine: Machine = None,
     created_by: User,
     assigned_technician: User = None,
-    status: str = WorkOrder.Status.ASSIGNED,
     lifecycle_status: str = WorkOrder.LifecycleStatus.ASSIGNED,
-    blocker_system_version: int = 0,
     created_at=None,
     **kwargs,
 ) -> WorkOrder:
     defaults = {
         "machine": machine,
         "created_by": created_by,
-        "status": status,
         "lifecycle_status": lifecycle_status,
         "assigned_technician": assigned_technician,
     }
     if created_at:
         defaults["created_at"] = created_at
     defaults.update(kwargs)
-    # Create the WO, then set blocker_system_version via update() to
-    # bypass WorkOrder.save() which always bumps 0→1 for new records.
-    wo = WorkOrder.objects.create(**defaults)
-    if blocker_system_version == 0:
-        WorkOrder.objects.filter(pk=wo.pk).update(blocker_system_version=0)
-    return wo
+    return WorkOrder.objects.create(**defaults)
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +54,7 @@ def _make_wo(
 # ---------------------------------------------------------------------------
 
 class ReconciliationDashboardTests(TestCase):
-    """Tests for the reconciliation_dashboard view."""
+    """Tests for the reconciliation_dashboard view — Phase 5: always shows "all migrated"."""
 
     def setUp(self):
         self.manager = _make_user("manager_rec", User.Role.MANAGER)
@@ -70,114 +62,27 @@ class ReconciliationDashboardTests(TestCase):
             name="CNC-1000",
             qr_code="CNC-1000",
         )
-        self.wo_legacy = _make_wo(
-            machine=self.machine,
-            created_by=self.manager,
-            assigned_technician=self.manager,
-            blocker_system_version=0,
-        )
-        self.wo_migrated = _make_wo(
-            machine=self.machine,
-            created_by=self.manager,
-            blocker_system_version=1,
-        )
         self.url = reverse("reconciliation_dashboard")
 
-    def test_legacy_wos_visible(self):
-        """GET as manager returns legacy WOs in response."""
-        self.client.force_login(self.manager)
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(self.wo_legacy, response.context["legacy_wos"])
-        self.assertNotIn(self.wo_migrated, response.context["legacy_wos"])
-
-    def test_filter_by_lifecycle_status(self):
-        """GET with lifecycle_status=assigned filters correctly."""
-        wo_closed = _make_wo(
-            machine=self.machine,
-            created_by=self.manager,
-            blocker_system_version=0,
-            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
-            status=WorkOrder.Status.CLOSED,
-        )
-        self.client.force_login(self.manager)
-        response = self.client.get(self.url, {"lifecycle_status": "assigned"})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(self.wo_legacy, response.context["legacy_wos"])
-        self.assertNotIn(wo_closed, response.context["legacy_wos"])
-
-    def test_search_by_number(self):
-        """GET with q=WO- filters by number."""
-        wo2 = _make_wo(
-            machine=self.machine,
-            created_by=self.manager,
-            blocker_system_version=0,
-        )
-        self.client.force_login(self.manager)
-        response = self.client.get(self.url, {"q": str(self.wo_legacy.number)})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(self.wo_legacy, response.context["legacy_wos"])
-        self.assertNotIn(wo2, response.context["legacy_wos"])
-
-    def test_search_by_machine_name(self):
-        """GET with q=machine name filters correctly."""
-        machine2 = Machine.objects.create(name="Press-200", qr_code="PRESS-200")
-        wo2 = _make_wo(
-            machine=machine2,
-            created_by=self.manager,
-            blocker_system_version=0,
-        )
-        self.client.force_login(self.manager)
-        response = self.client.get(self.url, {"q": "CNC"})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(self.wo_legacy, response.context["legacy_wos"])
-        self.assertNotIn(wo2, response.context["legacy_wos"])
-
-    def test_date_range(self):
-        """GET with created_after and created_before filters correctly."""
-        old_wo = _make_wo(
-            machine=self.machine,
-            created_by=self.manager,
-            blocker_system_version=0,
-            created_at=timezone.now() - timedelta(days=30),
-        )
-        # Force the created_at for old_wo since auto_now_add overrides
-        WorkOrder.objects.filter(pk=old_wo.pk).update(
-            created_at=timezone.now() - timedelta(days=30)
-        )
-        self.client.force_login(self.manager)
-        now = timezone.now()
-        after = (now - timedelta(days=5)).strftime("%Y-%m-%d")
-        before = (now + timedelta(days=1)).strftime("%Y-%m-%d")
-        response = self.client.get(self.url, {
-            "created_after": after,
-            "created_before": before,
-        })
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(self.wo_legacy, response.context["legacy_wos"])
-        self.assertNotIn(old_wo, response.context["legacy_wos"])
-
     def test_all_migrated_banner(self):
-        """If no legacy WOs exist, green banner is shown."""
-        self.wo_legacy.delete()
+        """The dashboard always shows the all-migrated banner."""
         self.client.force_login(self.manager)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         body = response.content.decode("utf-8")
         self.assertIn("All WorkOrders are on the blocker system", body)
 
-    def test_total_count_in_context(self):
-        """total_count context variable reflects count of legacy WOs."""
+    def test_no_legacy_wos_in_context(self):
+        """legacy_wos context is empty."""
         self.client.force_login(self.manager)
         response = self.client.get(self.url)
-        self.assertEqual(response.context["total_count"], 1)
+        self.assertEqual(len(response.context["legacy_wos"]), 0)
 
-    def test_filters_in_context(self):
-        """Active filters are passed to context."""
+    def test_total_count_is_zero(self):
+        """total_count context variable is 0."""
         self.client.force_login(self.manager)
-        response = self.client.get(self.url, {"lifecycle_status": "assigned", "q": "test"})
-        self.assertEqual(response.context["filters"]["lifecycle_status"], "assigned")
-        self.assertEqual(response.context["filters"]["q"], "test")
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["total_count"], 0)
 
     def test_status_choices_in_context(self):
         """LifecycleStatus choices are passed to context."""
@@ -187,22 +92,6 @@ class ReconciliationDashboardTests(TestCase):
             response.context["status_choices"],
             WorkOrder.LifecycleStatus.choices,
         )
-
-    def test_pagination(self):
-        """Create 30 legacy WOs, assert only 25 per page."""
-        for i in range(28):
-            _make_wo(
-                machine=self.machine,
-                created_by=self.manager,
-                blocker_system_version=0,
-            )
-        self.client.force_login(self.manager)
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["legacy_wos"]), 25)
-        response_page2 = self.client.get(self.url, {"page": 2})
-        self.assertEqual(response_page2.status_code, 200)
-        self.assertEqual(len(response_page2.context["legacy_wos"]), 4)
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +112,6 @@ class ActiveBlockersDashboardTests(TestCase):
             machine=self.machine,
             created_by=self.manager,
             assigned_technician=self.tech,
-            blocker_system_version=1,
         )
         self.url = reverse("active_blockers_dashboard")
 
@@ -273,7 +161,6 @@ class ActiveBlockersDashboardTests(TestCase):
         wo2 = _make_wo(
             machine=self.machine,
             created_by=self.manager,
-            blocker_system_version=1,
         )
         blocker1 = self._make_blocker()
         blocker2 = WorkOrderBlocker.objects.create(
@@ -292,7 +179,6 @@ class ActiveBlockersDashboardTests(TestCase):
         machine2 = Machine.objects.create(name="Press-200", qr_code="PRESS-200")
         wo2 = _make_wo(
             machine=machine2, created_by=self.manager,
-            blocker_system_version=1,
         )
         blocker1 = self._make_blocker()
         blocker2 = WorkOrderBlocker.objects.create(

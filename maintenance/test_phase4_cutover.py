@@ -1,10 +1,5 @@
 """
-Phase 4 — Cutover from legacy UI/fields to the new blocker system.
-
-Covers:
-- The "Waiting for parts" and "Waiting for vendor" buttons are removed
-  from the technician actions template.
-- pause_reason and pause_note are read-only in WorkOrderAdmin.
+Phase 4 — Cutover: legacy buttons removed.
 """
 from __future__ import annotations
 
@@ -12,7 +7,6 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import User
-from maintenance.admin import WorkOrderAdmin
 from maintenance.models import Machine, WorkOrder
 
 
@@ -25,14 +19,12 @@ def _make_wo(
     machine: Machine = None,
     created_by: User,
     assigned_technician: User = None,
-    status: str = WorkOrder.Status.IN_PROGRESS,
     lifecycle_status: str = WorkOrder.LifecycleStatus.IN_PROGRESS,
     **kwargs,
 ) -> WorkOrder:
     defaults = {
         "machine": machine,
         "created_by": created_by,
-        "status": status,
         "lifecycle_status": lifecycle_status,
         "assigned_technician": assigned_technician,
     }
@@ -49,7 +41,6 @@ class MarkButtonsRemovedTests(TestCase):
         self.wo = _make_wo(
             machine=None, created_by=self.manager,
             assigned_technician=self.tech,
-            status=WorkOrder.Status.IN_PROGRESS,
             lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
         )
 
@@ -74,11 +65,4 @@ class MarkButtonsRemovedTests(TestCase):
         self.assertNotIn("Waiting for vendor", body)
 
 
-class PauseFieldsReadonlyInAdminTests(TestCase):
-    """pause_reason and pause_note are read-only in WorkOrderAdmin."""
 
-    def test_pause_fields_readonly_in_admin(self):
-        """assert pause_reason is in readonly_fields of WorkOrderAdmin."""
-        admin = WorkOrderAdmin
-        self.assertIn("pause_reason", admin.readonly_fields)
-        self.assertIn("pause_note", admin.readonly_fields)

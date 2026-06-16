@@ -47,7 +47,7 @@ def _make_wo(*, machine: Machine, created_by: User, **kwargs) -> WorkOrder:
     defaults = {
         "machine": machine,
         "created_by": created_by,
-        "status": WorkOrder.Status.APPROVED,
+        "lifecycle_status": WorkOrder.LifecycleStatus.ASSIGNED,
     }
     defaults.update(kwargs)
     return WorkOrder.objects.create(**defaults)
@@ -460,10 +460,10 @@ class WorkOrderOperationalStatusTests(TestCase):
         new_status = WorkOrderService.recompute_operational_status(self.wo)
         self.assertEqual(new_status, WorkOrder.OperationalStatus.ACTIVE)
 
-    def test_default_paused_when_in_progress_no_labor_no_blockers(self):
-        # in_progress lifecycle, no labor, no blockers, no external waits
+    def test_active_when_in_progress_no_labor_no_blockers(self):
+        # in_progress lifecycle, no labor, no blockers
         new_status = WorkOrderService.recompute_operational_status(self.wo)
-        self.assertEqual(new_status, WorkOrder.OperationalStatus.PAUSED)
+        self.assertEqual(new_status, WorkOrder.OperationalStatus.ACTIVE)
 
     def test_terminal_lifecycle_does_not_modify_operational_status(self):
         # Set operational_status to something non-default, then close the WO
@@ -478,38 +478,6 @@ class WorkOrderOperationalStatusTests(TestCase):
             self.wo.operational_status, WorkOrder.OperationalStatus.ACTIVE,
         )
 
-    def test_dual_read_fallback_legacy_wo(self):
-        # Legacy WO: no blockers, but a PENDING PartIssueLine exists
-        legacy_wo = _make_wo(machine=self.machine, created_by=self.manager)
-        # No blocker opened. But a PENDING part issue line exists.
-        PartIssueLine.objects.create(
-            work_order=legacy_wo, part=self.part, quantity=Decimal("1"),
-            unit_cost=Decimal("5"), status=PartIssueLine.Status.PENDING,
-            requested_by=self.tech, issued_by=self.tech,
-            requested_qty=Decimal("1"),
-        )
-        new_status = WorkOrderService.recompute_operational_status(legacy_wo)
-        self.assertEqual(new_status, WorkOrder.OperationalStatus.PENDING_PARTS)
-
-    def test_dual_read_fallback_shortage_report_pending(self):
-        from inventory.models import PartShortageReport
-        legacy_wo = _make_wo(machine=self.machine, created_by=self.manager)
-        PartShortageReport.objects.create(
-            content_type=ContentType.objects.get_for_model(WorkOrder),
-            object_id=legacy_wo.pk,
-            work_order=legacy_wo,
-            part=self.part,
-            qty_requested=Decimal("1"),
-            shortage_qty=Decimal("1"),
-            available_qty_snapshot=Decimal("0"),
-            reserved_qty_snapshot=Decimal("0"),
-            usable_qty_snapshot=Decimal("0"),
-            reported_by=self.tech,
-            status=PartShortageReport.Status.PENDING_REVIEW,
-        )
-        new_status = WorkOrderService.recompute_operational_status(legacy_wo)
-        self.assertEqual(new_status, WorkOrder.OperationalStatus.PENDING_PARTS)
-
     def test_no_save_when_status_unchanged(self):
         # WO starts at PAUSED (the default). No blockers. Recompute should
         # produce PAUSED — the model row should not be re-saved.
@@ -517,6 +485,8 @@ class WorkOrderOperationalStatusTests(TestCase):
             self.wo.operational_status, WorkOrder.OperationalStatus.PAUSED,
         )
         # Capture updated_at, run recompute, check it didn't change
+        self.wo.operational_status = WorkOrder.OperationalStatus.ACTIVE
+        self.wo.save(update_fields=["operational_status", "updated_at"])
         original_updated = self.wo.updated_at
         WorkOrderService.recompute_operational_status(self.wo)
         self.wo.refresh_from_db()
@@ -582,15 +552,6 @@ class InventoryReservationSignalTests(TestCase):
         self.inv.refresh_from_db()
         self.assertEqual(self.inv.quantity_reserved, Decimal("0"))
 
-
-class WorkOrderSaveMigrationTests(TestCase):
-    """WorkOrder.save bumps blocker_system_version to 1 for new WOs."""
-
-    def test_new_wo_has_blocker_system_version_one(self):
-        manager = _make_user("manager_mig", User.Role.MANAGER)
-        machine = Machine.objects.create(name="Press MIG", qr_code="PRESS-MIG")
-        wo = _make_wo(machine=machine, created_by=manager)
-        self.assertEqual(wo.blocker_system_version, 1)
 
 
 class OperationalBlockerServiceTests(TestCase):
@@ -705,7 +666,7 @@ class PartBlockerHookTests(TestCase):
         self.wo = WorkOrder.objects.create(
             number=9999, machine=None, created_by=self.manager,
             assigned_technician=self.technician,
-            status="in_progress", lifecycle_status="in_progress",
+            lifecycle_status="in_progress",
         )
         # Seed an Inventory row so free stock is 10
         site = Site.objects.filter(is_default=True).first()
@@ -828,7 +789,7 @@ class OperationalBlockerHookTests(TestCase):
         self.wo = WorkOrder.objects.create(
             number=8888, machine=None, created_by=self.manager,
             assigned_technician=self.technician,
-            status="in_progress", lifecycle_status="in_progress",
+            lifecycle_status="in_progress",
         )
 
     def test_pause_with_note_opens_operational_blocker(self):
@@ -873,12 +834,12 @@ class OperationalBlockerHookTests(TestCase):
         emergency_wo = WorkOrder.objects.create(
             number=7777, machine=None, created_by=self.manager,
             assigned_technician=self.technician,
-            status="in_progress", lifecycle_status="in_progress",
+            lifecycle_status="in_progress",
             is_emergency=True,
         )
         # self.wo is the WO being auto-paused. Reaffirm its state in case
         # previous test methods in the class touched it.
-        self.wo.status = "in_progress"
+        self.wo.lifecycle_status = WorkOrder.LifecycleStatus.IN_PROGRESS
         self.wo.labor_started_at = self.wo.created_at
         self.wo.save()
         # Call pause_other_in_progress
@@ -911,7 +872,7 @@ class VendorRepairBlockerHookTests(TestCase):
         self.wo = WorkOrder.objects.create(
             number=6666, machine=self.machine, created_by=self.manager,
             assigned_technician=self.technician,
-            status="in_progress", lifecycle_status="in_progress",
+            lifecycle_status="in_progress",
         )
         self.part = SparePart.objects.create(
             sku="VR-TEST-001", name="VR Test Part",
