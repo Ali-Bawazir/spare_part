@@ -738,6 +738,13 @@ class Notification(models.Model):
         WO_PART_RECEIVED = "wo_part_received", "Part received from supplier (linked to WO)"
         WO_PART_RETURNED = "wo_part_returned", "Part returned from vendor (linked to WO)"
         WO_PART_REJECTED = "wo_part_rejected", "Part request rejected (linked to WO)"
+        # Phase 2C: WorkOrder Blocker System notifications
+        WO_BLOCKER_OPENED = "wo_blocker_opened", "WO blocker opened"
+        WO_BLOCKER_RESOLVED = "wo_blocker_resolved", "WO blocker resolved"
+        WO_BLOCKER_CANCELLED = "wo_blocker_cancelled", "WO blocker cancelled"
+        EMERGENCY_INTERRUPTED = "emergency_interrupted", "Emergency WO interrupted another WO"
+        LABOR_RESUMED = "labor_resumed", "Labor resumed on WO"
+        PO_RECEIVED_SUMMARY = "po_received_summary", "PO received (summary)"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,

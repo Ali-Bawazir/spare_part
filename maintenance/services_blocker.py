@@ -15,11 +15,14 @@ Operational rule: the PART blocker resolves on `issued_qty == approved_qty`
 """
 from __future__ import annotations
 
+import logging
 from typing import Optional, Any
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 from inventory.models import (
     InventoryReservation,
@@ -366,13 +369,25 @@ class WorkOrderBlockerEventService:
         """
         Append a structured event to a blocker's history. Always writes;
         never replaces. Returns the created event row.
+
+        Also fires the Phase 2C notification hook so the event can drive
+        in-app notifications. Notification failures are logged and never
+        propagate (the event write is the source of truth).
         """
-        return WorkOrderBlockerEvent.objects.create(
+        event = WorkOrderBlockerEvent.objects.create(
             blocker=blocker,
             event_type=event_type,
             actor=actor,
             payload=payload or {},
         )
+        try:
+            from .services_notifications import NotificationService
+            NotificationService.on_blocker_event(event)
+        except Exception:
+            logger.exception(
+                "NotificationService.on_blocker_event failed for event %s", event.pk
+            )
+        return event
 
 
 __all__ = [
