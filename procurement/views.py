@@ -325,7 +325,7 @@ def purchase_order_create(request):
                             purchase_order=po,
                             part=pr.part,
                             ordered_qty=pr.quantity,
-                            unit_price=unit_price,
+                            negotiated_unit_price=unit_price,
                             total_price=pr.quantity * unit_price,
                         )
                     pr.purchase_order = po
@@ -370,7 +370,7 @@ def purchase_order_create_from_pr(request, pr_pk):
                 purchase_order=po,
                 part=pr.part,
                 ordered_qty=pr.quantity,
-                unit_price=pr.unit_price or pr.part.last_purchase_cost or Decimal("0"),
+                negotiated_unit_price=pr.unit_price or pr.part.last_purchase_cost or Decimal("0"),
                 total_price=pr.quantity * (pr.unit_price or pr.part.last_purchase_cost or Decimal("0")),
             )
             pr.purchase_order = po
@@ -473,7 +473,7 @@ def purchase_order_receive(request, pk):
                     quantity=qty,
                     performed_by=request.user,
                     supplier_name=po.supplier.name if po.supplier else "",
-                    unit_cost=item.unit_price,
+                    unit_cost=item.negotiated_unit_price,
                     invoice_ref=f"{po.po_number}",
                     note=f"Received against PO {po.po_number}",
                     site=site,
@@ -570,13 +570,13 @@ def purchase_order_pdf(request, pk):
     item_data = [["SKU", "Part Name", "Qty", "Unit Cost", "Total"]]
     grand_total = Decimal("0")
     for item in po.items.all():
-        total = item.ordered_qty * item.unit_price
+        total = item.ordered_qty * item.negotiated_unit_price
         grand_total += total
         item_data.append([
             item.part.sku,
             item.part.name,
             f"{item.ordered_qty:.3f}",
-            f"{item.unit_price:.4f}",
+            f"{item.negotiated_unit_price:.4f}",
             f"{total:.4f}",
         ])
     item_data.append(["", "", "", "Grand Total", f"{grand_total:.4f}"])

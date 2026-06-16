@@ -169,6 +169,28 @@ class PurchaseOrder(models.Model):
         db_index=True,
     )
     notes = models.TextField(blank=True)
+
+    # Supplier invoice (captured at receive time, distinct from PO-level invoice_ref)
+    supplier_invoice_number = models.CharField(max_length=120, blank=True)
+    supplier_invoice_date   = models.DateField(null=True, blank=True)
+    supplier_invoice_total  = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    currency                = models.CharField(max_length=3, default="USD")
+    exchange_rate           = models.DecimalField(max_digits=12, decimal_places=6, default=1,
+        help_text="PO currency → site currency at receive time")
+    invoice_attachment      = models.ForeignKey("maintenance.Attachment", on_delete=models.SET_NULL,
+                                                null=True, blank=True, related_name="po_invoice_for")
+
+    # Delivery metadata
+    received_by       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                           null=True, blank=True, related_name="pos_received")
+    inspected_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                           null=True, blank=True, related_name="pos_inspected")
+    received_at       = models.DateTimeField(null=True, blank=True)
+    carrier           = models.CharField(max_length=120, blank=True)
+    tracking_number   = models.CharField(max_length=120, blank=True)
+    delivery_note_ref = models.CharField(max_length=120, blank=True)
+    delivery_date     = models.DateField(null=True, blank=True)
+    condition_notes   = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -221,12 +243,17 @@ class PurchaseOrder(models.Model):
     def total_received_value(self) -> Decimal:
         total = Decimal("0")
         for item in self.items.all():
-            total += item.received_qty * item.unit_price
+            total += item.received_qty * item.negotiated_unit_price
         return total
 
 
 class PurchaseOrderItem(models.Model):
     """Line item on a purchase order tracking ordered vs received."""
+
+    class Condition(models.TextChoices):
+        GOOD     = "good",     "Good"
+        DAMAGED  = "damaged",  "Damaged (quarantine)"
+        REJECTED = "rejected", "Rejected at inspection"
 
     purchase_order = models.ForeignKey(
         PurchaseOrder,
@@ -240,8 +267,17 @@ class PurchaseOrderItem(models.Model):
     )
     ordered_qty = models.DecimalField(max_digits=14, decimal_places=3)
     received_qty = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
-    unit_price = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"))
+    negotiated_unit_price = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"),
+        help_text="Price agreed on the PO. Renamed from unit_price.")
+    actual_unit_price = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True,
+        help_text="What was actually invoiced by the supplier. Used for weighted-avg cost recompute.")
     total_price = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal("0"))
+    damaged_qty       = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
+    rejected_qty      = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
+    backordered_qty   = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"),
+        help_text="Units the supplier owes but hasn't delivered. ordered_qty = received_qty + backordered_qty + cancelled_qty.")
+    condition         = models.CharField(max_length=16, choices=Condition.choices, default=Condition.GOOD)
+    line_note         = models.CharField(max_length=500, blank=True)
 
     class Meta:
         verbose_name_plural = "purchase order items"
@@ -254,6 +290,6 @@ class PurchaseOrderItem(models.Model):
         return self.ordered_qty - self.received_qty
 
     def save(self, *args, **kwargs):
-        if self.ordered_qty and self.unit_price:
-            self.total_price = self.ordered_qty * self.unit_price
+        if self.ordered_qty and self.negotiated_unit_price:
+            self.total_price = self.ordered_qty * self.negotiated_unit_price
         super().save(*args, **kwargs)

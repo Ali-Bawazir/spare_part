@@ -22,6 +22,11 @@ class Inventory(models.Model):
             "quantity_reserved. Do NOT add a hard physical-lock check here."
         ),
     )
+    quantity_quarantine = models.DecimalField(max_digits=14, decimal_places=3, default=0,
+        help_text="Damaged units received from suppliers. Not visible to maintenance. "
+                  "Distinct from quantity_available (usable) and quantity_rejected (audit only).")
+    quantity_rejected   = models.DecimalField(max_digits=14, decimal_places=3, default=0,
+        help_text="Units rejected at inspection. Not in inventory; tracked for audit only.")
     rack_location = models.CharField(max_length=64, blank=True)
     last_counted_at = models.DateTimeField(null=True, blank=True)
     last_counted_by = models.ForeignKey(
@@ -235,9 +240,11 @@ class PartIssueLine(models.Model):
     """
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        APPROVED = "approved", "Approved"
-        REJECTED = "rejected", "Rejected"
+        PENDING   = "pending",   "Pending"
+        APPROVED  = "approved",  "Approved"
+        ALLOCATED = "allocated", "Allocated"
+        ISSUED    = "issued",    "Issued"
+        REJECTED  = "rejected",  "Rejected"
 
     work_order = models.ForeignKey(
         "maintenance.WorkOrder",
@@ -308,6 +315,11 @@ class PartIssueLine(models.Model):
             "What the technician originally requested. Mirrors `quantity` at "
             "request time. Preserved through edits so audit trail is intact."
         ),
+    )
+    allocated_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=0,
+        help_text="Stage 3: units reserved in inventory. Set by approve_part_request. "
+                  "PART WO Blocker resolves when issued_qty == approved_qty (not at allocation)."
     )
     approved_qty = models.DecimalField(
         max_digits=14, decimal_places=3, default=0,
@@ -607,3 +619,31 @@ class PartShortageDecision(models.Model):
 
     def __str__(self) -> str:
         return f"PSD-{self.pk} (report={self.report_id} · {self.decision_type})"
+
+
+class InventoryReservation(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE    = "active",    "Active"
+        RELEASED  = "released",  "Released"
+        CANCELLED = "cancelled", "Cancelled"
+
+    part        = models.ForeignKey("SparePart", on_delete=models.PROTECT, related_name="reservations")
+    work_order  = models.ForeignKey("maintenance.WorkOrder", on_delete=models.CASCADE,
+                                    null=True, blank=True, related_name="reservations",
+                                    help_text="Nullable for legacy/synthetic reservations")
+    quantity    = models.DecimalField(max_digits=14, decimal_places=3)
+    status      = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    source_line = models.ForeignKey("PartIssueLine", on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name="reservations",
+                                    help_text="The PartIssueLine that created this reservation")
+    created_at  = models.DateTimeField(auto_now_add=True, db_index=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+    release_reason = models.CharField(max_length=200, blank=True)
+    priority_at_creation = models.PositiveIntegerField(default=0,
+        help_text="Snapshot of WO priority rank when the reservation was created")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["part", "status"]),
+            models.Index(fields=["work_order", "status"]),
+        ]

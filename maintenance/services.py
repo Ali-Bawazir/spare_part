@@ -47,6 +47,17 @@ def transition_work_order(
         object_id=wo.pk,
         payload={"from": from_status, "to": to_status, "note": note},
     )
+    # Phase 2B: recompute operational_status after every lifecycle transition.
+    # The operational status is derived from open blockers + labor state, so it
+    # must refresh whenever the underlying state changes.
+    from maintenance.services_wo_status import WorkOrderService
+    try:
+        WorkOrderService.recompute_operational_status(wo)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to recompute operational_status for WO #{wo.number}: {e}"
+        )
 
 
 def pause_other_in_progress(
@@ -98,6 +109,89 @@ def pause_other_in_progress(
                 f"Auto-paused: {dict(WorkOrder.PauseReason.choices)[reason]}"
             )
             prev_assignment.save()
+        # Phase 2B: open OPERATIONAL blocker on each auto-paused WO, with the
+        # emergency WO as the source (enables the "Why is this paused?" answer
+        # to walk the chain back to the root emergency). The source WO is
+        # the one being started (except_pk) — i.e. the emergency WO.
+        from maintenance.services_blocker import WorkOrderBlockerService
+        try:
+            source_wo = (
+                WorkOrder.objects.filter(pk=except_pk).first() if except_pk else None
+            )
+            WorkOrderBlockerService.open_operational_blocker(
+                work_order=other,
+                opened_by=None,  # system-initiated
+                note=f"Auto-paused (reason={reason})",
+                pause_reason=WorkOrder.PauseReason.EMERGENCY,
+                source_work_order=source_wo,
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to open auto-pause blocker: {e}"
+            )
+
+
+@transaction.atomic
+def work_order_pause(
+    wo: WorkOrder,
+    pause_reason: str,
+    pause_note: str = "",
+    actor: Optional[User] = None,
+) -> None:
+    """Pause an in-progress WO and (per ADR-0007 sub-decision 6) open an
+    OPERATIONAL WO Blocker only when the pause is "significant":
+        - reason is 'other', OR
+        - pause note is non-empty, OR
+        - reason is 'emergency' (auto-triggered by pause_other_in_progress).
+
+    For micro-pauses (e.g. grabbing a coffee) the transition + state log
+    happen but no blocker row is created — the dual-read fallback in
+    WorkOrderService.recompute_operational_status still derives 'paused'
+    from the populated pause_reason field during the migration window.
+    """
+    wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
+    now = timezone.now()
+    wo.labor_stopped_at = now
+    wo.pause_reason = pause_reason
+    wo.pause_note = (pause_note or "")[:500]
+    wo.save(update_fields=[
+        "labor_stopped_at", "pause_reason", "pause_note", "updated_at"
+    ])
+    state_log_note = (
+        wo.pause_note if wo.pause_note
+        else f"Paused: {dict(WorkOrder.PauseReason.choices)[pause_reason]}"
+    )
+    transition_work_order(wo, WorkOrder.Status.PAUSED, actor=actor, note=state_log_note)
+    # Phase 2B: open OPERATIONAL blocker if the pause is "significant".
+    # Content-based rule (ADR-0007 sub-decision 6).
+    from maintenance.services_blocker import WorkOrderBlockerService
+    should_open = (
+        pause_reason == WorkOrder.PauseReason.OTHER
+        or (pause_note or "").strip()
+        or pause_reason == WorkOrder.PauseReason.EMERGENCY
+    )
+    if should_open:
+        try:
+            WorkOrderBlockerService.open_operational_blocker(
+                work_order=wo,
+                opened_by=actor,
+                note=pause_note or "",
+                pause_reason=pause_reason,
+                # no source_work_order — tech-initiated pause has no source
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to open OPERATIONAL blocker: {e}"
+            )
+    # Always recompute WO status (recompute_operational_status is a no-op
+    # for terminal lifecycle states).
+    from maintenance.services_wo_status import WorkOrderService
+    try:
+        WorkOrderService.recompute_operational_status(wo)
+    except Exception:
+        pass
 
 
 def get_other_active_work_order(technician: User, except_pk: int | None = None) -> WorkOrder | None:
@@ -173,6 +267,33 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
     transition_work_order(wo, WorkOrder.Status.IN_PROGRESS, actor=technician, note="Start work")
     from .notifications import notify_wo_started
     notify_wo_started(wo)
+    # Phase 2B: resolve all open OPERATIONAL blockers on this WO. This
+    # naturally covers the resume path (technician moving the WO from
+    # PAUSED back to IN_PROGRESS) without distinguishing it from the
+    # initial start: the query filter on OPEN OPERATIONAL blockers is
+    # empty for fresh starts, so the loop is a no-op there.
+    from maintenance.services_blocker import WorkOrderBlockerService
+    from maintenance.models import WorkOrderBlocker
+    try:
+        open_operational = WorkOrderBlocker.objects.filter(
+            work_order=wo,
+            kind=WorkOrderBlocker.Kind.OPERATIONAL,
+            status=WorkOrderBlocker.Status.OPEN,
+        )
+        if open_operational.exists():
+            for blocker in open_operational:
+                WorkOrderBlockerService.resolve_blocker(
+                    blocker=blocker,
+                    resolution_note=(
+                        f"Resumed at {wo.labor_started_at.isoformat() if wo.labor_started_at else 'now'}"
+                    ),
+                    resolved_by=technician,
+                )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to resolve OPERATIONAL blockers on resume: {e}"
+        )
 
 
 @transaction.atomic
@@ -377,6 +498,28 @@ def request_external_repair(
         object_id=str(err.pk),
         payload={"work_order": work_order.number, "part": part_description.strip()[:80]},
     )
+    # Phase 2B-6: open VENDOR_REPAIR blocker keyed to the ExternalRepairRequest.
+    try:
+        from maintenance.services_blocker import WorkOrderBlockerService
+        from maintenance.models import WorkOrderBlocker
+        _label = f"Vendor repair — {part_description.strip()[:80]}" if part_description else "Vendor repair"
+        WorkOrderBlockerService.open_blocker(
+            work_order=work_order,
+            kind=WorkOrderBlocker.Kind.VENDOR_REPAIR,
+            external_obj=err,
+            opened_by=requested_by,
+            note=diagnosis_note or "",
+            external_label=_label,
+        )
+    except Exception as _e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to open VENDOR_REPAIR blocker: {_e}")
+
+    from maintenance.services_wo_status import WorkOrderService
+    try:
+        WorkOrderService.recompute_operational_status(work_order)
+    except Exception:
+        pass
     return err
 
 
@@ -424,6 +567,30 @@ def approve_external_repair_request(
         object_id=str(err.pk),
         payload={"ero_pk": str(ero.pk), "work_order": err.work_order.number},
     )
+
+    # Phase 2B-6: attach the newly-created ERO to the VENDOR_REPAIR blocker and
+    # fire the ERO_CREATED event. Idempotent: if no OPEN blocker exists (e.g.
+    # the request was opened under the legacy model), we skip silently.
+    try:
+        from maintenance.models import WorkOrderBlocker, WorkOrderBlockerEvent
+        from maintenance.services_blocker import WorkOrderBlockerEventService
+        _blocker = WorkOrderBlocker.objects.filter(
+            work_order=err.work_order,
+            kind=WorkOrderBlocker.Kind.VENDOR_REPAIR,
+            status=WorkOrderBlocker.Status.OPEN,
+        ).first()
+        if _blocker:
+            _blocker.related_ero = ero
+            _blocker.save(update_fields=["related_ero"])
+            WorkOrderBlockerEventService.record(
+                blocker=_blocker,
+                event_type=WorkOrderBlockerEvent.EventType.ERO_CREATED,
+                actor=manager,
+                payload={"ero_id": ero.pk, "ero_title": ero.title},
+            )
+    except Exception as _e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to set related_ero on VENDOR_REPAIR blocker: {_e}")
 
     from .notifications import notify_repair_draft_created
     notify_repair_draft_created(ero)

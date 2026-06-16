@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
@@ -296,6 +298,20 @@ class WorkOrder(models.Model):
         EMERGENCY = "emergency", "Emergency"
         REPAIR = "repair", "Repair"
 
+    class LifecycleStatus(models.TextChoices):
+        DRAFT          = "draft",          "Draft"
+        ASSIGNED       = "assigned",       "Assigned"
+        IN_PROGRESS    = "in_progress",    "In progress"
+        PENDING_REVIEW = "pending_review", "Pending review"
+        CLOSED         = "closed",         "Closed"
+        CANCELLED      = "cancelled",      "Cancelled"
+
+    class OperationalStatus(models.TextChoices):
+        ACTIVE         = "active",         "Active"
+        PENDING_PARTS  = "pending_parts",  "Pending parts"
+        WAITING_VENDOR = "waiting_vendor", "Waiting vendor"
+        PAUSED         = "paused",         "Paused"
+
     class Status(models.TextChoices):
         APPROVED = "approved", "Approved"
         ASSIGNED = "assigned", "Assigned"
@@ -344,6 +360,25 @@ class WorkOrder(models.Model):
         choices=Status.choices,
         default=Status.APPROVED,
         db_index=True,
+    )
+    lifecycle_status = models.CharField(
+        max_length=20, choices=LifecycleStatus.choices,
+        default=LifecycleStatus.ASSIGNED, db_index=True,
+        help_text="Explicit, user-driven state. Replaces the legacy 'status' field for new code."
+    )
+    operational_status = models.CharField(
+        max_length=20, choices=OperationalStatus.choices,
+        default=OperationalStatus.PAUSED, db_index=True,
+        help_text="Derived from open blockers + labor state. Always computed; do not write directly."
+    )
+    blocker_system_version = models.IntegerField(
+        default=0, db_index=True,
+        help_text="0=created before blocker system; 1+=created under the new system."
+    )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="wos_cancelled"
     )
     assigned_technician = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -407,6 +442,13 @@ class WorkOrder(models.Model):
         if not self.number:
             last = WorkOrder.objects.order_by("-number").values_list("number", flat=True).first()
             self.number = (last or 0) + 1
+        # Phase 2A: new WOs created via the ORM are part of the blocker
+        # system from day one. Legacy WOs keep the field default of 0 until
+        # a real domain event (new part request, new pause, etc.) bumps
+        # the version. See ADR-0007 sub-decision 1 / blocker-system_version
+        # field docstring.
+        if self.pk is None and self.blocker_system_version == 0:
+            self.blocker_system_version = 1
         super().save(*args, **kwargs)
 
     def clean(self):
@@ -709,6 +751,16 @@ class Notification(models.Model):
     read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     is_critical = models.BooleanField(default=False, db_index=True)
+    priority = models.CharField(
+        max_length=10,
+        choices=[("low","Low"),("normal","Normal"),("high","High"),("critical","Critical")],
+        default="normal", db_index=True
+    )
+    dedup_key = models.CharField(max_length=200, blank=True, db_index=True)
+    work_order_blocker = models.ForeignKey(
+        "maintenance.WorkOrderBlocker", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="notifications"
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -844,6 +896,20 @@ class ExternalRepairRequest(models.Model):
     part_description = models.TextField(
         help_text="Description of the part being sent out (name, part#, qty)"
     )
+    part = models.ForeignKey(
+        "inventory.SparePart", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="external_repair_requests"
+    )
+    asset = models.ForeignKey(
+        "maintenance.Machine", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="external_repair_requests",
+        help_text="The level-3 machine whose part is being sent for repair"
+    )
+    component = models.ForeignKey(
+        "maintenance.Machine", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="component_external_repair_requests",
+        help_text="The level-5 component where the part is located"
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -881,29 +947,20 @@ class WorkOrderCost(models.Model):
         on_delete=models.CASCADE,
         related_name="cost_record",
     )
-    parts_cost = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="Sum of PartIssueLine unit_cost × qty",
+    material_cost = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0,
+        help_text="Sum of StockMovement.unit_cost × qty for ISSUE_TO_WO movements on this WO. Renamed from parts_cost."
     )
-    vendor_cost = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="Sum of ExternalRepairOrder.actual_cost",
+    vendor_repair_cost = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0,
+        help_text="Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this WO. Renamed from vendor_cost."
     )
-    consumables_cost = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="StockMovement CONSUMABLE_USE for linked machine",
-    )
-    additional_cost = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        default=Decimal("0"),
-    )
+    procurement_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0,
+        help_text="Sum of POItem.actual_unit_price × received_qty for POs linked via PR to this WO.")
+    consumables_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    additional_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    downtime_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0,
+        help_text="Phase 2: set by finance team. Computed as Downtime.total_minutes × rate_per_hour.")
     additional_cost_note = models.CharField(max_length=500, blank=True)
 
     class Meta:
@@ -915,12 +972,8 @@ class WorkOrderCost(models.Model):
 
     @property
     def total_cost(self) -> Decimal:
-        return (
-            (self.parts_cost or Decimal("0"))
-            + (self.vendor_cost or Decimal("0"))
-            + (self.consumables_cost or Decimal("0"))
-            + (self.additional_cost or Decimal("0"))
-        )
+        return (self.material_cost + self.vendor_repair_cost + self.procurement_cost
+                + self.consumables_cost + self.additional_cost + self.downtime_cost)
 
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -935,9 +988,11 @@ class WorkOrderCost(models.Model):
         """
         self._auto_calculate()
         super().save(update_fields=[
-            "parts_cost", "vendor_cost", "consumables_cost", "updated_at"
+            "material_cost", "vendor_repair_cost", "procurement_cost",
+            "consumables_cost", "downtime_cost", "updated_at"
         ] if hasattr(self, "updated_at") else [
-            "parts_cost", "vendor_cost", "consumables_cost",
+            "material_cost", "vendor_repair_cost", "procurement_cost",
+            "consumables_cost", "downtime_cost",
         ])
         return self
 
@@ -950,12 +1005,12 @@ class WorkOrderCost(models.Model):
         parts_total = wo.part_issues.aggregate(
             total=Sum(F('quantity') * F('unit_cost'))
         )['total'] or Decimal("0")
-        self.parts_cost = parts_total
+        self.material_cost = parts_total
 
         vendor_total = wo.external_repairs.aggregate(
             total=Sum('actual_cost')
         )['total'] or Decimal("0")
-        self.vendor_cost = vendor_total
+        self.vendor_repair_cost = vendor_total
 
         consumables_total = StockMovement.objects.filter(
             work_order=wo,
@@ -1042,6 +1097,11 @@ class Attachment(models.Model):
         default="PRODUCT",
         help_text="Category of attachment image",
     )
+    is_video = models.BooleanField(default=False, db_index=True)
+    compressed_path = models.CharField(max_length=500, blank=True,
+        help_text="Path to the compressed video file (mp4) — populated by VideoCompressionService")
+    thumbnail_path = models.CharField(max_length=500, blank=True,
+        help_text="Path to a 1-second thumbnail of the video")
 
     class Meta:
         ordering = ["-uploaded_at"]
@@ -1095,3 +1155,91 @@ class Attachment(models.Model):
 
     def __str__(self) -> str:
         return f"{self.filename} ({self.entity_type}:{self.entity_id})"
+
+
+class WorkOrderBlocker(models.Model):
+    class Kind(models.TextChoices):
+        PART          = "part",           "Awaiting Spare Part"
+        SHORTAGE      = "shortage",       "Awaiting Procurement"
+        VENDOR_REPAIR = "vendor_repair",  "Awaiting Vendor Repair"
+        OPERATIONAL   = "operational",    "Operational Pause"
+
+    class Status(models.TextChoices):
+        OPEN      = "open",      "Open"
+        RESOLVED  = "resolved",  "Resolved"
+        CANCELLED = "cancelled", "Cancelled"
+
+    work_order       = models.ForeignKey("WorkOrder", on_delete=models.CASCADE, related_name="blockers")
+    kind             = models.CharField(max_length=20, choices=Kind.choices, db_index=True)
+    status           = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN, db_index=True)
+    content_type     = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id        = models.PositiveIntegerField(null=True, blank=True)
+    external_ref     = GenericForeignKey("content_type", "object_id")
+    external_label   = models.CharField(max_length=300, blank=True,
+        help_text="Cached human-readable summary, e.g. 'BRG-6006 × 2' or 'Servo S7-300'")
+    related_ero      = models.ForeignKey("maintenance.ExternalRepairOrder", on_delete=models.SET_NULL,
+                                         null=True, blank=True, related_name="blockers")
+    source_work_order = models.ForeignKey("maintenance.WorkOrder", on_delete=models.SET_NULL,
+                                          null=True, blank=True, related_name="interruptions_caused")
+    note             = models.TextField(blank=True)
+    pause_reason     = models.CharField(max_length=20, blank=True,
+        help_text="'operational' | 'other' | 'emergency' (system-set)")
+    opened_at        = models.DateTimeField(auto_now_add=True)
+    opened_by        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                         null=True, related_name="blockers_opened")
+    resolved_at      = models.DateTimeField(null=True, blank=True)
+    resolved_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                         null=True, blank=True, related_name="blockers_resolved")
+    resolution_note  = models.TextField(blank=True)
+    cancelled_at     = models.DateTimeField(null=True, blank=True)
+    cancelled_by     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                         null=True, blank=True, related_name="blockers_cancelled")
+    cancel_reason    = models.TextField(blank=True)
+    migrated_from_legacy = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["work_order", "status"]),
+            models.Index(fields=["status", "kind"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["work_order", "content_type", "object_id"],
+                condition=models.Q(status="open"),
+                name="uniq_open_blocker_per_wo_ref",
+            ),
+        ]
+
+
+class WorkOrderBlockerEvent(models.Model):
+    class EventType(models.TextChoices):
+        BLOCKER_CREATED       = "blocker_created"
+        BLOCKER_RESOLVED      = "blocker_resolved"
+        BLOCKER_CANCELLED     = "blocker_cancelled"
+        PART_REQUEST_CREATED  = "part_request_created"
+        PART_APPROVED         = "part_approved"
+        PART_REJECTED         = "part_rejected"
+        PART_ISSUED           = "part_issued"
+        PART_RECEIVED         = "part_received"
+        SHORTAGE_RAISED       = "shortage_raised"
+        SHORTAGE_DECIDED      = "shortage_decided"
+        SHORTAGE_FULFILLED    = "shortage_fulfilled"
+        ERO_CREATED           = "ero_created"
+        ERO_SENT              = "ero_sent"
+        ERO_RETURNED          = "ero_returned"
+        ERO_ACCEPTED          = "ero_accepted"
+        EMERGENCY_INTERRUPTED = "emergency_interrupted"
+        LABOR_RESUMED         = "labor_resumed"
+
+    blocker      = models.ForeignKey(WorkOrderBlocker, on_delete=models.CASCADE, related_name="events")
+    event_type   = models.CharField(max_length=32, choices=EventType.choices, db_index=True)
+    actor        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name="blocker_events")
+    payload      = models.JSONField(default=dict, blank=True)
+    created_at   = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["blocker", "created_at"]),
+            models.Index(fields=["event_type", "created_at"]),
+        ]

@@ -588,6 +588,34 @@ def request_part_on_wo(
         },
     )
 
+    # Phase 2B: open a PART WO Blocker for this request, attempt allocation,
+    # and recompute the WO's operational status. Best-effort: any failure
+    # here MUST NOT break the original request (line + shortage report are
+    # already persisted above).
+    try:
+        from inventory.services_allocation import PartAllocationService
+        from maintenance.models import WorkOrderBlocker
+        from maintenance.services_blocker import WorkOrderBlockerService
+        from maintenance.services_wo_status import WorkOrderService
+
+        WorkOrderBlockerService.open_blocker(
+            work_order=wo,
+            kind=WorkOrderBlocker.Kind.PART,
+            external_obj=line,
+            opened_by=technician,
+            note=note or "",
+            external_label=f"{part.name} (SKU {part.sku}) × {quantity}",
+        )
+        # No-op while line.approved_qty == 0 (manager hasn't approved yet),
+        # but safe to call so future state flows through the same path.
+        PartAllocationService.allocate_one(line)
+        WorkOrderService.recompute_operational_status(wo)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to open PART blocker for line {line.pk}: {e}"
+        )
+
     return {
         "line": line,
         "shortage_qty": shortage_qty,
@@ -711,17 +739,16 @@ def approve_part_request(
 ) -> PartIssueLine:
     """Manager approves a PENDING request.
 
-    P3.1 design:
-    - Set approved_qty = line.quantity (manager's "approve" means
-      issue what the tech asked for).
-    - Compute issued_qty = min(approved_qty, available_at_approval_time).
-      If stock has been consumed since the request, issued_qty < approved_qty.
+    Phase 2B-3 (ADR-0007 sub-decision 7): 5-stage pipeline.
+    - Set approved_qty = line.quantity (or line.requested_qty if
+      is_emergency_auto). This is what the manager approved.
     - Compute shortage_qty = max(0, requested_qty - approved_qty).
-    - Deduct issued_qty from inventory. Manager handles procurement
-      separately via the PR flow.
-    - If is_emergency_auto=True, deduct the full requested_qty (skip
-      approved_qty cap) to handle the case where the line was auto-approved
-      by the emergency path.
+    - Run PartAllocationService.allocate_one to create an
+      InventoryReservation (stock is reserved, NOT deducted).
+    - Stock deduction and StockMovement(ISSUE_TO_WO) creation happen
+      later in execute_warehouse_issue.
+    - If is_emergency_auto=True, approved_qty = line.requested_qty
+      (skip the manager-edited qty cap).
     """
     if line.status == PartIssueLine.Status.APPROVED:
         return line
@@ -734,76 +761,31 @@ def approve_part_request(
     if not site:
         raise ValueError("No default site configured.")
 
-    inv = Inventory.objects.select_for_update().get(part=line.part, site=site)
-    available = inv.quantity_available - inv.quantity_reserved
-
+    # Phase 2B-3 (ADR-0007 sub-decision 7): 5-stage pipeline.
+    # Approval ONLY sets approved_qty and runs allocation. Stock is
+    # NOT deducted at approval — execute_warehouse_issue is the only
+    # path that deducts stock and creates StockMovement(ISSUE_TO_WO).
     if is_emergency_auto:
-        # Emergency auto-approve: try to deduct the full requested qty.
-        # If stock is insufficient, issue what's available and flag the
-        # shortage for manager post-review.
         approved = line.requested_qty
-        issued = min(approved, available)
     else:
         approved = line.quantity
-        # v4.9 A1: refuse silent truncation. Manager must either edit qty down
-        # to available, or reject and use the shortage flow.
-        if available <= 0:
-            raise ValueError(
-                f"No stock available for {line.part.sku}. "
-                f"Reject the request or use the shortage flow."
-            )
-        if available < approved:
-            raise ValueError(
-                f"Only {available:g} in stock for {line.part.sku}. "
-                f"Edit qty to {available:g}, or reject this request and use the shortage flow."
-            )
-        issued = approved
 
     shortage = max(Decimal("0"), line.requested_qty - approved)
-
-    quantity_before = inv.quantity_available
-    inv.quantity_available -= issued
-    inv.save()
-    quantity_after = inv.quantity_available
 
     now = timezone.now()
     line.status = PartIssueLine.Status.APPROVED
     line.approved_qty = approved
-    line.issued_qty = issued
     line.shortage_qty = shortage
     line.approved_by = manager
     line.approved_at = now
-    line.issued_by = manager
     if is_emergency_auto:
         line.is_emergency_auto_approved = True
     line.save(update_fields=[
-        "status", "approved_qty", "issued_qty", "shortage_qty",
+        "status", "approved_qty", "shortage_qty",
         "approved_by", "approved_at",
-        "issued_by", "is_emergency_auto_approved", "updated_at",
+        "is_emergency_auto_approved", "updated_at",
     ])
 
-    ref = {
-        "work_order_id": str(line.work_order.number),
-        "approved_by": manager.username,
-        "emergency_auto": is_emergency_auto,
-        "approved_qty": str(approved),
-        "issued_qty": str(issued),
-        "requested_qty": str(line.requested_qty),
-    }
-    if issued > 0:
-        StockMovement.objects.create(
-            part=line.part,
-            site=site,
-            movement_type=StockMovement.MovementType.ISSUE_TO_WO,
-            quantity=issued,
-            quantity_before=quantity_before,
-            quantity_after=quantity_after,
-            work_order=line.work_order,
-            performed_by=manager,
-            unit_cost=line.unit_cost,
-            note=f"Issued to WO-{line.work_order.number}",
-            reference=ref,
-        )
     log_audit(
         actor=manager,
         action="part_request_approved",
@@ -814,12 +796,41 @@ def approve_part_request(
             "part": line.part.sku,
             "requested_qty": str(line.requested_qty),
             "approved_qty": str(approved),
-            "issued_qty": str(issued),
             "shortage_qty": str(shortage),
             "emergency_auto": is_emergency_auto,
         },
     )
     _maybe_notify_low_stock(line.part, site)
+
+    # Phase 2B: fire PART_APPROVED event + run allocation
+    try:
+        from inventory.services_allocation import PartAllocationService
+        from maintenance.models import WorkOrderBlocker
+        from maintenance.services_blocker import WorkOrderBlockerEventService
+        from maintenance.services_wo_status import WorkOrderService
+
+        blocker = WorkOrderBlocker.objects.filter(
+            work_order=line.work_order,
+            kind=WorkOrderBlocker.Kind.PART,
+            status=WorkOrderBlocker.Status.OPEN,
+        ).first()
+        if blocker:
+            WorkOrderBlockerEventService.record(
+                blocker=blocker,
+                event_type="PART_APPROVED",
+                actor=manager,
+                payload={"line_id": line.pk, "approved_qty": str(line.approved_qty)},
+            )
+        # Run allocation (priority-ranked; this is where the InventoryReservation is created)
+        PartAllocationService.allocate_one(line)
+        # Recompute WO operational status
+        WorkOrderService.recompute_operational_status(line.work_order)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to fire PART_APPROVED event for line {line.pk}: {e}"
+        )
+
     return line
 
 
@@ -1382,6 +1393,30 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
 
     # Low-stock notification (matches the existing pattern in approve_part_request)
     _maybe_notify_low_stock(line.part, site)
+
+    # Phase 2B (keystone): resolve the PART blocker iff the tech now has the
+    # full approved qty. The keystone rule from ADR-0007: the blocker resolves
+    # on `issued_qty >= approved_qty`, NOT on allocation.
+    try:
+        from maintenance.services_blocker import WorkOrderBlockerService
+        from maintenance.services_wo_status import WorkOrderService
+
+        WorkOrderBlockerService.sync_from_external_event(
+            external_obj=line,
+            event_type="PART_ISSUED",
+            actor=actor,
+            payload={
+                "line_id": line.pk,
+                "issued_qty": str(line.issued_qty),
+                "approved_qty": str(line.approved_qty),
+            },
+        )
+        WorkOrderService.recompute_operational_status(line.work_order)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to resolve PART blocker for line {line.pk}: {e}"
+        )
 
     return {
         "actual_issued": qty,

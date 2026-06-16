@@ -1263,8 +1263,9 @@ class PartRequestWorkflowTests(TestCase):
             0,
         )
 
-    def test_manager_approval_deducts_stock(self):
+    def test_manager_approval_allocates_stock(self):
         from inventory.services import request_part_on_wo, approve_part_request
+        from inventory.models import InventoryReservation
         wo = self._make_wo()
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
@@ -1272,18 +1273,31 @@ class PartRequestWorkflowTests(TestCase):
         line = result["line"]
         approve_part_request(line=line, manager=self.manager)
         line.refresh_from_db()
-        self.assertEqual(line.status, PartIssueLine.Status.APPROVED)
+        # Phase 2B: approval reserves stock via InventoryReservation; physical
+        # deduction happens later in execute_warehouse_issue.
+        self.assertEqual(line.status, PartIssueLine.Status.ALLOCATED)
         self.assertEqual(line.approved_by, self.manager)
         self.assertIsNotNone(line.approved_at)
+        self.assertEqual(line.allocated_qty, Decimal("3"))
+        self.assertEqual(line.issued_qty, Decimal("0"))
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_available, Decimal("7"))
-        # StockMovement created
+        # Stock stays in inventory; it's reserved (not deducted) at approval.
+        self.assertEqual(self.inv.quantity_available, Decimal("10"))
+        # InventoryReservation created with the full approved quantity.
         self.assertTrue(
+            InventoryReservation.objects.filter(
+                part=self.part,
+                work_order=wo,
+                quantity=Decimal("3"),
+                status=InventoryReservation.Status.ACTIVE,
+            ).exists()
+        )
+        # No ISSUE_TO_WO movement yet — that happens on warehouse issue.
+        self.assertFalse(
             StockMovement.objects.filter(
                 part=self.part,
                 movement_type=StockMovement.MovementType.ISSUE_TO_WO,
                 work_order=wo,
-                quantity=Decimal("3"),
             ).exists()
         )
 
@@ -1359,11 +1373,14 @@ class PartRequestWorkflowTests(TestCase):
         # Stock is untouched.
         self.assertEqual(self.inv.quantity_available, Decimal("1"))
 
-    def test_approval_with_insufficient_stock_issues_whats_available(self):
-        # v4.9 A1: Best-practice refusal. Manager must either edit qty down to
-        # available, or reject the request. Silent truncation is no longer
-        # permitted (it loses unissued qty silently).
+    def test_approval_with_insufficient_stock_creates_shortage(self):
+        # Phase 2B-3 (ADR-0007 sub-decision 7): approval NEVER raises on
+        # insufficient stock. Instead it allocates what's available, leaves
+        # the line in APPROVED state (not ALLOCATED), and the shortage is
+        # tracked via the PartShortageReport created at request time. The
+        # remaining qty must be procured separately.
         from inventory.services import request_part_on_wo, approve_part_request
+        from inventory.models import InventoryReservation, PartShortageReport
         self.inv.quantity_available = Decimal("1")
         self.inv.save()
         wo = self._make_wo()
@@ -1371,12 +1388,44 @@ class PartRequestWorkflowTests(TestCase):
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
         line = result["line"]
-        with self.assertRaises(ValueError) as cm:
-            approve_part_request(line=line, manager=self.manager)
-        self.assertIn("Only 1", str(cm.exception))
-        # Stock is unchanged because approval was refused.
+        # Approval must not raise and must not deduct stock.
+        approve_part_request(line=line, manager=self.manager)
+        line.refresh_from_db()
+        # Stock unchanged — approval reserves, does not deduct.
         self.inv.refresh_from_db()
         self.assertEqual(self.inv.quantity_available, Decimal("1"))
+        # Line moves to APPROVED (not ALLOCATED) because only 1 of 5 is free.
+        self.assertEqual(line.status, PartIssueLine.Status.APPROVED)
+        self.assertEqual(line.approved_qty, Decimal("5"))
+        self.assertEqual(line.allocated_qty, Decimal("1"))
+        # shortage_qty on the line is the manager's edit-shortage (here 0,
+        # because the manager did not edit qty down). The stock-shortage
+        # of 4 is captured in the PartShortageReport (asserted below).
+        self.assertEqual(line.shortage_qty, Decimal("0"))
+        self.assertEqual(line.issued_qty, Decimal("0"))
+        # A reservation exists for the granted quantity.
+        self.assertTrue(
+            InventoryReservation.objects.filter(
+                part=self.part,
+                work_order=wo,
+                quantity=Decimal("1"),
+                status=InventoryReservation.Status.ACTIVE,
+            ).exists()
+        )
+        # No ISSUE_TO_WO movement — that happens only in execute_warehouse_issue.
+        self.assertFalse(
+            StockMovement.objects.filter(
+                part=self.part,
+                movement_type=StockMovement.MovementType.ISSUE_TO_WO,
+                work_order=wo,
+            ).exists()
+        )
+        # Shortage report was created at request time and still exists.
+        self.assertTrue(
+            PartShortageReport.objects.filter(
+                work_order=wo, part=self.part,
+            ).exists()
+        )
 
     def test_duplicate_pending_for_same_part_wo_is_idempotent(self):
         # P3.1: re-requesting the same part+WO returns the existing
@@ -1422,8 +1471,13 @@ class PartRequestWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(PartIssueLine.objects.count(), 0)
 
-    def test_manager_approve_deducts_stock(self):
+    def test_manager_approve_allocates_stock(self):
+        # Phase 2B-3 (ADR-0007 sub-decision 7): approval reserves stock via
+        # InventoryReservation; it does NOT deduct quantity_available and does
+        # NOT create a StockMovement(ISSUE_TO_WO). execute_warehouse_issue
+        # is the only path that does both.
         from inventory.services import request_part_on_wo
+        from inventory.models import InventoryReservation
         wo = self._make_wo()
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
@@ -1435,8 +1489,30 @@ class PartRequestWorkflowTests(TestCase):
             {"action": "approve"},
         )
         self.assertEqual(response.status_code, 302)
+        # Stock is NOT deducted at approval — it is reserved.
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_available, Decimal("7"))
+        self.assertEqual(self.inv.quantity_available, Decimal("10"))
+        # An InventoryReservation is created for the approved qty.
+        self.assertTrue(
+            InventoryReservation.objects.filter(
+                part=self.part,
+                work_order=wo,
+                quantity=Decimal("3"),
+                status=InventoryReservation.Status.ACTIVE,
+            ).exists()
+        )
+        # No StockMovement(ISSUE_TO_WO) — that happens at warehouse issue.
+        self.assertFalse(
+            StockMovement.objects.filter(
+                part=self.part,
+                movement_type=StockMovement.MovementType.ISSUE_TO_WO,
+                work_order=wo,
+            ).exists()
+        )
+        line.refresh_from_db()
+        self.assertEqual(line.status, PartIssueLine.Status.ALLOCATED)
+        self.assertEqual(line.allocated_qty, Decimal("3"))
+        self.assertEqual(line.issued_qty, Decimal("0"))
 
     def test_manager_reject_does_not_deduct(self):
         from inventory.services import request_part_on_wo
@@ -1627,11 +1703,13 @@ class PartRequestWorkflowTests(TestCase):
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(PurchaseRequest.objects.count(), 0)
 
-    def test_manager_approve_with_edited_qty_deducts_correctly(self):
-        # Manager edits qty from 15 to 8 before approving.
-        # shortage_qty stays at requested - approved = 15 - 8 = 7.
+    def test_manager_approve_with_edited_qty_allocates_correctly(self):
+        # Manager edits qty from 15 to 8 before approving. With 10 in
+        # stock, the line goes to ALLOCATED (not APPROVED), and stock is
+        # reserved, not deducted. shortage_qty = requested - approved = 7.
         from inventory.services import request_part_on_wo, approve_part_request, edit_part_request_qty
         from procurement.models import PurchaseRequest
+        from inventory.models import InventoryReservation
         wo = self._make_wo()
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("15"), technician=self.tech,
@@ -1648,11 +1726,31 @@ class PartRequestWorkflowTests(TestCase):
         self.assertEqual(line.shortage_qty, Decimal("7"))
         line = approve_part_request(line=line, manager=self.manager)
         line.refresh_from_db()
-        self.assertEqual(line.status, PartIssueLine.Status.APPROVED)
+        # Phase 2B-3: full approved qty is available, so line is ALLOCATED.
+        self.assertEqual(line.status, PartIssueLine.Status.ALLOCATED)
         self.assertEqual(line.approved_qty, Decimal("8"))
-        self.assertEqual(line.issued_qty, Decimal("8"))
+        self.assertEqual(line.allocated_qty, Decimal("8"))
+        self.assertEqual(line.issued_qty, Decimal("0"))
+        # Stock is NOT deducted at approval — it is reserved.
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_available, Decimal("2"))
+        self.assertEqual(self.inv.quantity_available, Decimal("10"))
+        # InventoryReservation created with the full approved qty.
+        self.assertTrue(
+            InventoryReservation.objects.filter(
+                part=self.part,
+                work_order=wo,
+                quantity=Decimal("8"),
+                status=InventoryReservation.Status.ACTIVE,
+            ).exists()
+        )
+        # No ISSUE_TO_WO movement at approval time.
+        self.assertFalse(
+            StockMovement.objects.filter(
+                part=self.part,
+                movement_type=StockMovement.MovementType.ISSUE_TO_WO,
+                work_order=wo,
+            ).exists()
+        )
         # Still no PR — manager creates one manually if needed
         self.assertEqual(
             PurchaseRequest.objects.filter(work_order=wo, part=self.part).count(), 0,
@@ -2253,7 +2351,7 @@ class ExternalRepairAcceptanceTests(TestCase):
     """P3.2 — manager acceptance of a RETURNED ExternalRepairOrder (UC-20).
 
     Verifies that actual_cost and invoice_ref are mandatory on accept,
-    and that the cost flows into WorkOrderCost.vendor_cost and the
+    and that the cost flows into WorkOrderCost.vendor_repair_cost and the
     machine cost report.
     """
 
@@ -2330,13 +2428,13 @@ class ExternalRepairAcceptanceTests(TestCase):
     def test_accept_post_pushes_cost_into_workordercost(self):
         self.client.force_login(self.manager)
         # Pre-create a WorkOrderCost to ensure recalculate path runs.
-        WorkOrderCost.objects.create(work_order=self.wo, vendor_cost=Decimal("0"))
+        WorkOrderCost.objects.create(work_order=self.wo, vendor_repair_cost=Decimal("0"))
         self.client.post(
             reverse("repair_manager_accept", args=[self.ero.pk]),
             {"actual_cost": "175.50", "invoice_ref": "INV-X", "note": ""},
         )
         cost = WorkOrderCost.objects.get(work_order=self.wo)
-        self.assertEqual(cost.vendor_cost, Decimal("175.50"))
+        self.assertEqual(cost.vendor_repair_cost, Decimal("175.50"))
 
     def test_accept_post_creates_workordercost_if_missing(self):
         self.client.force_login(self.manager)
@@ -2347,7 +2445,7 @@ class ExternalRepairAcceptanceTests(TestCase):
         )
         self.assertTrue(WorkOrderCost.objects.filter(work_order=self.wo).exists())
         cost = WorkOrderCost.objects.get(work_order=self.wo)
-        self.assertEqual(cost.vendor_cost, Decimal("100.00"))
+        self.assertEqual(cost.vendor_repair_cost, Decimal("100.00"))
 
     def test_accept_post_rejected_if_not_in_returned_status(self):
         self.ero.status = ExternalRepairOrder.Status.SENT_TO_VENDOR
@@ -2775,11 +2873,11 @@ class MediaAndCostRollupTests(TestCase):
             approved_by=self.manager,
             approved_at=timezone.now(),
         )
-        # Also create a WorkOrderCost row so the view picks up parts_cost
+        # Also create a WorkOrderCost row so the view picks up material_cost
         # via the fast-path (cost_record prefetch).
         WorkOrderCost.objects.create(
             work_order=wo,
-            parts_cost=Decimal("50.0000"),
+            material_cost=Decimal("50.0000"),
         )
 
         self.client.force_login(self.manager)
@@ -3939,12 +4037,16 @@ class V49FixesAndFeaturesTests(TestCase):
         )
 
     # ------------------------------------------------------------------
-    # A1: Silent truncation fix (covered by PartRequestWorkflowTests.test_approval_with_insufficient_stock_issues_whats_available)
+    # A1: Silent truncation fix (covered by PartRequestWorkflowTests.test_approval_with_insufficient_stock_creates_shortage)
     # Already in v4.8 baseline (rewritten). This is a service-layer direct test.
     # ------------------------------------------------------------------
-    def test_a1_approve_part_request_refuses_when_stock_insufficient(self):
-        """v4.9 A1: Best-practice refusal. Manager must edit qty down or reject."""
+    def test_a1_approve_part_request_with_insufficient_stock_creates_shortage(self):
+        """Phase 2B-3 (ADR-0007 sub-decision 7): approval never raises on
+        insufficient stock. It allocates what's available, leaves the line
+        in APPROVED state, and a PartShortageReport tracks the gap.
+        """
         from inventory.services import approve_part_request, request_part_on_wo
+        from inventory.models import InventoryReservation, PartShortageReport
         self.inv.quantity_available = Decimal("2")
         self.inv.save()
         wo = self._make_wo()
@@ -3952,13 +4054,44 @@ class V49FixesAndFeaturesTests(TestCase):
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
         line = result["line"]
-        with self.assertRaises(ValueError) as cm:
-            approve_part_request(line=line, manager=self.manager)
-        self.assertIn("Only 2", str(cm.exception))
-        self.assertIn("Edit qty to 2", str(cm.exception))
-        # Stock unchanged because approval was refused
+        # Approval must not raise.
+        approve_part_request(line=line, manager=self.manager)
+        line.refresh_from_db()
+        # Stock unchanged — approval reserves, does not deduct.
         self.inv.refresh_from_db()
         self.assertEqual(self.inv.quantity_available, Decimal("2"))
+        # Line is APPROVED (not ALLOCATED) because only 2 of 5 was free.
+        self.assertEqual(line.status, PartIssueLine.Status.APPROVED)
+        self.assertEqual(line.approved_qty, Decimal("5"))
+        self.assertEqual(line.allocated_qty, Decimal("2"))
+        # shortage_qty on the line is the manager's edit-shortage (here 0,
+        # because the manager did not edit qty down). The stock-shortage
+        # of 3 is captured in the PartShortageReport (asserted below).
+        self.assertEqual(line.shortage_qty, Decimal("0"))
+        self.assertEqual(line.issued_qty, Decimal("0"))
+        # A reservation exists for the granted (partial) quantity.
+        self.assertTrue(
+            InventoryReservation.objects.filter(
+                part=self.part,
+                work_order=wo,
+                quantity=Decimal("2"),
+                status=InventoryReservation.Status.ACTIVE,
+            ).exists()
+        )
+        # No ISSUE_TO_WO movement — that happens only in execute_warehouse_issue.
+        self.assertFalse(
+            StockMovement.objects.filter(
+                part=self.part,
+                movement_type=StockMovement.MovementType.ISSUE_TO_WO,
+                work_order=wo,
+            ).exists()
+        )
+        # Shortage report exists (created at request time per v4.8).
+        self.assertTrue(
+            PartShortageReport.objects.filter(
+                work_order=wo, part=self.part,
+            ).exists()
+        )
 
     # ------------------------------------------------------------------
     # A2/6: PR detail template crash

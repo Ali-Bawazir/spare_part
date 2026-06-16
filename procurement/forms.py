@@ -94,12 +94,16 @@ class PurchaseOrderItemForm(forms.ModelForm):
 
     class Meta:
         model = PurchaseOrderItem
-        fields = ["part", "ordered_qty", "unit_price"]
+        fields = ["part", "ordered_qty", "negotiated_unit_price"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["negotiated_unit_price"].label = "Unit price"
 
     def clean(self):
         cleaned = super().clean()
         qty = cleaned.get("ordered_qty")
-        price = cleaned.get("unit_price")
+        price = cleaned.get("negotiated_unit_price")
         if qty and price:
             cleaned["total_price"] = qty * price
         return cleaned
@@ -108,7 +112,7 @@ class PurchaseOrderItemForm(forms.ModelForm):
 POItemFormSet = forms.inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderItem,
-    fields=["part", "ordered_qty", "unit_price"],
+    fields=["part", "ordered_qty", "negotiated_unit_price"],
     extra=1,
     can_delete=True,
 )

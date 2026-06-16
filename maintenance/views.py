@@ -3110,8 +3110,8 @@ def machine_cost_report(request):
     for wo in wos:
         cr = getattr(wo, "cost_record", None)
         if cr is not None:
-            parts = cr.parts_cost or Decimal("0")
-            vendor = cr.vendor_cost or Decimal("0")
+            parts = cr.material_cost or Decimal("0")
+            vendor = cr.vendor_repair_cost or Decimal("0")
             consumables = cr.consumables_cost or Decimal("0")
             additional = cr.additional_cost or Decimal("0")
         else:
@@ -3538,7 +3538,31 @@ def repair_manager_accept(request, pk):
                 "invoice_ref": rwo.invoice_ref,
             },
         )
-        # P3.2: push vendor_cost into WorkOrderCost so it rolls up into
+        # Phase 2B-6: VENDOR_REPAIR blocker resolves on ERO accept (close).
+        # Dispatch string is uppercase to match the event_type switch in
+        # WorkOrderBlockerService.sync_from_external_event.
+        try:
+            from maintenance.services_blocker import WorkOrderBlockerService
+            WorkOrderBlockerService.sync_from_external_event(
+                external_obj=rwo,
+                event_type="ERO_ACCEPTED",
+                actor=request.user,
+                payload={
+                    "ero_id": rwo.pk,
+                    "actual_cost": str(getattr(rwo, "actual_cost", "0")),
+                    "invoice_ref": rwo.invoice_ref,
+                },
+            )
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to resolve VENDOR_REPAIR blocker: {_e}")
+
+        from maintenance.services_wo_status import WorkOrderService
+        try:
+            WorkOrderService.recompute_operational_status(rwo.work_order)
+        except Exception:
+            pass
+        # P3.2: push vendor_repair_cost into WorkOrderCost so it rolls up into
         # the machine cost report.
         if rwo.work_order_id:
             try:
