@@ -4626,3 +4626,141 @@ def shortage_dashboard(request):
         "top_parts": top_parts,
         "STATUS_CHOICES": PartShortageReport.Status.choices,
     })
+
+
+def reconciliation_dashboard(request):
+    """Legacy WO reconciliation: shows WOs with blocker_system_version=0."""
+    from maintenance.models import WorkOrder
+    from django.db.models import Q
+
+    qs = WorkOrder.objects.filter(blocker_system_version=0).select_related(
+        "machine", "assigned_technician"
+    )
+
+    lifecycle_status = request.GET.get("lifecycle_status", "")
+    q = request.GET.get("q", "")
+    created_after = request.GET.get("created_after", "")
+    created_before = request.GET.get("created_before", "")
+
+    filters = {}
+    if lifecycle_status:
+        qs = qs.filter(lifecycle_status=lifecycle_status)
+        filters["lifecycle_status"] = lifecycle_status
+    if q:
+        import re
+        num_match = re.search(r"(\d+)", q)
+        if num_match:
+            qs = qs.filter(Q(number=num_match.group(1)))
+        else:
+            qs = qs.filter(machine__name__icontains=q)
+        filters["q"] = q
+    if created_after:
+        qs = qs.filter(created_at__gte=created_after)
+        filters["created_after"] = created_after
+    if created_before:
+        qs = qs.filter(created_at__lte=created_before)
+        filters["created_before"] = created_before
+
+    qs = qs.order_by("-created_at")
+    total_count = qs.count()
+
+    paginator = Paginator(qs, 25)
+    page = request.GET.get("page")
+    legacy_wos = paginator.get_page(page)
+
+    return render(request, "maintenance/reconciliation_dashboard.html", {
+        "legacy_wos": legacy_wos,
+        "total_count": total_count,
+        "filters": filters,
+        "status_choices": WorkOrder.LifecycleStatus.choices,
+    })
+
+
+def active_blockers_dashboard(request):
+    """Shows all OPEN WorkOrderBlockers across all WOs, sorted by impact."""
+    from maintenance.models import WorkOrderBlocker
+    from inventory.services_impact import PartImpactService
+    from django.contrib.contenttypes.models import ContentType
+    from inventory.models import SparePart
+    from django.db.models import Q
+
+    qs = WorkOrderBlocker.objects.filter(
+        status=WorkOrderBlocker.Status.OPEN
+    ).select_related(
+        "work_order", "work_order__machine", "opened_by", "related_ero"
+    )
+
+    kind = request.GET.get("kind", "")
+    q = request.GET.get("q", "")
+    impact_level = request.GET.get("impact_level", "")
+
+    filters = {}
+    if kind:
+        qs = qs.filter(kind=kind)
+        filters["kind"] = kind
+    if q:
+        import re
+        num_match = re.search(r"(\d+)", q)
+        if num_match:
+            qs = qs.filter(Q(work_order__number=num_match.group(1)))
+        else:
+            qs = qs.filter(work_order__machine__name__icontains=q)
+        filters["q"] = q
+    if impact_level:
+        filters["impact_level"] = impact_level
+
+    # Compute impact scores for PART/SHORTAGE blockers
+    part_ct = ContentType.objects.get_for_model(SparePart)
+    blocker_list = list(qs)
+    annotated = []
+    for blocker in blocker_list:
+        impact = None
+        if blocker.kind in (WorkOrderBlocker.Kind.PART, WorkOrderBlocker.Kind.SHORTAGE):
+            if blocker.content_type_id == part_ct.pk and blocker.object_id:
+                try:
+                    part = SparePart.objects.get(pk=blocker.object_id)
+                    impact = PartImpactService.compute_impact(part)
+                except SparePart.DoesNotExist:
+                    pass
+
+        annotated.append({"blocker": blocker, "impact": impact})
+
+    # Sort: HIGH → MEDIUM → LOW → non-part (score=0), then by opened_at ascending
+    def sort_key(item):
+        impact = item["impact"]
+        if impact is None:
+            level_order = 3
+        elif impact.level == "HIGH":
+            level_order = 0
+        elif impact.level == "MEDIUM":
+            level_order = 1
+        else:
+            level_order = 2
+        return (level_order, item["blocker"].opened_at)
+
+    annotated.sort(key=sort_key)
+
+    # Apply impact_level filter after sorting
+    if impact_level:
+        annotated = [
+            item for item in annotated
+            if item["impact"] and item["impact"].level == impact_level
+        ]
+
+    total_open = len(annotated)
+
+    paginator = Paginator(annotated, 25)
+    page = request.GET.get("page")
+    blockers_page = paginator.get_page(page)
+
+    return render(request, "maintenance/active_blockers_dashboard.html", {
+        "blockers": blockers_page,
+        "total_open": total_open,
+        "filters": filters,
+        "kind_choices": WorkOrderBlocker.Kind.choices,
+        "impact_level_choices": [
+            ("LOW", "Low Impact"),
+            ("MEDIUM", "Medium Impact"),
+            ("HIGH", "High Impact"),
+        ],
+    })

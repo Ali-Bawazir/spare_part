@@ -96,4 +96,6 @@ urlpatterns = [
     path("attachments/upload-pending/", views.attachment_upload_pending, name="attachment_upload_pending"),
     path("attachments/<int:pk>/delete/", views.attachment_delete, name="attachment_delete"),
     path("attachments/<int:pk>/set-primary/", views.attachment_set_primary, name="attachment_set_primary"),
+    path("dashboards/reconciliation/", views.reconciliation_dashboard, name="reconciliation_dashboard"),
+    path("dashboards/active-blockers/", views.active_blockers_dashboard, name="active_blockers_dashboard"),
 ]
