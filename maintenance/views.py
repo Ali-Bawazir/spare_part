@@ -1111,6 +1111,29 @@ def work_order_detail(request, pk):
 
     active_parts = SparePart.objects.filter(status="active").order_by("name")
 
+    # Phase 3A: Health card + active blockers + blocker history.
+    # The HealthCard is a frozen dataclass produced by WorkOrderHealthService;
+    # the blocker querysets are used to render the Active Blockers panel and
+    # the Blocker History panel on the WO detail page.
+    from maintenance.models import WorkOrderBlocker
+    from maintenance.services_wo_health import WorkOrderHealthService
+
+    health_card = WorkOrderHealthService.compute(wo)
+    active_blockers = (
+        WorkOrderBlocker.objects
+        .filter(work_order=wo, status=WorkOrderBlocker.Status.OPEN)
+        .select_related("opened_by", "source_work_order", "resolved_by", "cancelled_by", "related_ero")
+        .order_by("opened_at")
+    )
+    blocker_history = (
+        WorkOrderBlocker.objects
+        .filter(work_order=wo)
+        .exclude(status=WorkOrderBlocker.Status.OPEN)
+        .select_related("opened_by", "resolved_by", "cancelled_by", "related_ero")
+        .prefetch_related("events", "events__actor")
+        .order_by("-opened_at")[:20]
+    )
+
     return render(
         request,
         "maintenance/workorder_detail.html",
@@ -1149,6 +1172,10 @@ def work_order_detail(request, pk):
             "pending_warehouse_issues": pending_warehouse_issues,
             "active_parts": active_parts,
             "last_request_result": last_request_result,
+            # Phase 3A additions (health card + blocker panels)
+            "health_card": health_card,
+            "active_blockers": active_blockers,
+            "blocker_history": blocker_history,
         },
     )
 

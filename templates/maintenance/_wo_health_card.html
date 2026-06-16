@@ -1,0 +1,95 @@
+{% comment %}
+      Phase 3A — Work Order Health Card (1-glance summary).
+      Renders a compact `mms-card` showing lifecycle/operational/priority
+      status, open blockers count, waiting days, total cost, and any
+      human-readable notes flagged by WorkOrderHealthService.
+      Context variables (provided by work_order_detail view):
+        - health_card : WorkOrderHealthService.HealthCard (frozen dataclass)
+        - wo          : WorkOrder (used to read get_FOO_display names)
+{% endcomment %}
+<div class="mms-card" style="grid-column: 1/-1; margin-top: .25rem">
+  <div class="mms-card-header"
+       style="{% if health_card.risk == 'HIGH' %}background:#fee2e2;color:#7f1d1d;{% elif health_card.risk == 'MEDIUM' %}background:#fef3c7;color:#78350f;{% else %}background:#dcfce7;color:#14532d;{% endif %}">
+    Health: <strong>{{ health_card.risk }}</strong>
+    <span style="font-size:.75rem;font-weight:500;opacity:.85;margin-left:.5rem">
+      (Phase 3A read-only summary)
+    </span>
+  </div>
+  <div class="mms-card-body mms-stack">
+
+    {# --- Row 1: lifecycle, operational, priority, open blockers ---------- #}
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center">
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Lifecycle:</span>
+        <span class="mms-badge mms-badge--info">{{ wo.get_lifecycle_status_display|default:health_card.lifecycle_status|default:"-" }}</span>
+      </span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Operational:</span>
+        <span class="mms-badge mms-badge--info">{{ wo.get_operational_status_display|default:health_card.operational_status|default:"-" }}</span>
+      </span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Priority:</span>
+        {% if health_card.priority == 'critical' %}
+          <span class="mms-badge mms-badge--danger">{{ health_card.priority|title }}</span>
+        {% elif health_card.priority == 'high' %}
+          <span class="mms-badge mms-badge--warning">{{ health_card.priority|title }}</span>
+        {% elif health_card.priority == 'medium' %}
+          <span class="mms-badge mms-badge--info">{{ health_card.priority|title }}</span>
+        {% elif health_card.priority == 'low' %}
+          <span class="mms-badge mms-badge--muted">{{ health_card.priority|title }}</span>
+        {% else %}
+          <span class="mms-badge mms-badge--muted">n/a</span>
+        {% endif %}
+      </span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Open blockers:</span>
+        <span class="mms-badge {% if health_card.open_blockers_count >= 3 %}mms-badge--danger{% elif health_card.open_blockers_count >= 1 %}mms-badge--warning{% else %}mms-badge--success{% endif %}">
+          {{ health_card.open_blockers_count }}
+        </span>
+      </span>
+    </div>
+
+    {# --- Row 2: waiting, total cost, is_emergency ----------------------- #}
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.85rem">
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Waiting:</span>
+        <strong>{{ health_card.waiting_days }}</strong> day{{ health_card.waiting_days|pluralize }}
+      </span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Total cost:</span>
+        <strong>${{ health_card.total_cost|floatformat:2 }}</strong>
+      </span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Is emergency:</span>
+        {% if health_card.is_emergency %}
+          <span class="mms-badge mms-badge--danger">Yes</span>
+        {% else %}
+          <span class="mms-badge mms-badge--muted">No</span>
+        {% endif %}
+      </span>
+    </div>
+
+    {# --- Notes (human-readable flags) ----------------------------------- #}
+    {% if health_card.notes %}
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center">
+      {% for note in health_card.notes %}
+        <span class="mms-badge {% if health_card.risk == 'HIGH' %}mms-badge--danger{% elif health_card.risk == 'MEDIUM' %}mms-badge--warning{% else %}mms-badge--muted{% endif %}"
+              style="font-size:.7rem">{{ note }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# --- Cost breakdown disclosure -------------------------------------- #}
+    <details style="font-size:.85rem">
+      <summary style="cursor:pointer;color:var(--mms-accent);font-weight:600">
+        Cost breakdown
+      </summary>
+      <dl style="display:grid;grid-template-columns:max-content 1fr;gap:.25rem .75rem;margin:.5rem 0 0 0;font-size:.8125rem">
+        <dt class="text-muted">Parts (material)</dt><dd style="margin:0">${{ health_card.parts_cost|floatformat:2 }}</dd>
+        <dt class="text-muted">Vendor repair</dt><dd style="margin:0">${{ health_card.vendor_cost|floatformat:2 }}</dd>
+        <dt class="text-muted">Procurement</dt><dd style="margin:0">${{ health_card.procurement_cost|floatformat:2 }}</dd>
+        <dt class="text-muted">Consumables</dt><dd style="margin:0">${{ health_card.consumables_cost|floatformat:2 }}</dd>
+        <dt class="text-muted">Additional</dt><dd style="margin:0">${{ health_card.additional_cost|floatformat:2 }}</dd>
+        <dt style="border-top:1px solid #e5e7eb;padding-top:.25rem"><strong>Total</strong></dt>
+        <dd style="border-top:1px solid #e5e7eb;padding-top:.25rem;margin:0"><strong>${{ health_card.total_cost|floatformat:2 }}</strong></dd>
+      </dl>
+      <p class="text-muted" style="font-size:.7rem;margin:.5rem 0 0 0">
+        Downtime cost is excluded per the Work Order Health Card glossary entry.
+      </p>
+    </details>
+
+  </div>
+</div>

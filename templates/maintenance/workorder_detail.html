@@ -77,6 +77,10 @@
     </div>
   </div>
 
+  {# Phase 3A: Health card + Active Blockers panel (full-width, between Work details and Actions) #}
+  {% include "maintenance/_wo_health_card.html" %}
+  {% include "maintenance/_wo_blockers_panel.html" %}
+
   <div class="mms-card">
     <div class="mms-card-header">Actions</div>
     <div class="mms-card-body mms-stack">
@@ -835,6 +839,9 @@
     {% empty %}<div class="mms-empty">No transitions yet.</div>{% endfor %}
   </div>
 </div>
+
+{# Phase 3A: Blocker history (resolved/cancelled blockers with event timeline) #}
+{% include "maintenance/_wo_blocker_history.html" %}
 
 {% if wo.assignment_history.exists %}
 <section class="mms-section mms-assignment-history">

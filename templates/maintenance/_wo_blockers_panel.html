@@ -1,0 +1,75 @@
+{% comment %}
+      Phase 3A — Active Blockers panel.
+      Renders one row per OPEN WorkOrderBlocker on the WO. Each row shows
+      the kind, the cached external label, age (via timesince), and any
+      pause reason / source work order link / note.
+      Context variables (provided by work_order_detail view):
+        - active_blockers : queryset[WorkOrderBlocker] (status=OPEN)
+{% endcomment %}
+<div class="mms-card" style="grid-column: 1/-1; margin-top: .25rem">
+  <div class="mms-card-header" style="background:#fff7ed">
+    🚧 Active Blockers ({{ active_blockers|length }})
+  </div>
+  <div class="mms-card-body mms-stack">
+
+    {% if active_blockers %}
+      {% for blocker in active_blockers %}
+      <div style="border:1px solid #fed7aa;background:#fffbeb;border-radius:4px;padding:.5rem .75rem">
+
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.25rem">
+          {% if blocker.kind == 'part' %}
+            <span style="font-size:1.1rem">⏳</span><strong>Awaiting Spare Part</strong>
+          {% elif blocker.kind == 'shortage' %}
+            <span style="font-size:1.1rem">📋</span><strong>Awaiting Procurement</strong>
+          {% elif blocker.kind == 'vendor_repair' %}
+            <span style="font-size:1.1rem">🔧</span><strong>Awaiting Vendor Repair</strong>
+          {% elif blocker.kind == 'operational' %}
+            <span style="font-size:1.1rem">⏸</span><strong>Operational Pause</strong>
+          {% else %}
+            <span style="font-size:1.1rem">•</span><strong>{{ blocker.get_kind_display|default:blocker.kind }}</strong>
+          {% endif %}
+
+          {% if blocker.external_label %}
+            <span style="color:#1f2937">{{ blocker.external_label }}</span>
+          {% endif %}
+
+          <span class="mms-badge mms-badge--muted" style="font-size:.7rem">
+            age {{ blocker.opened_at|timesince }}
+          </span>
+        </div>
+
+        {% if blocker.kind == 'operational' and blocker.pause_reason %}
+        <div style="font-size:.8rem;margin-bottom:.25rem">
+          <span class="text-muted">Pause reason:</span>
+          <span class="mms-badge mms-badge--warning">{{ blocker.get_pause_reason_display|default:blocker.pause_reason }}</span>
+        </div>
+        {% endif %}
+
+        {% if blocker.kind == 'operational' and blocker.source_work_order_id %}
+        <div style="font-size:.8rem;margin-bottom:.25rem">
+          <span class="text-muted">Triggered by:</span>
+          <a href="{% url 'work_order_detail' blocker.source_work_order_id %}">
+            WO-{{ blocker.source_work_order.number }}
+          </a>
+        </div>
+        {% endif %}
+
+        {% if blocker.note %}
+        <div style="font-size:.8rem;color:#4b5563;margin-top:.25rem">
+          {{ blocker.note|linebreaksbr }}
+        </div>
+        {% endif %}
+
+        <div style="font-size:.7rem;color:#9ca3af;margin-top:.35rem">
+          Opened {{ blocker.opened_at|date:"Y-m-d H:i" }}
+          by {{ blocker.opened_by.get_full_name|default:blocker.opened_by.username|default:"system" }}
+        </div>
+
+      </div>
+      {% endfor %}
+    {% else %}
+      <div style="color:#15803d;padding:.25rem 0">✅ No active blockers</div>
+    {% endif %}
+
+  </div>
+</div>
