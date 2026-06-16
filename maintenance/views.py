@@ -107,6 +107,7 @@ from .services import (
     technician_submit_for_review,
     transition_work_order,
     validate_issue,
+    work_order_pause as wo_pause_service,
 )
 
 
@@ -1323,14 +1324,14 @@ def work_order_start(request, pk):
 @role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def work_order_pause(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
+    if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
+        raise Http404()
     if wo.assigned_technician != request.user:
         messages.error(request, "You can only pause work orders assigned to you.")
         return redirect("work_order_detail", pk=wo.pk)
-    if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
-        raise Http404()
     if wo.status != WorkOrder.Status.IN_PROGRESS:
         messages.error(request, "Not in progress.")
-        return redirect("work_order_detail", pk=pk)
+        return redirect("work_order_detail", pk=wo.pk)
     form = WorkOrderPauseForm(request.POST)
     if not form.is_valid():
         for err in form.non_field_errors():
@@ -1338,19 +1339,15 @@ def work_order_pause(request, pk):
         for field, errs in form.errors.items():
             for err in errs:
                 messages.error(request, f"{field}: {err}")
-        return redirect("work_order_detail", pk=pk)
-    reason = form.cleaned_data["pause_reason"]
-    note = (form.cleaned_data.get("pause_note") or "").strip()
-    wo.labor_stopped_at = timezone.now()
-    wo.pause_reason = reason
-    wo.pause_note = note[:500]
-    wo.save(update_fields=["labor_stopped_at", "pause_reason", "pause_note", "updated_at"])
-    state_log_note = (
-        note if note else f"Paused: {dict(WorkOrder.PauseReason.choices)[reason]}"
+        return redirect("work_order_detail", pk=wo.pk)
+    wo_pause_service(
+        wo=wo,
+        pause_reason=form.cleaned_data["pause_reason"],
+        pause_note=(form.cleaned_data.get("pause_note") or "").strip(),
+        actor=request.user,
     )
-    transition_work_order(wo, WorkOrder.Status.PAUSED, actor=request.user, note=state_log_note)
     messages.info(request, "Paused.")
-    return redirect("work_order_detail", pk=pk)
+    return redirect("work_order_detail", pk=wo.pk)
 
 
 @login_required

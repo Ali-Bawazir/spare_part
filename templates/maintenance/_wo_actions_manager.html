@@ -1,0 +1,282 @@
+{# Phase 3B: Manager actions block (extracted from workorder_detail.html). #}
+{# Self-gated to managers (capability-gated, same as the original inline block). #}
+{% if perm_assign_technician or perm_issue_parts_to_wo or perm_create_purchase_request %}
+  {% if wo.status != 'closed' %}
+    <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Manager actions</h3>
+    {% if perm_assign_technician %}
+      {% if wo.status == 'approved' or wo.status == 'assigned' or wo.status == 'paused' %}
+    <form method="post" action="{% url 'work_order_assign' wo.pk %}" class="mms-stack">
+      {% csrf_token %}
+      <div class="mms-form-row">{{ assign_form.technician.label_tag }}{{ assign_form.technician }}</div>
+      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Assign / reassign technician</button>
+    </form>
+    <div class="mms-divider"></div>
+      {% endif %}
+    {% endif %}
+    {% if perm_issue_parts_to_wo %}
+    <form method="post" action="{% url 'work_order_issue_part' wo.pk %}" class="mms-stack">
+      {% csrf_token %}
+      <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Direct issue (manager override — bypasses technician request flow)</p>
+      {% for field in issue_part_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
+      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Issue to WO</button>
+    </form>
+    {% endif %}
+    {% if perm_create_purchase_request %}
+    <p style="font-size:.8rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_create' %}?wo={{ wo.pk }}">New purchase request for this WO</a></p>
+    {% endif %}
+
+    {# ============ Manager: Pending shortage reports (Sprint 1 / Step 6 + v4.8) ============ #}
+    {% if perm_decide_part_shortage_report and pending_shortage_reports %}
+      <div class="mms-card" style="margin-top:1rem">
+        <div class="mms-card-header">📦 Parts Awaiting Decision ({{ pending_shortage_reports|length }})</div>
+        <div class="mms-card-body">
+          <table class="mms-table mms-shortage-table">
+            <thead><tr>
+              <th>Part</th>
+              <th>Need</th>
+              <th>Stock</th>
+              <th>Reported</th>
+            </tr></thead>
+            <tbody>
+              {% for r in pending_shortage_reports %}
+              <tr>
+                <td>
+                  <strong>{{ r.part.name }}</strong>
+                  {% if r.part.sku %}<br><small class="text-muted">{{ r.part.sku }}</small>{% endif %}
+                  {% if r.wo_priority_snapshot %}
+                    <span class="mms-badge mms-badge--{% if r.wo_priority_snapshot == 'critical' %}danger{% elif r.wo_priority_snapshot == 'high' %}warning{% else %}info{% endif %}" style="margin-left:.35rem">
+                      {{ r.wo_priority_snapshot|upper }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td>{{ r.qty_requested }}</td>
+                <td>
+                  {% if r.usable_qty_snapshot|add:0 == 0 %}🔴 0{% else %}🟡 {{ r.usable_qty_snapshot }}{% endif %}
+                  <br><small>Min: {{ r.min_qty_snapshot|default:r.usable_qty_snapshot }}</small>
+                  <br><small>avail: {{ r.available_qty_snapshot }} / reserved: {{ r.reserved_qty_snapshot }}</small>
+                </td>
+                <td>
+                  {{ r.reported_by.username }}
+                  <br><small class="text-muted">{{ r.created_at|timesince }} ago ({{ r.created_at|date:"d M H:i" }})</small>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="4" style="padding:0">
+                  <details>
+                    <summary style="padding:.5rem .75rem; cursor:pointer; background:#fafafa; border-top:1px solid #eee">
+                      Review shortage for {{ r.part.name }} ▾
+                    </summary>
+                    <form method="post" action="{% url 'work_order_decide_shortage' wo.pk r.pk %}" style="padding:.75rem; background:#fafafa; border-top:1px solid #eee">
+                      {% csrf_token %}
+                      <div class="mms-form-row">
+                        <label>Decision type</label>
+                        <select name="decision_type" class="form-select">
+                          <option value="approve" selected>✅ Approve (issue and/or procure)</option>
+                          <option value="reject">❌ Reject</option>
+                        </select>
+                      </div>
+                      <div class="mms-form-row">
+                        <label>Issue from stock</label>
+                        <input type="number" name="approved_issue_qty" min="0" step="0.001" value="{{ r.qty_requested }}" class="form-control">
+                        <small style="color:#6b7280">Default = {{ r.qty_requested }}. Edit to commit less.</small>
+                      </div>
+                      <div class="mms-form-row">
+                        <label>Procure (via PR)</label>
+                        <input type="number" name="approved_procurement_qty" min="0" step="0.001" value="0" class="form-control">
+                      </div>
+                      <div class="mms-form-row">
+                        <label>Reject (not needed)</label>
+                        <input type="number" name="rejected_qty" min="0" step="0.001" value="0" class="form-control">
+                      </div>
+                      <div class="mms-form-row">
+                        <label>Expected availability (procure ETA)</label>
+                        <input type="date" name="expected_availability_date" class="form-control">
+                      </div>
+                      <div class="mms-form-row">
+                        <label>Rejection reason (reject only, min 15 chars)</label>
+                        <textarea name="rejection_reason" minlength="15" rows="2" class="form-control"></textarea>
+                      </div>
+                      <div class="mms-form-row">
+                        <label>Decision note (optional)</label>
+                        <textarea name="decision_note" rows="2" class="form-control"></textarea>
+                      </div>
+                      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Submit Decision</button>
+                    </form>
+                  </details>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ============ v4.8: Pending Warehouse Issue panel ============ #}
+    {% if pending_warehouse_issues %}
+      <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
+        <div class="mms-card-header">📤 Pending Warehouse Issue ({{ pending_warehouse_issues|length }})</div>
+        <div class="mms-card-body">
+          <ul style="margin:0; padding:0; list-style:none">
+            {% for item in pending_warehouse_issues %}
+              <li style="padding:.5rem 0; border-bottom:1px solid #eee">
+                <strong>{{ item.report.part.name }}</strong>
+                — Manager approved: <strong>{{ item.decision.approved_issue_qty }}</strong> from stock
+                <small style="color:#6b7280">(already issued: {{ item.report.qty_issued }})</small>
+                <form method="post" action="{% url 'work_order_warehouse_issue' wo.pk item.report.issue_lines.first.pk %}" style="display:inline; margin-left:.5rem">
+                  {% csrf_token %}
+                  <input type="hidden" name="qty" value="{{ item.remaining_to_issue }}">
+                  <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">
+                    📤 Issue {{ item.remaining_to_issue }} from stock
+                  </button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ============ v4.8: Decisions Recorded panel (read-only summary) ============ #}
+    {% if decided_shortage_reports %}
+      <div class="mms-card" style="margin-top:1rem">
+        <div class="mms-card-header">📦 Decisions Recorded ({{ decided_shortage_reports|length }})</div>
+        <div class="mms-card-body">
+          <table class="mms-table">
+            <thead><tr>
+              <th>Part</th>
+              <th>Decision</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody>
+              {% for r in decided_shortage_reports %}
+              <tr>
+                <td>
+                  <strong>{{ r.part.name }}</strong>
+                  {% if r.part.sku %}<br><small class="text-muted">{{ r.part.sku }}</small>{% endif %}
+                </td>
+                <td>
+                  {% if r.decision %}
+                    {% if r.decision.decision_type == "approve" %}
+                      <span class="mms-badge mms-badge--success">✅ Approve</span>
+                      <br><small>
+                        Issue: <strong>{{ r.decision.approved_issue_qty }}</strong> ·
+                        Procure: <strong>{{ r.decision.approved_procurement_qty }}</strong> ·
+                        Reject: <strong>{{ r.decision.rejected_qty }}</strong>
+                        {% if r.decision.expected_availability_date %}
+                          · ETA: <strong>{{ r.decision.expected_availability_date|date:"d M Y" }}</strong>
+                        {% endif %}
+                      </small>
+                    {% else %}
+                      <span class="mms-badge mms-badge--danger">❌ Reject</span>
+                      {% if r.decision.rejection_reason %}
+                        <br><small>{{ r.decision.rejection_reason|truncatechars:60 }}</small>
+                      {% endif %}
+                    {% endif %}
+                    {% if r.decision.decision_note %}
+                      <br><small style="color:#6b7280">📝 {{ r.decision.decision_note|truncatechars:60 }}</small>
+                    {% endif %}
+                  {% else %}
+                    <em style="color:#6b7280">Legacy (no decision row)</em>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="mms-badge mms-badge--info">{{ r.get_status_display }}</span>
+                  <br><small>Decided {{ r.reviewed_at|date:"d M H:i" }}</small>
+                </td>
+                <td>
+                  {% if r.status == "approved" and r.decision and r.decision.decision_type == "approve" %}
+                    <details style="margin-bottom:.25rem">
+                      <summary style="cursor:pointer; color:#0d6efd; font-size:.85em">✎ Edit decision</summary>
+                      <form method="post" action="{% url 'work_order_edit_shortage' wo.pk r.pk %}" style="padding:.5rem; margin-top:.25rem; background:#fafafa; border-radius:4px">
+                        {% csrf_token %}
+                        <div class="mms-form-row">
+                          <label>Issue from stock</label>
+                          <input type="number" name="approved_issue_qty" min="0" step="0.001" value="{{ r.decision.approved_issue_qty }}" class="form-control">
+                        </div>
+                        <div class="mms-form-row">
+                          <label>Procure (via PR)</label>
+                          <input type="number" name="approved_procurement_qty" min="0" step="0.001" value="{{ r.decision.approved_procurement_qty }}" class="form-control">
+                          {% if r.purchase_requests.first %}
+                            <small style="color:#b45309">⚠ PR #{{ r.purchase_requests.first.pk }} already created. Procurement qty cannot be changed.</small>
+                          {% endif %}
+                        </div>
+                        <div class="mms-form-row">
+                          <label>Reject (not needed)</label>
+                          <input type="number" name="rejected_qty" min="0" step="0.001" value="{{ r.decision.rejected_qty }}" class="form-control">
+                        </div>
+                        <div class="mms-form-row">
+                          <label>Decision note</label>
+                          <textarea name="decision_note" rows="2" class="form-control">{{ r.decision.decision_note }}</textarea>
+                        </div>
+                        <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Save Edit</button>
+                      </form>
+                    </details>
+                  {% elif r.is_decision_locked %}
+                    <small style="color:#6b7280">🔒 Decision locked</small>
+                  {% endif %}
+
+                  {% if r.status == "in_fulfillment" and r.decision and r.decision.decision_type == "approve" and r.qty_issued >= r.decision.approved_issue_qty %}
+                    <form method="post" action="{% url 'work_order_mark_fulfilled' wo.pk r.pk %}" style="display:inline">
+                      {% csrf_token %}
+                      <button class="mms-btn mms-btn--success mms-btn--sm" type="submit">✓ Mark as Fulfilled</button>
+                    </form>
+                    {% if r.decision.approved_procurement_qty > 0 %}
+                      <div class="mms-warning" style="margin-top:.25rem; font-size:.8em; color:#b45309; background:#fef3c7; padding:.25rem .5rem; border-left:3px solid #f59e0b">
+                        ⚠️ Procurement receipt tracking will be added in Sprint 4. Verify the {{ r.decision.approved_procurement_qty }} procurement unit(s) have been received outside the system before marking FULFILLED.
+                      </div>
+                    {% endif %}
+                  {% endif %}
+
+                  {% if r.status in "approved,in_fulfillment" %}
+                    <form method="post" action="{% url 'work_order_block_shortage' wo.pk r.pk %}" style="display:inline; margin-left:.25rem">
+                      {% csrf_token %}
+                      <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title="Mark as blocked (operational problem)">⚠ Block</button>
+                    </form>
+                  {% endif %}
+
+                  {% if r.status in "approved,in_fulfillment,blocked,fulfilled" %}
+                    <form method="post" action="{% url 'work_order_close_shortage' wo.pk r.pk %}" style="display:inline; margin-left:.25rem">
+                      {% csrf_token %}
+                      <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title="Close this shortage report (releases reservation, cancels PRs)">🗙 Close</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ============ v4.8: Awaiting Procurement (PR created) ============ #}
+    {% if approved_shortage_reports %}
+      <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
+        <div class="mms-card-body">
+          <strong>📦 Awaiting Procurement</strong>
+          <ul style="margin:.25rem 0 0 1rem; padding:0">
+            {% for r in approved_shortage_reports %}
+              {% if r.decision and r.decision.decision_type == "approve" and r.decision.approved_procurement_qty > 0 %}
+                {% with pr=r.purchase_requests.first %}
+                  <li>
+                    {{ r.decision.approved_procurement_qty }} × {{ r.part.name }} —
+                    {% if r.expected_availability_date %}
+                      Expected: <strong>{{ r.expected_availability_date|date:"d M Y" }}</strong>
+                    {% else %}
+                      Expected: TBD
+                    {% endif %}
+                    {% if pr %}
+                      · <a href="{% url 'pr_detail' pr.pk %}">PR #{{ pr.pk }}</a>
+                    {% endif %}
+                  </li>
+                {% endwith %}
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endif %}
