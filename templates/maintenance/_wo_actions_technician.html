@@ -52,22 +52,6 @@
   <div class="mms-divider"></div>
   {% endif %}
   <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Execution flow</p>
-  <div class="mms-grid" style="gap:.75rem">
-    <form method="post" action="{% url 'work_order_mark_parts' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed">
-      <div class="mms-card-body">
-        {% csrf_token %}
-        <div class="mms-form-row">{{ tech_parts_note.note.label_tag }}{{ tech_parts_note.note }}</div>
-        <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Waiting for parts</button>
-      </div>
-    </form>
-    <form method="post" action="{% url 'work_order_mark_vendor' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed">
-      <div class="mms-card-body">
-        {% csrf_token %}
-        <div class="mms-form-row">{{ tech_vendor_note.note.label_tag }}{{ tech_vendor_note.note }}</div>
-        <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Waiting for vendor</button>
-      </div>
-    </form>
-  </div>
   <div class="mms-divider"></div>
   <form method="post" action="{% url 'work_order_submit' wo.pk %}" class="mms-stack">
     {% csrf_token %}

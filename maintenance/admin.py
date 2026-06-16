@@ -97,7 +97,7 @@ class WorkOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
         "created_by",
         "created_at",
     )
-    list_filter = ("status", "category", "is_emergency", "pause_reason", "machine")
+    list_filter = ("status", "category", "is_emergency", "machine")
     search_fields = (
         "number",
         "machine__name",
@@ -110,6 +110,8 @@ class WorkOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
         "number",
         "created_at",
         "updated_at",
+        "pause_reason",
+        "pause_note",
     )
     raw_id_fields = ("issue", "machine", "assigned_technician", "created_by")
     date_hierarchy = "created_at"

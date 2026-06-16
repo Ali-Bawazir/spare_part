@@ -1024,8 +1024,6 @@ def work_order_detail(request, pk):
         }
     last_prices_json = json.dumps(last_prices_by_part)
     linked_prs = wo.purchase_requests.select_related("part", "supplier")[:25]
-    tech_parts_note = TechVendorNoteForm(prefix="parts")
-    tech_vendor_note = TechVendorNoteForm(prefix="vendor")
     active_conflict = None
     emergency_blocks_resume = False
     if request.user.role == User.Role.TECHNICIAN and wo.assigned_technician_id == request.user.id:
@@ -1155,8 +1153,6 @@ def work_order_detail(request, pk):
             "external_repair_request_form": external_repair_request_form,
             "external_repair_decision_form": external_repair_decision_form,
             "linked_prs": linked_prs,
-            "tech_parts_note": tech_parts_note,
-            "tech_vendor_note": tech_vendor_note,
             "active_conflict": active_conflict,
             "emergency_blocks_resume": emergency_blocks_resume,
             "last_prices_json": last_prices_json,
