@@ -5,6 +5,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -942,6 +943,13 @@ class WorkOrderCost(models.Model):
     downtime_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0,
         help_text="Phase 2: set by finance team. Computed as Downtime.total_minutes × rate_per_hour.")
     additional_cost_note = models.CharField(max_length=500, blank=True)
+    # Phase 1+2 Cost Ledger: cache layer for the CostTransaction ledger.
+    last_reconciled_at = models.DateTimeField(auto_now=True)
+    ledger_transaction_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Cached count of CostTransaction rows for this WO. "
+                  "Updated by WorkOrderCost.recalculate_from_ledger().",
+    )
 
     class Meta:
         verbose_name = "Work Order Cost"
@@ -999,6 +1007,190 @@ class WorkOrderCost(models.Model):
             total=Sum(F('quantity') * F('unit_cost'))
         )['total'] or Decimal("0")
         self.consumables_cost = consumables_total
+
+    def recalculate_from_ledger(self):
+        """Refresh this cache from the CostTransaction ledger.
+
+        Financial totals = SUM(amount) over ALL ledger rows for this WO
+        (including reversals, which are negative).
+        """
+        from django.db.models import Sum, Coalesce
+        from .models import CostTransaction, CostCategory
+        sums = (
+            CostTransaction.objects
+            .filter(work_order=self.work_order)
+            .values("category")
+            .annotate(total=Coalesce(Sum("amount"), Decimal("0")))
+        )
+        by_cat = {row["category"]: row["total"] for row in sums}
+        self.material_cost      = by_cat.get(CostCategory.MATERIAL, Decimal("0"))
+        self.vendor_repair_cost = by_cat.get(CostCategory.VENDOR_REPAIR, Decimal("0"))
+        self.consumables_cost   = by_cat.get(CostCategory.CONSUMABLE, Decimal("0"))
+        self.additional_cost    = by_cat.get(CostCategory.ADJUSTMENT, Decimal("0"))
+        self.ledger_transaction_count = CostTransaction.objects.filter(
+            work_order=self.work_order,
+        ).count()
+        # procurement_cost and downtime_cost stay at 0 (legacy fields, kept for compat)
+        self.save(update_fields=[
+            "material_cost", "vendor_repair_cost", "consumables_cost",
+            "additional_cost", "ledger_transaction_count", "last_reconciled_at",
+        ])
+
+
+class CostCategory(models.TextChoices):
+    MATERIAL       = "material"        # Posted when part physically issued to WO
+    VENDOR_REPAIR  = "vendor_repair"   # Posted when ERO closed with actual_cost
+    CONSUMABLE     = "consumable"      # Posted on operator consumable use
+    ADJUSTMENT     = "adjustment"      # Posted on manager manual entry
+
+
+# Source types for CostTransaction. Plain CharField with choices.
+# New source types are added to this list as the system grows.
+COST_SOURCE_TYPE_CHOICES = [
+    ("part_issue_line",       "Part Issue Line"),
+    ("external_repair_order", "External Repair Order"),
+    ("stock_movement",        "Stock Movement"),
+    ("cost_adjustment",       "Cost Adjustment"),
+    ("calibration",           "Calibration"),
+    ("fuel",                  "Fuel"),
+    ("tool_issue",            "Tool Issue"),
+]
+
+
+class CostTransaction(models.Model):
+    """Append-only cost journal. Single source of truth for all WO costs.
+
+    Financial totals for a (source_type, source_id) come from SUM(amount)
+    over ALL rows including reversals. The is_reversal flag is for UI
+    display and audit only — never filter financial totals by it.
+    """
+    amount   = models.DecimalField(max_digits=12, decimal_places=2)
+    category = models.CharField(max_length=20, choices=CostCategory.choices, db_index=True)
+    currency = models.CharField(
+        max_length=3, default="SAR", db_index=True,
+        help_text="ISO 4217 currency code. SAR default for this deployment.",
+    )
+
+    # Material-only snapshot (null for other categories)
+    quantity  = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+
+    # Targets — three FKs, denormalized at creation
+    work_order = models.ForeignKey(
+        "WorkOrder", null=True, on_delete=models.PROTECT, related_name="cost_transactions"
+    )
+    machine    = models.ForeignKey(
+        "Machine", null=True, on_delete=models.PROTECT, related_name="+",
+        limit_choices_to={"asset_level__lte": 4},
+    )
+    component  = models.ForeignKey(
+        "Machine", null=True, on_delete=models.PROTECT, related_name="+",
+        limit_choices_to={"asset_level": 5},
+    )
+
+    # Provenance — plain CharField with choices (no GFK)
+    source_type = models.CharField(max_length=50, choices=COST_SOURCE_TYPE_CHOICES, db_index=True)
+    source_id   = models.PositiveIntegerField(null=True, blank=True)
+
+    # Special FK for adjustments (not generic)
+    adjustment = models.ForeignKey(
+        "CostAdjustment", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+
+    # Reversal support
+    is_reversal = models.BooleanField(
+        default=False, db_index=True,
+        help_text="True if this transaction reverses a previous one. Net amount for "
+                 "(source_type, source_id) = SUM(amount) over ALL rows including reversals.",
+    )
+    supersedes = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="superseded_by",
+        help_text="If is_reversal=True, points to the row being reversed. Audit trail.",
+    )
+
+    # Audit
+    actor       = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT,
+        related_name="posted_cost_transactions",
+    )
+    occurred_at = models.DateTimeField(default=timezone.now, db_index=True)
+    memo        = models.CharField(max_length=300, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=~Q(amount=0),
+                name="cost_transaction_amount_not_zero",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["work_order", "category"]),
+            models.Index(fields=["machine", "-occurred_at"]),
+            models.Index(fields=["component", "-occurred_at"]),
+            models.Index(fields=["source_type", "source_id"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError(
+                "CostTransaction is immutable. To reverse, post a new transaction "
+                "with negative amount, is_reversal=True, and supersedes=this row."
+            )
+        if not (self.work_order_id or self.machine_id or self.component_id):
+            raise ValueError("CostTransaction must target a WO, machine, or component.")
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        target = (
+            f"WO-{self.work_order.number}" if self.work_order_id
+            else (self.machine.name if self.machine_id else (self.component.name if self.component_id else "?"))
+        )
+        sign = "-" if self.amount < 0 else ""
+        return f"{sign}{abs(self.amount):.2f} {self.currency} {self.category} → {target}"
+
+
+class CostAdjustment(models.Model):
+    """Manager manual cost adjustment. Immutable. Linked 1:1 to a CostTransaction."""
+    work_order = models.ForeignKey(
+        "WorkOrder", on_delete=models.PROTECT, related_name="cost_adjustments"
+    )
+    amount     = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        help_text="Signed: positive adds, negative reduces.",
+    )
+    memo       = models.CharField(
+        max_length=300,
+        help_text="Required. Min 10 chars. Explains why this adjustment exists.",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cost_adjustments_created"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=~Q(amount=0),
+                name="cost_adjustment_amount_not_zero",
+            ),
+            models.CheckConstraint(
+                check=Q(memo__regex=r".{10,}"),
+                name="cost_adjustment_memo_min_10_chars",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.memo and len(self.memo.strip()) < 10:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({"memo": "Memo must be at least 10 characters."})
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError("CostAdjustment is immutable. Post a reversing adjustment.")
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class AuditEntry(models.Model):

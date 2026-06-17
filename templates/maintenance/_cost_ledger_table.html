@@ -1,0 +1,59 @@
+{% comment %}
+       Cost ledger table — shared between work_order_cost_ledger.html
+       (a single WO) and any future cross-WO view. Renders a list of
+       CostTransaction rows. Reverse rows are visually de-emphasized.
+       Context variables:
+         - txns : queryset[CostTransaction]
+{% endcomment %}
+{% if txns %}
+<div class="mms-card" style="margin-top: 1rem">
+  <div class="mms-card-header">Cost ledger entries ({{ txns|length }})</div>
+  <div class="mms-card-body" style="padding:0">
+    <table class="table table-sm" style="margin-bottom:0;font-size:.85rem">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Category</th>
+          <th>Source</th>
+          <th class="text-end">Amount</th>
+          <th>Quantity</th>
+          <th>Unit cost</th>
+          <th>Memo</th>
+          <th>Actor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in txns %}
+        <tr style="{% if t.is_reversal %}opacity:.55;background:#fef3c7{% endif %}">
+          <td>
+            {{ t.occurred_at|date:"Y-m-d H:i" }}
+            {% if t.is_reversal %}
+              <br><span class="mms-badge mms-badge--warning" style="font-size:.65rem">REVERSAL</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="mms-badge mms-badge--info" style="font-size:.7rem">{{ t.get_category_display }}</span>
+          </td>
+          <td>
+            {{ t.source_type }}{% if t.source_id %}<span class="text-muted">#{{ t.source_id }}</span>{% endif %}
+          </td>
+          <td class="text-end" style="font-weight:600">
+            {{ t.amount|floatformat:2 }} {{ t.currency }}
+          </td>
+          <td>{% if t.quantity is not None %}{{ t.quantity|floatformat:3 }}{% endif %}</td>
+          <td>{% if t.unit_cost is not None %}{{ t.unit_cost|floatformat:4 }}{% endif %}</td>
+          <td style="font-size:.75rem;color:#475569">{{ t.memo|default:"" }}</td>
+          <td>{% if t.actor %}{{ t.actor.username }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="mms-card" style="margin-top: 1rem">
+  <div class="mms-card-body">
+    <p class="text-muted" style="margin:0">No cost ledger entries yet for WO-{{ wo.number }}.</p>
+  </div>
+</div>
+{% endif %}

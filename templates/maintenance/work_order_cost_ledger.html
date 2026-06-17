@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Cost ledger — WO-{{ wo.number }}{% endblock %}
+{% block page_heading %}Cost ledger — WO-{{ wo.number }}{% endblock %}
+{% block content %}
+
+<p class="mms-link-back">
+  <a href="{% url 'work_order_detail' wo.pk %}">← Back to WO-{{ wo.number }}</a>
+</p>
+
+<div class="mms-card" style="margin-bottom: 1rem">
+  <div class="mms-card-header">Summary</div>
+  <div class="mms-card-body">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem 1.5rem;font-size:.9rem">
+      <div><span class="text-muted">Material:</span>
+        <strong>{{ category_totals.material|floatformat:2 }} SAR</strong>
+      </div>
+      <div><span class="text-muted">Vendor repair:</span>
+        <strong>{{ category_totals.vendor_repair|floatformat:2 }} SAR</strong>
+      </div>
+      <div><span class="text-muted">Consumable:</span>
+        <strong>{{ category_totals.consumable|floatformat:2 }} SAR</strong>
+      </div>
+      <div><span class="text-muted">Adjustment:</span>
+        <strong>{{ category_totals.adjustment|floatformat:2 }} SAR</strong>
+      </div>
+    </div>
+    <div style="margin-top:.75rem;padding-top:.5rem;border-top:1px solid #e5e7eb">
+      <span class="text-muted">Grand total:</span>
+      <strong style="font-size:1.1rem">{{ grand_total|floatformat:2 }} SAR</strong>
+    </div>
+  </div>
+</div>
+
+{% include "maintenance/_cost_ledger_table.html" %}
+
+{% endblock %}

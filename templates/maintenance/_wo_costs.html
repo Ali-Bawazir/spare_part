@@ -1,0 +1,65 @@
+{% comment %}
+       Work Order cost breakdown partial — Phase 1+2 Cost Ledger.
+
+       Replaces (or supplements) the inline cost breakdown in the WO
+       health card. Reads the WorkOrderCost cache (refreshed by
+       CostLedgerService) plus an optional live snapshot of the ledger
+       for managers who want the source of truth.
+
+       Context variables:
+         - wo               : WorkOrder
+         - cost             : WorkOrderCost (or None)
+         - manager          : bool — show the adjustment form (manager+super only)
+         - adjustment_form  : CostAdjustmentForm (optional; required if manager=True)
+{% endcomment %}
+<div class="mms-card" style="grid-column: 1/-1">
+  <div class="mms-card-header">Cost breakdown</div>
+  <div class="mms-card-body">
+
+    <dl style="display:grid;grid-template-columns:max-content 1fr;gap:.25rem .75rem;margin:0 0 .75rem 0;font-size:.9rem">
+      <dt class="text-muted">Material</dt>
+      <dd style="margin:0">{{ cost.material_cost|default:"0.00"|floatformat:2 }} SAR</dd>
+      <dt class="text-muted">Vendor repair</dt>
+      <dd style="margin:0">{{ cost.vendor_repair_cost|default:"0.00"|floatformat:2 }} SAR</dd>
+      <dt class="text-muted">Consumables</dt>
+      <dd style="margin:0">{{ cost.consumables_cost|default:"0.00"|floatformat:2 }} SAR</dd>
+      <dt class="text-muted">Adjustments</dt>
+      <dd style="margin:0">{{ cost.additional_cost|default:"0.00"|floatformat:2 }} SAR</dd>
+      <dt style="border-top:1px solid #e5e7eb;padding-top:.25rem"><strong>Total</strong></dt>
+      <dd style="border-top:1px solid #e5e7eb;padding-top:.25rem;margin:0">
+        <strong>{{ cost.total_cost|default:"0.00"|floatformat:2 }} SAR</strong>
+      </dd>
+    </dl>
+
+    <p class="text-muted" style="font-size:.75rem;margin:0 0 .5rem 0">
+      <a href="{% url 'work_order_cost_ledger' wo.pk %}">Open cost ledger drilldown</a>
+      &middot;
+      {{ cost.ledger_transaction_count|default:0 }} transaction{{ cost.ledger_transaction_count|default:0|pluralize }} posted
+      &middot;
+      Last reconciled: {{ cost.last_reconciled_at|date:"Y-m-d H:i"|default:"never" }}
+    </p>
+
+    {% if manager and adjustment_form %}
+    <details>
+      <summary style="cursor:pointer;font-weight:600;color:var(--mms-accent)">Add a cost adjustment</summary>
+      <form method="post" action="{% url 'work_order_adjust_cost' wo.pk %}" class="mms-form" style="margin-top:.5rem">
+        {% csrf_token %}
+        <div class="mms-form-row">
+          <label for="amount">Amount (SAR) *</label>
+          {{ adjustment_form.amount }}
+          <small class="text-muted">Signed: positive adds, negative reduces.</small>
+        </div>
+        <div class="mms-form-row">
+          <label for="memo">Memo *</label>
+          {{ adjustment_form.memo }}
+          <small class="text-muted">Min 10 characters. Explains why this adjustment exists.</small>
+        </div>
+        <div class="mms-form-actions">
+          <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Post adjustment</button>
+        </div>
+      </form>
+    </details>
+    {% endif %}
+
+  </div>
+</div>

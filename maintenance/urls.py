@@ -98,4 +98,8 @@ urlpatterns = [
     path("attachments/<int:pk>/set-primary/", views.attachment_set_primary, name="attachment_set_primary"),
     path("dashboards/reconciliation/", views.reconciliation_dashboard, name="reconciliation_dashboard"),
     path("dashboards/active-blockers/", views.active_blockers_dashboard, name="active_blockers_dashboard"),
+    # Phase 1+2 Cost Ledger
+    path("work-orders/<int:pk>/adjust-cost/", views.work_order_adjust_cost, name="work_order_adjust_cost"),
+    path("work-orders/<int:pk>/cost-ledger/", views.work_order_cost_ledger, name="work_order_cost_ledger"),
+    path("cost-ledger/export/", views.cost_ledger_export_csv, name="cost_ledger_export_csv"),
 ]

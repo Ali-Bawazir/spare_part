@@ -15,6 +15,7 @@ from datetime import timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from datetime import timedelta as td
+import csv
 import json
 from decimal import Decimal
 
@@ -53,6 +54,7 @@ from procurement.forms import SupplierForm
 
 from .forms import (
     AssignTechnicianForm,
+    CostAdjustmentForm,
     EmergencyWOForm,
     ExternalRepairForm,
     ExternalRepairOfficerForm,
@@ -75,6 +77,9 @@ from .models import (
     Attachment,
     Incident,
     AuditEntry,
+    CostAdjustment,
+    CostCategory,
+    CostTransaction,
     ExternalRepairOrder,
     ExternalRepairRequest,
     Machine,
@@ -1171,6 +1176,12 @@ def work_order_detail(request, pk):
             "health_card": health_card,
             "active_blockers": active_blockers,
             "blocker_history": blocker_history,
+            # Phase 1+2 Cost Ledger additions
+            "cost": getattr(wo, "cost_record", None),
+            "can_manage_costs": request.user.role in (
+                User.Role.MANAGER, User.Role.SUPER_ADMIN,
+            ),
+            "adjustment_form": CostAdjustmentForm(),
         },
     )
 
@@ -3587,6 +3598,19 @@ def repair_manager_accept(request, pk):
                 cost.recalculate()
             except WorkOrderCost.DoesNotExist:
                 WorkOrderCost.objects.create(work_order_id=rwo.work_order_id).recalculate()
+        # Phase 1+2 Cost Ledger: post the vendor_repair cost for this closed ERO.
+        try:
+            from maintenance.cost_ledger import CostLedgerService
+            CostLedgerService.post_vendor_repair(
+                external_repair_order=rwo,
+                actor=request.user,
+                memo=f"ERO #{rwo.number} closed: {rwo.invoice_ref or 'no invoice ref'}",
+            )
+        except Exception as _ledger_err:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Cost ledger post_vendor_repair failed for ERO {rwo.pk}: {_ledger_err}"
+            )
         messages.success(
             request,
             f"Repair verified and closed. Cost {rwo.actual_cost} added to WO cost rollup.",
@@ -4720,3 +4744,155 @@ def active_blockers_dashboard(request):
             ("HIGH", "High Impact"),
         ],
     })
+
+
+# ---------------------------------------------------------------------------
+# Phase 1+2 — Cost Ledger views (manager adjustment, drilldown, CSV export)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_adjust_cost(request, pk):
+    """Manager creates a manual cost adjustment on a WorkOrder.
+
+    Wraps `CostLedgerService.post_adjustment`, which:
+      - creates a CostAdjustment (immutable; 10+ char memo)
+      - creates a CostTransaction (category=ADJUSTMENT, linked to the adj)
+      - refreshes the WorkOrderCost cache
+    """
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    if request.method != "POST":
+        return redirect("work_order_detail", pk=pk)
+    form = CostAdjustmentForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            for err in errs:
+                messages.error(request, f"{field}: {err}")
+        return redirect("work_order_detail", pk=pk)
+    from maintenance.cost_ledger import CostLedgerService
+    try:
+        CostLedgerService.post_adjustment(
+            work_order=wo,
+            amount=form.cleaned_data["amount"],
+            memo=form.cleaned_data["memo"],
+            actor=request.user,
+        )
+    except Exception as e:
+        messages.error(request, f"Could not post adjustment: {e}")
+        return redirect("work_order_detail", pk=pk)
+    messages.success(
+        request,
+        f"Adjustment of {form.cleaned_data['amount']} posted to WO-{wo.number} cost ledger.",
+    )
+    return redirect("work_order_detail", pk=pk)
+
+
+@login_required
+def work_order_cost_ledger(request, pk):
+    """Drilldown page: every CostTransaction for a WO, in reverse-chronological order.
+
+    Visible to any role that can see the WO (technicians see their own).
+    The page renders `_cost_ledger_table.html`.
+    """
+    wo = get_object_or_404(
+        WorkOrder.objects.select_related("machine", "component"),
+        pk=pk,
+    )
+    if request.user.role == User.Role.TECHNICIAN and wo.assigned_technician_id != request.user.id:
+        raise Http404()
+
+    txns = (
+        CostTransaction.objects
+        .filter(work_order=wo)
+        .select_related("actor", "adjustment", "supersedes", "machine", "component")
+        .order_by("-occurred_at", "-pk")
+    )
+
+    # By-category totals, used for the summary card.
+    from django.db.models.functions import Coalesce
+    sums = (
+        CostTransaction.objects
+        .filter(work_order=wo)
+        .values("category")
+        .annotate(total=Coalesce(Sum("amount"), Decimal("0")))
+    )
+    by_cat = {row["category"]: row["total"] for row in sums}
+    category_totals = {
+        "material":      by_cat.get(CostCategory.MATERIAL, Decimal("0")),
+        "vendor_repair": by_cat.get(CostCategory.VENDOR_REPAIR, Decimal("0")),
+        "consumable":    by_cat.get(CostCategory.CONSUMABLE, Decimal("0")),
+        "adjustment":    by_cat.get(CostCategory.ADJUSTMENT, Decimal("0")),
+    }
+    grand_total = sum(category_totals.values(), Decimal("0"))
+
+    return render(
+        request,
+        "maintenance/work_order_cost_ledger.html",
+        {
+            "wo": wo,
+            "txns": txns,
+            "category_totals": category_totals,
+            "grand_total": grand_total,
+            "category_choices": CostCategory.choices,
+            "source_choices": [
+                ("part_issue_line",       "Part Issue Line"),
+                ("external_repair_order", "External Repair Order"),
+                ("stock_movement",        "Stock Movement"),
+                ("cost_adjustment",       "Cost Adjustment"),
+            ],
+        },
+    )
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN, User.Role.PROCUREMENT)
+def cost_ledger_export_csv(request):
+    """Export the global cost ledger as CSV.
+
+    Query params:
+        ?days=90   — last N days (default 90, ignored if ?all=1)
+        ?all=1     — export everything
+    Columns: occurred_at, work_order, category, source_type, source_id,
+             amount, currency, quantity, unit_cost, memo, actor, is_reversal.
+    """
+    qs = CostTransaction.objects.select_related(
+        "work_order", "actor", "adjustment", "machine", "component"
+    )
+    if request.GET.get("all") != "1":
+        try:
+            days = int(request.GET.get("days", "90"))
+        except (TypeError, ValueError):
+            days = 90
+        days = max(0, days)
+        cutoff = timezone.now() - timedelta(days=days)
+        qs = qs.filter(occurred_at__gte=cutoff)
+    qs = qs.order_by("-occurred_at", "-pk")
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    filename = "cost_ledger_all.csv" if request.GET.get("all") == "1" else f"cost_ledger_last_{days}d.csv"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    writer = csv.writer(response)
+    writer.writerow([
+        "occurred_at", "work_order", "category", "source_type", "source_id",
+        "amount", "currency", "quantity", "unit_cost", "memo", "actor",
+        "is_reversal", "supersedes_id", "adjustment_id",
+    ])
+    for t in qs.iterator():
+        writer.writerow([
+            t.occurred_at.isoformat() if t.occurred_at else "",
+            f"WO-{t.work_order.number}" if t.work_order_id else "",
+            t.category,
+            t.source_type,
+            t.source_id if t.source_id is not None else "",
+            str(t.amount),
+            t.currency,
+            str(t.quantity) if t.quantity is not None else "",
+            str(t.unit_cost) if t.unit_cost is not None else "",
+            t.memo,
+            t.actor.username if t.actor_id else "",
+            "1" if t.is_reversal else "0",
+            t.supersedes_id if t.supersedes_id else "",
+            t.adjustment_id if t.adjustment_id else "",
+        ])
+    return response

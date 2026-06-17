@@ -152,7 +152,7 @@ def _deduct_and_record_issue(
     inv.save()
     quantity_after = inv.quantity_available
 
-    PartIssueLine.objects.create(
+    pil = PartIssueLine.objects.create(
         work_order=wo, part=part, quantity=quantity,
         requested_qty=quantity, approved_qty=quantity, issued_qty=quantity,
         shortage_qty=0,
@@ -171,6 +171,7 @@ def _deduct_and_record_issue(
         invoice_ref=invoice_ref, reference=ref,
         note=f"Issued to WO-{wo.number}",
     )
+    return pil
 
 
 def _maybe_notify_low_stock(part: SparePart, site=None) -> None:
@@ -205,7 +206,7 @@ def issue_part_to_work_order(
     ref = {"work_order_id": str(wo.number), "invoice": invoice_ref}
 
     if available >= quantity:
-        _deduct_and_record_issue(
+        pil = _deduct_and_record_issue(
             wo=wo, part=part, quantity=quantity,
             unit_cost=unit_cost, invoice_ref=invoice_ref,
             supplier_name=supplier_name, issued_by=issued_by,
@@ -217,11 +218,24 @@ def issue_part_to_work_order(
             payload={"part": part.sku, "qty": str(quantity), "mode": "full"},
         )
         _maybe_notify_low_stock(part, site)
+        # Phase 1+2 Cost Ledger: post the material cost for this issue.
+        try:
+            from maintenance.cost_ledger import CostLedgerService
+            CostLedgerService.post_material(
+                part_issue_line=pil,
+                actor=issued_by,
+                memo=f"Part issued: {part.name} x {pil.issued_qty}",
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Cost ledger post_material failed for line {pil.pk}: {e}"
+            )
         return True, f"Issued full quantity ({quantity})."
 
     elif available > 0:
         short = quantity - available
-        _deduct_and_record_issue(
+        pil = _deduct_and_record_issue(
             wo=wo, part=part, quantity=available,
             unit_cost=unit_cost, invoice_ref=invoice_ref,
             supplier_name=supplier_name, issued_by=issued_by,
@@ -235,6 +249,19 @@ def issue_part_to_work_order(
             payload={"part": part.sku, "issued": str(available), "shortage": str(short)},
         )
         _maybe_notify_low_stock(part, site)
+        # Phase 1+2 Cost Ledger: post the material cost for this partial issue.
+        try:
+            from maintenance.cost_ledger import CostLedgerService
+            CostLedgerService.post_material(
+                part_issue_line=pil,
+                actor=issued_by,
+                memo=f"Part issued (partial): {part.name} x {pil.issued_qty}",
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Cost ledger post_material failed for line {pil.pk}: {e}"
+            )
         return True, (
             f"Partial issue: {available} issued; {short} short. "
             f"Manager should open a PurchaseRequest manually."
@@ -354,6 +381,20 @@ def consumable_use(
         object_id=str(part.pk),
         payload={"qty": str(quantity), "assignment_id": assignment.pk},
     )
+
+    # Phase 1+2 Cost Ledger: post the consumable cost.
+    try:
+        from maintenance.cost_ledger import CostLedgerService
+        CostLedgerService.post_consumable(
+            stock_movement=stock_movement,
+            actor=consumed_by,
+            memo=f"Consumable: {part.name} x {quantity}",
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Cost ledger post_consumable failed for movement {stock_movement.pk}: {e}"
+        )
 
     _maybe_notify_low_stock(part, site)
     return True, f"Logged {quantity} x {part.name}."

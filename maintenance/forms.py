@@ -429,6 +429,42 @@ class ExternalRepairRequestDecisionForm(forms.Form):
         return cleaned
 
 
+class CostAdjustmentForm(forms.Form):
+    """Manager manual cost adjustment on a WorkOrder.
+
+    Posts a CostTransaction (category=ADJUSTMENT) and a corresponding
+    CostAdjustment with a mandatory memo (>= 10 chars).
+    """
+    amount = forms.DecimalField(
+        max_digits=12, decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            **_CTRL, "step": "0.01",
+            "placeholder": "Signed: positive adds, negative reduces",
+        }),
+        help_text="Signed amount. Positive adds to the WO total, negative reduces it.",
+    )
+    memo = forms.CharField(
+        max_length=300,
+        widget=forms.Textarea(attrs={
+            **_CTRL, "rows": 3,
+            "placeholder": "Why does this adjustment exist? (min 10 chars)",
+        }),
+        help_text="Required. Min 10 characters. Explains why this adjustment exists.",
+    )
+
+    def clean_memo(self):
+        memo = (self.cleaned_data.get("memo") or "").strip()
+        if len(memo) < 10:
+            raise ValidationError({"memo": "Memo must be at least 10 characters."})
+        return memo
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get("amount")
+        if amount is None or Decimal(str(amount)) == 0:
+            raise ValidationError("Amount must be non-zero.")
+        return amount
+
+
 class RepairManagerAcceptForm(forms.Form):
     """P3.2 — manager acceptance of a RETURNED ExternalRepairOrder (UC-20).
 
