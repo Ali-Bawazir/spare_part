@@ -11,6 +11,15 @@
                 {{ issue.machine.name }}
                 {% if issue.machine.qr_code %}<br><small class="text-muted">{{ issue.machine.qr_code }}</small>{% endif %}
             </dd>
+            <dt>Component</dt>
+            <dd>
+                {% if issue.component %}
+                    {{ issue.component.name }}
+                    {% if issue.component.asset_code %}<br><small class="text-muted">{{ issue.component.asset_code }}</small>{% endif %}
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </dd>
             <dt>Failure Category</dt>
             <dd>{% if issue.issue_type %}{{ issue.issue_type.name }}{% else %}—{% endif %}</dd>
             <dt>Failure Mode</dt>

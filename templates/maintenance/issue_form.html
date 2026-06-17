@@ -56,11 +56,11 @@
       {% endfor %}
 
       {% if not locked_asset %}
-      {# Component field — wrapped in a container so JS can show/hide based on selected machine #}
-      <div class="mms-form-row" id="component-row" style="display:none">
+      {# Component field — JS populates this dropdown with components belonging to the selected machine. Initially empty. #}
+      <div class="mms-form-row" id="component-row">
         <label for="id_component">Component:</label>
         {{ form.component }}
-        <small class="form-text text-muted" style="color:#6b7280">Optional. Only components under the selected machine are shown.</small>
+        <small class="form-text text-muted" style="color:#6b7280">Optional. Pick a specific sub-assembly / component inside the selected machine.</small>
         {% if form.component.errors %}<div class="mms-field-error">{{ form.component.errors }}</div>{% endif %}
       </div>
       {% endif %}
@@ -216,11 +216,12 @@
     function updateComponentRow(machineId, preserveSelection) {
       if (!componentRow || !componentSelect) return;
       if (!machineId) {
-        componentRow.style.display = 'none';
         while (componentSelect.options.length > 1) componentSelect.remove(1);
         componentSelect.value = '';
+        componentSelect.disabled = true;
         return;
       }
+      componentSelect.disabled = false;
       fetch('/machines/' + encodeURIComponent(machineId) + '/components/', {
         headers: { 'X-CSRFToken': getCsrfToken() }
       })
@@ -233,7 +234,6 @@
           opt.textContent = c.name + (c.asset_code ? ' (' + c.asset_code + ')' : '');
           componentSelect.appendChild(opt);
         });
-        componentRow.style.display = data.has_components ? '' : 'none';
         if (preserveSelection) {
           var stillExists = Array.from(componentSelect.options).some(function(o) { return o.value === preserveSelection; });
           if (stillExists) {
@@ -244,7 +244,7 @@
         }
       })
       .catch(function() {
-        componentRow.style.display = 'none';
+        componentSelect.disabled = true;
       });
     }
 

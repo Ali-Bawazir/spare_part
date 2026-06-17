@@ -60,6 +60,23 @@ class IssueReportForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["issue_type"].queryset = FailureCategory.objects.filter(is_active=True)
         self.fields["failure_mode"].queryset = FailureMode.objects.filter(is_active=True)
+        # Component: only show components that match the bound machine (if any).
+        # When unbound (new issue), the queryset is empty and JS will populate
+        # it after the user picks a machine.
+        from .models import Machine as _M
+        bound_machine = None
+        if self.is_bound:
+            bound_machine_id = self.data.get("machine")
+            if bound_machine_id:
+                bound_machine = _M.objects.filter(pk=bound_machine_id).first()
+        elif self.instance and self.instance.machine_id:
+            bound_machine = self.instance.machine
+        if bound_machine is not None:
+            self.fields["component"].queryset = _M.objects.filter(
+                parent=bound_machine
+            ).order_by("name")
+        else:
+            self.fields["component"].queryset = _M.objects.none()
         if self.instance and self.instance.machine_id and self.instance.machine.failure_category_id:
             self.fields["issue_type"].initial = self.instance.machine.failure_category_id
             self.fields["failure_mode"].queryset = FailureMode.objects.filter(
