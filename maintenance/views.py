@@ -696,6 +696,8 @@ def issue_create(request):
     qr = request.GET.get("qr", "").strip()
     matched_machine = Machine.objects.filter(qr_code=qr).first() if qr else None
     locked_asset = None
+    resolved_machine_id = None
+    resolved_component_id = None
     if request.method == "POST":
         form = IssueReportForm(request.POST)
         if form.is_valid():
@@ -762,6 +764,10 @@ def issue_create(request):
                 return JsonResponse({"redirect_url": reverse("issue_list")})
 
             return redirect("issue_list")
+        # POST form is invalid — fall through to re-render with errors.
+        # Populate resolved ids from POST data so the asset tree still works.
+        resolved_machine_id = request.POST.get("machine") or None
+        resolved_component_id = request.POST.get("component") or None
     else:
         # Pre-fill from URL params. If component is a level-5 Component, walk
         # the parent chain to find the level-3 Machine (since Issue.machine
@@ -772,8 +778,6 @@ def issue_create(request):
             initial["machine"] = matched_machine.pk
         machine_param = request.GET.get("machine")
         component_param = request.GET.get("component")
-        resolved_machine_id = None
-        resolved_component_id = None
         if component_param:
             try:
                 comp = Machine.objects.get(pk=int(component_param))

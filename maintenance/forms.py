@@ -61,8 +61,8 @@ class IssueReportForm(forms.ModelForm):
         self.fields["issue_type"].queryset = FailureCategory.objects.filter(is_active=True)
         self.fields["failure_mode"].queryset = FailureMode.objects.filter(is_active=True)
         # Component: only show components that match the bound machine (if any).
-        # When unbound (new issue), the queryset is empty and JS will populate
-        # it after the user picks a machine.
+        # The dropdown on the template uses the same recursive descendant logic
+        # via /machines/<id>/components/, so we must mirror it here.
         from .models import Machine as _M
         bound_machine = None
         if self.is_bound:
@@ -72,9 +72,14 @@ class IssueReportForm(forms.ModelForm):
         elif self.instance and self.instance.machine_id:
             bound_machine = self.instance.machine
         if bound_machine is not None:
-            self.fields["component"].queryset = _M.objects.filter(
-                parent=bound_machine
-            ).order_by("name")
+            if bound_machine.asset_level == 5:
+                comps = _M.objects.filter(pk=bound_machine.pk)
+            else:
+                # Mirror the JS endpoint's recursive lookup so the queryset
+                # accepts grand-children and deeper descendants too.
+                comp_ids = [c.pk for c in bound_machine.get_descendant_components()]
+                comps = _M.objects.filter(pk__in=comp_ids).order_by("name")
+            self.fields["component"].queryset = comps
         else:
             self.fields["component"].queryset = _M.objects.none()
         if self.instance and self.instance.machine_id and self.instance.machine.failure_category_id:
