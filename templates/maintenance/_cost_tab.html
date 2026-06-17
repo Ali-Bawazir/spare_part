@@ -1,0 +1,51 @@
+{% comment %}
+Reusable Costs tab for machine_detail and component views.
+Shows 3 periods: 30 / 90 / 365 days side-by-side.
+{% endcomment %}
+{% if cost_periods %}
+  <div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">Costs</div>
+    <div class="mms-card-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+        {% for days, cost in cost_periods.items %}
+          <div style="border:1px solid #e5e7eb;border-radius:6px;padding:0.75rem;background:#fafafa">
+            <h5 style="margin:0 0 0.5rem 0;font-size:0.8rem;color:#374151">Last {{ days }} days</h5>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:0.5rem">
+              <tbody>
+                <tr>
+                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Material</td>
+                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.material|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Vendor repair</td>
+                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.vendor_repair|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Consumables</td>
+                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.consumable|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Adjustments</td>
+                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.adjustment|floatformat:2 }}</td>
+                </tr>
+                <tr style="border-top:1px solid #d1d5db">
+                  <td style="padding:0.3rem 0 0.2rem 0;font-weight:700;font-size:0.85rem">Total</td>
+                  <td style="text-align:right;padding:0.3rem 0 0.2rem 0;font-weight:700;font-size:0.85rem">{{ cost.total|floatformat:2 }} {{ cost.currency }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="font-size:0.7rem;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:0.4rem">
+              <div>WOs: <strong>{{ cost.wo_count }}</strong></div>
+              <div>Failures: <strong>{{ cost.failure_count }}</strong></div>
+              {% if cost.cost_per_failure is not None %}
+                <div>Cost/failure: <strong>{{ cost.cost_per_failure }} {{ cost.currency }}</strong></div>
+              {% else %}
+                <div><em>n/a (no failures)</em></div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endif %}

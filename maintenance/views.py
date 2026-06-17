@@ -609,6 +609,14 @@ def machine_detail(request, pk):
         Q(machine=machine) | Q(component=machine)
     ).select_related("machine", "component", "part", "supplier").order_by("-created_at")[:20]
 
+    # Cost rollup for the Costs tab (Phase 3). Live aggregation from
+    # the CostTransaction ledger. Same shape for machines and components.
+    from .cost_views import machine_costs_for_periods, component_costs_for_periods
+    if machine.asset_level == 5:
+        cost_periods = component_costs_for_periods(machine)
+    else:
+        cost_periods = machine_costs_for_periods(machine)
+
     context = {
         "machine": machine,
         "ancestors": ancestors,
@@ -620,6 +628,7 @@ def machine_detail(request, pk):
         "is_machine_level": machine.asset_level == 3,
         "is_subassembly_level": machine.asset_level == 4,
         "is_component_level": machine.asset_level == 5,
+        "cost_periods": cost_periods,
     }
     if machine is not None:
         context["attachments"] = Attachment.objects.filter(
