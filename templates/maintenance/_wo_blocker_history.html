@@ -44,20 +44,20 @@
           <div>
             <span class="text-muted">Opened:</span>
             {{ blocker.opened_at|date:"Y-m-d H:i" }}
-            by {{ blocker.opened_by.get_full_name|default:blocker.opened_by.username|default:"system" }}
+            {% if blocker.opened_by %}by {{ blocker.opened_by.get_full_name|default:blocker.opened_by.username }}{% else %}by system{% endif %}
           </div>
           {% if blocker.resolved_at %}
           <div>
             <span class="text-muted">Resolved:</span>
             {{ blocker.resolved_at|date:"Y-m-d H:i" }}
-            by {{ blocker.resolved_by.get_full_name|default:blocker.resolved_by.username|default:"system" }}
+            {% if blocker.resolved_by %}by {{ blocker.resolved_by.get_full_name|default:blocker.resolved_by.username }}{% else %}by system{% endif %}
           </div>
           {% endif %}
           {% if blocker.cancelled_at %}
           <div>
             <span class="text-muted">Cancelled:</span>
             {{ blocker.cancelled_at|date:"Y-m-d H:i" }}
-            by {{ blocker.cancelled_by.get_full_name|default:blocker.cancelled_by.username|default:"system" }}
+            {% if blocker.cancelled_by %}by {{ blocker.cancelled_by.get_full_name|default:blocker.cancelled_by.username }}{% else %}by system{% endif %}
           </div>
           {% endif %}
         </div>
