@@ -1,51 +1,725 @@
 {% comment %}
-Reusable Costs tab for machine_detail and component views.
-Shows 3 periods: 30 / 90 / 365 days side-by-side.
+Reusable cost dashboard panel for machine_detail and component views.
+
+Renders all three periods (30 / 90 / 365 days) into the DOM; a small inline
+script toggles visibility based on the `?period=` URL query parameter
+(defaults to 90). The page renders the first panel server-side so users
+without JavaScript still see the default 90-day view.
+
+The shape of `cost_periods` is unchanged:
+    { 30: MachineCost | ComponentCost, 90: ..., 365: ... }
 {% endcomment %}
 {% if cost_periods %}
-  <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header">Costs</div>
-    <div class="mms-card-body">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
-        {% for days, cost in cost_periods.items %}
-          <div style="border:1px solid #e5e7eb;border-radius:6px;padding:0.75rem;background:#fafafa">
-            <h5 style="margin:0 0 0.5rem 0;font-size:0.8rem;color:#374151">Last {{ days }} days</h5>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:0.5rem">
-              <tbody>
-                <tr>
-                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Material</td>
-                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.material|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Vendor repair</td>
-                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.vendor_repair|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Consumables</td>
-                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.consumable|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                  <td style="padding:0.2rem 0;font-size:0.8rem;color:#6b7280">Adjustments</td>
-                  <td style="text-align:right;padding:0.2rem 0;font-size:0.8rem">{{ cost.adjustment|floatformat:2 }}</td>
-                </tr>
-                <tr style="border-top:1px solid #d1d5db">
-                  <td style="padding:0.3rem 0 0.2rem 0;font-weight:700;font-size:0.85rem">Total</td>
-                  <td style="text-align:right;padding:0.3rem 0 0.2rem 0;font-weight:700;font-size:0.85rem">{{ cost.total|floatformat:2 }} {{ cost.currency }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div style="font-size:0.7rem;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:0.4rem">
-              <div>WOs: <strong>{{ cost.wo_count }}</strong></div>
-              <div>Failures: <strong>{{ cost.failure_count }}</strong></div>
-              {% if cost.cost_per_failure is not None %}
-                <div>Cost/failure: <strong>{{ cost.cost_per_failure }} {{ cost.currency }}</strong></div>
-              {% else %}
-                <div><em>n/a (no failures)</em></div>
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
-      </div>
+<style>
+  .mms-cost-dashboard {
+    --mms-cost-cat-material: #0d6efd;
+    --mms-cost-cat-vendor: #b45309;
+    --mms-cost-cat-consumable: #16a34a;
+    --mms-cost-cat-adjustment: #5b21b6;
+
+    background: var(--mms-surface, #fff);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    border-radius: var(--mms-radius, 10px);
+    box-shadow: var(--mms-shadow, 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.04));
+    overflow: hidden;
+    color: var(--mms-text, #0f172a);
+    font-family: inherit;
+    margin-bottom: 1rem;
+  }
+
+  .mms-cost-dashboard__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem 1rem;
+    padding: 0.8rem 1.1rem;
+    border-bottom: 1px solid var(--mms-border, #e2e8f0);
+    background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+  }
+
+  .mms-cost-dashboard__title {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .mms-cost-dashboard__title-icon {
+    color: var(--mms-muted, #64748b);
+    flex-shrink: 0;
+  }
+
+  .mms-cost-segments {
+    display: inline-flex;
+    background: var(--mms-bg, #f1f5f9);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .mms-cost-segments button {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    margin: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--mms-muted, #64748b);
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    line-height: 1.2;
+    min-height: 1.85rem;
+  }
+
+  .mms-cost-segments button:hover {
+    color: var(--mms-text, #0f172a);
+  }
+
+  .mms-cost-segments button[aria-selected="true"] {
+    background: var(--mms-accent, #0d9488);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(13, 148, 136, 0.3);
+  }
+
+  .mms-cost-segments button:focus-visible {
+    outline: 2px solid var(--mms-accent, #0d9488);
+    outline-offset: 2px;
+  }
+
+  .mms-cost-dashboard__body {
+    padding: clamp(0.95rem, 2.5vw, 1.35rem);
+  }
+
+  .mms-cost-panel {
+    display: grid;
+    gap: clamp(0.95rem, 2.4vw, 1.3rem);
+  }
+
+  .mms-cost-panel[hidden] { display: none; }
+
+  /* Hero */
+  .mms-cost-hero {
+    display: grid;
+    gap: 0.45rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px dashed var(--mms-border, #e2e8f0);
+  }
+
+  .mms-cost-hero__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .mms-cost-hero__amount {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+  }
+
+  .mms-cost-hero__value {
+    font-size: clamp(1.85rem, 5.5vw, 2.65rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    color: var(--mms-text, #0f172a);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mms-cost-hero__currency {
+    font-size: clamp(0.95rem, 2.4vw, 1.1rem);
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    letter-spacing: 0.02em;
+  }
+
+  .mms-cost-hero__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: var(--mms-muted, #64748b);
+  }
+
+  .mms-cost-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.74rem;
+    background: var(--mms-bg, #f1f5f9);
+    color: var(--mms-muted, #64748b);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    line-height: 1.2;
+  }
+
+  .mms-cost-trend--up {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+  }
+
+  .mms-cost-trend--down {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #bbf7d0;
+  }
+
+  .mms-cost-trend--flat {
+    background: #f1f5f9;
+    color: var(--mms-muted, #64748b);
+    border-color: var(--mms-border, #e2e8f0);
+  }
+
+  .mms-cost-trend svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Breakdown */
+  .mms-cost-breakdown {
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .mms-cost-breakdown__title {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .mms-cost-bar {
+    display: flex;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--mms-bg, #f1f5f9);
+    border: 1px solid var(--mms-border, #e2e8f0);
+  }
+
+  .mms-cost-bar__seg {
+    height: 100%;
+    transition: filter 0.15s;
+  }
+
+  .mms-cost-bar__seg[data-cat="material"]   { background: var(--mms-cost-cat-material); }
+  .mms-cost-bar__seg[data-cat="vendor"]     { background: var(--mms-cost-cat-vendor); }
+  .mms-cost-bar__seg[data-cat="consumable"] { background: var(--mms-cost-cat-consumable); }
+  .mms-cost-bar__seg[data-cat="adjustment"] { background: var(--mms-cost-cat-adjustment); }
+
+  .mms-cost-bar__seg--empty { background: var(--mms-border, #e2e8f0); }
+
+  .mms-cost-legend {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr));
+    gap: 0.5rem 0.75rem;
+  }
+
+  .mms-cost-legend li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--mms-border, #e2e8f0);
+    border-radius: 8px;
+    background: var(--mms-surface, #fff);
+    font-size: 0.82rem;
+    min-width: 0;
+  }
+
+  .mms-cost-legend__name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--mms-text, #0f172a);
+    font-weight: 500;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mms-cost-legend__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .mms-cost-legend__dot[data-cat="material"]   { background: var(--mms-cost-cat-material); }
+  .mms-cost-legend__dot[data-cat="vendor"]     { background: var(--mms-cost-cat-vendor); }
+  .mms-cost-legend__dot[data-cat="consumable"] { background: var(--mms-cost-cat-consumable); }
+  .mms-cost-legend__dot[data-cat="adjustment"] { background: var(--mms-cost-cat-adjustment); }
+
+  .mms-cost-legend__values {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .mms-cost-legend__amount {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--mms-text, #0f172a);
+  }
+
+  .mms-cost-legend__pct {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--mms-muted, #64748b);
+    font-variant-numeric: tabular-nums;
+    min-width: 2ch;
+    text-align: right;
+  }
+
+  /* KPI tiles */
+  .mms-cost-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  @media (max-width: 560px) {
+    .mms-cost-kpis { grid-template-columns: 1fr; }
+  }
+
+  .mms-cost-kpi {
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    background: var(--mms-bg, #f1f5f9);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .mms-cost-kpi__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    background: var(--mms-surface, #fff);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--mms-muted, #64748b);
+  }
+
+  .mms-cost-kpi__body {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mms-cost-kpi__value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--mms-text, #0f172a);
+    font-variant-numeric: tabular-nums;
+    word-break: break-word;
+  }
+
+  .mms-cost-kpi__label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.18rem;
+  }
+
+  .mms-cost-kpi__sub {
+    font-size: 0.7rem;
+    color: var(--mms-muted, #64748b);
+    margin-top: 0.15rem;
+    line-height: 1.3;
+  }
+
+  /* Full-card empty state */
+  .mms-cost-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--mms-muted, #64748b);
+  }
+
+  .mms-cost-empty-state__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--mms-bg, #f1f5f9);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mms-muted, #64748b);
+    margin-bottom: 0.15rem;
+  }
+
+  .mms-cost-empty-state__title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--mms-text, #0f172a);
+  }
+
+  .mms-cost-empty-state__sub {
+    font-size: 0.82rem;
+    color: var(--mms-muted, #64748b);
+    max-width: 28rem;
+    line-height: 1.5;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mms-cost-bar__seg,
+    .mms-cost-segments button,
+    .mms-cost-trend { transition: none; }
+  }
+</style>
+
+<div class="mms-cost-dashboard" data-default-period="90" role="region" aria-label="Maintenance costs">
+  <div class="mms-cost-dashboard__head">
+    <h3 class="mms-cost-dashboard__title">
+      <svg class="mms-cost-dashboard__title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 3v18h18"/>
+        <path d="M7 14l4-4 4 3 5-6"/>
+      </svg>
+      Maintenance costs
+    </h3>
+    <div class="mms-cost-segments" role="tablist" aria-label="Select time period">
+      <button type="button" role="tab" data-period="30" aria-selected="false" tabindex="-1">30d</button>
+      <button type="button" role="tab" data-period="90" aria-selected="true">90d</button>
+      <button type="button" role="tab" data-period="365" aria-selected="false" tabindex="-1">365d</button>
     </div>
   </div>
+
+  <div class="mms-cost-dashboard__body">
+    {% for days, cost in cost_periods.items %}
+      <div class="mms-cost-panel"
+           data-period="{{ days }}"
+           data-total="{{ cost.total|floatformat:4 }}"
+           data-material="{{ cost.material|floatformat:4 }}"
+           data-vendor="{{ cost.vendor_repair|floatformat:4 }}"
+           data-consumable="{{ cost.consumable|floatformat:4 }}"
+           data-adjustment="{{ cost.adjustment|floatformat:4 }}"
+           data-wo="{{ cost.wo_count }}"
+           data-failures="{{ cost.failure_count }}"
+           data-currency="{{ cost.currency }}"
+           {% if not forloop.first %}hidden{% endif %}>
+
+        {% if cost.wo_count == 0 and cost.total == 0 %}
+          <div class="mms-cost-empty-state">
+            <span class="mms-cost-empty-state__icon" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/>
+                <rect x="7" y="11" width="3" height="7" rx="0.5"/>
+                <rect x="12" y="7" width="3" height="11" rx="0.5"/>
+                <rect x="17" y="14" width="3" height="4" rx="0.5"/>
+              </svg>
+            </span>
+            <div class="mms-cost-empty-state__title">No maintenance cost recorded in the last {{ days }} days</div>
+            <div class="mms-cost-empty-state__sub">Costs will appear here after work orders are closed.</div>
+          </div>
+        {% else %}
+          {% with total=cost.total %}
+          <div class="mms-cost-hero">
+            <div class="mms-cost-hero__label">Total cost &middot; last {{ days }} days</div>
+            <div class="mms-cost-hero__amount">
+              <span class="mms-cost-hero__value">{{ cost.total|floatformat:2 }}</span>
+              <span class="mms-cost-hero__currency">{{ cost.currency }}</span>
+            </div>
+            <div class="mms-cost-hero__meta">
+              <span class="mms-cost-trend" data-trend aria-live="polite">
+                <span aria-hidden="true">&mdash;</span>
+                <span data-trend-text>no prior comparison</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="mms-cost-breakdown">
+            <h4 class="mms-cost-breakdown__title">Breakdown by category</h4>
+
+            <div class="mms-cost-bar" role="img" aria-label="Cost distribution across categories">
+              {% if total %}
+                <div class="mms-cost-bar__seg" data-cat="material"   style="width:{% widthratio cost.material     total 100 %}%" title="Material {{ cost.material|floatformat:2 }} {{ cost.currency }}"></div>
+                <div class="mms-cost-bar__seg" data-cat="vendor"     style="width:{% widthratio cost.vendor_repair total 100 %}%" title="Vendor repair {{ cost.vendor_repair|floatformat:2 }} {{ cost.currency }}"></div>
+                <div class="mms-cost-bar__seg" data-cat="consumable" style="width:{% widthratio cost.consumable    total 100 %}%" title="Consumables {{ cost.consumable|floatformat:2 }} {{ cost.currency }}"></div>
+                <div class="mms-cost-bar__seg" data-cat="adjustment" style="width:{% widthratio cost.adjustment   total 100 %}%" title="Adjustments {{ cost.adjustment|floatformat:2 }} {{ cost.currency }}"></div>
+              {% else %}
+                <div class="mms-cost-bar__seg mms-cost-bar__seg--empty" style="width:100%"></div>
+              {% endif %}
+            </div>
+
+            <ul class="mms-cost-legend">
+              <li>
+                <span class="mms-cost-legend__name">
+                  <span class="mms-cost-legend__dot" data-cat="material" aria-hidden="true"></span>
+                  Material
+                </span>
+                <span class="mms-cost-legend__values">
+                  <span class="mms-cost-legend__amount">{{ cost.material|floatformat:2 }}</span>
+                  <span class="mms-cost-legend__pct">{% if total %}{% widthratio cost.material total 100 %}{% else %}&mdash;{% endif %}%</span>
+                </span>
+              </li>
+              <li>
+                <span class="mms-cost-legend__name">
+                  <span class="mms-cost-legend__dot" data-cat="vendor" aria-hidden="true"></span>
+                  Vendor repair
+                </span>
+                <span class="mms-cost-legend__values">
+                  <span class="mms-cost-legend__amount">{{ cost.vendor_repair|floatformat:2 }}</span>
+                  <span class="mms-cost-legend__pct">{% if total %}{% widthratio cost.vendor_repair total 100 %}{% else %}&mdash;{% endif %}%</span>
+                </span>
+              </li>
+              <li>
+                <span class="mms-cost-legend__name">
+                  <span class="mms-cost-legend__dot" data-cat="consumable" aria-hidden="true"></span>
+                  Consumables
+                </span>
+                <span class="mms-cost-legend__values">
+                  <span class="mms-cost-legend__amount">{{ cost.consumable|floatformat:2 }}</span>
+                  <span class="mms-cost-legend__pct">{% if total %}{% widthratio cost.consumable total 100 %}{% else %}&mdash;{% endif %}%</span>
+                </span>
+              </li>
+              <li>
+                <span class="mms-cost-legend__name">
+                  <span class="mms-cost-legend__dot" data-cat="adjustment" aria-hidden="true"></span>
+                  Adjustments
+                </span>
+                <span class="mms-cost-legend__values">
+                  <span class="mms-cost-legend__amount">{{ cost.adjustment|floatformat:2 }}</span>
+                  <span class="mms-cost-legend__pct">{% if total %}{% widthratio cost.adjustment total 100 %}{% else %}&mdash;{% endif %}%</span>
+                </span>
+              </li>
+            </ul>
+          </div>
+          {% endwith %}
+
+          <div class="mms-cost-kpis">
+            <div class="mms-cost-kpi">
+              <span class="mms-cost-kpi__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+              </span>
+              <div class="mms-cost-kpi__body">
+                <div class="mms-cost-kpi__value">{{ cost.wo_count }}</div>
+                <div class="mms-cost-kpi__label">Work orders</div>
+              </div>
+            </div>
+
+            <div class="mms-cost-kpi">
+              <span class="mms-cost-kpi__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </span>
+              <div class="mms-cost-kpi__body">
+                <div class="mms-cost-kpi__value">{{ cost.failure_count }}</div>
+                <div class="mms-cost-kpi__label">Failures</div>
+              </div>
+            </div>
+
+            <div class="mms-cost-kpi">
+              <span class="mms-cost-kpi__icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </span>
+              <div class="mms-cost-kpi__body">
+                {% if cost.cost_per_failure is not None %}
+                  <div class="mms-cost-kpi__value">{{ cost.cost_per_failure|floatformat:2 }} {{ cost.currency }}</div>
+                {% else %}
+                  <div class="mms-cost-kpi__value">&mdash;</div>
+                {% endif %}
+                <div class="mms-cost-kpi__label">Cost per failure</div>
+                {% if cost.failure_count == 0 %}
+                  <div class="mms-cost-kpi__sub">No failures recorded</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+(function () {
+  function fmtPct(p) {
+    var sign = p > 0 ? '+' : '';
+    return sign + p.toFixed(0) + '%';
+  }
+
+  function renderTrend(panel, period, data) {
+    var trendEl = panel.querySelector('[data-trend]');
+    if (!trendEl) return;
+
+    var current = data[period];
+    if (!current || current.total <= 0) {
+      trendEl.className = 'mms-cost-trend';
+      trendEl.innerHTML = '<span aria-hidden="true">&mdash;</span><span>no prior comparison</span>';
+      return;
+    }
+
+    var priorEstimate = null;
+    var priorLabel = '';
+    if (period === 90 && data[30] && data[30].total > 0) {
+      priorEstimate = data[30].total * 3;
+      priorLabel = 'vs prior period';
+    } else if (period === 365 && data[90] && data[90].total > 0) {
+      priorEstimate = data[90].total * (365 / 90);
+      priorLabel = 'vs prior period';
+    }
+
+    if (priorEstimate === null || priorEstimate <= 0) {
+      trendEl.className = 'mms-cost-trend';
+      trendEl.innerHTML = '<span aria-hidden="true">&mdash;</span><span>no prior comparison</span>';
+      return;
+    }
+
+    var pct = ((current.total - priorEstimate) / priorEstimate) * 100;
+    var absPct = Math.abs(pct);
+    var cls, arrow;
+    if (absPct < 1) {
+      cls = 'mms-cost-trend mms-cost-trend--flat';
+      arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    } else if (pct > 0) {
+      cls = 'mms-cost-trend mms-cost-trend--up';
+      arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+    } else {
+      cls = 'mms-cost-trend mms-cost-trend--down';
+      arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
+    }
+    trendEl.className = cls;
+    trendEl.innerHTML = arrow + '<span>' + fmtPct(pct) + ' ' + priorLabel + '</span>';
+  }
+
+  function initDashboard(dash) {
+    var defaultPeriod = parseInt(dash.getAttribute('data-default-period') || '90', 10);
+    var panels = dash.querySelectorAll('.mms-cost-panel');
+    var buttons = dash.querySelectorAll('.mms-cost-segments button');
+
+    var data = {};
+    panels.forEach(function (p) {
+      var period = parseInt(p.getAttribute('data-period'), 10);
+      data[period] = {
+        total:      parseFloat(p.getAttribute('data-total'))      || 0,
+        material:   parseFloat(p.getAttribute('data-material'))   || 0,
+        vendor:     parseFloat(p.getAttribute('data-vendor'))     || 0,
+        consumable: parseFloat(p.getAttribute('data-consumable')) || 0,
+        adjustment: parseFloat(p.getAttribute('data-adjustment')) || 0,
+        wo:         parseInt(p.getAttribute('data-wo'), 10)         || 0,
+        failures:   parseInt(p.getAttribute('data-failures'), 10)  || 0
+      };
+    });
+
+    function getInitialPeriod() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var p = parseInt(params.get('period'), 10);
+        if (p === 30 || p === 90 || p === 365) return p;
+      } catch (e) { /* fall through */ }
+      return defaultPeriod;
+    }
+
+    function selectPeriod(period, updateUrl) {
+      if (!data[period]) return;
+      panels.forEach(function (p) {
+        var pPeriod = parseInt(p.getAttribute('data-period'), 10);
+        if (pPeriod === period) {
+          p.removeAttribute('hidden');
+          renderTrend(p, period, data);
+        } else {
+          p.setAttribute('hidden', '');
+        }
+      });
+      var buttonArr = Array.prototype.slice.call(buttons);
+      buttonArr.forEach(function (b) {
+        var bPeriod = parseInt(b.getAttribute('data-period'), 10);
+        if (bPeriod === period) {
+          b.setAttribute('aria-selected', 'true');
+          b.removeAttribute('tabindex');
+        } else {
+          b.setAttribute('aria-selected', 'false');
+          b.setAttribute('tabindex', '-1');
+        }
+      });
+      if (updateUrl) {
+        try {
+          var url = new URL(window.location.href);
+          url.searchParams.set('period', String(period));
+          window.history.replaceState({}, '', url);
+        } catch (e) { /* no-op for legacy browsers */ }
+      }
+    }
+
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        selectPeriod(parseInt(btn.getAttribute('data-period'), 10), true);
+        btn.focus();
+      });
+      btn.addEventListener('keydown', function (e) {
+        var all = Array.prototype.slice.call(buttons);
+        var idx = all.indexOf(btn);
+        if (e.key === 'ArrowRight' && idx < all.length - 1) {
+          e.preventDefault();
+          all[idx + 1].focus();
+          all[idx + 1].click();
+        } else if (e.key === 'ArrowLeft' && idx > 0) {
+          e.preventDefault();
+          all[idx - 1].focus();
+          all[idx - 1].click();
+        }
+      });
+    });
+
+    selectPeriod(getInitialPeriod(), false);
+  }
+
+  function init() {
+    document.querySelectorAll('.mms-cost-dashboard').forEach(initDashboard);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 {% endif %}
