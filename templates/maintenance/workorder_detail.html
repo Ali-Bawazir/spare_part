@@ -80,13 +80,8 @@
   {% include "maintenance/_wo_health_card.html" %}
   {% include "maintenance/_wo_blockers_panel.html" %}
 
-  {# Phase 1+2 Cost Ledger: cost breakdown + manager adjustment form.
-     Cost is visible only to roles that manage or plan around cost
-     (manager, supervisor, procurement, super_admin). Operators and
-     technicians do not see WO cost at all. #}
-  {% if can_see_cost %}
-  {% include "maintenance/_wo_costs.html" %}
-  {% endif %}
+  {# Cost dashboard — visible to roles that plan around cost. #}
+  {% if can_see_cost %}{% include "maintenance/_wo_costs.html" %}{% endif %}
 
   <div class="mms-card">
     <div class="mms-card-header">Actions</div>
