@@ -50,4 +50,4 @@ celerybeat-schedule
 celerybeat-schedule.db
 
 # Node (if any future frontend)
-node_modules/
+node_modules/screenshots/

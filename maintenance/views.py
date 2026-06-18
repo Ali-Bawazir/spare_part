@@ -558,7 +558,7 @@ def machine_edit(request, pk):
 
 
 @login_required
-@role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+@role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN, User.Role.TECHNICIAN)
 def machine_detail(request, pk):
     """Asset detail page — handles Machine (level 3), Subassembly (level 4), and Component (level 5).
 
@@ -972,7 +972,7 @@ def my_work_orders(request):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+@role_required(User.Role.OPERATOR, User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def work_order_detail(request, pk):
     # Sprint 1 (Step 6): pop the stashed result from the part-request redirect
     # so the alert block in the template can show the outcome.
