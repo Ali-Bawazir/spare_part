@@ -279,3 +279,171 @@ class CostPerFailureTests(TestCase):
         response = self.client.get(reverse("kpi_dashboard"))
         self.assertEqual(response.context["failures_90d"], 1)
         self.assertAlmostEqual(response.context["cost_per_failure"], 50.00, places=2)
+
+
+class ReportViewTests(TestCase):
+    """Tests for the 3 dedicated report views (failure modes, failing assets, reporters)."""
+
+    def setUp(self):
+        from maintenance.models import FailureMode
+        self.user = User.objects.create_user(username="viewer5", role=User.Role.MANAGER)
+        self.client.force_login(self.user)
+        self.machine = Machine.objects.create(
+            name="Report Press", asset_level=3, asset_code="R-1", qr_code=str(uuid.uuid4())
+        )
+        self.modes = list(FailureMode.objects.order_by("id")[:3])
+        self.op1 = User.objects.create_user(username="reporter_a", role=User.Role.OPERATOR)
+        self.op2 = User.objects.create_user(username="reporter_b", role=User.Role.OPERATOR)
+
+    def _create_issue(self, user, fm, days_ago=1):
+        issue = MaintenanceIssue.objects.create(
+            machine=self.machine,
+            description=f"Issue by {user.username}",
+            reported_by=user,
+            failure_mode=fm,
+        )
+        if days_ago:
+            MaintenanceIssue.objects.filter(pk=issue.pk).update(
+                created_at=timezone.now() - timedelta(days=days_ago)
+            )
+        return issue
+
+    def test_failure_mode_report_shows_all_modes(self):
+        # 3 modes, varying counts
+        for _ in range(3):
+            self._create_issue(self.op1, self.modes[0], days_ago=2)
+        for _ in range(2):
+            self._create_issue(self.op2, self.modes[1], days_ago=5)
+        self._create_issue(self.op1, self.modes[2], days_ago=10)
+
+        response = self.client.get(reverse("failure_mode_report"))
+        self.assertEqual(response.status_code, 200)
+        modes = response.context["failure_modes"]
+        self.assertEqual(len(modes), 3)
+        self.assertEqual(response.context["total_occurrences"], 6)
+        self.assertEqual(modes[0]["count"], 3)
+        self.assertEqual(modes[1]["count"], 2)
+        self.assertEqual(modes[2]["count"], 1)
+
+    def test_failure_mode_report_includes_share_pct(self):
+        for _ in range(4):
+            self._create_issue(self.op1, self.modes[0], days_ago=2)
+
+        response = self.client.get(reverse("failure_mode_report"))
+        modes = response.context["failure_modes"]
+        self.assertEqual(modes[0]["count"], 4)
+        # 4 of 4 = 100%
+        total = response.context["total_occurrences"]
+        self.assertEqual(total, 4)
+
+    def test_failure_mode_report_recent_issues_per_mode(self):
+        for _ in range(3):
+            self._create_issue(self.op1, self.modes[0], days_ago=2)
+
+        response = self.client.get(reverse("failure_mode_report"))
+        recent_by_mode = response.context["recent_by_mode"]
+        self.assertIn(self.modes[0].id, recent_by_mode)
+        self.assertEqual(len(recent_by_mode[self.modes[0].id]), 3)
+
+    def test_failing_assets_report_shows_all_assets(self):
+        # Create a second machine
+        m2 = Machine.objects.create(
+            name="Other Press", asset_level=3, asset_code="R-2", qr_code=str(uuid.uuid4())
+        )
+        tech = User.objects.create_user(username="t1", role=User.Role.TECHNICIAN)
+        # 3 WOs on m1, 1 on m2
+        for _ in range(3):
+            wo = WorkOrder.objects.create(
+                machine=self.machine,
+                category=WorkOrder.Category.BREAKDOWN,
+                lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
+                assigned_technician=tech,
+                created_by=self.user,
+            )
+            WorkOrder.objects.filter(pk=wo.pk).update(
+                updated_at=timezone.now() - timedelta(days=2)
+            )
+        wo2 = WorkOrder.objects.create(
+            machine=m2,
+            category=WorkOrder.Category.BREAKDOWN,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
+            assigned_technician=tech,
+            created_by=self.user,
+        )
+        WorkOrder.objects.filter(pk=wo2.pk).update(
+            updated_at=timezone.now() - timedelta(days=2)
+        )
+
+        response = self.client.get(reverse("failing_assets_report"))
+        self.assertEqual(response.status_code, 200)
+        assets = response.context["assets"]
+        self.assertEqual(len(assets), 2)
+        self.assertEqual(assets[0]["failure_count"], 3)
+        self.assertEqual(assets[1]["failure_count"], 1)
+        self.assertEqual(response.context["total_failures"], 4)
+
+    def test_failing_assets_report_calculates_cost_per_failure(self):
+        tech = User.objects.create_user(username="t1", role=User.Role.TECHNICIAN)
+        wo = WorkOrder.objects.create(
+            machine=self.machine,
+            category=WorkOrder.Category.BREAKDOWN,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
+            assigned_technician=tech,
+            created_by=self.user,
+        )
+        WorkOrder.objects.filter(pk=wo.pk).update(
+            updated_at=timezone.now() - timedelta(days=2)
+        )
+        # WorkOrderCost.save() runs _auto_calculate() which overwrites the
+        # material/vendor/consumable fields. Use update() to set the
+        # values directly in the DB, bypassing save().
+        from maintenance.models import WorkOrderCost
+        cr = WorkOrderCost.objects.create(
+            work_order=wo,
+            material_cost=100,
+            vendor_repair_cost=50,
+            consumables_cost=25,
+            additional_cost=25,
+        )
+        WorkOrderCost.objects.filter(pk=cr.pk).update(
+            material_cost=100,
+            vendor_repair_cost=50,
+            consumables_cost=25,
+            additional_cost=25,
+        )
+
+        response = self.client.get(reverse("failing_assets_report"))
+        assets = response.context["assets"]
+        self.assertEqual(len(assets), 1)
+        self.assertEqual(assets[0]["total_cost"], 200.0)
+        self.assertEqual(assets[0]["cost_per_failure"], 200.0)
+
+    def test_reporters_report_shows_all_operators(self):
+        for _ in range(3):
+            self._create_issue(self.op1, self.modes[0], days_ago=2)
+        for _ in range(1):
+            self._create_issue(self.op2, self.modes[0], days_ago=5)
+
+        response = self.client.get(reverse("reporters_report"))
+        self.assertEqual(response.status_code, 200)
+        reporters = response.context["reporters"]
+        self.assertEqual(len(reporters), 2)
+        self.assertEqual(response.context["total_reports"], 4)
+        # op1 should be first (more reports)
+        self.assertEqual(reporters[0]["username"], "reporter_a")
+        self.assertEqual(reporters[0]["reports"], 3)
+
+    def test_reporters_report_excludes_outside_30d(self):
+        self._create_issue(self.op1, self.modes[0], days_ago=1)  # in
+        self._create_issue(self.op1, self.modes[0], days_ago=60)  # out
+
+        response = self.client.get(reverse("reporters_report"))
+        reporters = response.context["reporters"]
+        self.assertEqual(len(reporters), 1)
+        self.assertEqual(reporters[0]["reports"], 1)
+
+    def test_report_views_require_login(self):
+        self.client.logout()
+        for url_name in ["failure_mode_report", "failing_assets_report", "reporters_report"]:
+            response = self.client.get(reverse(url_name))
+            self.assertEqual(response.status_code, 302)  # redirect to login

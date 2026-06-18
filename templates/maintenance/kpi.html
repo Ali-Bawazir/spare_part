@@ -51,7 +51,10 @@
 
 <div class="mms-kpi-row">
   <div class="mms-card">
-    <div class="mms-card-header">Top failure modes (90d)</div>
+    <div class="mms-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+      <span>Top failure modes (90d)</span>
+      <a href="{% url 'failure_mode_report' %}" class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:.75rem">View all →</a>
+    </div>
     <div class="mms-card-body">
       {% if failure_mode_distribution %}
         <table class="mms-table">
@@ -79,7 +82,10 @@
   </div>
 
   <div class="mms-card">
-    <div class="mms-card-header">Top failing assets (90d)</div>
+    <div class="mms-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+      <span>Top failing assets (90d)</span>
+      <a href="{% url 'failing_assets_report' %}" class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:.75rem">View all →</a>
+    </div>
     <div class="mms-card-body">
       {% if top_failing_assets %}
         <table class="mms-table">
@@ -105,7 +111,10 @@
 
 <div class="mms-kpi-row" style="margin-top:1rem; grid-template-columns: 1fr">
   <div class="mms-card">
-    <div class="mms-card-header">Top reporters (30d)</div>
+    <div class="mms-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+      <span>Top reporters (30d)</span>
+      <a href="{% url 'reporters_report' %}" class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:.75rem">View all →</a>
+    </div>
     <div class="mms-card-body">
       {% if top_reporters %}
         <table class="mms-table">

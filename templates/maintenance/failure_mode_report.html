@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Failure mode report{% endblock %}
+{% load mms_extras %}
+{% block page_heading %}Failure mode report{% endblock %}
+{% block content %}
+
+<p class="mms-link-back">
+  <a href="{% url 'kpi_dashboard' %}">← Back to KPIs</a>
+</p>
+<p class="mms-page-lead">
+  All failure modes recorded in the last {{ period_days }} days, ordered by occurrence.
+  {{ total_modes_affected }} mode{{ total_modes_affected|pluralize }} · {{ total_occurrences }} total occurrence{{ total_occurrences|pluralize }}.
+</p>
+
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body" style="padding:0">
+    {% if failure_modes %}
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th class="text-right">Occurrences</th>
+            <th class="text-right">Affected assets</th>
+            <th class="text-right">Share</th>
+            <th>Recent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fm in failure_modes %}
+            {% widthratio fm.count total_occurrences 100 as share %}
+            <tr>
+              <td><code>{{ fm.failure_mode__code }}</code></td>
+              <td>{{ fm.failure_mode__name }}</td>
+              <td><span class="mms-badge mms-badge--muted">{{ fm.failure_mode__category__code }}</span> {{ fm.failure_mode__category__name }}</td>
+              <td class="text-right"><strong>{{ fm.count }}</strong></td>
+              <td class="text-right">{{ fm.affected_machines }}</td>
+              <td class="text-right">
+                <div style="display:flex;align-items:center;gap:.5rem;justify-content:flex-end">
+                  <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+                    <div style="width: {{ share }}%;height:100%;background:var(--mms-accent,#0d6efd)"></div>
+                  </div>
+                  <span style="min-width:40px;font-variant-numeric:tabular-nums">{{ share }}%</span>
+                </div>
+              </td>
+              <td>
+                {% with recent_by_mode|get_item:fm.failure_mode_id as recent_list %}
+                  {% if recent_list %}
+                    <details>
+                      <summary style="cursor:pointer;color:var(--mms-accent);font-size:.8rem">View {{ recent_list|length }} recent</summary>
+                      <ul style="list-style:none;padding:.25rem 0 0 0;margin:0;font-size:.8rem">
+                        {% for iss in recent_list|slice:":5" %}
+                          <li style="padding:.15rem 0">
+                            <a href="{% url 'issue_detail' iss.pk %}">#{{ iss.pk }}</a>
+                            {{ iss.machine.name }}{% if iss.component %} / {{ iss.component.name }}{% endif %}
+                            <span style="color:var(--mms-muted)">— {{ iss.created_at|date:"Y-m-d" }} by {{ iss.reported_by.username }}</span>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </details>
+                  {% endif %}
+                {% endwith %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div style="padding:1.5rem;text-align:center;color:var(--mms-muted)">
+        No failure modes recorded in the last {{ period_days }} days.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .text-right { text-align: right; }
+</style>
+{% endblock %}

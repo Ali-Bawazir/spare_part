@@ -3569,10 +3569,12 @@ def kpi_dashboard(request):
         .annotate(
             failure_count=Count("id"),
             total_cost=Coalesce(
-                Sum("cost_record__material_cost")
-                + Sum("cost_record__vendor_repair_cost")
-                + Sum("cost_record__consumables_cost")
-                + Sum("cost_record__additional_cost"),
+                Sum(
+                    F("cost_record__material_cost")
+                    + F("cost_record__vendor_repair_cost")
+                    + F("cost_record__consumables_cost")
+                    + F("cost_record__additional_cost")
+                ),
                 Value(0),
                 output_field=IntegerField(),
             ),
@@ -3645,6 +3647,177 @@ def kpi_dashboard(request):
     }
 
     return render(request, "maintenance/kpi.html", ctx)
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+def failure_mode_report(request):
+    """Detailed failure mode report — all failure modes with occurrence
+    count, affected assets, and recent incidents. Shows full data beyond
+    the top 5 on the KPI dashboard.
+    """
+    now = timezone.now()
+    td90 = now - timedelta(days=90)
+
+    # All failure modes with their counts in last 90 days
+    rows = (
+        MaintenanceIssue.objects.filter(
+            created_at__gte=td90,
+            failure_mode__isnull=False,
+        )
+        .values(
+            "failure_mode_id",
+            "failure_mode__code",
+            "failure_mode__name",
+            "failure_mode__category__name",
+            "failure_mode__category__code",
+        )
+        .annotate(
+            count=Count("id"),
+            affected_machines=Count("machine_id", distinct=True),
+        )
+        .order_by("-count", "failure_mode__code")
+    )
+    failure_modes = list(rows)
+    total_occurrences = sum(r["count"] for r in failure_modes)
+    total_modes_affected = len(failure_modes)
+
+    # Recent issues per mode for the top 10 (limit query)
+    top_mode_ids = [r["failure_mode_id"] for r in failure_modes[:10]]
+    recent_by_mode = {}
+    if top_mode_ids:
+        recent = (
+            MaintenanceIssue.objects.filter(
+                created_at__gte=td90,
+                failure_mode_id__in=top_mode_ids,
+            )
+            .select_related("machine", "reported_by")
+            .order_by("-created_at")[:50]
+        )
+        for issue in recent:
+            recent_by_mode.setdefault(issue.failure_mode_id, []).append(issue)
+
+    ctx = {
+        "failure_modes": failure_modes,
+        "total_occurrences": total_occurrences,
+        "total_modes_affected": total_modes_affected,
+        "recent_by_mode": recent_by_mode,
+        "period_days": 90,
+    }
+    return render(request, "maintenance/failure_mode_report.html", ctx)
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+def failing_assets_report(request):
+    """Detailed failing assets report — all assets with failure counts
+    in the last 90 days, total cost, and most recent failure.
+    """
+    now = timezone.now()
+    td90 = now - timedelta(days=90)
+
+    rows = (
+        WorkOrder.objects.filter(
+            category=WorkOrder.Category.BREAKDOWN,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
+            updated_at__gte=td90,
+        )
+        .values(
+            "machine_id",
+            "machine__name",
+            "machine__asset_code",
+            "component_id",
+            "component__name",
+        )
+        .annotate(
+            failure_count=Count("id"),
+            total_cost_material=Coalesce(Sum("cost_record__material_cost"), Value(0), output_field=IntegerField()),
+            total_cost_vendor=Coalesce(Sum("cost_record__vendor_repair_cost"), Value(0), output_field=IntegerField()),
+            total_cost_consumable=Coalesce(Sum("cost_record__consumables_cost"), Value(0), output_field=IntegerField()),
+            total_cost_additional=Coalesce(Sum("cost_record__additional_cost"), Value(0), output_field=IntegerField()),
+            last_failure=Max("updated_at"),
+        )
+        .order_by("-failure_count", "-total_cost_material")
+    )
+    assets = []
+    for r in rows:
+        total = float(r.get("total_cost_material") or 0) + float(r.get("total_cost_vendor") or 0) + float(r.get("total_cost_consumable") or 0) + float(r.get("total_cost_additional") or 0)
+        r["total_cost"] = total
+        r["name"] = r["component__name"] or r["machine__name"] or "—"
+        r["asset_code"] = (
+            r["component__name"] and r["machine__asset_code"]
+        ) or r["machine__asset_code"] or "—"
+        r["cost_per_failure"] = (
+            r["total_cost"] / r["failure_count"] if r["failure_count"] else 0
+        )
+        assets.append(r)
+
+    total_failures = sum(a["failure_count"] for a in assets)
+    total_cost = sum(a["total_cost"] for a in assets)
+
+    ctx = {
+        "assets": assets,
+        "total_failures": total_failures,
+        "total_cost": total_cost,
+        "period_days": 90,
+    }
+    return render(request, "maintenance/failing_assets_report.html", ctx)
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+def reporters_report(request):
+    """Detailed reporters report — all operators with their issue
+    reporting activity in the last 30 days, plus WOs converted.
+    """
+    now = timezone.now()
+    td30 = now - timedelta(days=30)
+
+    rows = (
+        MaintenanceIssue.objects.filter(
+            created_at__gte=td30,
+            reported_by__isnull=False,
+        )
+        .values(
+            "reported_by_id",
+            "reported_by__username",
+            "reported_by__first_name",
+            "reported_by__last_name",
+            "reported_by__role",
+        )
+        .annotate(
+            reports=Count("id"),
+            converted=Count("id", filter=Q(work_order__isnull=False)),
+        )
+        .order_by("-reports", "reported_by__username")
+    )
+    reporters = []
+    for r in rows:
+        first = r["reported_by__first_name"] or ""
+        last = r["reported_by__last_name"] or ""
+        full = (first + " " + last).strip()
+        reporters.append({
+            "username": r["reported_by__username"],
+            "display": full or r["reported_by__username"],
+            "role": r["reported_by__role"],
+            "reports": r["reports"],
+            "converted": r["converted"],
+            "conversion_rate": (
+                round((r["converted"] / r["reports"]) * 100, 1)
+                if r["reports"] else 0
+            ),
+        })
+
+    total_reports = sum(r["reports"] for r in reporters)
+    total_converted = sum(r["converted"] for r in reporters)
+
+    ctx = {
+        "reporters": reporters,
+        "total_reports": total_reports,
+        "total_converted": total_converted,
+        "period_days": 30,
+    }
+    return render(request, "maintenance/reporters_report.html", ctx)
 
 
 @login_required

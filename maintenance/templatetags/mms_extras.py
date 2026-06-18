@@ -154,3 +154,14 @@ def part_primary_image(part):
             return att.thumbnail.url
         return att.file.url
     return None
+
+
+@register.filter
+def get_item(dictionary, key):
+    """Template filter: dict lookup with variable key."""
+    if dictionary is None:
+        return None
+    try:
+        return dictionary.get(key)
+    except (AttributeError, TypeError):
+        return None
