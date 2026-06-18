@@ -1,56 +1,446 @@
 {% comment %}
-       Work Order cost breakdown partial — Phase 1+2 Cost Ledger.
+       Work Order cost breakdown dashboard — Phase 1+2 Cost Ledger.
 
-       Replaces (or supplements) the inline cost breakdown in the WO
-       health card. Reads the WorkOrderCost cache (refreshed by
-       CostLedgerService) plus an optional live snapshot of the ledger
-       for managers who want the source of truth.
+       Full-width dashboard panel that mirrors the design language of
+       templates/maintenance/_cost_tab.html (machine/component). All-time
+       totals (no period selector — a WO has a bounded lifetime).
+
+       Manager adjustment form (CostAdjustmentForm) is preserved as a
+       collapsible <details> at the bottom — only renders for users with
+       can_manage_costs = True (manager / super_admin).
 
        Context variables:
-         - wo               : WorkOrder
-         - cost             : WorkOrderCost (or None)
-         - manager          : bool — show the adjustment form (manager+super only)
-         - adjustment_form  : CostAdjustmentForm (optional; required if manager=True)
+         - wo                : WorkOrder
+         - cost              : WorkOrderCost | None
+         - can_manage_costs  : bool — show the adjustment form
+         - adjustment_form   : CostAdjustmentForm (optional)
 {% endcomment %}
-<div class="mms-card" style="grid-column: 1/-1">
-  <div class="mms-card-header">Cost breakdown</div>
-  <div class="mms-card-body">
+<style>
+  .mms-wo-cost-dashboard {
+    --mms-cost-cat-material:   #0d6efd;
+    --mms-cost-cat-vendor:     #b45309;
+    --mms-cost-cat-consumable: #16a34a;
+    --mms-cost-cat-adjustment: #5b21b6;
+  }
+  .mms-wo-cost-dashboard__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .65rem 1rem;
+  }
+  .mms-wo-cost-dashboard__title {
+    margin: 0;
+    font-size: .92rem;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .mms-wo-cost-dashboard__title-icon {
+    color: var(--mms-muted, #64748b);
+    flex-shrink: 0;
+  }
 
-    <dl style="display:grid;grid-template-columns:max-content 1fr;gap:.25rem .75rem;margin:0 0 .75rem 0;font-size:.9rem">
-      <dt class="text-muted">Material</dt>
-      <dd style="margin:0">{{ cost.material_cost|default:"0.00"|floatformat:2 }} SAR</dd>
-      <dt class="text-muted">Vendor repair</dt>
-      <dd style="margin:0">{{ cost.vendor_repair_cost|default:"0.00"|floatformat:2 }} SAR</dd>
-      <dt class="text-muted">Consumables</dt>
-      <dd style="margin:0">{{ cost.consumables_cost|default:"0.00"|floatformat:2 }} SAR</dd>
-      <dt class="text-muted">Adjustments</dt>
-      <dd style="margin:0">{{ cost.additional_cost|default:"0.00"|floatformat:2 }} SAR</dd>
-      <dt style="border-top:1px solid #e5e7eb;padding-top:.25rem"><strong>Total</strong></dt>
-      <dd style="border-top:1px solid #e5e7eb;padding-top:.25rem;margin:0">
-        <strong>{{ cost.total_cost|default:"0.00"|floatformat:2 }} SAR</strong>
-      </dd>
-    </dl>
+  /* Hero */
+  .mms-wo-cost-dashboard__hero {
+    display: grid;
+    gap: .45rem;
+    padding-bottom: .85rem;
+    border-bottom: 1px dashed var(--mms-border, #e2e8f0);
+    margin-bottom: .95rem;
+  }
+  .mms-wo-cost-dashboard__hero-label {
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+  .mms-wo-cost-dashboard__hero-amount {
+    display: flex;
+    align-items: baseline;
+    gap: .45rem;
+    flex-wrap: wrap;
+  }
+  .mms-wo-cost-dashboard__hero-value {
+    font-size: clamp(1.85rem, 5.5vw, 2.65rem);
+    font-weight: 800;
+    letter-spacing: -.035em;
+    line-height: 1.05;
+    color: var(--mms-text, #0f172a);
+    font-variant-numeric: tabular-nums;
+  }
+  .mms-wo-cost-dashboard__hero-currency {
+    font-size: clamp(.95rem, 2.4vw, 1.1rem);
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    letter-spacing: .02em;
+  }
+  .mms-wo-cost-dashboard__hero-meta {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    font-size: .78rem;
+    color: var(--mms-muted, #64748b);
+  }
+  .mms-wo-cost-dashboard__hero-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: .74rem;
+    background: var(--mms-bg, #f1f5f9);
+    color: var(--mms-muted, #64748b);
+    border: 1px solid var(--mms-border, #e2e8f0);
+  }
 
-    <p class="text-muted" style="font-size:.75rem;margin:0 0 .5rem 0">
-      <a href="{% url 'work_order_cost_ledger' wo.pk %}">Open cost ledger drilldown</a>
-      &middot;
-      {{ cost.ledger_transaction_count|default:0 }} transaction{{ cost.ledger_transaction_count|default:0|pluralize }} posted
-      &middot;
-      Last reconciled: {{ cost.last_reconciled_at|date:"Y-m-d H:i"|default:"never" }}
-    </p>
+  /* Breakdown */
+  .mms-wo-cost-dashboard__breakdown {
+    display: grid;
+    gap: .7rem;
+    margin-bottom: 1rem;
+  }
+  .mms-wo-cost-dashboard__breakdown-title {
+    margin: 0;
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+  .mms-wo-cost-bar {
+    display: flex;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--mms-bg, #f1f5f9);
+    border: 1px solid var(--mms-border, #e2e8f0);
+  }
+  .mms-wo-cost-bar__seg { height: 100%; }
+  .mms-wo-cost-bar__seg[data-cat="material"]   { background: var(--mms-cost-cat-material); }
+  .mms-wo-cost-bar__seg[data-cat="vendor"]     { background: var(--mms-cost-cat-vendor); }
+  .mms-wo-cost-bar__seg[data-cat="consumable"] { background: var(--mms-cost-cat-consumable); }
+  .mms-wo-cost-bar__seg[data-cat="adjustment"] { background: var(--mms-cost-cat-adjustment); }
+  .mms-wo-cost-bar__seg--empty { background: var(--mms-border, #e2e8f0); }
 
-    {% if manager and adjustment_form %}
-    <details>
-      <summary style="cursor:pointer;font-weight:600;color:var(--mms-accent)">Add a cost adjustment</summary>
-      <form method="post" action="{% url 'work_order_adjust_cost' wo.pk %}" class="mms-form" style="margin-top:.5rem">
+  .mms-wo-cost-legend {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr));
+    gap: .5rem .75rem;
+  }
+  .mms-wo-cost-legend li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    padding: .5rem .7rem;
+    border: 1px solid var(--mms-border, #e2e8f0);
+    border-radius: 8px;
+    background: var(--mms-surface, #fff);
+    font-size: .82rem;
+    min-width: 0;
+  }
+  .mms-wo-cost-legend__name {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    color: var(--mms-text, #0f172a);
+    font-weight: 500;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mms-wo-cost-legend__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .mms-wo-cost-legend__dot[data-cat="material"]   { background: var(--mms-cost-cat-material); }
+  .mms-wo-cost-legend__dot[data-cat="vendor"]     { background: var(--mms-cost-cat-vendor); }
+  .mms-wo-cost-legend__dot[data-cat="consumable"] { background: var(--mms-cost-cat-consumable); }
+  .mms-wo-cost-legend__dot[data-cat="adjustment"] { background: var(--mms-cost-cat-adjustment); }
+  .mms-wo-cost-legend__values {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .4rem;
+    flex-shrink: 0;
+  }
+  .mms-wo-cost-legend__amount {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--mms-text, #0f172a);
+  }
+  .mms-wo-cost-legend__currency {
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--mms-muted, #64748b);
+  }
+  .mms-wo-cost-legend__pct {
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--mms-muted, #64748b);
+    font-variant-numeric: tabular-nums;
+    min-width: 2ch;
+    text-align: right;
+  }
+
+  /* KPI tiles */
+  .mms-wo-cost-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .65rem;
+  }
+  @media (max-width: 560px) {
+    .mms-wo-cost-kpis { grid-template-columns: 1fr; }
+  }
+  .mms-wo-cost-kpi {
+    padding: .85rem 1rem;
+    border-radius: 10px;
+    background: var(--mms-bg, #f1f5f9);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    min-width: 0;
+  }
+  .mms-wo-cost-kpi__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    background: var(--mms-surface, #fff);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--mms-muted, #64748b);
+  }
+  .mms-wo-cost-kpi__body { min-width: 0; flex: 1; }
+  .mms-wo-cost-kpi__value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--mms-text, #0f172a);
+    font-variant-numeric: tabular-nums;
+    word-break: break-word;
+  }
+  .mms-wo-cost-kpi__label {
+    font-size: .7rem;
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-top: .18rem;
+  }
+
+  /* Empty state */
+  .mms-wo-cost-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: var(--mms-muted, #64748b);
+    font-size: .85rem;
+  }
+
+  /* Manager adjustment form */
+  .mms-wo-cost-dashboard__adjust {
+    margin-top: 1rem;
+    border-top: 1px dashed var(--mms-border, #e2e8f0);
+    padding-top: 1rem;
+  }
+  .mms-wo-cost-dashboard__adjust > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--mms-accent, #0d9488);
+    font-size: .85rem;
+    list-style: revert;
+  }
+  .mms-wo-cost-dashboard__adjust[open] > summary { margin-bottom: .5rem; }
+</style>
+
+{% if cost %}
+  {% with mat=cost.material_cost|default:0 ven=cost.vendor_repair_cost|default:0 con=cost.consumables_cost|default:0 adj=cost.additional_cost|default:0 tot=cost.total_cost|default:0 txns=cost.ledger_transaction_count|default:0 last=cost.last_reconciled_at %}
+  <div class="mms-wo-cost-dashboard">
+    <div class="mms-wo-cost-dashboard__head">
+      <h3 class="mms-wo-cost-dashboard__title">
+        <svg class="mms-wo-cost-dashboard__title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l4-4 4 3 5-6"/>
+        </svg>
+        Costs
+      </h3>
+      <a href="{% url 'work_order_cost_ledger' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+        Open cost ledger
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </a>
+    </div>
+
+    {% if tot == 0 and txns == 0 %}
+      <div class="mms-wo-cost-empty">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:.6">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        <div><strong style="color:var(--mms-text,#0f172a)">No costs posted yet.</strong></div>
+        <div>Costs will appear here after parts are issued, vendor repairs close, or consumables are logged.</div>
+      </div>
+    {% else %}
+      <div class="mms-wo-cost-dashboard__hero">
+        <div class="mms-wo-cost-dashboard__hero-label">Total cost &middot; all time</div>
+        <div class="mms-wo-cost-dashboard__hero-amount">
+          <span class="mms-wo-cost-dashboard__hero-value">{{ tot|floatformat:2 }}</span>
+          <span class="mms-wo-cost-dashboard__hero-currency">SAR</span>
+        </div>
+        <div class="mms-wo-cost-dashboard__hero-meta">
+          <span class="mms-wo-cost-dashboard__hero-meta-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Last reconciled {% if last %}{{ last|date:"Y-m-d H:i" }}{% else %}never{% endif %}
+          </span>
+          <a href="{% url 'work_order_cost_ledger' wo.pk %}" style="color:var(--mms-accent);text-decoration:none;font-weight:600">
+            View ledger →
+          </a>
+        </div>
+      </div>
+
+      <div class="mms-wo-cost-dashboard__breakdown">
+        <h4 class="mms-wo-cost-dashboard__breakdown-title">Breakdown by category</h4>
+
+        <div class="mms-wo-cost-bar" role="img" aria-label="Cost distribution across categories">
+          {% if tot %}
+            <div class="mms-wo-cost-bar__seg" data-cat="material"   style="width:{% widthratio mat tot 100 %}%" title="Material {{ mat|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="vendor"     style="width:{% widthratio ven tot 100 %}%" title="Vendor repair {{ ven|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="consumable" style="width:{% widthratio con tot 100 %}%" title="Consumables {{ con|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="adjustment" style="width:{% widthratio adj tot 100 %}%" title="Adjustments {{ adj|floatformat:2 }} SAR"></div>
+          {% else %}
+            <div class="mms-wo-cost-bar__seg mms-wo-cost-bar__seg--empty" style="width:100%"></div>
+          {% endif %}
+        </div>
+
+        <ul class="mms-wo-cost-legend">
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="material" aria-hidden="true"></span>
+              Material
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ mat|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">SAR</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio mat tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="vendor" aria-hidden="true"></span>
+              Vendor repair
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ ven|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">SAR</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio ven tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="consumable" aria-hidden="true"></span>
+              Consumables
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ con|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">SAR</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio con tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="adjustment" aria-hidden="true"></span>
+              Adjustments
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ adj|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">SAR</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio adj tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="mms-wo-cost-kpis">
+        <div class="mms-wo-cost-kpi">
+          <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </span>
+          <div class="mms-wo-cost-kpi__body">
+            <div class="mms-wo-cost-kpi__value">{{ txns }}</div>
+            <div class="mms-wo-cost-kpi__label">Posted</div>
+          </div>
+        </div>
+
+        <div class="mms-wo-cost-kpi">
+          <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3h7v7H3z"/>
+              <path d="M14 3h7v7h-7z"/>
+              <path d="M14 14h7v7h-7z"/>
+              <path d="M3 14h7v7H3z"/>
+            </svg>
+          </span>
+          <div class="mms-wo-cost-kpi__body">
+            <div class="mms-wo-cost-kpi__value">
+              {% if txns %}{% widthratio tot txns 100 %}{% else %}&mdash;{% endif %}
+            </div>
+            <div class="mms-wo-cost-kpi__label">Avg / txn</div>
+          </div>
+        </div>
+
+        <div class="mms-wo-cost-kpi">
+          <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </span>
+          <div class="mms-wo-cost-kpi__body">
+            <div class="mms-wo-cost-kpi__value" style="font-size:.95rem">{% if last %}{{ last|date:"Y-m-d" }}{% else %}Never{% endif %}</div>
+            <div class="mms-wo-cost-kpi__label">Last reconciled</div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if can_manage_costs and adjustment_form %}
+    <details class="mms-wo-cost-dashboard__adjust">
+      <summary>Add a cost adjustment</summary>
+      <form method="post" action="{% url 'work_order_adjust_cost' wo.pk %}" class="mms-form">
         {% csrf_token %}
         <div class="mms-form-row">
-          <label for="amount">Amount (SAR) *</label>
+          <label for="{{ adjustment_form.amount.id_for_label }}">Amount (SAR) *</label>
           {{ adjustment_form.amount }}
           <small class="text-muted">Signed: positive adds, negative reduces.</small>
         </div>
         <div class="mms-form-row">
-          <label for="memo">Memo *</label>
+          <label for="{{ adjustment_form.memo.id_for_label }}">Memo *</label>
           {{ adjustment_form.memo }}
           <small class="text-muted">Min 10 characters. Explains why this adjustment exists.</small>
         </div>
@@ -62,4 +452,55 @@
     {% endif %}
 
   </div>
-</div>
+  {% endwith %}
+{% else %}
+  {# No WorkOrderCost row yet — show a minimal placeholder so the
+     section doesn't disappear; the ledger may still have rows. #}
+  <div class="mms-wo-cost-dashboard">
+    <div class="mms-wo-cost-dashboard__head">
+      <h3 class="mms-wo-cost-dashboard__title">
+        <svg class="mms-wo-cost-dashboard__title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l4-4 4 3 5-6"/>
+        </svg>
+        Costs
+      </h3>
+      <a href="{% url 'work_order_cost_ledger' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+        Open cost ledger
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </a>
+    </div>
+    <div class="mms-wo-cost-empty">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:.6">
+        <line x1="12" y1="1" x2="12" y2="23"/>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+      <div><strong style="color:var(--mms-text,#0f172a)">Cost rollup not yet built.</strong></div>
+      <div>It will appear automatically once any ledger transaction posts to this WO.</div>
+    </div>
+
+    {% if can_manage_costs and adjustment_form %}
+    <details class="mms-wo-cost-dashboard__adjust">
+      <summary>Add a cost adjustment</summary>
+      <form method="post" action="{% url 'work_order_adjust_cost' wo.pk %}" class="mms-form">
+        {% csrf_token %}
+        <div class="mms-form-row">
+          <label for="{{ adjustment_form.amount.id_for_label }}">Amount (SAR) *</label>
+          {{ adjustment_form.amount }}
+          <small class="text-muted">Signed: positive adds, negative reduces.</small>
+        </div>
+        <div class="mms-form-row">
+          <label for="{{ adjustment_form.memo.id_for_label }}">Memo *</label>
+          {{ adjustment_form.memo }}
+          <small class="text-muted">Min 10 characters. Explains why this adjustment exists.</small>
+        </div>
+        <div class="mms-form-actions">
+          <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Post adjustment</button>
+        </div>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+{% endif %}

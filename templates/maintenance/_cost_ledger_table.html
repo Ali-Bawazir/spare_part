@@ -4,45 +4,144 @@
        CostTransaction rows. Reverse rows are visually de-emphasized.
        Context variables:
          - txns : queryset[CostTransaction]
+         - wo   : WorkOrder (used in the empty-state copy)
 {% endcomment %}
+<style>
+  .mms-cost-ledger-table {
+    --mms-cost-cat-material:   #0d6efd;
+    --mms-cost-cat-vendor:     #b45309;
+    --mms-cost-cat-consumable: #16a34a;
+    --mms-cost-cat-adjustment: #5b21b6;
+    --mms-ledger-tabular: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .8125rem;
+  }
+  .mms-cost-ledger-table thead th {
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--mms-muted, #64748b);
+    font-weight: 600;
+    background: var(--mms-bg, #fafafa);
+    padding: .65rem .85rem;
+    text-align: left;
+    border-bottom: 1px solid var(--mms-border, #e2e8f0);
+  }
+  .mms-cost-ledger-table tbody td {
+    padding: .65rem .85rem;
+    border-bottom: 1px solid var(--mms-border, #e2e8f0);
+    vertical-align: top;
+  }
+  .mms-cost-ledger-table tbody tr {
+    transition: background .12s;
+  }
+  .mms-cost-ledger-table tbody tr:hover td {
+    background: var(--mms-bg, #f8fafc);
+  }
+  .mms-cost-ledger-table tbody tr:last-child td { border-bottom: none; }
+  .mms-cost-ledger-table tbody tr.is-reversal td {
+    opacity: .65;
+    background: #fef3c7;
+  }
+  .mms-cost-ledger-table tbody tr.is-reversal:hover td {
+    background: #fef9c3;
+  }
+  .mms-cost-ledger-table td.is-num,
+  .mms-cost-ledger-table th.is-num {
+    font-family: var(--mms-ledger-tabular);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .mms-cost-ledger-table td.is-when,
+  .mms-cost-ledger-table th.is-when {
+    font-family: var(--mms-ledger-tabular);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .mms-cost-ledger-table__category {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    font-weight: 500;
+  }
+  .mms-cost-ledger-table__cat-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .mms-cost-ledger-table__cat-dot[data-cat="material"]   { background: var(--mms-cost-cat-material); }
+  .mms-cost-ledger-table__cat-dot[data-cat="vendor"]     { background: var(--mms-cost-cat-vendor); }
+  .mms-cost-ledger-table__cat-dot[data-cat="consumable"] { background: var(--mms-cost-cat-consumable); }
+  .mms-cost-ledger-table__cat-dot[data-cat="adjustment"] { background: var(--mms-cost-cat-adjustment); }
+  .mms-cost-ledger-table td.is-amount {
+    font-family: var(--mms-ledger-tabular);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .mms-cost-ledger-table .memo-cell {
+    font-size: .75rem;
+    color: #475569;
+    max-width: 26rem;
+  }
+  .mms-cost-ledger-table__reversal-tag {
+    display: inline-block;
+    margin-top: .15rem;
+    padding: .1rem .45rem;
+    border-radius: 999px;
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    background: #fde68a;
+    color: #92400e;
+  }
+</style>
+
 {% if txns %}
-<div class="mms-card" style="margin-top: 1rem">
-  <div class="mms-card-header">Cost ledger entries ({{ txns|length }})</div>
-  <div class="mms-card-body" style="padding:0">
-    <table class="table table-sm" style="margin-bottom:0;font-size:.85rem">
+<div class="mms-card" style="margin-top: 0; box-shadow: none; border: none">
+  <div class="mms-card-header" style="background: transparent; border-bottom: 1px solid var(--mms-border)">
+    Cost ledger entries ({{ txns|length }})
+  </div>
+  <div class="mms-card-body" style="padding: 0; overflow-x: auto">
+    <table class="mms-cost-ledger-table">
       <thead>
         <tr>
-          <th>When</th>
+          <th class="is-when">When</th>
           <th>Category</th>
           <th>Source</th>
-          <th class="text-end">Amount</th>
-          <th>Quantity</th>
-          <th>Unit cost</th>
+          <th class="is-num">Amount</th>
+          <th class="is-num">Quantity</th>
+          <th class="is-num">Unit cost</th>
           <th>Memo</th>
           <th>Actor</th>
         </tr>
       </thead>
       <tbody>
         {% for t in txns %}
-        <tr style="{% if t.is_reversal %}opacity:.55;background:#fef3c7{% endif %}">
-          <td>
+        <tr class="{% if t.is_reversal %}is-reversal{% endif %}">
+          <td class="is-when">
             {{ t.occurred_at|date:"Y-m-d H:i" }}
             {% if t.is_reversal %}
-              <br><span class="mms-badge mms-badge--warning" style="font-size:.65rem">REVERSAL</span>
+              <br><span class="mms-cost-ledger-table__reversal-tag">REVERSAL</span>
             {% endif %}
           </td>
           <td>
-            <span class="mms-badge mms-badge--info" style="font-size:.7rem">{{ t.get_category_display }}</span>
+            <span class="mms-cost-ledger-table__category">
+              <span class="mms-cost-ledger-table__cat-dot" data-cat="{{ t.category }}" aria-hidden="true"></span>
+              {{ t.get_category_display }}
+            </span>
           </td>
           <td>
             {{ t.source_type }}{% if t.source_id %}<span class="text-muted">#{{ t.source_id }}</span>{% endif %}
           </td>
-          <td class="text-end" style="font-weight:600">
-            {{ t.amount|floatformat:2 }} {{ t.currency }}
-          </td>
-          <td>{% if t.quantity is not None %}{{ t.quantity|floatformat:3 }}{% endif %}</td>
-          <td>{% if t.unit_cost is not None %}{{ t.unit_cost|floatformat:4 }}{% endif %}</td>
-          <td style="font-size:.75rem;color:#475569">{{ t.memo|default:"" }}</td>
+          <td class="is-amount">{{ t.amount|floatformat:2 }} {{ t.currency }}</td>
+          <td class="is-num">{% if t.quantity is not None %}{{ t.quantity|floatformat:3 }}{% endif %}</td>
+          <td class="is-num">{% if t.unit_cost is not None %}{{ t.unit_cost|floatformat:4 }}{% endif %}</td>
+          <td class="memo-cell">{{ t.memo|default:"" }}</td>
           <td>{% if t.actor %}{{ t.actor.username }}{% endif %}</td>
         </tr>
         {% endfor %}
@@ -51,9 +150,9 @@
   </div>
 </div>
 {% else %}
-<div class="mms-card" style="margin-top: 1rem">
+<div class="mms-card" style="margin-top: 0; box-shadow: none; border: 1px dashed var(--mms-border)">
   <div class="mms-card-body">
-    <p class="text-muted" style="margin:0">No cost ledger entries yet for WO-{{ wo.number }}.</p>
+    <p class="text-muted" style="margin: 0">No cost ledger entries yet for WO-{{ wo.number }}.</p>
   </div>
 </div>
 {% endif %}
