@@ -558,7 +558,7 @@ def machine_edit(request, pk):
 
 
 @login_required
-@role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN, User.Role.TECHNICIAN)
+@role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def machine_detail(request, pk):
     """Asset detail page — handles Machine (level 3), Subassembly (level 4), and Component (level 5).
 
@@ -629,6 +629,10 @@ def machine_detail(request, pk):
         "is_subassembly_level": machine.asset_level == 4,
         "is_component_level": machine.asset_level == 5,
         "cost_periods": cost_periods,
+        "can_see_cost": request.user.role in (
+            User.Role.MANAGER, User.Role.SUPERVISOR,
+            User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+        ),
     }
     if machine is not None:
         context["attachments"] = Attachment.objects.filter(
@@ -972,7 +976,7 @@ def my_work_orders(request):
 
 
 @login_required
-@role_required(User.Role.OPERATOR, User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def work_order_detail(request, pk):
     # Sprint 1 (Step 6): pop the stashed result from the part-request redirect
     # so the alert block in the template can show the outcome.
@@ -1186,7 +1190,16 @@ def work_order_detail(request, pk):
             "active_blockers": active_blockers,
             "blocker_history": blocker_history,
             # Phase 1+2 Cost Ledger additions
-            "cost": getattr(wo, "cost_record", None),
+            # Cost is visible only to roles that need it for planning/procurement.
+            # Operators and technicians do not see cost anywhere in the system.
+            "cost": getattr(wo, "cost_record", None) if request.user.role in (
+                User.Role.MANAGER, User.Role.SUPERVISOR,
+                User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+            ) else None,
+            "can_see_cost": request.user.role in (
+                User.Role.MANAGER, User.Role.SUPERVISOR,
+                User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+            ),
             "can_manage_costs": request.user.role in (
                 User.Role.MANAGER, User.Role.SUPER_ADMIN,
             ),
@@ -4798,19 +4811,18 @@ def work_order_adjust_cost(request, pk):
 
 
 @login_required
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def work_order_cost_ledger(request, pk):
     """Drilldown page: every CostTransaction for a WO, in reverse-chronological order.
 
-    Visible to any role that can see the WO (technicians see their own).
+    Restricted to roles that manage or plan around cost. Operators and
+    technicians do not have permission to view cost data at all.
     The page renders `_cost_ledger_table.html`.
     """
     wo = get_object_or_404(
         WorkOrder.objects.select_related("machine", "component"),
         pk=pk,
     )
-    if request.user.role == User.Role.TECHNICIAN and wo.assigned_technician_id != request.user.id:
-        raise Http404()
-
     txns = (
         CostTransaction.objects
         .filter(work_order=wo)

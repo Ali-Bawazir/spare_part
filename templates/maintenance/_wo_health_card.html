@@ -8,69 +8,19 @@
         - wo          : WorkOrder (used to read get_FOO_display names)
 {% endcomment %}
 <style>
-  .mms-wo-cost-compact {
-    --mms-cost-cat-material:   #0d6efd;
-    --mms-cost-cat-vendor:     #b45309;
-    --mms-cost-cat-consumable: #16a34a;
-    --mms-cost-cat-adjustment: #5b21b6;
-  }
-  .mms-wo-cost-compact__list {
-    list-style: none;
-    margin: .5rem 0 0 0;
-    padding: 0;
-    display: grid;
-    gap: .25rem;
-  }
-  .mms-wo-cost-compact__row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: .5rem;
-    font-size: .8125rem;
-    line-height: 1.35;
-    padding: .15rem 0;
-  }
-  .mms-wo-cost-compact__name {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    color: var(--mms-text, #0f172a);
-    min-width: 0;
-  }
-  .mms-wo-cost-compact__dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
-  .mms-wo-cost-compact__dot[data-cat="material"]   { background: var(--mms-cost-cat-material); }
-  .mms-wo-cost-compact__dot[data-cat="vendor"]     { background: var(--mms-cost-cat-vendor); }
-  .mms-wo-cost-compact__dot[data-cat="consumable"] { background: var(--mms-cost-cat-consumable); }
-  .mms-wo-cost-compact__dot[data-cat="adjustment"] { background: var(--mms-cost-cat-adjustment); }
-  .mms-wo-cost-compact__amount {
-    font-weight: 600;
-    color: var(--mms-text, #0f172a);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-  .mms-wo-cost-compact__amount .currency {
-    color: var(--mms-muted, #64748b);
-    font-weight: 500;
-    margin-left: .15rem;
-  }
-  .mms-wo-cost-compact__total {
-    border-top: 1px dashed var(--mms-border, #e2e8f0);
-    margin-top: .15rem;
-    padding-top: .35rem;
-  }
-  .mms-wo-cost-compact__total .mms-wo-cost-compact__amount {
-    font-weight: 700;
-  }
-  .mms-wo-cost-compact__foot {
-    color: var(--mms-muted, #64748b);
-    font-size: .7rem;
-    margin: .4rem 0 0 0;
-  }
+
+
+
+
+
+
+
+
+
+
+
+
+
 </style>
 <div class="mms-card" style="grid-column: 1/-1; margin-top: .25rem">
   <div class="mms-card-header"
@@ -115,9 +65,11 @@
       <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Waiting:</span>
         <strong>{{ health_card.waiting_days }}</strong> day{{ health_card.waiting_days|pluralize }}
       </span>
+      {% if can_see_cost %}
       <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Total cost:</span>
         <strong>{{ health_card.total_cost|floatformat:2 }} SAR</strong>
       </span>
+      {% endif %}
       <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Is emergency:</span>
         {% if health_card.is_emergency %}
           <span class="mms-badge mms-badge--danger">Yes</span>
@@ -137,49 +89,6 @@
     </div>
     {% endif %}
 
-    {# --- Cost breakdown disclosure (compact, matches _cost_tab design) -- #}
-    <details class="mms-wo-cost-compact" style="font-size:.85rem">
-      <summary style="cursor:pointer;color:var(--mms-accent);font-weight:600">
-        Cost breakdown
-      </summary>
-      <ul class="mms-wo-cost-compact__list" aria-label="Cost breakdown by category">
-        <li class="mms-wo-cost-compact__row">
-          <span class="mms-wo-cost-compact__name">
-            <span class="mms-wo-cost-compact__dot" data-cat="material" aria-hidden="true"></span>
-            Material
-          </span>
-          <span class="mms-wo-cost-compact__amount">{{ health_card.parts_cost|floatformat:2 }}<span class="currency">SAR</span></span>
-        </li>
-        <li class="mms-wo-cost-compact__row">
-          <span class="mms-wo-cost-compact__name">
-            <span class="mms-wo-cost-compact__dot" data-cat="vendor" aria-hidden="true"></span>
-            Vendor repair
-          </span>
-          <span class="mms-wo-cost-compact__amount">{{ health_card.vendor_cost|floatformat:2 }}<span class="currency">SAR</span></span>
-        </li>
-        <li class="mms-wo-cost-compact__row">
-          <span class="mms-wo-cost-compact__name">
-            <span class="mms-wo-cost-compact__dot" data-cat="consumable" aria-hidden="true"></span>
-            Consumables
-          </span>
-          <span class="mms-wo-cost-compact__amount">{{ health_card.consumables_cost|floatformat:2 }}<span class="currency">SAR</span></span>
-        </li>
-        <li class="mms-wo-cost-compact__row">
-          <span class="mms-wo-cost-compact__name">
-            <span class="mms-wo-cost-compact__dot" data-cat="adjustment" aria-hidden="true"></span>
-            Adjustments
-          </span>
-          <span class="mms-wo-cost-compact__amount">{{ health_card.additional_cost|floatformat:2 }}<span class="currency">SAR</span></span>
-        </li>
-        <li class="mms-wo-cost-compact__row mms-wo-cost-compact__total">
-          <span class="mms-wo-cost-compact__name"><strong>Total</strong></span>
-          <span class="mms-wo-cost-compact__amount">{{ health_card.total_cost|floatformat:2 }}<span class="currency">SAR</span></span>
-        </li>
-      </ul>
-      <p class="mms-wo-cost-compact__foot">
-        Downtime cost is excluded per the Work Order Health Card glossary entry.
-      </p>
-    </details>
-
   </div>
 </div>
+

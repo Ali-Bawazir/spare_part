@@ -9,7 +9,7 @@ without JavaScript still see the default 90-day view.
 The shape of `cost_periods` is unchanged:
     { 30: MachineCost | ComponentCost, 90: ..., 365: ... }
 {% endcomment %}
-{% if cost_periods %}
+{% if cost_periods and can_see_cost %}
 <style>
   .mms-cost-dashboard {
     --mms-cost-cat-material: #0d6efd;

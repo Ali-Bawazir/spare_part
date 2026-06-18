@@ -293,7 +293,7 @@
   .mms-wo-cost-dashboard__adjust[open] > summary { margin-bottom: .5rem; }
 </style>
 
-{% if cost %}
+{% if can_see_cost and cost %}
   {% with mat=cost.material_cost|default:0 ven=cost.vendor_repair_cost|default:0 con=cost.consumables_cost|default:0 adj=cost.additional_cost|default:0 tot=cost.total_cost|default:0 txns=cost.ledger_transaction_count|default:0 last=cost.last_reconciled_at %}
   <div class="mms-wo-cost-dashboard">
     <div class="mms-wo-cost-dashboard__head">
@@ -321,7 +321,8 @@
         <div><strong style="color:var(--mms-text,#0f172a)">No costs posted yet.</strong></div>
         <div>Costs will appear here after parts are issued, vendor repairs close, or consumables are logged.</div>
       </div>
-    {% else %}
+    {% elif can_see_cost %}
+  {# No cost data yet for this WO #}
       <div class="mms-wo-cost-dashboard__hero">
         <div class="mms-wo-cost-dashboard__hero-label">Total cost &middot; all time</div>
         <div class="mms-wo-cost-dashboard__hero-amount">
@@ -474,7 +475,7 @@
 
   </div>
   {% endwith %}
-{% else %}
+{% elif can_see_cost %}
   {% comment %}
     No WorkOrderCost row yet for this WO. Render the full dashboard shell
     with synthesized zeros so it reconciles with the Health Card above
