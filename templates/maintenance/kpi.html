@@ -15,6 +15,121 @@
   <div class="mms-kpi"><div class="mms-kpi-value">{{ tool_lost_count }}</div><div class="mms-kpi-label">Lost tools</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{% if tool_loss_rate_pct is not None %}{{ tool_loss_rate_pct }}%{% else %}-{% endif %}</div><div class="mms-kpi-label">Tool loss rate</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_due_count }}</div><div class="mms-kpi-label">PM due now</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ failures_90d }}</div><div class="mms-kpi-label">Failures (90d)</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if cost_per_failure is not None %}{{ cost_per_failure|floatformat:2 }} SAR{% else %}-{% endif %}</div><div class="mms-kpi-label">Cost / failure</div></div>
+</div>
+
+<style>
+  .mms-kpi-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  @media (max-width: 720px) {
+    .mms-kpi-row { grid-template-columns: 1fr; }
+  }
+  .mms-kpi-row .mms-card-body { padding: 0.75rem 0; }
+  .mms-kpi-row table { margin: 0; }
+  .mms-kpi-row th { font-size: 0.7rem; color: var(--mms-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .mms-kpi-row td { font-size: 0.85rem; vertical-align: middle; }
+  .mms-kpi-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mms-kpi-row .bar {
+    display: inline-block;
+    height: 6px;
+    background: var(--mms-accent, #0d6efd);
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+  }
+  .mms-kpi-row .empty {
+    color: var(--mms-muted);
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+  }
+</style>
+
+<div class="mms-kpi-row">
+  <div class="mms-card">
+    <div class="mms-card-header">Top failure modes (90d)</div>
+    <div class="mms-card-body">
+      {% if failure_mode_distribution %}
+        <table class="mms-table">
+          <thead>
+            <tr><th>Code</th><th>Name</th><th class="num">Count</th><th class="num">Share</th></tr>
+          </thead>
+          <tbody>
+            {% for fm in failure_mode_distribution %}
+              {% widthratio fm.count failures_90d 100 as share %}
+              <tr>
+                <td><code>{{ fm.code }}</code></td>
+                <td>{{ fm.name }}</td>
+                <td class="num"><strong>{{ fm.count }}</strong></td>
+                <td class="num">
+                  <span class="bar" style="width: {{ share|default:0 }}px"></span>{{ share }}%
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">No failure modes recorded in the last 90 days.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-header">Top failing assets (90d)</div>
+    <div class="mms-card-body">
+      {% if top_failing_assets %}
+        <table class="mms-table">
+          <thead>
+            <tr><th>Asset</th><th class="num">Failures</th><th class="num">Total cost</th></tr>
+          </thead>
+          <tbody>
+            {% for a in top_failing_assets %}
+              <tr>
+                <td>{{ a.name }}</td>
+                <td class="num"><strong>{{ a.failure_count }}</strong></td>
+                <td class="num">{{ a.total_cost|floatformat:2 }} SAR</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">No closed corrective work orders in the last 90 days.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="mms-kpi-row" style="margin-top:1rem; grid-template-columns: 1fr">
+  <div class="mms-card">
+    <div class="mms-card-header">Top reporters (30d)</div>
+    <div class="mms-card-body">
+      {% if top_reporters %}
+        <table class="mms-table">
+          <thead>
+            <tr><th>Operator</th><th class="num">Reports</th><th class="num">Share</th></tr>
+          </thead>
+          <tbody>
+            {% for r in top_reporters %}
+              {% widthratio r.reports top_reporters.0.reports 100 as share %}
+              <tr>
+                <td>{{ r.display }} <span style="color:var(--mms-muted);font-size:.75rem">@{{ r.username }}</span></td>
+                <td class="num"><strong>{{ r.reports }}</strong></td>
+                <td class="num">
+                  <span class="bar" style="width: {{ share }}px"></span>{{ share }}%
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">No issues reported in the last 30 days.</div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 
 <p style="font-size:.78rem;color:var(--mms-muted);margin-top:1rem">Definitions used here are practical system KPIs based on available maintenance, part, tool, and procurement records in the PDF scope.</p>

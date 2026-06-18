@@ -3539,11 +3539,100 @@ def kpi_dashboard(request):
         round((tool_lost_count / tool_returned_count) * 100, 1) if tool_returned_count else None
     )
 
+    # Phase 4 — failure mode distribution (top 5 by occurrence in last 90 days)
+    failure_mode_rows = (
+        MaintenanceIssue.objects.filter(
+            created_at__gte=td90,
+            failure_mode__isnull=False,
+        )
+        .values("failure_mode_id", "failure_mode__code", "failure_mode__name")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+    failure_mode_distribution = [
+        {
+            "code": r["failure_mode__code"] or f"FM-{r['failure_mode_id']}",
+            "name": r["failure_mode__name"] or "Unknown",
+            "count": r["count"],
+        }
+        for r in failure_mode_rows
+    ]
+
+    # Phase 4 — top failing assets (by closed corrective WO count in last 90 days)
+    top_failing_assets = list(
+        WorkOrder.objects.filter(
+            category=WorkOrder.Category.BREAKDOWN,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
+            updated_at__gte=td90,
+        )
+        .values("machine_id", "machine__name", "component_id", "component__name")
+        .annotate(
+            failure_count=Count("id"),
+            total_cost=Coalesce(
+                Sum("cost_record__material_cost")
+                + Sum("cost_record__vendor_repair_cost")
+                + Sum("cost_record__consumables_cost")
+                + Sum("cost_record__additional_cost"),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by("-failure_count")[:5]
+    )
+    for row in top_failing_assets:
+        row["total_cost"] = float(row["total_cost"] or 0)
+        row["name"] = row["component__name"] or row["machine__name"] or "—"
+
+    # Phase 4 — per-operator report counts (top 5 reporters in last 30 days)
+    operator_report_rows = (
+        MaintenanceIssue.objects.filter(
+            created_at__gte=now - timedelta(days=30),
+            reported_by__isnull=False,
+        )
+        .values(
+            "reported_by_id",
+            "reported_by__username",
+            "reported_by__first_name",
+            "reported_by__last_name",
+        )
+        .annotate(reports=Count("id"))
+        .order_by("-reports")[:5]
+    )
+    top_reporters = [
+        {
+            "username": r["reported_by__username"],
+            "display": (
+                (r["reported_by__first_name"] or "") + " " + (r["reported_by__last_name"] or "")
+            ).strip() or r["reported_by__username"],
+            "reports": r["reports"],
+        }
+        for r in operator_report_rows
+    ]
+
+    # Phase 4 — failure count + cost per failure in last 90 days
+    failures_90d = WorkOrder.objects.filter(
+        category=WorkOrder.Category.BREAKDOWN,
+        lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
+        updated_at__gte=td90,
+    ).count()
+    cost_90d_qs = CostTransaction.objects.filter(
+        occurred_at__gte=td90,
+    )
+    cost_90d_total = (
+        sum(t.amount for t in cost_90d_qs)
+    )
+    cost_per_failure = (cost_90d_total / failures_90d) if failures_90d else None
+
     ctx = {
         "mttr_hours": mttr_hours,
         "mttw_hours": mttw_hours,
         "mtbf_hours": mtbf_hours,
         "avg_downtime_hours": avg_downtime_hours,
+        "failure_mode_distribution": failure_mode_distribution,
+        "top_failing_assets": top_failing_assets,
+        "top_reporters": top_reporters,
+        "failures_90d": failures_90d,
+        "cost_per_failure": cost_per_failure,
         "pm_compliance_pct": pm_compliance_pct,
         "pm_closed_90d": pm_closed,
         "pm_active_schedules": pm_active,
