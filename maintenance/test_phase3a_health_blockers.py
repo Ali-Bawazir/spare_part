@@ -112,7 +112,6 @@ class WorkOrderDetailContextTests(TestCase):
         self.assertFalse(card.is_emergency)
         self.assertEqual(card.parts_cost, Decimal("0"))
         self.assertEqual(card.vendor_cost, Decimal("0"))
-        self.assertEqual(card.procurement_cost, Decimal("0"))
         self.assertEqual(card.consumables_cost, Decimal("0"))
         self.assertEqual(card.additional_cost, Decimal("0"))
 
@@ -142,11 +141,10 @@ class WorkOrderDetailContextTests(TestCase):
         cost.save()
         cost.material_cost = Decimal("100")
         cost.vendor_repair_cost = Decimal("50")
-        cost.procurement_cost = Decimal("0")
         cost.consumables_cost = Decimal("10")
         cost.additional_cost = Decimal("5")
         cost.save(update_fields=[
-            "material_cost", "vendor_repair_cost", "procurement_cost",
+            "material_cost", "vendor_repair_cost",
             "consumables_cost", "additional_cost",
         ])
         self.client.force_login(self.manager)
@@ -154,10 +152,9 @@ class WorkOrderDetailContextTests(TestCase):
             reverse("work_order_detail", kwargs={"pk": self.wo.pk})
         )
         card = response.context["health_card"]
-        # 100 + 50 + 0 + 10 + 5 = 165 (downtime excluded per glossary)
+        # 100 + 50 + 10 + 5 = 165 (downtime excluded per glossary)
         self.assertEqual(card.parts_cost, Decimal("100"))
         self.assertEqual(card.vendor_cost, Decimal("50"))
-        self.assertEqual(card.procurement_cost, Decimal("0"))
         self.assertEqual(card.consumables_cost, Decimal("10"))
         self.assertEqual(card.additional_cost, Decimal("5"))
         self.assertEqual(card.total_cost, Decimal("165"))

@@ -78,7 +78,6 @@ class WorkOrderHealthService:
         waiting_days: int
         parts_cost: Decimal
         vendor_cost: Decimal
-        procurement_cost: Decimal
         consumables_cost: Decimal
         additional_cost: Decimal
         total_cost: Decimal
@@ -130,19 +129,17 @@ class WorkOrderHealthService:
         if isinstance(cost, WorkOrderCost):
             parts_cost = Decimal(cost.material_cost or 0)
             vendor_cost = Decimal(cost.vendor_repair_cost or 0)
-            procurement_cost = Decimal(cost.procurement_cost or 0)
             consumables_cost = Decimal(cost.consumables_cost or 0)
             additional_cost = Decimal(cost.additional_cost or 0)
-            # Per the Work Order Health Card glossary entry, downtime
-            # cost is EXCLUDED from the health card total.
+            # Downtime cost is intentionally EXCLUDED from the health
+            # card total. It is a finance-team field, not maintenance cost.
             total_cost = (
-                parts_cost + vendor_cost + procurement_cost
+                parts_cost + vendor_cost
                 + consumables_cost + additional_cost
             )
         else:
             parts_cost = Decimal("0")
             vendor_cost = Decimal("0")
-            procurement_cost = Decimal("0")
             consumables_cost = Decimal("0")
             additional_cost = Decimal("0")
             total_cost = Decimal("0")
@@ -187,7 +184,6 @@ class WorkOrderHealthService:
             waiting_days=waiting_days,
             parts_cost=parts_cost,
             vendor_cost=vendor_cost,
-            procurement_cost=procurement_cost,
             consumables_cost=consumables_cost,
             additional_cost=additional_cost,
             total_cost=total_cost,

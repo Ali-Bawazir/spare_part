@@ -936,13 +936,8 @@ class WorkOrderCost(models.Model):
         max_digits=14, decimal_places=2, default=0,
         help_text="Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this WO. Renamed from vendor_cost."
     )
-    procurement_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0,
-        help_text="Sum of POItem.actual_unit_price × received_qty for POs linked via PR to this WO.")
     consumables_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     additional_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
-    downtime_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0,
-        help_text="Phase 2: set by finance team. Computed as Downtime.total_minutes × rate_per_hour.")
-    additional_cost_note = models.CharField(max_length=500, blank=True)
     # Phase 1+2 Cost Ledger: cache layer for the CostTransaction ledger.
     last_reconciled_at = models.DateTimeField(auto_now=True)
     ledger_transaction_count = models.PositiveIntegerField(
@@ -960,8 +955,8 @@ class WorkOrderCost(models.Model):
 
     @property
     def total_cost(self) -> Decimal:
-        return (self.material_cost + self.vendor_repair_cost + self.procurement_cost
-                + self.consumables_cost + self.additional_cost + self.downtime_cost)
+        return (self.material_cost + self.vendor_repair_cost
+                + self.consumables_cost + self.additional_cost)
 
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -976,11 +971,11 @@ class WorkOrderCost(models.Model):
         """
         self._auto_calculate()
         super().save(update_fields=[
-            "material_cost", "vendor_repair_cost", "procurement_cost",
-            "consumables_cost", "downtime_cost", "updated_at"
+            "material_cost", "vendor_repair_cost",
+            "consumables_cost", "updated_at"
         ] if hasattr(self, "updated_at") else [
-            "material_cost", "vendor_repair_cost", "procurement_cost",
-            "consumables_cost", "downtime_cost",
+            "material_cost", "vendor_repair_cost",
+            "consumables_cost",
         ])
         return self
 
@@ -1030,7 +1025,6 @@ class WorkOrderCost(models.Model):
         self.ledger_transaction_count = CostTransaction.objects.filter(
             work_order=self.work_order,
         ).count()
-        # procurement_cost and downtime_cost stay at 0 (legacy fields, kept for compat)
         self.save(update_fields=[
             "material_cost", "vendor_repair_cost", "consumables_cost",
             "additional_cost", "ledger_transaction_count", "last_reconciled_at",
