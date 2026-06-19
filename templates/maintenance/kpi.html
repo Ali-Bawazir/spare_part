@@ -15,8 +15,10 @@
   <div class="mms-kpi"><div class="mms-kpi-value">{{ tool_lost_count }}</div><div class="mms-kpi-label">Lost tools</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{% if tool_loss_rate_pct is not None %}{{ tool_loss_rate_pct }}%{% else %}-{% endif %}</div><div class="mms-kpi-label">Tool loss rate</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_due_count }}</div><div class="mms-kpi-label">PM due now</div></div>
+  {% if can_see_cost %}
   <div class="mms-kpi"><div class="mms-kpi-value">{{ failures_90d }}</div><div class="mms-kpi-label">Failures (90d)</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{% if cost_per_failure is not None %}{{ cost_per_failure|floatformat:2 }} SAR{% else %}-{% endif %}</div><div class="mms-kpi-label">Cost / failure</div></div>
+  {% endif %}
 </div>
 
 <style>
@@ -81,6 +83,7 @@
     </div>
   </div>
 
+  {% if can_see_cost %}
   <div class="mms-card">
     <div class="mms-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
       <span>Top failing assets (90d)</span>
@@ -107,6 +110,7 @@
       {% endif %}
     </div>
   </div>
+  {% endif %}
 </div>
 
 <div class="mms-kpi-row" style="margin-top:1rem; grid-template-columns: 1fr">

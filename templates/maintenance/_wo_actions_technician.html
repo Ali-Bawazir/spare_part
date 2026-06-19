@@ -73,7 +73,11 @@
       <select id="part-select" name="part" class="form-select" required>
         <option value="">— Select a part —</option>
         {% for p in active_parts %}
-          <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>
+          {% if p.free_stock is not None %}
+            <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }}) — In stock: {{ p.free_stock }}</option>
+          {% else %}
+            <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>
+          {% endif %}
         {% endfor %}
       </select>
       <small style="color:var(--mms-muted)">All active parts shown</small>

@@ -29,6 +29,13 @@
     <span style="font-size:.75rem;font-weight:500;opacity:.85;margin-left:.5rem">
       (Phase 3A read-only summary)
     </span>
+    {% if pending_returned_ero %}
+      <span class="mms-badge mms-badge--warning"
+            style="margin-left:.5rem;font-size:.7rem;background:#fef3c7;color:#92400e"
+            title="The vendor returned the part. Manager still needs to accept the ERO before the cost posts to the ledger.">
+        🟡 Vendor returned, awaiting acceptance
+      </span>
+    {% endif %}
   </div>
   <div class="mms-card-body mms-stack">
 

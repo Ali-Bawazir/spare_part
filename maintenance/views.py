@@ -1124,7 +1124,24 @@ def work_order_detail(request, pk):
                 "remaining_to_issue": remaining,
             })
 
-    active_parts = SparePart.objects.filter(status="active").order_by("name")
+    # Annotate free_stock = on-hand minus reserved so the dropdown shows
+    # the actual usable quantity per part (visible without JS interaction).
+    _site = Site.objects.filter(is_default=True).first()
+    if _site:
+        _free_subq = (
+            Inventory.objects.filter(part=OuterRef("pk"), site=_site)
+            .annotate(
+                free=F("quantity_available") - F("quantity_reserved")
+            )
+            .values("free")[:1]
+        )
+        active_parts = (
+            SparePart.objects.filter(status="active")
+            .annotate(free_stock=Coalesce(Subquery(_free_subq), Value(Decimal("0"))))
+            .order_by("name")
+        )
+    else:
+        active_parts = SparePart.objects.filter(status="active").order_by("name")
 
     # Phase 3A: Health card + active blockers + blocker history.
     # The HealthCard is a frozen dataclass produced by WorkOrderHealthService;
@@ -1179,6 +1196,15 @@ def work_order_detail(request, pk):
             "related_pms": related_pms,
             "related_eros": related_eros,
             "related_prs": related_prs,
+            # v5: ERO that's RETURNED but not yet CLOSED — shows the "vendor
+            # returned, awaiting acceptance" badge in the health card.
+            # Order by -pk since ExternalRepairOrder has no `returned_at`
+            # timestamp field (the RETURNED transition is set via status
+            # field directly without a dedicated timestamp).
+            "pending_returned_ero": ExternalRepairOrder.objects.filter(
+                work_order=wo,
+                status=ExternalRepairOrder.Status.RETURNED,
+            ).order_by("-pk").first(),
             "pending_shortage_reports": pending_shortage_reports,
             "approved_shortage_reports": approved_shortage_reports,
             "decided_shortage_reports": decided_shortage_reports,
@@ -2876,6 +2902,33 @@ def repair_officer(request, pk):
                             ero=inst,
                             actor=request.user,
                         )
+
+                # v5: auto-resolve the VENDOR_REPAIR blocker on ERO RETURNED.
+                # The tech can resume work as soon as the vendor has physically
+                # returned the part; the manager still has to ACCEPT later
+                # (which closes the ERO and posts vendor_repair cost to ledger).
+                # Reuse the existing event_type switch in
+                # WorkOrderBlockerService.sync_from_external_event.
+                try:
+                    from maintenance.services_blocker import WorkOrderBlockerService
+                    from maintenance.services_wo_status import WorkOrderService
+                    WorkOrderBlockerService.sync_from_external_event(
+                        external_obj=inst,
+                        event_type="ERO_RETURNED",
+                        actor=request.user,
+                        payload={
+                            "ero_id": inst.pk,
+                            "old_status": old_status,
+                        },
+                    )
+                    if inst.work_order_id:
+                        WorkOrderService.recompute_operational_status(inst.work_order)
+                except Exception as _e:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        f"Failed to resolve VENDOR_REPAIR blocker on ERO RETURNED: {_e}"
+                    )
+
             messages.success(request, "Repair order updated.")
             return redirect("repair_list")
     else:
@@ -3635,6 +3688,12 @@ def kpi_dashboard(request):
         "top_reporters": top_reporters,
         "failures_90d": failures_90d,
         "cost_per_failure": cost_per_failure,
+        # Cost is visible only to roles that manage or plan around cost.
+        # Operator and technician see operational KPIs but not financial ones.
+        "can_see_cost": request.user.role in (
+            User.Role.MANAGER, User.Role.SUPERVISOR,
+            User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+        ),
         "pm_compliance_pct": pm_compliance_pct,
         "pm_closed_90d": pm_closed,
         "pm_active_schedules": pm_active,

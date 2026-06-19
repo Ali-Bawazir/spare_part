@@ -1836,20 +1836,27 @@ class PartRequestWorkflowTests(TestCase):
 
     def test_manager_direct_issue_does_not_auto_create_pr(self):
         # Manager's legacy direct issue path bypasses auto-PR.
+        # v5: with ZERO stock, issue_part_to_work_order now returns False
+        # (refuses to deduct nothing). This was previously True (misleading).
         from inventory.services import issue_part_to_work_order
         from procurement.models import PurchaseRequest
         self.inv.quantity_available = Decimal("0")  # shortage scenario
         self.inv.save()
         wo = self._make_wo()
-        ok, _msg = issue_part_to_work_order(
+        ok, msg = issue_part_to_work_order(
             wo=wo, part=self.part, quantity=Decimal("3"),
             unit_cost=Decimal("10"), invoice_ref="INV-DIRECT",
             supplier_name="AcmeCorp", issued_by=self.manager,
         )
-        self.assertTrue(ok)
+        # Refuses to deduct nothing — ok=False, message says "Out of stock"
+        self.assertFalse(ok)
+        self.assertIn("Out of stock", msg)
+        # No PurchaseRequest auto-created from this path (manager should open one manually)
         self.assertEqual(
             PurchaseRequest.objects.filter(work_order=wo, part=self.part).count(), 0,
         )
+        # No PartIssueLine was created either
+        self.assertEqual(wo.part_issues.count(), 0)
 
     def test_part_issue_line_new_fields_present_and_backfilled(self):
         # Migration 0012 backfill: an APPROVED line should have

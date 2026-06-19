@@ -267,14 +267,19 @@ def issue_part_to_work_order(
             f"Manager should open a PurchaseRequest manually."
         )
 
+    # Zero stock on hand — refuse to deduct (nothing was issued).
+    # The manager must open a PurchaseRequest manually to start the
+    # procurement flow. Returning False prevents the caller (typically a
+    # success toast) from misleading the user into thinking stock was
+    # deducted when it was not.
     log_audit(
         actor=issued_by, action="issue_part_procurement_only", entity="WorkOrder",
         object_id=str(wo.pk), payload={"part": part.sku, "qty": str(quantity)},
     )
     _maybe_notify_low_stock(part, site)
-    return True, (
-        "No stock on hand. Manager should open a PurchaseRequest manually "
-        f"for {quantity} of {part.sku}."
+    return False, (
+        f"Out of stock for {part.sku}: 0 available, requested {quantity:g}. "
+        f"Manager must open a PurchaseRequest to procure this part."
     )
 
 
@@ -1430,6 +1435,22 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
             actor=actor, action="part_shortage_execution_started",
             entity="PartShortageReport", object_id=str(report.pk),
             payload={"line_id": line.pk, "part": line.part.sku, "first_issue_qty": str(qty)},
+        )
+
+    # Phase 1+2 Cost Ledger: post the material cost for this warehouse issue.
+    # post_material is idempotent by (source_type, source_id) so a partial
+    # second execution against the same line won't double-post.
+    try:
+        from maintenance.cost_ledger import CostLedgerService
+        CostLedgerService.post_material(
+            part_issue_line=line,
+            actor=actor,
+            memo=f"Warehouse issued to WO-{line.work_order.number}: {line.part.name} x {qty:g}",
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Cost ledger post_material failed for line {line.pk}: {e}"
         )
 
     # Low-stock notification (matches the existing pattern in approve_part_request)

@@ -1009,7 +1009,8 @@ class WorkOrderCost(models.Model):
         Financial totals = SUM(amount) over ALL ledger rows for this WO
         (including reversals, which are negative).
         """
-        from django.db.models import Sum, Coalesce
+        from django.db.models import Sum
+        from django.db.models.functions import Coalesce
         from .models import CostTransaction, CostCategory
         sums = (
             CostTransaction.objects
