@@ -29,6 +29,8 @@ def mms_nav(request):
             "nav_shortage_in_fulfillment": 0,
             "nav_shortage_blocked": 0,
             "nav_shortage_overdue": 0,
+            "nav_my_issues_30d": 0,
+            "nav_my_issues_unresolved": 0,
             **perm,
         }
 
@@ -48,6 +50,8 @@ def mms_nav(request):
         "nav_shortage_in_fulfillment": 0,
         "nav_shortage_blocked": 0,
         "nav_shortage_overdue": 0,
+        "nav_my_issues_30d": 0,
+        "nav_my_issues_unresolved": 0,
         "nav_notif_unread": Notification.objects.filter(recipient=u, read_at__isnull=True).count(),
         **perm,
     }
@@ -87,6 +91,20 @@ def mms_nav(request):
     if role == User.Role.TECHNICIAN:
         ctx["nav_my_open_wo"] = WorkOrder.objects.filter(assigned_technician=u).exclude(
             lifecycle_status=WorkOrder.LifecycleStatus.CLOSED
+        ).count()
+
+    # Phase 6: per-user reporting counters. Operators and technicians can
+    # both report issues from the field — surface a 30-day and unresolved
+    # count as nav badges so they can see "how many have I reported?".
+    # "Unresolved" here = not yet converted to a work order (still NEW or
+    # VALIDATED awaiting conversion).
+    if role in (User.Role.OPERATOR, User.Role.TECHNICIAN):
+        my_issues_qs = MaintenanceIssue.objects.filter(reported_by=u)
+        ctx["nav_my_issues_30d"] = my_issues_qs.filter(
+            created_at__gte=timezone.now() - timedelta(days=30),
+        ).count()
+        ctx["nav_my_issues_unresolved"] = my_issues_qs.exclude(
+            status=MaintenanceIssue.Status.CONVERTED,
         ).count()
 
     # v4.8 shortage counters (for users who can decide shortage reports)

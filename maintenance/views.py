@@ -37,7 +37,10 @@ from inventory.forms import (
     SparePartCreateForm,
     StockInForm,
 )
-from inventory.models import Inventory, PartIssueLine, PartShortageReport, SparePart, StockMovement
+from inventory.models import (
+    ConsumableAssignment, Inventory, PartIssueLine, PartShortageReport,
+    SparePart, StockMovement,
+)
 
 from inventory.qr_utils import qr_scan_decode as decode_qr
 from inventory.services import (
@@ -49,7 +52,7 @@ from inventory.services import (
     request_part_on_wo,
     stock_in,
 )
-from procurement.models import PurchaseRequest, Supplier
+from procurement.models import PurchaseOrder, PurchaseRequest, Supplier
 from procurement.forms import SupplierForm
 
 from .forms import (
@@ -294,7 +297,22 @@ def dashboard(request):
         "stale_yellow_count": stale_yellow_count,
     })
     if role == User.Role.OPERATOR:
-        ctx["my_issues"] = MaintenanceIssue.objects.filter(reported_by=request.user)[:10]
+        my_issues_qs = MaintenanceIssue.objects.filter(reported_by=request.user)
+        ctx["my_issues"] = my_issues_qs[:10]
+        # Phase 6: per-user 30-day reporting counts for the operator
+        # dashboard. Surfaces motivation (e.g. "you've reported 4 issues
+        # this month") and a drill-down link to the filtered issue list.
+        now = timezone.now()
+        td30 = now - timedelta(days=30)
+        td7 = now - timedelta(days=7)
+        ctx["my_issues_count_30d"] = my_issues_qs.filter(created_at__gte=td30).count()
+        ctx["my_issues_count_7d"] = my_issues_qs.filter(created_at__gte=td7).count()
+        # Phase 6: "Unresolved" = not yet converted to a WO. The Issue
+        # lifecycle is new → validated → converted; once converted the
+        # issue is effectively done (it lives on as the WO).
+        ctx["my_issues_count_unresolved"] = my_issues_qs.exclude(
+            status=MaintenanceIssue.Status.CONVERTED,
+        ).count()
     if role == User.Role.SUPERVISOR:
         ctx["issues_pending_validation"] = MaintenanceIssue.objects.filter(
             status=MaintenanceIssue.Status.NEW,
@@ -644,10 +662,47 @@ def machine_detail(request, pk):
 @login_required
 @role_required(User.Role.OPERATOR, User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def issue_list(request):
+    """List maintenance issues.
+
+    Phase 6 filters:
+    - ?mine=1        → restrict to issues reported by the current user.
+                       Operators see their own issues by default; this lets
+                       managers/supervisors also scope the list to one
+                       reporter via a follow-up ?reported_by=<id> filter
+                       (TODO: not wired in this commit).
+    - ?period=<days> → restrict to issues created within the last N days.
+                       Valid values: 7, 30, 90. Default: no period filter.
+    """
     qs = MaintenanceIssue.objects.select_related("machine", "reported_by")
     if request.user.role == User.Role.OPERATOR and not request.user.is_super_admin_role():
         qs = qs.filter(reported_by=request.user)
-    return render(request, "maintenance/issue_list.html", {"issues": qs[:200]})
+    # Phase 6: per-user scoping
+    if request.GET.get("mine") == "1":
+        qs = qs.filter(reported_by=request.user)
+    # Phase 6: period filter
+    try:
+        period_days = int(request.GET.get("period", "0"))
+    except (TypeError, ValueError):
+        period_days = 0
+    if period_days in (7, 30, 90):
+        from datetime import timedelta
+        qs = qs.filter(created_at__gte=timezone.now() - timedelta(days=period_days))
+    else:
+        # Invalid or missing period — treat as "all time" for the template
+        # so the filter bar shows the All Time pill as active.
+        period_days = 0
+    # Counts for the operator's "reports this month" panel
+    mine_count = qs.filter(reported_by=request.user).count() if request.GET.get("mine") == "1" else None
+    return render(
+        request,
+        "maintenance/issue_list.html",
+        {
+            "issues": qs[:200],
+            "period_days": period_days,
+            "mine_only": request.GET.get("mine") == "1",
+            "mine_count": mine_count,
+        },
+    )
 
 
 @login_required
@@ -2198,19 +2253,52 @@ def consumables_view(request):
             messages.error(request, "You do not have permission to perform this action.")
             return redirect("consumables")
     from inventory.models import ConsumableAssignment
-    assignments = ConsumableAssignment.objects.filter(
-        consumed_by=request.user
-    ).select_related("part", "machine").order_by("-created_at")[:20]
+    from django.db.models import Sum
+    from datetime import timedelta as _td
+    now = timezone.now()
+    # Phase 6: history is now period-filterable via ?period=7|30|90.
+    try:
+        period_days = int(request.GET.get("period", "0"))
+    except (TypeError, ValueError):
+        period_days = 0
+    if period_days not in (7, 30, 90):
+        period_days = 0
+    my_assignments = ConsumableAssignment.objects.filter(consumed_by=request.user)
+    if period_days:
+        my_assignments = my_assignments.filter(created_at__gte=now - _td(days=period_days))
+    assignments = my_assignments.select_related("part", "machine").order_by("-created_at")[:20]
     issued_assignments = ConsumableAssignment.objects.none()
     if caps.get("issue_consumables"):
         issued_assignments = ConsumableAssignment.objects.filter(
             issued_by=request.user
         ).exclude(consumed_by=request.user).select_related("part", "machine", "consumed_by").order_by("-created_at")[:20]
+    # Phase 6: per-user consumption counters for the badge bar.
+    # today = since midnight, 7d = last 7 days, 30d = last 30 days.
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    my_all = ConsumableAssignment.objects.filter(consumed_by=request.user)
+    my_today = my_all.filter(created_at__gte=midnight)
+    my_7d = my_all.filter(created_at__gte=now - _td(days=7))
+    my_30d = my_all.filter(created_at__gte=now - _td(days=30))
+    # Most-used part in the last 30d (operator self-reflection)
+    top_part_30d = (
+        my_30d.values("part__name", "part__sku")
+        .annotate(total=Sum("quantity"))
+        .order_by("-total")
+        .first()
+    )
     return render(request, "maintenance/consumables.html", {
         "consume_form": consume_form,
         "issue_form": issue_form,
         "assignments": assignments,
         "issued_assignments": issued_assignments,
+        "period_days": period_days,
+        "my_today_count": my_today.count(),
+        "my_today_qty": my_today.aggregate(total=Sum("quantity"))["total"] or 0,
+        "my_7d_count": my_7d.count(),
+        "my_7d_qty": my_7d.aggregate(total=Sum("quantity"))["total"] or 0,
+        "my_30d_count": my_30d.count(),
+        "my_30d_qty": my_30d.aggregate(total=Sum("quantity"))["total"] or 0,
+        "top_part_30d": top_part_30d,
     })
 
 
@@ -3678,6 +3766,37 @@ def kpi_dashboard(request):
     )
     cost_per_failure = (cost_90d_total / failures_90d) if failures_90d else None
 
+    # Phase 6 — 30-day supply counters for the manager KPI dashboard.
+    # These were previously absent despite being trivially derivable
+    # from existing models. Gated by can_see_procurement so operators
+    # and technicians do not see supply-pipeline data.
+    td30 = now - timedelta(days=30)
+    parts_consumed_30d = ConsumableAssignment.objects.filter(
+        created_at__gte=td30,
+    ).aggregate(
+        total_qty=Coalesce(Sum("quantity"), Value(0), output_field=IntegerField()),
+        total_logs=Count("id"),
+    )
+    eros_accepted_30d = ExternalRepairOrder.objects.filter(
+        status=ExternalRepairOrder.Status.CLOSED,
+        closed_at__gte=td30,
+    ).count()
+    pos_received_30d = PurchaseOrder.objects.filter(
+        status__in=[
+            PurchaseOrder.Status.RECEIVED,
+            PurchaseOrder.Status.PARTIAL_RECEIVED,
+        ],
+        received_at__gte=td30,
+    ).count()
+    pos_fully_received_30d = PurchaseOrder.objects.filter(
+        status=PurchaseOrder.Status.RECEIVED,
+        received_at__gte=td30,
+    ).count()
+    can_see_procurement = request.user.role in (
+        User.Role.MANAGER, User.Role.SUPERVISOR,
+        User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+    )
+
     ctx = {
         "mttr_hours": mttr_hours,
         "mttw_hours": mttw_hours,
@@ -3703,6 +3822,13 @@ def kpi_dashboard(request):
         .count(),
         "tool_lost_count": tool_lost_count,
         "tool_loss_rate_pct": tool_loss_rate_pct,
+        # Phase 6 — 30-day supply counters
+        "parts_consumed_30d_qty": parts_consumed_30d["total_qty"],
+        "parts_consumed_30d_logs": parts_consumed_30d["total_logs"],
+        "eros_accepted_30d": eros_accepted_30d,
+        "pos_received_30d": pos_received_30d,
+        "pos_fully_received_30d": pos_fully_received_30d,
+        "can_see_procurement": can_see_procurement,
     }
 
     return render(request, "maintenance/kpi.html", ctx)

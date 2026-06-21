@@ -236,6 +236,23 @@
     <div class="mms-card-body">
       {% if my_issues %}
       <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted)">Your issues</p>
+      {# Phase 6: per-user report counts. Operators see how many issues #}
+      {# they reported this week / month, with a drill-down link. #}
+      {% if my_issues_count_30d is not None %}
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem">
+        <a href="{% url 'issue_list' %}?mine=1&period=30" class="mms-badge mms-badge--muted" title="Issues you reported in the last 30 days">
+          30d: <strong>{{ my_issues_count_30d }}</strong>
+        </a>
+        <a href="{% url 'issue_list' %}?mine=1&period=7" class="mms-badge mms-badge--muted" title="Issues you reported in the last 7 days">
+          7d: <strong>{{ my_issues_count_7d }}</strong>
+        </a>
+        {% if my_issues_count_unresolved %}
+        <a href="{% url 'issue_list' %}?mine=1" class="mms-badge mms-badge--warn" title="Your open issues">
+          open: <strong>{{ my_issues_count_unresolved }}</strong>
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
       <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for i in my_issues %}<li><a href="{% url 'issue_list' %}">#{{ i.id }}</a> {{ i.machine }} — {{ i.get_status_display }}</li>{% endfor %}</ul>
       {% elif my_queue %}
       <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for w in my_queue %}<li><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a> — {{ w.machine }} <span class="mms-badge mms-badge--muted">{{ w.get_status_display }}</span></li>{% endfor %}</ul>

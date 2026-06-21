@@ -19,6 +19,14 @@
   <div class="mms-kpi"><div class="mms-kpi-value">{{ failures_90d }}</div><div class="mms-kpi-label">Failures (90d)</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{% if cost_per_failure is not None %}{{ cost_per_failure|floatformat:2 }} SAR{% else %}-{% endif %}</div><div class="mms-kpi-label">Cost / failure</div></div>
   {% endif %}
+  {# Phase 6 — 30-day supply counters. Visible to roles that manage or #}
+  {# oversee procurement (manager / supervisor / procurement / super). #}
+  {# Operators and technicians see operational KPIs only. #}
+  {% if can_see_procurement %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ parts_consumed_30d_qty }}</div><div class="mms-kpi-label">Consumables used (30d)</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ eros_accepted_30d }}</div><div class="mms-kpi-label">Vendor repairs accepted (30d)</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pos_received_30d }}<span style="font-size:.5em;color:var(--mms-muted)"> / {{ pos_fully_received_30d }} full</span></div><div class="mms-kpi-label">POs received (30d)</div></div>
+  {% endif %}
 </div>
 
 <style>
