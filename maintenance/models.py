@@ -980,13 +980,29 @@ class WorkOrderCost(models.Model):
         return self
 
     def _auto_calculate(self):
+        """Legacy cache backfill from the source records.
+
+        Phase 7: this used to sum `quantity` (the REQUESTED amount),
+        which overstates material cost when a request is partially
+        fulfilled. Switched to `issued_qty` so the cache matches what
+        the cost ledger records.
+
+        For legacy WOs that predate the `issued_qty` field, fall back
+        to `quantity` via Coalesce — this preserves the old behavior
+        for the small set of WOs that have requests but no issues.
+        """
         from inventory.models import StockMovement
-        from django.db.models import F, Sum
+        from django.db.models import F, Sum, Value
+        from django.db.models.functions import Coalesce
 
         wo = self.work_order
 
+        # Phase 7: Coalesce(issued_qty, quantity). New lines always
+        # have issued_qty set; legacy lines without it fall back to
+        # the requested amount (same as the pre-Phase 7 behavior).
+        issued_or_requested = Coalesce(F("issued_qty"), F("quantity"))
         parts_total = wo.part_issues.aggregate(
-            total=Sum(F('quantity') * F('unit_cost'))
+            total=Sum(issued_or_requested * F("unit_cost"))
         )['total'] or Decimal("0")
         self.material_cost = parts_total
 

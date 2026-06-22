@@ -74,7 +74,10 @@
         <option value="">— Select a part —</option>
         {% for p in active_parts %}
           {% if p.free_stock is not None %}
-            <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }}) — In stock: {{ p.free_stock }}</option>
+            {# Phase 7.3: free_stock can be negative when reservations #}
+            {# exceed available stock. Show "0 (over-allocated)" to #}
+            {# signal the part is currently unavailable. #}
+            <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }}) — In stock: {% if p.free_stock < 0 %}0 (over-allocated){% else %}{{ p.free_stock }}{% endif %}</option>
           {% else %}
             <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>
           {% endif %}

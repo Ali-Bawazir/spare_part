@@ -2902,10 +2902,14 @@ class MediaAndCostRollupTests(TestCase):
             assigned_technician=self.tech,
         )
         # updated_at defaults to now; that satisfies `updated_at >= period_start`
+        # Phase 7: set issued_qty so _auto_calculate picks it up.
+        # Pre-Phase 7, the buggy _auto_calculate summed `quantity` (the
+        # requested amount); the fix switches to `issued_qty`.
         PartIssueLine.objects.create(
             work_order=wo,
             part=self.part,
             quantity=Decimal("2"),
+            issued_qty=Decimal("2"),
             unit_cost=Decimal("25.00"),
             status=PartIssueLine.Status.APPROVED,
             issued_by=self.manager,

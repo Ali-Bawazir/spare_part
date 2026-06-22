@@ -12,9 +12,8 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 from datetime import timedelta
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-
 from datetime import timedelta as td
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import csv
 import json
 from decimal import Decimal
@@ -685,8 +684,7 @@ def issue_list(request):
     except (TypeError, ValueError):
         period_days = 0
     if period_days in (7, 30, 90):
-        from datetime import timedelta
-        qs = qs.filter(created_at__gte=timezone.now() - timedelta(days=period_days))
+                qs = qs.filter(created_at__gte=timezone.now() - timedelta(days=period_days))
     else:
         # Invalid or missing period — treat as "all time" for the template
         # so the filter bar shows the All Time pill as active.
@@ -3501,8 +3499,6 @@ def reports_machines(request):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def reports_work_orders(request):
-    from datetime import timedelta
-
     st = request.GET.get("status")
     qs = WorkOrder.objects.select_related("machine", "assigned_technician").order_by("-created_at")
     if st in dict(WorkOrder.LifecycleStatus.choices):
@@ -3534,7 +3530,6 @@ def reports_work_orders(request):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def reports_technicians(request):
-    from datetime import timedelta
     now = timezone.now()
     td90 = now - timedelta(days=90)
     techs = (
