@@ -152,12 +152,22 @@ def _deduct_and_record_issue(
     inv.save()
     quantity_after = inv.quantity_available
 
+    # Phase 7.4: unit_cost fallback. If the caller passed 0 (e.g. the
+    # manager didn't enter a cost), fall back to the part's last
+    # purchase cost or weighted average so the cost ledger captures
+    # something instead of 0.
+    effective_unit_cost = unit_cost
+    if effective_unit_cost is None or effective_unit_cost <= 0:
+        effective_unit_cost = (
+            part.last_purchase_cost or part.avg_cost or Decimal("0")
+        )
+
     pil = PartIssueLine.objects.create(
         work_order=wo, part=part, quantity=quantity,
         requested_qty=quantity, approved_qty=quantity, issued_qty=quantity,
         shortage_qty=0,
         status=PartIssueLine.Status.APPROVED,
-        unit_cost=unit_cost, invoice_ref=invoice_ref,
+        unit_cost=effective_unit_cost, invoice_ref=invoice_ref,
         supplier_name=supplier_name, issued_by=issued_by,
     )
     StockMovement.objects.create(
@@ -231,6 +241,32 @@ def issue_part_to_work_order(
             logging.getLogger(__name__).warning(
                 f"Cost ledger post_material failed for line {pil.pk}: {e}"
             )
+        # Phase 7.4: fire PART_ISSUED so the WO Blocker resolves
+        # (keystone rule: issued == approved → PART blocker resolved).
+        # The manager direct-issue path used to skip this event, leaving
+        # the blocker open even though the part was fully issued.
+        # No-op if no PART blocker exists for this WO+part (e.g. the
+        # manager direct-issued a part the tech never requested).
+        from maintenance.models import WorkOrderBlocker
+        has_part_blocker = WorkOrderBlocker.objects.filter(
+            work_order=wo, kind=WorkOrderBlocker.Kind.PART,
+            status=WorkOrderBlocker.Status.OPEN,
+        ).exists()
+        if has_part_blocker:
+            try:
+                from maintenance.services_blocker import WorkOrderBlockerService
+                from maintenance.services_wo_status import WorkOrderService
+                WorkOrderBlockerService.sync_from_external_event(
+                    external_obj=pil, event_type="PART_ISSUED",
+                    actor=issued_by,
+                    payload={"line_id": pil.pk, "mode": "manager_direct"},
+                )
+                WorkOrderService.recompute_operational_status(wo)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Failed to fire PART_ISSUED for line {pil.pk}: {e}"
+                )
         return True, f"Issued full quantity ({quantity})."
 
     elif available > 0:
@@ -262,6 +298,30 @@ def issue_part_to_work_order(
             logging.getLogger(__name__).warning(
                 f"Cost ledger post_material failed for line {pil.pk}: {e}"
             )
+        # Phase 7.4: fire PART_ISSUED so the WO Blocker resolves
+        # (partial issue means approved_qty > issued_qty → blocker
+        # stays open; the event handler decides per keystone rule).
+        # No-op if no PART blocker exists for this WO+part.
+        from maintenance.models import WorkOrderBlocker
+        has_part_blocker = WorkOrderBlocker.objects.filter(
+            work_order=wo, kind=WorkOrderBlocker.Kind.PART,
+            status=WorkOrderBlocker.Status.OPEN,
+        ).exists()
+        if has_part_blocker:
+            try:
+                from maintenance.services_blocker import WorkOrderBlockerService
+                from maintenance.services_wo_status import WorkOrderService
+                WorkOrderBlockerService.sync_from_external_event(
+                    external_obj=pil, event_type="PART_ISSUED",
+                    actor=issued_by,
+                    payload={"line_id": pil.pk, "mode": "manager_direct_partial"},
+                )
+                WorkOrderService.recompute_operational_status(wo)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Failed to fire PART_ISSUED for line {pil.pk}: {e}"
+                )
         return True, (
             f"Partial issue: {available} issued; {short} short. "
             f"Manager should open a PurchaseRequest manually."
