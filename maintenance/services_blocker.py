@@ -300,9 +300,10 @@ class WorkOrderBlockerService:
         if external_obj is None:
             return None
 
-        # ERO_RETURNED special case: the VENDOR_REPAIR blocker is opened against
-        # the ERR, not the ERO. Do the fallback lookup BEFORE the None-guard.
-        if event_type == "ERO_RETURNED":
+        # ERO_RETURNED / ERO_ACCEPTED special case: the VENDOR_REPAIR blocker is
+        # opened against the ERR (origin_request), not the ERO. Do the fallback
+        # lookup BEFORE the None-guard for both event types.
+        if event_type in ("ERO_RETURNED", "ERO_ACCEPTED"):
             if not isinstance(external_obj, ExternalRepairRequest) \
                     and hasattr(external_obj, "origin_request"):
                 err_obj = external_obj.origin_request
