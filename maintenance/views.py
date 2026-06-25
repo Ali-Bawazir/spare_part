@@ -665,11 +665,19 @@ def machine_detail(request, pk):
     # In all cases, both machine=this and component=this records are relevant
     related_issues = MaintenanceIssue.objects.filter(
         Q(machine=machine) | Q(component=machine)
-    ).select_related("reported_by", "machine", "component").order_by("-created_at")[:20]
+    ).select_related("reported_by", "machine", "component").order_by("-created_at")[:50]
 
-    related_wos = WorkOrder.objects.filter(
+    related_wos = (
+        WorkOrder.objects
+        .filter(Q(machine=machine) | Q(component=machine))
+        .select_related("machine", "component", "assigned_technician", "cost_record")
+        .order_by("-created_at")[:50]
+    )
+
+    # Total WO count (not just the displayed 50) for the hero stats strip
+    total_wo_count = WorkOrder.objects.filter(
         Q(machine=machine) | Q(component=machine)
-    ).select_related("machine", "component", "assigned_technician").order_by("-created_at")[:20]
+    ).count()
 
     related_pms = PMSchedule.objects.filter(
         Q(machine=machine) | Q(component=machine)
@@ -681,7 +689,7 @@ def machine_detail(request, pk):
 
     related_prs = PurchaseRequest.objects.filter(
         Q(machine=machine) | Q(component=machine)
-    ).select_related("machine", "component", "part", "supplier").order_by("-created_at")[:20]
+    ).select_related("machine", "component", "part", "supplier").order_by("-created_at")[:50]
 
     # Cost rollup for the Costs tab (Phase 3). Live aggregation from
     # the CostTransaction ledger. Same shape for machines and components.
@@ -690,6 +698,18 @@ def machine_detail(request, pk):
         cost_periods = component_costs_for_periods(machine)
     else:
         cost_periods = machine_costs_for_periods(machine)
+
+    # Hero stats for the top strip:
+    # - 90d cost total (from the cost ledger dataclass)
+    # - 90d failure count (PartIssueLine ISSUED in last 90d for this asset)
+    # - days since last activity (most recent WO update, falling back to machine.updated_at)
+    cost_90d = cost_periods.get(90)
+    cost_90d_total = cost_90d.total if cost_90d else Decimal("0")
+    failure_count_90d = cost_90d.failure_count if cost_90d else 0
+    last_activity = (
+        related_wos[0].updated_at if related_wos else machine.created_at
+    )
+    last_activity_days = (timezone.now() - last_activity).days
 
     context = {
         "machine": machine,
@@ -707,6 +727,12 @@ def machine_detail(request, pk):
             User.Role.MANAGER, User.Role.SUPERVISOR,
             User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
         ),
+        "hero_stats": {
+            "total_wo_count": total_wo_count,
+            "cost_90d_total": cost_90d_total,
+            "failure_count_90d": failure_count_90d,
+            "last_activity_days": last_activity_days,
+        },
     }
     if machine is not None:
         context["attachments"] = Attachment.objects.filter(

@@ -1393,3 +1393,128 @@ body.mms-nav-locked {
         display: none !important;
     }
 }
+
+/* ===== Machine detail page: hero stats, tabs, child grid ===== */
+.mms-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 0.5rem 0 1.25rem 0;
+}
+.mms-stat {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  text-align: center;
+  transition: box-shadow 0.15s;
+}
+.mms-stat:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+.mms-stat-num {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.1;
+}
+.mms-stat-lbl {
+  display: block;
+  font-size: 0.78em;
+  color: #64748b;
+  margin-top: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.mms-dl {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+.mms-dl dt {
+  color: #6b7280;
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+.mms-dl dd {
+  margin: 0;
+  padding: 0.25rem 0;
+  color: #0f172a;
+}
+.mms-text-muted { color: #6b7280; }
+
+.mms-card-footer {
+  border-top: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mms-tabs {
+  display: flex;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.mms-tab {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.95em;
+  transition: color 0.1s;
+}
+.mms-tab:hover { color: #0f172a; }
+.mms-tab--active {
+  color: #0f172a;
+  border-bottom-color: #0f172a;
+  font-weight: 600;
+}
+.mms-tab-panel { display: none; }
+.mms-tab-panel--active { display: block; }
+
+.mms-cost-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mms-cost-cell--warn { color: #b45309; font-weight: 600; }
+.mms-days-open--warn { color: #b91c1c; font-weight: 600; }
+
+.mms-child-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+.mms-child-card {
+  display: block;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s;
+}
+.mms-child-card:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.mms-child-icon { font-size: 1.5em; margin-bottom: 0.25rem; }
+.mms-child-name { font-weight: 600; color: #0f172a; }
+.mms-child-meta { font-size: 0.8em; color: #64748b; margin-top: 0.15rem; }
+
+.mms-empty {
+  color: #94a3b8;
+  font-style: italic;
+  padding: 1.5rem;
+  text-align: center;
+}

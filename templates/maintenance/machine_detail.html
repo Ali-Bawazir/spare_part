@@ -1,157 +1,295 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% block title %}{{ machine.name }} — {{ machine.get_asset_level_display }}{% endblock %}
-{% block page_heading %}{{ machine.name }}{% endblock %}
 {% block content %}
+
 <!-- Breadcrumb -->
-<p class="mms-page-lead" style="font-size:0.9em">
-  {% if ancestors %}
-    {% for a in ancestors %}<a href="{% url 'machine_detail' a.pk %}" style="color:#666;text-decoration:none">{{ a.name }}</a> › {% endfor %}
-  {% endif %}
+<p class="mms-page-lead">
+  {% for a in ancestors %}
+    <a href="{% url 'machine_detail' a.pk %}">{{ a.name }}</a> ›
+  {% endfor %}
   <strong>{{ machine.name }}</strong>
-  <span style="color:#666;font-size:0.85em">({{ machine.get_asset_level_display }})</span>
+  <span class="mms-text-muted">({{ machine.get_asset_level_display }})</span>
 </p>
 
-<!-- Asset details card -->
-    <div class="mms-card" style="margin-bottom:1rem">
-      <div class="mms-card-header">Asset Details</div>
-      <div class="mms-card-body">
-        <table style="width:100%;border-collapse:collapse">
-          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280;width:35%">QR Code</th><td style="padding:0.3rem"><code>{{ machine.qr_code }}</code></td></tr>
-          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Asset Code</th><td style="padding:0.3rem">{% if machine.asset_code %}<code>{{ machine.asset_code }}</code>{% else %}—{% endif %}</td></tr>
-          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Level</th><td style="padding:0.3rem">{{ machine.get_asset_level_display }} (level {{ machine.asset_level }})</td></tr>
-          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Site</th><td style="padding:0.3rem">{{ machine.site.name|default:"—" }}</td></tr>
-          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Location</th><td style="padding:0.3rem">{{ machine.location|default:"—" }}</td></tr>
-          <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Status</th><td style="padding:0.3rem">{% if machine.is_active %}<span class="mms-badge mms-badge--success">Active</span>{% else %}<span class="mms-badge mms-badge--muted">Inactive</span>{% endif %}</td></tr>
-          {% if is_component_level %}
-            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Serial</th><td style="padding:0.3rem">{{ machine.serial_number|default:"—" }}</td></tr>
-            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Manufacturer</th><td style="padding:0.3rem">{{ machine.manufacturer|default:"—" }}</td></tr>
-            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Model</th><td style="padding:0.3rem">{{ machine.model_number|default:"—" }}</td></tr>
-            <tr><th style="text-align:left;padding:0.3rem;color:#6b7280">Criticality</th><td style="padding:0.3rem">{{ machine.get_criticality_display|default:"—" }}</td></tr>
-          {% endif %}
-        </table>
-      </div>
-      <div class="mms-card-body" style="border-top:1px solid #e5e7eb;display:flex;gap:0.5rem;flex-wrap:wrap">
-        <a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">Edit</a>
-        <a href="{% url 'machine_list' %}" class="mms-btn mms-btn--ghost">← Back to machines</a>
-      </div>
-    </div>
-
-    <!-- Asset Photos card -->
-    <div class="mms-card" style="margin-bottom:1rem">
-      <div class="mms-card-header">Asset Photos</div>
-      <div class="mms-card-body">
-        {% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title="Asset Photos" %}
-      </div>
-    </div>
-
-    <!-- Quick actions card -->
-    <div class="mms-card" style="margin-bottom:1rem">
-      <div class="mms-card-header">Quick Actions</div>
-      <div class="mms-card-body" style="display:flex;gap:0.5rem;flex-wrap:wrap">
-        <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-           class="mms-btn mms-btn--primary">Report Issue</a>
-        <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-           class="mms-btn mms-btn--primary">Create Work Order</a>
-        <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-           class="mms-btn mms-btn--primary">Create PM</a>
-        <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-           class="mms-btn mms-btn--ghost">Create ERO</a>
-        <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-           class="mms-btn mms-btn--ghost">Create PR</a>
-      </div>
-    </div>
-
-    <!-- Related records -->
-    <div class="mms-card" style="margin-bottom:1rem">
-      <div class="mms-card-header">Related Records</div>
-      <div class="mms-card-body">
-        {% if related_wos %}
-          <h5 style="margin-top:0.5rem">Work Orders ({{ related_wos|length }})</h5>
-          <ul style="list-style:none;padding:0">
-            {% for wo in related_wos %}
-              <li style="padding:0.2rem 0">
-                <a href="{% url 'work_order_detail' wo.pk %}">{{ wo.wo_number|default:wo.pk }}</a>
-                — {{ wo.get_status_display }}{% if wo.component %} ({{ wo.component.name }}){% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-        {% if related_issues %}
-          <h5 style="margin-top:0.5rem">Issues ({{ related_issues|length }})</h5>
-          <ul style="list-style:none;padding:0">
-            {% for iss in related_issues %}
-              <li style="padding:0.2rem 0">
-                <a href="{% url 'issue_detail' iss.pk %}">#{{ iss.pk }}</a>
-                — {{ iss.get_status_display }} ({{ iss.get_priority_display }})
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-        {% if related_pms %}
-          <h5 style="margin-top:0.5rem">PM Schedules ({{ related_pms|length }})</h5>
-          <ul style="list-style:none;padding:0">
-            {% for pm in related_pms %}
-              <li style="padding:0.2rem 0">
-                <a href="{% url 'pm_execute' pm.pk %}">{{ pm.name }}</a>
-                {% if pm.frequency_days %}<span style="color:#666"> — every {{ pm.frequency_days }} days</span>{% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-        {% if related_eros %}
-          <h5 style="margin-top:0.5rem">External Repairs ({{ related_eros|length }})</h5>
-          <ul style="list-style:none;padding:0">
-            {% for ero in related_eros %}
-              <li style="padding:0.2rem 0">
-                <a href="{% url 'repair_officer' ero.pk %}">{{ ero.title|default:ero.pk }}</a>
-                — {{ ero.get_status_display }}
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-        {% if related_prs %}
-          <h5 style="margin-top:0.5rem">Purchase Requests ({{ related_prs|length }})</h5>
-          <ul style="list-style:none;padding:0">
-            {% for pr in related_prs %}
-              <li style="padding:0.2rem 0">
-                <a href="{% url 'pr_detail' pr.pk %}">#{{ pr.pk }}</a>
-                — {{ pr.part.name }} (qty {{ pr.quantity }})
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-        {% if not related_wos and not related_issues and not related_pms and not related_eros and not related_prs %}
-          <p class="text-muted" style="color:#6b7280;margin:0">No records attached to this asset yet.</p>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Costs tab (Phase 3) -->
-    {% include "maintenance/_cost_tab.html" %}
-
-    <!-- Children (subassemblies/components) -->
-    {% if machine.children.all %}
-      <div class="mms-card" style="margin-bottom:1rem">
-        <div class="mms-card-header">
-          {% if is_machine_level %}Subassemblies & Components ({{ machine.children.count }}){% endif %}
-          {% if is_subassembly_level %}Components ({{ machine.children.count }}){% endif %}
-          {% if is_component_level %}No children (this is a leaf component){% endif %}
-        </div>
-        {% if machine.children.all and not is_component_level %}
-          <div class="mms-card-body">
-            <ul style="list-style:none;padding:0;margin:0">
-              {% for child in machine.children.all %}
-                <li style="padding:0.4rem 0;border-bottom:1px solid #f3f4f6">
-                  <a href="{% url 'machine_detail' child.pk %}">{{ child.name }}</a>
-                  <span style="color:#666;font-size:0.85em">— {{ child.get_asset_level_display }}{% if child.asset_code %} ({{ child.asset_code }}){% endif %}</span>
-                </li>
-              {% endfor %}
-            </ul>
-          </div>
-        {% endif %}
-      </div>
-    {% endif %}
+<!-- HERO STATS STRIP -->
+<div class="mms-stats-strip">
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.total_wo_count }}</span>
+    <span class="mms-stat-lbl">Work Orders</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.cost_90d_total|floatformat:0 }}</span>
+    <span class="mms-stat-lbl">SAR · last 90 days</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.failure_count_90d }}</span>
+    <span class="mms-stat-lbl">Failures · 90d</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.last_activity_days }}</span>
+    <span class="mms-stat-lbl">Days since last activity</span>
+  </div>
 </div>
 
+<!-- ASSET DETAILS CARD (polished) -->
+<div class="mms-card">
+  <div class="mms-card-header">
+    {% if is_machine_level %}⚙️ Machine Details{% endif %}
+    {% if is_subassembly_level %}🔧 Subassembly Details{% endif %}
+    {% if is_component_level %}🔩 Component Details{% endif %}
+  </div>
+  <div class="mms-card-body">
+    <dl class="mms-dl">
+      <dt>QR Code</dt><dd><code>{{ machine.qr_code }}</code></dd>
+      <dt>Asset Code</dt><dd>{% if machine.asset_code %}<code>{{ machine.asset_code }}</code>{% else %}—{% endif %}</dd>
+      <dt>Level</dt><dd>{{ machine.get_asset_level_display }}</dd>
+      <dt>Site</dt><dd>{{ machine.site.name|default:"—" }}</dd>
+      <dt>Location</dt><dd>{{ machine.location|default:"—" }}</dd>
+      <dt>Status</dt><dd>{% if machine.is_active %}<span class="mms-badge mms-badge--success">Active</span>{% else %}<span class="mms-badge mms-badge--muted">Inactive</span>{% endif %}</dd>
+    </dl>
+    {% if is_component_level %}
+      <h4 style="margin:1rem 0 0.5rem 0;font-size:0.9rem">Specifications</h4>
+      <dl class="mms-dl">
+        <dt>Serial</dt><dd>{{ machine.serial_number|default:"—" }}</dd>
+        <dt>Manufacturer</dt><dd>{{ machine.manufacturer|default:"—" }}</dd>
+        <dt>Model</dt><dd>{{ machine.model_number|default:"—" }}</dd>
+        <dt>Criticality</dt><dd>{{ machine.get_criticality_display|default:"—" }}</dd>
+      </dl>
+    {% endif %}
+  </div>
+  <div class="mms-card-footer">
+    <a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">Edit</a>
+    <a href="{% url 'machine_list' %}" class="mms-btn mms-btn--ghost">← Back to machines</a>
+  </div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div class="mms-card">
+  <div class="mms-card-header">⚡ Quick Actions</div>
+  <div class="mms-card-body">
+    <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">🚨 Report Issue</a>
+    <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">🔧 Create Work Order</a>
+    <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">🛡️ Create PM</a>
+    <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">🔩 Create ERO</a>
+    <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">📦 Create PR</a>
+  </div>
+</div>
+
+<!-- ASSET PHOTOS (unchanged) -->
+<div class="mms-card">
+  <div class="mms-card-header">📷 Asset Photos</div>
+  <div class="mms-card-body">
+    {% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title="Asset Photos" %}
+  </div>
+</div>
+
+<!-- RELATED RECORDS WITH TABS -->
+<div class="mms-card">
+  <div class="mms-card-header">🔗 Related Records</div>
+  <div class="mms-card-body">
+    <div class="mms-tabs" role="tablist">
+      <button class="mms-tab mms-tab--active" data-tab="tab-wos">
+        🔧 Work Orders ({{ related_wos|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-issues">
+        ⚠️ Issues ({{ related_issues|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-pms">
+        🛡️ PM Schedules ({{ related_pms|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-eros">
+        🔩 External Repairs ({{ related_eros|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-prs">
+        📦 Purchase Requests ({{ related_prs|length }})
+      </button>
+    </div>
+
+    <!-- Work Orders tab (the main one) -->
+    <div id="tab-wos" class="mms-tab-panel mms-tab-panel--active">
+      {% if related_wos %}
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th>WO#</th>
+            <th>Status</th>
+            <th>Component</th>
+            <th>Opened</th>
+            <th>Technician</th>
+            <th class="mms-cost-cell">Cost</th>
+            <th>Days open</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for wo in related_wos %}
+            <tr>
+              <td><a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a></td>
+              <td>
+                {% if wo.lifecycle_status == 'closed' %}<span class="mms-badge mms-badge--success">Closed</span>
+                {% elif wo.lifecycle_status == 'in_progress' %}<span class="mms-badge mms-badge--info">In progress</span>
+                {% elif wo.lifecycle_status == 'pending_review' %}<span class="mms-badge mms-badge--warning">Pending review</span>
+                {% else %}<span class="mms-badge mms-badge--muted">{{ wo.get_lifecycle_status_display }}</span>{% endif %}
+              </td>
+              <td>{% if wo.component %}{{ wo.component.name }}{% else %}—{% endif %}</td>
+              <td><span class="mms-text-muted">{{ wo.created_at|date:"Y-m-d" }}</span></td>
+              <td>{% if wo.assigned_technician %}{{ wo.assigned_technician.username }}{% else %}—{% endif %}</td>
+              <td class="mms-cost-cell {% if wo.cost_record and wo.cost_record.total_cost > 1000 %}mms-cost-cell--warn{% endif %}">
+                {% if wo.cost_record %}{{ wo.cost_record.total_cost|floatformat:2 }} SAR{% else %}—{% endif %}
+              </td>
+              <td>{% if wo.lifecycle_status == 'closed' %}—{% else %}{{ wo.created_at|timesince }}{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="mms-empty">No work orders yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="mms-empty">No work orders yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- Issues tab -->
+    <div id="tab-issues" class="mms-tab-panel">
+      {% if related_issues %}
+      <table class="mms-table">
+        <thead>
+          <tr><th>#</th><th>Priority</th><th>Status</th><th>Reporter</th><th>Description</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          {% for iss in related_issues %}
+            <tr>
+              <td><a href="{% url 'issue_detail' iss.pk %}">#{{ iss.pk }}</a></td>
+              <td>{% if iss.priority == 'critical' %}<span class="mms-badge mms-badge--danger">Critical</span>
+                  {% elif iss.priority == 'high' %}<span class="mms-badge mms-badge--warning">High</span>
+                  {% elif iss.priority == 'medium' %}<span class="mms-badge mms-badge--info">Medium</span>
+                  {% else %}<span class="mms-badge mms-badge--muted">Low</span>{% endif %}</td>
+              <td>{{ iss.get_status_display }}</td>
+              <td>{% if iss.reported_by %}{{ iss.reported_by.username }}{% else %}—{% endif %}</td>
+              <td>{{ iss.description|truncatechars:60 }}</td>
+              <td><span class="mms-text-muted">{{ iss.created_at|date:"Y-m-d" }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="mms-empty">No issues yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">No issues yet.</div>{% endif %}
+    </div>
+
+    <!-- PM Schedules tab -->
+    <div id="tab-pms" class="mms-tab-panel">
+      {% if related_pms %}
+      <table class="mms-table">
+        <thead>
+          <tr><th>Title</th><th>Frequency</th><th>Next due</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for pm in related_pms %}
+            <tr>
+              <td><a href="{% url 'pm_execute' pm.pk %}">{{ pm.title }}</a></td>
+              <td>{% if pm.frequency_days %}every {{ pm.frequency_days }} days{% else %}—{% endif %}</td>
+              <td>{% if pm.next_due_at %}{{ pm.next_due_at|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+              <td>{% if pm.is_active %}<span class="mms-badge mms-badge--success">Active</span>{% else %}<span class="mms-badge mms-badge--muted">Inactive</span>{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="mms-empty">No PM schedules yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">No PM schedules yet.</div>{% endif %}
+    </div>
+
+    <!-- External Repairs tab -->
+    <div id="tab-eros" class="mms-tab-panel">
+      {% if related_eros %}
+      <table class="mms-table">
+        <thead>
+          <tr><th>Title</th><th>Status</th><th>Vendor</th><th>Cost</th><th>Sent</th></tr>
+        </thead>
+        <tbody>
+          {% for ero in related_eros %}
+            <tr>
+              <td><a href="{% url 'repair_officer' ero.pk %}">{{ ero.title|default:ero.pk }}</a></td>
+              <td>{{ ero.get_status_display }}</td>
+              <td>{{ ero.vendor_name|default:"—" }}</td>
+              <td class="mms-cost-cell">{% if ero.actual_cost %}{{ ero.actual_cost|floatformat:2 }} SAR{% else %}—{% endif %}</td>
+              <td><span class="mms-text-muted">{{ ero.sent_at|date:"Y-m-d"|default:"—" }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="mms-empty">No external repairs yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">No external repairs yet.</div>{% endif %}
+    </div>
+
+    <!-- Purchase Requests tab -->
+    <div id="tab-prs" class="mms-tab-panel">
+      {% if related_prs %}
+      <table class="mms-table">
+        <thead>
+          <tr><th>#</th><th>Part</th><th>Qty</th><th>Status</th><th>Supplier</th></tr>
+        </thead>
+        <tbody>
+          {% for pr in related_prs %}
+            <tr>
+              <td><a href="{% url 'pr_detail' pr.pk %}">#{{ pr.pk }}</a></td>
+              <td>{{ pr.part.name }} <small class="mms-text-muted">({{ pr.part.sku }})</small></td>
+              <td>{{ pr.quantity|floatformat:3 }}</td>
+              <td>{{ pr.get_status_display }}</td>
+              <td>{% if pr.supplier %}{{ pr.supplier.name }}{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="mms-empty">No purchase requests yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">No purchase requests yet.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- COSTS TAB (existing, unchanged) -->
+{% include "maintenance/_cost_tab.html" %}
+
+<!-- SUBASSEMBLIES & COMPONENTS GRID -->
+{% if machine.children.exists %}
+<div class="mms-card">
+  <div class="mms-card-header">
+    {% if is_machine_level %}🧩 Subassemblies & Components ({{ machine.children.count }}){% endif %}
+    {% if is_subassembly_level %}🔩 Components ({{ machine.children.count }}){% endif %}
+  </div>
+  <div class="mms-card-body">
+    <div class="mms-child-grid">
+      {% for child in machine.children.all %}
+        <a href="{% url 'machine_detail' child.pk %}" class="mms-child-card">
+          <div class="mms-child-icon">{% if child.asset_level == 4 %}🔧{% else %}🔩{% endif %}</div>
+          <div class="mms-child-name">{{ child.name }}</div>
+          <div class="mms-child-meta">{{ child.get_asset_level_display }}{% if child.asset_code %} · {{ child.asset_code }}{% endif %}</div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ASSET TREE (CONTEXT.md: required on every asset-targeting page) -->
 {% include "maintenance/_asset_tree.html" %}
+
+<script>
+(function() {
+  document.querySelectorAll('.mms-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tabId = this.dataset.tab;
+      document.querySelectorAll('.mms-tab').forEach(function(t) { t.classList.remove('mms-tab--active'); });
+      document.querySelectorAll('.mms-tab-panel').forEach(function(p) { p.classList.remove('mms-tab-panel--active'); });
+      this.classList.add('mms-tab--active');
+      var panel = document.getElementById(tabId);
+      if (panel) panel.classList.add('mms-tab-panel--active');
+    });
+  });
+})();
+</script>
+
 {% endblock %}
