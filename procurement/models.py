@@ -12,13 +12,17 @@ class Supplier(models.Model):
     contact = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
     is_repair_vendor = models.BooleanField(default=False, help_text="Also handles external repairs")
-    code = models.SlugField(
+    code = models.CharField(
         max_length=64,
         unique=True,
         db_index=True,
         blank=True,
         null=True,
-        help_text="Unique supplier code e.g. SUP-001. Used in QR format SUPPLIER:{code}.",
+        # Bug fix: was SlugField, which only accepts ASCII. CharField allows
+        # Arabic and other non-ASCII codes. DB column type is unchanged
+        # (VARCHAR(64)); only form-validator behavior changes.
+        help_text="Unique supplier code. Supports Arabic, e.g. SUP-001 or مورد-001. "
+                  "Used in QR format SUPPLIER:{code}.",
     )
     contact_person = models.CharField(max_length=128, blank=True)
     phone = models.CharField(max_length=64, blank=True)

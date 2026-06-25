@@ -337,6 +337,11 @@
             </svg>
             Last reconciled {% if last %}{{ last|date:"Y-m-d H:i" }}{% else %}never{% endif %}
           </span>
+          {% if cost.committed_material_cost %}
+            <span class="mms-wo-cost-dashboard__hero-meta-pill" title="Sum of approved × unit_cost for approved/allocated/issued lines that haven't been warehouse-issued yet.">
+              Committed {{ cost.committed_material_cost|floatformat:2 }} SAR
+            </span>
+          {% endif %}
           <a href="{% url 'work_order_cost_ledger' wo.pk %}" style="color:var(--mms-accent);text-decoration:none;font-weight:600">
             View ledger →
           </a>

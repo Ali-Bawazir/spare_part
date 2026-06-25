@@ -10,7 +10,8 @@
             <dl style="margin:0">
                 <dt>Supplier</dt><dd>{{ po.supplier.name|default:"—" }}</dd>
                 <dt>Status</dt><dd><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></dd>
-                <dt>Invoice Ref</dt><dd>{{ po.invoice_ref|default:"—" }}</dd>
+                <dt>Supplier Invoice</dt><dd>{{ po.supplier_invoice_number|default:"—" }}</dd>
+                <dt>Internal Ref</dt><dd>{{ po.invoice_ref|default:"—" }}</dd>
                 <dt>Expected Delivery</dt><dd>{{ po.expected_delivery|default:"—" }}</dd>
                 <dt>Handled By</dt><dd>{{ po.handled_by|default:"—" }}</dd>
                 <dt>Created By</dt><dd>{{ po.created_by }}</dd>
@@ -55,7 +56,7 @@
                     <th>Ordered Qty</th>
                     <th>Received Qty</th>
                     <th>Remaining</th>
-                    <th>Unit Price</th>
+                    <th>Unit Price<br><small class="text-muted" style="font-weight:400;font-size:0.7rem">(actual / negotiated)</small></th>
                     <th>Total</th>
                 </tr>
             </thead>
@@ -75,7 +76,16 @@
                     <td>{{ item.item.ordered_qty }}</td>
                     <td>{{ item.item.received_qty }}</td>
                     <td>{{ item.item.remaining_qty }}</td>
-                    <td>{{ item.item.negotiated_unit_price }}</td>
+                    <td>
+                      {% if item.item.actual_unit_price %}
+                        <strong>{{ item.item.actual_unit_price }}</strong>
+                        {% if item.item.actual_unit_price != item.item.negotiated_unit_price %}
+                          <br><small class="text-muted" style="font-size:0.7rem">Was: {{ item.item.negotiated_unit_price }}</small>
+                        {% endif %}
+                      {% else %}
+                        {{ item.item.negotiated_unit_price }}
+                      {% endif %}
+                    </td>
                     <td>{{ item.item.total_price }}</td>
                 </tr>
             {% empty %}

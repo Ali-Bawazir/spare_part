@@ -31,6 +31,7 @@ def mms_nav(request):
             "nav_shortage_overdue": 0,
             "nav_my_issues_30d": 0,
             "nav_my_issues_unresolved": 0,
+            "nav_legacy_count": 0,
             **perm,
         }
 
@@ -52,6 +53,7 @@ def mms_nav(request):
         "nav_shortage_overdue": 0,
         "nav_my_issues_30d": 0,
         "nav_my_issues_unresolved": 0,
+        "nav_legacy_count": 0,
         "nav_notif_unread": Notification.objects.filter(recipient=u, read_at__isnull=True).count(),
         **perm,
     }
@@ -125,5 +127,9 @@ def mms_nav(request):
             status=PartShortageReport.Status.IN_FULFILLMENT,
             reviewed_at__lt=seven_days_ago,
         ).count()
+
+    # Legacy-state reconciliation counter for managers.
+    if role in (User.Role.MANAGER, User.Role.SUPER_ADMIN):
+        ctx["nav_legacy_count"] = WorkOrder.objects.filter(blocker_system_version=0).count()
 
     return ctx

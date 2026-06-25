@@ -15,7 +15,13 @@ _SEL = {"class": "form-select"}
 class PurchaseRequestForm(forms.ModelForm):
     machine = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=3),
-        required=True,
+        # Bug fix (Phase 7.7): machine is now OPTIONAL. The model allows null,
+        # and the only reason this used to be required was to force users to
+        # attribute the PR to a specific machine. For pure stock
+        # replenishment (no machine, no WO), users should be able to create
+        # a PR by leaving both fields blank. The asset tree is now opt-in,
+        # not mandatory.
+        required=False,
         widget=forms.Select(attrs=_SEL),
     )
     component = forms.ModelChoiceField(
@@ -38,9 +44,26 @@ class PurchaseRequestForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["quantity"].min_value = Decimal("0.001")
         self.fields["work_order"].required = False
-        self.fields["work_order"].queryset = (
-            WorkOrder.objects.exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED).select_related("machine").order_by("-number")[:500]
+        # Bug fix: do NOT slice the queryset with [:N]. Slicing caches the
+        # result and breaks ModelChoiceField.clean(), which calls
+        # `queryset.get(pk=value)` and raises TypeError. The previous code
+        # silently turned this into a "Select a valid choice" error, blocking
+        # the manager from saving any PR with a work_order selected. We still
+        # cap the rendered options via the widget's `choices` so the dropdown
+        # stays bounded, while the field's queryset stays un-sliced so
+        # `get(pk=value)` works for selected values.
+        work_order_qs = (
+            WorkOrder.objects.exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED)
+            .select_related("machine")
+            .order_by("-number")
         )
+        self.fields["work_order"].queryset = work_order_qs
+        # Bind the rendered dropdown to the first 500 WOs so very large
+        # factories don't render thousands of <option> tags. The form
+        # validation still accepts any WO in the un-sliced queryset.
+        self.fields["work_order"].widget.choices = [
+            (wo.pk, str(wo)) for wo in work_order_qs[:500]
+        ]
         if lock_asset:
             self.fields["machine"].disabled = True
             self.fields["component"].disabled = True

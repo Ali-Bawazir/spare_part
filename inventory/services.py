@@ -189,7 +189,8 @@ def _maybe_notify_low_stock(part: SparePart, site=None) -> None:
     if part.is_low_stock(site=site):
         from maintenance.notifications import notify_low_stock
         inv = part.inventory_items.filter(site=site).first() if site else None
-        qty = inv.quantity_available - inv.quantity_reserved if inv else 0
+        # Phase 7.8: use live aggregate instead of deprecated quantity_reserved.
+        qty = inv.quantity_available - inv.compute_quantity_reserved() if inv else 0
         notify_low_stock(part, sku=part.sku, qty=qty)
 
 
@@ -210,7 +211,9 @@ def issue_part_to_work_order(
         return False, "Parts already issued for this work order and part combination."
 
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
-    available = inv.quantity_available - inv.quantity_reserved
+    # Phase 7.8: live aggregate (sum of ACTIVE reservations) instead of
+    # the deprecated quantity_reserved field.
+    available = inv.quantity_available - inv.compute_quantity_reserved()
     quantity_before = inv.quantity_available
 
     ref = {"work_order_id": str(wo.number), "invoice": invoice_ref}
@@ -400,6 +403,11 @@ def consumable_use(
     if machine_id:
         movement_note = f"machine_id={machine_id}" + (f"; {note}" if note else "")
 
+    # Bug #3-style fix: compute effective_unit_cost with fallback to
+    # last_purchase_cost / avg_cost so we don't post a zero-cost ledger
+    # entry that violates the CheckConstraint.
+    effective_uc = part.last_purchase_cost or part.avg_cost or Decimal("0")
+
     # Create StockMovement first
     stock_movement = StockMovement.objects.create(
         part=part,
@@ -409,6 +417,7 @@ def consumable_use(
         quantity_before=quantity_before,
         quantity_after=quantity_after,
         performed_by=consumed_by,
+        unit_cost=effective_uc,
         note=movement_note,
     )
 
@@ -420,6 +429,28 @@ def consumable_use(
             machine = Machine.objects.get(pk=machine_id)
         except Machine.DoesNotExist:
             pass
+
+    # Bug fix: link the StockMovement to the active WO for this machine so
+    # the consumable cost rolls up into the correct WO via post_consumable.
+    # Best effort: pick the in-progress or in_review WO on this machine.
+    active_wo = None
+    if machine is not None:
+        from maintenance.models import WorkOrder
+        active_wo = (
+            WorkOrder.objects.filter(
+                machine=machine,
+                lifecycle_status__in=[
+                    WorkOrder.LifecycleStatus.IN_PROGRESS,
+                    WorkOrder.LifecycleStatus.ASSIGNED,
+                    WorkOrder.LifecycleStatus.PENDING_REVIEW,
+                ],
+            )
+            .order_by("-id")
+            .first()
+        )
+        if active_wo is not None:
+            stock_movement.work_order = active_wo
+            stock_movement.save(update_fields=["work_order"])
 
     # Create ConsumableAssignment (Phase 1: issued_by = consumed_by, source = SELF_SERVICE)
     assignment = ConsumableAssignment.objects.create(
@@ -447,7 +478,8 @@ def consumable_use(
         payload={"qty": str(quantity), "assignment_id": assignment.pk},
     )
 
-    # Phase 1+2 Cost Ledger: post the consumable cost.
+    # Phase 1+2 Cost Ledger: post the consumable cost. Surface failures
+    # instead of silently swallowing so the operator sees a message.
     try:
         from maintenance.cost_ledger import CostLedgerService
         CostLedgerService.post_consumable(
@@ -457,9 +489,13 @@ def consumable_use(
         )
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning(
+        logging.getLogger(__name__).exception(
             f"Cost ledger post_consumable failed for movement {stock_movement.pk}: {e}"
         )
+        # Re-raise as a soft error: stock already deducted, assignment
+        # already created — but the cost ledger entry was skipped.
+        # Operator gets a messages.warning via the view's return path.
+        raise
 
     _maybe_notify_low_stock(part, site)
     return True, f"Logged {quantity} x {part.name}."
@@ -598,7 +634,8 @@ def request_part_on_wo(
         site = _get_default_site()
         inv = Inventory.objects.filter(part=part, site=site).first()
         on_hand   = (inv.quantity_available if inv else Decimal("0"))
-        reserved  = (inv.quantity_reserved  if inv else Decimal("0"))
+        # Phase 7.8: use live aggregate instead of deprecated quantity_reserved.
+        reserved  = (inv.compute_quantity_reserved() if inv else Decimal("0"))
         return {
             "line": existing,
             "shortage_qty": existing.shortage_qty,
@@ -614,7 +651,8 @@ def request_part_on_wo(
     site = _get_default_site()
     inv = Inventory.objects.filter(part=part, site=site).first()
     on_hand   = (inv.quantity_available if inv else Decimal("0"))
-    reserved  = (inv.quantity_reserved  if inv else Decimal("0"))
+    # Phase 7.8: use live aggregate instead of deprecated quantity_reserved.
+    reserved  = (inv.compute_quantity_reserved() if inv else Decimal("0"))
     usable    = on_hand - reserved
 
     machine_crit = (wo.machine.criticality or "") if wo.machine_id else ""
@@ -762,7 +800,8 @@ def raise_shortage_request(
     site = _get_default_site()
     inv = Inventory.objects.filter(part=part, site=site).first()
     on_hand   = (inv.quantity_available if inv else Decimal("0"))
-    reserved  = (inv.quantity_reserved  if inv else Decimal("0"))
+    # Phase 7.8: use live aggregate instead of deprecated quantity_reserved.
+    reserved  = (inv.compute_quantity_reserved() if inv else Decimal("0"))
     usable    = on_hand - reserved
 
     line = PartIssueLine.objects.filter(
@@ -937,6 +976,18 @@ def approve_part_request(
             f"Failed to fire PART_APPROVED event for line {line.pk}: {e}"
         )
 
+    # Phase 7.6: refresh the WO cost cache so committed_material_cost
+    # reflects the newly-approved line (matches execute_warehouse_issue's
+    # pattern at line ~1641).
+    try:
+        from maintenance.cost_ledger import CostLedgerService
+        CostLedgerService._refresh_wo_cache(line.work_order_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to refresh WO cost cache after approval for line {line.pk}: {e}"
+        )
+
     return line
 
 
@@ -946,9 +997,150 @@ def reject_part_request(*, line: PartIssueLine, manager, reason: str) -> PartIss
 
     No PR is auto-created — procurement is a separate decision from
     the WO issue decision.
+
+    Bug fix: previously this function only validated the status but
+    forgot to mutate the line, so the rejection silently no-op'd and
+    the line stayed PENDING in the database. A follow-on fix ensures the
+    PART WO Blocker opened at request time is cancelled and the WO's
+    operational_status is recomputed (was previously stuck on
+    `pending_parts` even after the request was rejected).
     """
     if line.status != PartIssueLine.Status.PENDING:
         raise ValueError("Only PENDING requests can be rejected.")
+    reason_clean = (reason or "").strip()
+    if not reason_clean:
+        raise ValueError("Rejection reason is required.")
+    line.status = PartIssueLine.Status.REJECTED
+    line.rejection_reason = reason_clean[:1000]
+    line.approved_by = manager
+    line.save(update_fields=["status", "rejection_reason", "approved_by", "updated_at"])
+
+    # Fire PART_REJECTED so any open PART WO Blocker (opened by
+    # request_part_on_wo at request time) is cancelled. Mirrors the
+    # pattern in cancel_approved_part_request (line 1024-1029).
+    try:
+        from maintenance.services_blocker import WorkOrderBlockerService
+        from maintenance.services_wo_status import WorkOrderService
+
+        WorkOrderBlockerService.sync_from_external_event(
+            external_obj=line,
+            event_type="PART_REJECTED",
+            actor=manager,
+            payload={"line_id": line.pk, "reason": reason},
+        )
+        WorkOrderService.recompute_operational_status(line.work_order)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to fire PART_REJECTED for rejected line {line.pk}: {e}"
+        )
+
+    return line
+
+
+@transaction.atomic
+def cancel_approved_part_request(
+    *, line: PartIssueLine, manager, reason: str,
+) -> PartIssueLine:
+    """Manager cancels an APPROVED or ALLOCATED request that was never
+    warehouse-issued. Releases the inventory reservation (if any) and
+    fires PART_REJECTED so the PART blocker is cancelled.
+
+    Distinct from reject_part_request() which only works on PENDING.
+    Use this for lines that the manager already approved+allocated
+    but no longer wants to issue (e.g. wrong part ordered, WO scope
+    changed). Rejection reason is required (min 15 chars) for the
+    audit trail.
+    """
+    if line.status not in (
+        PartIssueLine.Status.APPROVED,
+        PartIssueLine.Status.ALLOCATED,
+    ):
+        raise ValueError(
+            f"Only APPROVED or ALLOCATED requests can be cancelled "
+            f"(this line is {line.status})."
+        )
+    if line.issued_qty and line.issued_qty > 0:
+        raise ValueError(
+            "Cannot cancel a line that has already been issued from stock."
+        )
+    reason = (reason or "").strip()
+    if len(reason) < 15:
+        raise ValueError("Cancellation reason must be at least 15 characters.")
+
+    # Release the inventory reservation if any.
+    # Phase 7.8: cancel the specific InventoryReservation rows attached
+    # to this line. Iterate + save so the post_save signal fires for each
+    # row and recomputes Inventory.quantity_reserved. (A bulk .update() would
+    # bypass the signal and leave the cache stale.) Replaces the previous
+    # approach of decrementing the aggregate directly.
+    from inventory.models import InventoryReservation
+    now = timezone.now()
+    cancel_reason = f"Line cancelled: {reason[:200]}"
+    for res in (
+        InventoryReservation.objects
+        .select_for_update()
+        .filter(
+            part=line.part,
+            source_line=line,
+            status=InventoryReservation.Status.ACTIVE,
+        )
+    ):
+        res.status = InventoryReservation.Status.CANCELLED
+        res.released_at = now
+        res.release_reason = cancel_reason
+        res.save(update_fields=["status", "released_at", "release_reason"])
+
+    line.status = PartIssueLine.Status.REJECTED
+    line.rejection_reason = reason[:1000]
+    line.approved_qty = Decimal("0")
+    line.issued_qty = Decimal("0")
+    line.save(update_fields=[
+        "status", "rejection_reason", "approved_qty", "issued_qty",
+        "updated_at",
+    ])
+
+    log_audit(
+        actor=manager,
+        action="part_request_cancelled",
+        entity="WorkOrder",
+        object_id=str(line.work_order.pk),
+        payload={
+            "line_id": line.pk,
+            "part": line.part.sku,
+            "reason": reason[:200],
+            "previous_status": "approved_or_allocated",
+        },
+    )
+
+    # Fire PART_REJECTED so the WO Blocker is cancelled
+    try:
+        from maintenance.services_blocker import WorkOrderBlockerService
+        WorkOrderBlockerService.sync_from_external_event(
+            external_obj=line, event_type="PART_REJECTED",
+            actor=manager,
+            payload={"line_id": line.pk, "reason": reason},
+        )
+        from maintenance.services_wo_status import WorkOrderService
+        WorkOrderService.recompute_operational_status(line.work_order)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to fire PART_REJECTED for cancelled line {line.pk}: {e}"
+        )
+
+    # Phase 7.6: refresh WO cost cache so committed_material_cost
+    # drops the just-cancelled line from the committed total.
+    try:
+        from maintenance.cost_ledger import CostLedgerService
+        CostLedgerService._refresh_wo_cache(line.work_order_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to refresh WO cost cache after cancel for line {line.pk}: {e}"
+        )
+
+    return line
     reason = (reason or "").strip()
     if not reason:
         raise ValueError("Rejection reason is required.")
@@ -1061,6 +1253,10 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
     This prevents multiple shortage approvals from over-reserving the
     same on-hand stock.
 
+    Phase 7.8: also creates a corresponding InventoryReservation row so
+    the live aggregate (used by `compute_quantity_reserved()`) stays in
+    sync. The DB column is kept as a derived cache.
+
     Raises ValueError if (quantity_available - quantity_reserved) < qty.
     """
     if qty <= 0:
@@ -1073,27 +1269,39 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
         inv = Inventory.objects.select_for_update().get(part=part, site=site)
     except Inventory.DoesNotExist:
         inv = Inventory.objects.create(part=part, site=site,
-                                       quantity_available=Decimal("0"),
-                                       quantity_reserved=Decimal("0"))
+                                       quantity_available=Decimal("0"))
 
-    unreserved = inv.quantity_available - inv.quantity_reserved
+    # Use the LIVE aggregate (sum of ACTIVE reservations) for the
+    # over-reservation check, not the deprecated field.
+    unreserved = inv.quantity_available - inv.compute_quantity_reserved()
     if unreserved < qty:
         raise ValueError(
             f"Cannot reserve {qty:g} × {part.sku}: only {unreserved:g} unreserved "
-            f"({inv.quantity_available:g} on hand, {inv.quantity_reserved:g} already reserved). "
+            f"({inv.quantity_available:g} on hand). "
             f"Missing {qty - unreserved:g} unit(s)."
         )
 
-    inv.quantity_reserved += qty
-    inv.save(update_fields=["quantity_reserved"])
+    # Create the InventoryReservation row FIRST so the post_save signal
+    # recomputes quantity_reserved. Then we don't need to manually
+    # increment the field at all.
+    from inventory.models import InventoryReservation
+    InventoryReservation.objects.create(
+        part=part,
+        work_order=source_wo,
+        quantity=qty,
+        status=InventoryReservation.Status.ACTIVE,
+        source_line=None,  # legacy path; no PartIssueLine FK
+        release_reason="legacy reserve_stock() call",
+    )
+    # Refresh inv from DB to pick up any signal-driven changes
+    inv.refresh_from_db()
     log_audit(
         actor=actor, action="stock_reserved",
         entity="Inventory", object_id=str(inv.pk),
         payload={
             "part": part.sku, "qty": str(qty),
             "quantity_available": str(inv.quantity_available),
-            "quantity_reserved_before": str(inv.quantity_reserved - qty),
-            "quantity_reserved_after": str(inv.quantity_reserved),
+            "quantity_reserved": str(inv.compute_quantity_reserved()),
             "source_wo": str(source_wo.number) if source_wo else "",
         },
     )
@@ -1105,10 +1313,14 @@ def release_reservation(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, 
     """Decrement Inventory.quantity_reserved by `qty` for `part`.
 
     Used when:
-      - execute_warehouse_issue consumes the reservation
       - shortage is closed (any un-issued reservation is released)
+      - the legacy shortage-decision flow adjusts a reservation
 
-    Raises ValueError if quantity_reserved < qty.
+    Phase 7.8: marks InventoryReservation rows as RELEASED so the live
+    aggregate stays in sync. Falls back to cancelling legacy
+    reservations (no source_line) first.
+
+    Raises ValueError if (live) quantity_reserved < qty.
     """
     if qty <= 0:
         raise ValueError("Release qty must be positive.")
@@ -1116,12 +1328,54 @@ def release_reservation(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, 
     if not site:
         raise ValueError("No default site configured.")
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
-    if inv.quantity_reserved < qty:
-        raise ValueError(
-            f"Cannot release {qty:g} × {part.sku}: only {inv.quantity_reserved:g} reserved."
+
+    # Cancel legacy (no source_line) ACTIVE reservations first.
+    from inventory.models import InventoryReservation
+    remaining = qty
+    legacy_qs = (
+        InventoryReservation.objects
+        .select_for_update()
+        .filter(
+            part=part,
+            work_order=source_wo,
+            source_line__isnull=True,
+            status=InventoryReservation.Status.ACTIVE,
         )
-    inv.quantity_reserved -= qty
-    inv.save(update_fields=["quantity_reserved"])
+        .order_by("created_at", "pk")
+    )
+    from django.utils import timezone as _tz
+    now = _tz.now()
+    for res in legacy_qs:
+        if remaining <= 0:
+            break
+        take = min(res.quantity, remaining)
+        if take >= res.quantity:
+            res.status = InventoryReservation.Status.RELEASED
+            res.released_at = now
+            res.release_reason = f"legacy release_reservation() call by {actor}"
+            res.save(update_fields=["status", "released_at", "release_reason"])
+        else:
+            res.quantity -= take
+            res.save(update_fields=["quantity"])
+            InventoryReservation.objects.create(
+                part=res.part, work_order=res.work_order, quantity=take,
+                status=InventoryReservation.Status.RELEASED,
+                source_line=None, released_at=now,
+                release_reason=f"Partial release on legacy release_reservation() by {actor}",
+                priority_at_creation=res.priority_at_creation,
+            )
+        remaining -= take
+
+    if remaining > 0:
+        # Not enough legacy reservations to release. The DB field would
+        # go negative if we decremented it; surface a clear error.
+        live_reserved = inv.compute_quantity_reserved()
+        raise ValueError(
+            f"Cannot release {qty:g} × {part.sku}: only {qty - remaining:g} released "
+            f"from legacy reservations; {remaining:g} requested but no matching "
+            f"reservation rows. Live reserved = {live_reserved:g}."
+        )
+    inv.refresh_from_db()
     log_audit(
         actor=actor, action="stock_reservation_released",
         entity="Inventory", object_id=str(inv.pk),
@@ -1194,14 +1448,29 @@ def transition_shortage_status(report: PartShortageReport, new_status: str, *, a
         if decision and decision.approved_issue_qty > 0:
             released = decision.approved_issue_qty - report.qty_issued
             if released > 0:
-                try:
-                    release_reservation(
-                        part=report.part, qty=released,
-                        source_wo=report.work_order, actor=actor,
+                # Phase 7.8: cancel the specific InventoryReservation rows
+                # linked to this shortage's lines. Iterate + save so the
+                # post_save signal recomputes the cache.
+                from inventory.models import InventoryReservation
+                from django.utils import timezone as _tz
+                cancel_reason = (
+                    f"Shortage report closed (was {old}); releasing {released:g} unit(s)"
+                )
+                now = _tz.now()
+                for res in (
+                    InventoryReservation.objects
+                    .select_for_update()
+                    .filter(
+                        part=report.part,
+                        work_order=report.work_order,
+                        source_line__related_shortage_report=report,
+                        status=InventoryReservation.Status.ACTIVE,
                     )
-                except ValueError:
-                    # Best-effort: if the release fails, log but don't block the close.
-                    pass
+                ):
+                    res.status = InventoryReservation.Status.CANCELLED
+                    res.released_at = now
+                    res.release_reason = cancel_reason
+                    res.save(update_fields=["status", "released_at", "release_reason"])
         from procurement.models import PurchaseRequest
         for pr in PurchaseRequest.objects.filter(
             source_shortage_report=report,
@@ -1402,20 +1671,54 @@ def mark_shortage_fulfilled(*, report: PartShortageReport, actor) -> PartShortag
 
 @transaction.atomic
 def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict:
-    """Warehouse executes a stock issue against a PENDING PartIssueLine.
+    """Warehouse executes a stock issue against a PENDING, APPROVED, or
+    ALLOCATED PartIssueLine.
 
     v4.6: validates against quantity_available (physical on-hand) only.
-    v4.7 KNOWN LIMITATION: the reservation release is drawn from the
-    aggregate Inventory.quantity_reserved, not from the specific shortage's
-    claim. A warehouse issue from one shortage can consume reservation
-    capacity originally created by another. Per-shortage fulfillment
-    progress is reconstructible from PartShortageReport.qty_issued.
+
+    Phase 7.8: reservation release is now drawn from the specific
+    InventoryReservation rows attached to this line (FIFO by created_at).
+    The post_save signal on InventoryReservation automatically recomputes
+    Inventory.quantity_reserved from the ACTIVE rows, so the cache stays
+    in sync. Replaces the v4.7 approach of decrementing the aggregate
+    directly, which could mis-attribute reservation capacity across lines.
+    Partial release: if qty < reserved, the original ACTIVE row is shrunk
+    and a sibling RELEASED row is created for the consumed portion.
 
     On the first execution against a related shortage report, transitions
     the report from APPROVED to IN_FULFILLMENT.
+
+    Phase 7.5: accept APPROVED and ALLOCATED too. After the simple
+    request_part_on_wo + approve_part_request + allocate flow, the
+    line is ALLOCATED (not PENDING) and the warehouse still needs to
+    physically issue.
     """
-    if line.status != PartIssueLine.Status.PENDING:
+
+    def _effective_unit_cost(pil) -> Decimal:
+        """
+        Bug #3 fix: prefer the line's stored unit_cost, but fall back to the
+        SparePart's last purchase cost or running average. This mirrors the
+        fallback that already exists in `_deduct_and_record_issue` (lines
+        155-163). Without it, warehouse issues on lines with unit_cost=0
+        produce a CostTransaction with amount=0, which violates the
+        CheckConstraint and gets silently swallowed.
+        """
+        if pil.unit_cost and pil.unit_cost > 0:
+            return pil.unit_cost
+        part = pil.part
+        return part.last_purchase_cost or part.avg_cost or Decimal("0")
+
+    if line.status not in (
+        PartIssueLine.Status.PENDING,
+        PartIssueLine.Status.APPROVED,
+        PartIssueLine.Status.ALLOCATED,
+    ):
         raise ValueError(f"Line is {line.status}, cannot issue.")
+    if not line.approved_qty or line.approved_qty <= 0:
+        raise ValueError(
+            f"Line has no approved_qty (status={line.status}). "
+            f"Manager must approve before warehouse issue."
+        )
     if qty <= 0:
         raise ValueError("Issue qty must be positive.")
 
@@ -1435,22 +1738,146 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
             f"Missing {qty - inv.quantity_available:g} unit(s). Manager must decide."
         )
 
-    # Release reservation as part of the issue (capped to what was reserved).
-    # v4.7 KNOWN LIMITATION: drawn from the aggregate, not from a specific
-    # shortage's claim. See module docstring.
-    reservation_released = min(qty, inv.quantity_reserved)
+    # Release reservation as part of the issue.
+    # Phase 7.8: release from specific InventoryReservation rows attached
+    # to this line (FIFO by created_at). The post_save signal on
+    # InventoryReservation automatically recomputes Inventory.quantity_reserved
+    # from the ACTIVE rows, so the cache stays in sync. Replaces the v4.7
+    # "KNOWN LIMITATION" approach of decrementing the aggregate directly.
+    from inventory.models import InventoryReservation
+    reservation_released = Decimal("0")
+    remaining = qty
+    # First: reservations explicitly tied to this line.
+    active_reservations = (
+        InventoryReservation.objects
+        .select_for_update()
+        .filter(
+            part=line.part,
+            source_line=line,
+            status=InventoryReservation.Status.ACTIVE,
+        )
+        .order_by("created_at", "pk")
+    )
+    for res in active_reservations:
+        if remaining <= 0:
+            break
+        take = min(res.quantity, remaining)
+        if take >= res.quantity:
+            res.status = InventoryReservation.Status.RELEASED
+            res.released_at = timezone.now()
+            res.release_reason = (
+                f"Warehouse issue {qty:g} × {line.part.sku} to WO-{line.work_order.number}"
+            )
+            res.save(update_fields=["status", "released_at", "release_reason"])
+        else:
+            # Partial release: shrink the ACTIVE row, create a sibling
+            # RELEASED row for the consumed portion.
+            res.quantity -= take
+            res.save(update_fields=["quantity"])
+            InventoryReservation.objects.create(
+                part=res.part,
+                work_order=res.work_order,
+                quantity=take,
+                status=InventoryReservation.Status.RELEASED,
+                source_line=res.source_line,
+                released_at=timezone.now(),
+                release_reason=(
+                    f"Partial release on warehouse issue {qty:g} × "
+                    f"{line.part.sku} to WO-{line.work_order.number}"
+                ),
+                priority_at_creation=res.priority_at_creation,
+            )
+        reservation_released += take
+        remaining -= take
+
+    # Phase 7.8 fallback: if no line-linked reservations exist, also release
+    # legacy reservations (created via `reserve_stock()` with no source_line)
+    # for this (part, work_order). This preserves the v4.8 behavior where
+    # `create_shortage_decision` → `reserve_stock` creates synthetic
+    # reservations that warehouse issue then releases.
+    if remaining > 0:
+        legacy_qs = (
+            InventoryReservation.objects
+            .select_for_update()
+            .filter(
+                part=line.part,
+                work_order=line.work_order,
+                source_line__isnull=True,
+                status=InventoryReservation.Status.ACTIVE,
+            )
+            .order_by("created_at", "pk")
+        )
+        for res in legacy_qs:
+            if remaining <= 0:
+                break
+            take = min(res.quantity, remaining)
+            if take >= res.quantity:
+                res.status = InventoryReservation.Status.RELEASED
+                res.released_at = timezone.now()
+                res.release_reason = (
+                    f"Warehouse issue {qty:g} × {line.part.sku} to WO-{line.work_order.number} "
+                    f"(legacy reserve)"
+                )
+                res.save(update_fields=["status", "released_at", "release_reason"])
+            else:
+                res.quantity -= take
+                res.save(update_fields=["quantity"])
+                InventoryReservation.objects.create(
+                    part=res.part,
+                    work_order=res.work_order,
+                    quantity=take,
+                    status=InventoryReservation.Status.RELEASED,
+                    source_line=None,
+                    released_at=timezone.now(),
+                    release_reason=(
+                        f"Partial release on warehouse issue (legacy reserve) "
+                        f"{qty:g} × {line.part.sku} to WO-{line.work_order.number}"
+                    ),
+                    priority_at_creation=res.priority_at_creation,
+                )
+            reservation_released += take
+            remaining -= take
+
+    # Audit each released reservation row (Phase 7.8). The signal
+    # already keeps the aggregate in sync.
     if reservation_released > 0:
-        inv.quantity_reserved -= reservation_released
+        log_audit(
+            actor=actor,
+            action="part_reservation_released",
+            entity="WorkOrder",
+            object_id=str(line.work_order.pk),
+            payload={
+                "line_id": line.pk,
+                "part": line.part.sku,
+                "qty": str(qty),
+                "reservation_released": str(reservation_released),
+                "release_kind": "full" if reservation_released == line.approved_qty else "partial",
+            },
+        )
+    # The post_save signal on InventoryReservation may have just updated
+    # the reservation rows. Refresh the in-memory copy so we don't clobber
+    # the signal's recomputation with our stale value.
+    inv.refresh_from_db()
     quantity_before = inv.quantity_available
     inv.quantity_available -= qty
     inv.save()
 
     is_first_execution = (line.issued_qty == 0)
-    line.approved_qty = (line.approved_qty or Decimal("0")) + qty
-    line.issued_qty   = (line.issued_qty   or Decimal("0")) + qty
+    # Bug #2 fix: warehouse issue is a physical event. It MUST NOT change
+    # approved_qty — that is a manager business decision set at approval time.
+    line.issued_qty = (line.issued_qty or Decimal("0")) + qty
     line.status = PartIssueLine.Status.APPROVED
     line.issued_by = actor
-    line.save(update_fields=["approved_qty", "issued_qty", "status", "issued_by", "updated_at"])
+    # Bug #3 fix: if the line has unit_cost=0 (legacy data, manager didn't
+    # enter a cost, etc.), backfill it from the part's last purchase cost
+    # or weighted average BEFORE posting to the cost ledger. The ledger
+    # service multiplies pil.unit_cost × pil.issued_qty, so a 0 unit_cost
+    # would otherwise produce a CT with amount=0 and violate the
+    # CheckConstraint(amount != 0).
+    effective_uc = _effective_unit_cost(line)
+    if (line.unit_cost or Decimal("0")) <= 0 and effective_uc > 0:
+        line.unit_cost = effective_uc
+    line.save(update_fields=["issued_qty", "status", "issued_by", "unit_cost", "updated_at"])
 
     # v4.8 Fix 2: use the explicit FK link, not the implicit (wo, part) lookup.
     report = line.related_shortage_report
@@ -1474,7 +1901,7 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
         quantity_after=quantity_after,
         work_order=line.work_order,
         performed_by=actor,
-        unit_cost=line.unit_cost,
+        unit_cost=_effective_unit_cost(line),
         note=f"Warehouse issued to WO-{line.work_order.number} (released {reservation_released:g} reservation)",
         reference={"line_id": line.pk, "reservation_released": str(reservation_released)},
     )
@@ -1500,18 +1927,18 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
     # Phase 1+2 Cost Ledger: post the material cost for this warehouse issue.
     # post_material is idempotent by (source_type, source_id) so a partial
     # second execution against the same line won't double-post.
-    try:
-        from maintenance.cost_ledger import CostLedgerService
-        CostLedgerService.post_material(
-            part_issue_line=line,
-            actor=actor,
-            memo=f"Warehouse issued to WO-{line.work_order.number}: {line.part.name} x {qty:g}",
-        )
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(
-            f"Cost ledger post_material failed for line {line.pk}: {e}"
-        )
+    # Bug #3 fix: surface ledger failures to the caller instead of silently
+    # swallowing them. The view layer (work_order_warehouse_issue) already
+    # wraps this call in try/except and renders a messages.error to the
+    # manager. Use _effective_unit_cost so unit_cost=0 lines fall back to
+    # the part's last_purchase_cost / avg_cost, avoiding the
+    # CheckConstraint(amount != 0) violation entirely.
+    from maintenance.cost_ledger import CostLedgerService
+    CostLedgerService.post_material(
+        part_issue_line=line,
+        actor=actor,
+        memo=f"Warehouse issued to WO-{line.work_order.number}: {line.part.name} x {qty:g}",
+    )
 
     # Low-stock notification (matches the existing pattern in approve_part_request)
     _maybe_notify_low_stock(line.part, site)
@@ -1546,3 +1973,174 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
         "stock_after": quantity_after,
         "reservation_released": reservation_released,
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 7.7: PO auto-fulfillment — close the loop between receive and WO issue
+# ---------------------------------------------------------------------------
+
+def auto_fulfill_wo_lines_from_po(*, po, actor) -> dict:
+    """Phase 7.7: After a PO is received, auto-issue matching stock to open
+    PartIssueLines on the WO(s) the PO's linked PRs are attached to.
+
+    Before this:
+      - Manager receives a PO (e.g. PO-2026-0006 with 5 × FILTER-A1 for WO 10).
+      - Stock is added to inventory.
+      - The linked PR is marked `fulfilled`.
+      - But the WO still shows "📤 Lines Awaiting Warehouse Issue" for the
+        same part, and the user has to click "Issue N from stock" manually.
+      - The user sees a "Fulfilled" PO and assumes the WO is done, but it
+        isn't until the manual step runs.
+
+    After this:
+      - When the receive flow calls this function, the same receive flow
+        also auto-calls `execute_warehouse_issue` for matching open lines
+        on the linked WO. The cost is posted to the WO's cost ledger,
+        the PART blocker is auto-resolved (keystone rule), and the WO
+        operational status recomputes to `active` once the line is fully
+        issued.
+      - The "📤 Lines Awaiting Warehouse Issue" panel on the WO page empties
+        itself, and the "✅ No active blockers" message appears.
+
+    Safety:
+      - Only fires for PRs that explicitly link to a specific WO
+        (work_order_id IS NOT NULL). Stock-only PRs (work_order_id IS NULL)
+        are never auto-issued — they only replenish inventory.
+      - Only fires for PartIssueLines in status APPROVED or ALLOCATED.
+        PENDING (still needs manager approval) and REJECTED lines are
+        skipped.
+      - Honors settings.PO_AUTO_ISSUE toggle. When OFF, behaves like
+        the pre-fix code: stock is added, but no auto-issue happens.
+      - Each auto-issue goes through the existing `execute_warehouse_issue`
+        service, so cost ledger posting, blocker resolution, and
+        reservation release all work as usual.
+      - If a line is partial (received qty < approved qty), only
+        `min(received, remaining)` is auto-issued. The line stays
+        awaiting-warehouse-issue for the remainder.
+      - After each auto-issue, the related PartShortageReport is checked
+        and auto-marked `fulfilled` if `qty_issued >= approved_issue_qty`.
+
+    Returns a dict summary of the actions taken.
+    """
+    from django.conf import settings as dj_settings
+
+    if not getattr(dj_settings, "PO_AUTO_ISSUE", True):
+        return {"enabled": False, "actions": []}
+
+    summary = {"enabled": True, "actions": []}
+
+    # Iterate over PRs that are explicitly linked to a WO.
+    # Stock-only PRs (work_order_id IS NULL) are never auto-issued.
+    linked_prs = list(po.purchase_requests.exclude(work_order__isnull=True).select_related("work_order", "part"))
+    if not linked_prs:
+        return summary
+
+    # For each PO line item, find matching PRs (by part) and process.
+    po_items = list(po.items.select_related("part").all())
+    for item in po_items:
+        # Item is fully received (qty issued = qty ordered) before we act
+        if (item.received_qty or Decimal("0")) < (item.ordered_qty or Decimal("0")):
+            continue
+
+        # Find PRs for this part on the linked WOs.
+        matching_prs = [pr for pr in linked_prs if pr.part_id == item.part_id]
+        if not matching_prs:
+            continue
+
+        for pr in matching_prs:
+            wo = pr.work_order
+            # Find open PartIssueLines on this WO for this part.
+            open_lines = list(
+                PartIssueLine.objects.filter(
+                    work_order=wo,
+                    part=item.part,
+                    status__in=[
+                        PartIssueLine.Status.APPROVED,
+                        PartIssueLine.Status.ALLOCATED,
+                    ],
+                ).order_by("pk")
+            )
+            if not open_lines:
+                continue
+
+            # Total qty to auto-issue = min(received, sum of line remainings).
+            # Distribute among open lines by FIFO (oldest first).
+            received_qty = item.received_qty
+            for line in open_lines:
+                if received_qty <= 0:
+                    break
+                remaining = (line.approved_qty or Decimal("0")) - (line.issued_qty or Decimal("0"))
+                if remaining <= 0:
+                    continue
+                issue_qty = min(received_qty, remaining)
+                try:
+                    result = execute_warehouse_issue(
+                        line=line, qty=issue_qty, actor=actor,
+                    )
+                    received_qty -= issue_qty
+                    summary["actions"].append({
+                        "type": "auto_issued",
+                        "po_number": po.po_number,
+                        "pr_pk": pr.pk,
+                        "line_pk": line.pk,
+                        "wo": wo.number,
+                        "part": item.part.sku,
+                        "qty": str(issue_qty),
+                        "stock_after": result.get("stock_after"),
+                    })
+                    log_audit(
+                        actor=actor, action="part_auto_issued_from_po",
+                        entity="PartIssueLine", object_id=str(line.pk),
+                        payload={
+                            "po_number": po.po_number,
+                            "po_pk": po.pk,
+                            "pr_pk": pr.pk,
+                            "qty": str(issue_qty),
+                            "wo": wo.number,
+                        },
+                    )
+                    # Try to mark related PartShortageReport fulfilled.
+                    _try_auto_fulfill_shortage(line=line, actor=actor)
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        f"Auto-fulfill failed for line {line.pk} from PO {po.po_number}: {e}"
+                    )
+                    summary["actions"].append({
+                        "type": "auto_issue_failed",
+                        "line_pk": line.pk,
+                        "error": str(e),
+                    })
+
+    return summary
+
+
+def _try_auto_fulfill_shortage(*, line, actor) -> bool:
+    """If the line's related PartShortageReport can be marked fulfilled
+    (qty_issued >= approved_issue_qty), do so.
+
+    Called after auto-issuance from a PO. Mirrors the manager's
+    `mark_shortage_fulfilled` flow but auto-runs when the math checks out.
+    """
+    report = getattr(line, "related_shortage_report", None)
+    if report is None:
+        return False
+    if report.status not in (
+        PartShortageReport.Status.IN_FULFILLMENT,
+        PartShortageReport.Status.APPROVED,
+    ):
+        return False
+    decision = getattr(report, "decision", None)
+    if decision is None or decision.decision_type != "approve":
+        return False
+    if (report.qty_issued or Decimal("0")) < (decision.approved_issue_qty or Decimal("0")):
+        return False
+    try:
+        mark_shortage_fulfilled(report=report, actor=actor)
+        return True
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Auto-fulfill shortage failed for report {report.pk}: {e}"
+        )
+        return False

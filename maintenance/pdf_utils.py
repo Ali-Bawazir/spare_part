@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 from io import BytesIO
 from typing import Optional
 
@@ -8,6 +10,8 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm, cm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
@@ -17,6 +21,110 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _register_arabic_font() -> bool:
+    """Register an Arabic-capable TTF with ReportLab under two names.
+
+    Idempotent: the second and subsequent calls return the cached result
+    without re-scanning the filesystem. Returns True if a font was found
+    and registered, False otherwise.
+    """
+    if hasattr(_register_arabic_font, "_registered"):
+        return _register_arabic_font._registered
+
+    candidates = [
+        "/System/Library/Fonts/SFArabic.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
+        "/Library/Fonts/NotoSansArabic-Regular.ttf",
+    ]
+    try:
+        from django.conf import settings
+        static_root = str(settings.STATIC_ROOT) if settings.STATIC_ROOT else ""
+        if static_root:
+            candidates.append(os.path.join(static_root, "fonts", "arabic", "NotoSansArabic-Regular.ttf"))
+    except Exception:
+        pass
+
+    for path in candidates:
+        if not os.path.exists(path):
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont("Arabic", path))
+            pdfmetrics.registerFont(TTFont("Arabic-Bold", path))
+            _register_arabic_font._registered = True
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to register Arabic font {path}: {e}")
+            continue
+
+    _register_arabic_font._registered = False
+    logger.warning(
+        "No Arabic font found. Install fonts-noto (Linux) or drop a TTF in static/fonts/arabic/. "
+        "Arabic text in PDFs will show as boxes until then."
+    )
+    return False
+
+
+def _shape_text(text: str) -> str:
+    """Reshape + reorder Arabic text for ReportLab rendering.
+
+    Latin-only text is passed through unchanged. Mixed text is reshaped
+    (Arabic letters get contextual forms) and reordered via the Unicode
+    Bidirectional Algorithm so ReportLab can render it correctly in a
+    left-to-right paragraph.
+    """
+    if not text:
+        return text
+    has_arabic = any("\u0600" <= c <= "\u06FF" for c in text)
+    if not has_arabic:
+        return text
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        try:
+            reshaper = arabic_reshaper.ArabicReshaper()
+        except TypeError:
+            # Older API took a config arg; keep as fallback.
+            reshaper = arabic_reshaper.ArabicReshaper(
+                arabic_reshaper.config_for_default_arabic_languages()
+            )
+        reshaped = reshaper.reshape(text)
+        return get_display(reshaped)
+    except Exception as e:
+        logger.warning(f"Arabic shaping failed for {text!r}: {e}")
+        return text
+
+
+def _safe_paragraph(text: str, style):
+    """Render a Paragraph with Arabic font auto-detection.
+
+    Latin text: standard Paragraph. Arabic text: reshape + bidi + <font>
+    tag pointing at the registered Arabic font. If no Arabic font has
+    been registered, the <font> tag references a missing font and
+    ReportLab falls back to Helvetica (which renders Arabic as boxes,
+    but does not crash).
+    """
+    if text is None:
+        return Paragraph("", style)
+    text_str = str(text)
+    if not text_str:
+        return Paragraph("", style)
+    has_arabic = any("\u0600" <= c <= "\u06FF" for c in text_str)
+    if has_arabic:
+        _register_arabic_font()
+        shaped = _shape_text(text_str)
+        shaped_xml = (shaped.replace("&", "&amp;")
+                          .replace("<", "&lt;")
+                          .replace(">", "&gt;"))
+        return Paragraph(f'<font name="Arabic">{shaped_xml}</font>', style)
+    safe = (text_str.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;"))
+    return Paragraph(safe, style)
 
 
 def build_pdf_response(filename: str) -> BytesIO:
@@ -78,8 +186,17 @@ def _section(title: str) -> list:
 
 def _field_table(rows: list[tuple[str, str]]) -> Table:
     """Render a key-value pair table for document fields."""
+    normal_style = getSampleStyleSheet()["Normal"]
+    processed = []
+    for k, v in rows:
+        if v is None or v == "":
+            v = "—"
+        processed.append([
+            Paragraph(f"<b>{k}</b>", normal_style),
+            _safe_paragraph(v, normal_style),
+        ])
     t = Table(
-        [[Paragraph(f"<b>{k}</b>", getSampleStyleSheet()["Normal"]), Paragraph(str(v), getSampleStyleSheet()["Normal"])] for k, v in rows],
+        processed,
         colWidths=[55 * mm, 115 * mm],
         style=TableStyle([
             ("FONTSIZE", (0, 0), (-1, -1), 9),

@@ -101,33 +101,51 @@
   <div class="mms-card-header">Parts issued / requested</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Part</th><th>Qty</th><th>Status</th><th>Requested by</th><th>Issued / Approved by</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Part</th><th>Qty</th><th>Status</th><th>Requested by</th><th>Issued / Approved by</th><th>Committed</th><th>Issued</th><th>Notes</th></tr></thead>
       <tbody>
-      {% for p in part_issues %}
+      {% for item in parts_display %}
       <tr>
         <td>
-          {% part_primary_image p.part as img %}
+          {% part_primary_image item.line.part as img %}
           {% if img %}
-            <a href="{{ p.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+            <a href="{{ item.line.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
               <img src="{{ img }}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;">
             </a>
           {% endif %}
-          {{ p.part.name }}
+          {{ item.line.part.name }}
         </td>
-        <td>{{ p.quantity }}</td>
+        <td>{{ item.line.quantity }}</td>
         <td>
-          <span class="{{ p.status|part_status_badge_class }}">{{ p.get_status_display }}</span>
-          {% if p.status == 'approved' and p.is_emergency_auto_approved %}<span class="mms-badge mms-badge--danger" title="Auto-approved due to emergency">EMRG</span>{% endif %}
+          <span class="{{ item.line.status|part_status_badge_class }}">{{ item.line.get_status_display }}</span>
+          {% if item.line.status == 'approved' and item.line.is_emergency_auto_approved %}<span class="mms-badge mms-badge--danger" title="Auto-approved due to emergency">EMRG</span>{% endif %}
+          {% if item.line.shortage_qty and item.line.shortage_qty > 0 and item.has_pending_shortage %}
+            <a href="#shortage-{{ item.line.id }}"
+               class="mms-badge mms-badge--warning"
+               style="margin-left:.35rem; text-decoration:none"
+               title="Click to review shortage decision for {{ item.line.part.name }}">
+              ⚠ {{ item.line.shortage_qty|qty_no_zeros }} in shortage
+            </a>
+          {% endif %}
         </td>
-        <td>{{ p.requested_by|default:"—" }}</td>
+        <td>{{ item.line.requested_by|default:"—" }}</td>
         <td>
-          {% if p.status == 'approved' %}{{ p.approved_by|default:p.issued_by }}{% else %}{{ p.issued_by|default:"—" }}{% endif %}
+          {% if item.line.status == 'approved' %}{{ item.line.approved_by|default:item.line.issued_by }}{% else %}{{ item.line.issued_by|default:"—" }}{% endif %}
         </td>
         <td>
-          {% if p.status == 'rejected' %}<span style="color:var(--mms-muted);font-size:.75rem">{{ p.rejection_reason|truncatechars:50 }}</span>{% endif %}
+          {% if item.committed_amount %}
+            {{ item.committed_amount|floatformat:2 }} SAR
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if item.issued_amount %}
+            {{ item.issued_amount|floatformat:2 }} SAR
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if item.line.status == 'rejected' %}<span style="color:var(--mms-muted);font-size:.75rem">{{ item.line.rejection_reason|truncatechars:50 }}</span>{% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="6" class="mms-empty">No parts issued or requested.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="8" class="mms-empty">No parts issued or requested.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -375,6 +393,9 @@
 
 {# Phase 3A: Blocker history (resolved/cancelled blockers with event timeline) #}
 {% include "maintenance/_wo_blocker_history.html" %}
+
+{# Phase 7.8: per-WO reservation panel #}
+{% include "maintenance/_wo_reservation_history.html" %}
 
 {% if wo.assignment_history.exists %}
 <section class="mms-section mms-assignment-history">

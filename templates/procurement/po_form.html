@@ -108,10 +108,10 @@
     <h3>Add New Supplier</h3>
     <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
       {% csrf_token %}
-      <p><input type="text" name="code" placeholder="SUP-001" required style="width:100%"></p>
-      <p><input type="text" name="name" placeholder="Supplier name" required style="width:100%"></p>
-      <p><input type="text" name="phone" placeholder="Phone" style="width:100%"></p>
-      <p><input type="email" name="email" placeholder="Email" style="width:100%"></p>
+      <p><input type="text" name="code" placeholder="SUP-001 or مورد-001" required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="name" placeholder="Supplier name / اسم المورد" required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="phone" placeholder="Phone" style="width:100%" dir="auto"></p>
+      <p><input type="email" name="email" placeholder="Email" style="width:100%" dir="auto"></p>
       <button type="submit">Save Supplier</button>
       <button type="button" onclick="document.getElementById('addSupplierModal').style.display='none'">Cancel</button>
     </form>

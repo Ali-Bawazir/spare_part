@@ -35,16 +35,22 @@ class PartAllocationService:
 
     @staticmethod
     def free_stock_for_part(part: Any) -> Decimal:
-        """Compute free stock for a part: max(0, quantity_available - quantity_reserved).
+        """Compute free stock for a part: max(0, quantity_available - reserved).
 
         This is the basis for shortage decisions. Using gross
         quantity_available would over-allocate when many WOs are
         simultaneously reserving the same part.
+
+        Phase 7.8: uses `compute_quantity_reserved()` (sum of ACTIVE
+        InventoryReservation rows) instead of the deprecated
+        `quantity_reserved` DB field. The DB field is auto-maintained
+        by the InventoryReservation signal but the live aggregate is
+        the source of truth.
         """
         inv = Inventory.objects.filter(part=part).first()
         if not inv:
             return Decimal("0")
-        return max(Decimal("0"), inv.quantity_available - inv.quantity_reserved)
+        return max(Decimal("0"), inv.quantity_available - inv.compute_quantity_reserved())
 
     @staticmethod
     def queue_position(line: PartIssueLine) -> tuple[int, int]:

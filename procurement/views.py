@@ -272,23 +272,160 @@ def purchase_request_add_voice(request, pk):
 @login_required
 @role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def purchase_order_list(request):
-    """List all purchase orders with optional status filter."""
+    """List POs with optional ?status=, ?group_by=supplier, ?period=YYYY-MM."""
+    import re
+    from django.db.models import Count, Sum
+
     qs = PurchaseOrder.objects.select_related(
         "supplier", "created_by", "handled_by"
-    )
+    ).prefetch_related("items")
+
+    # Status filter
     status_filter = request.GET.get("status", "").strip()
     if status_filter and status_filter in dict(PurchaseOrder.Status.choices):
         qs = qs.filter(status=status_filter)
+
+    # Period filter (YYYY-MM)
+    period = request.GET.get("period", "").strip()
+    if re.match(r"^\d{4}-\d{2}$", period):
+        year, month = map(int, period.split("-"))
+        qs = qs.filter(created_at__year=year, created_at__month=month)
+
+    # Group-by-supplier flag
+    group_by_supplier = request.GET.get("group_by", "").strip() == "supplier"
+
+    base_ctx = {
+        "status_filter": status_filter,
+        "status_choices": PurchaseOrder.Status.choices,
+        "group_by_supplier": group_by_supplier,
+        "period": period,
+        "period_choices": _recent_month_choices(12),
+    }
+
+    if group_by_supplier:
+        supplier_rows = (
+            qs.values("supplier__id", "supplier__name", "supplier__code")
+              .annotate(
+                  po_count=Count("id", distinct=True),
+                  line_count=Count("items", distinct=True),
+                  total=Sum("items__total_price"),
+              )
+              .order_by("-total", "supplier__name")
+        )
+        supplier_rows = list(supplier_rows)
+        supplier_grand_total = sum((row["total"] or 0) for row in supplier_rows)
+        pos = qs.order_by("-created_at")
+        return render(
+            request,
+            "procurement/po_list.html",
+            {
+                **base_ctx,
+                "pos": pos,
+                "supplier_rows": supplier_rows,
+                "supplier_grand_total": supplier_grand_total,
+            },
+        )
+
     rows = qs.order_by("-created_at")[:200]
     return render(
         request,
         "procurement/po_list.html",
-        {
-            "pos": rows,
-            "status_filter": status_filter,
-            "status_choices": PurchaseOrder.Status.choices,
-        },
+        {**base_ctx, "pos": rows},
     )
+
+
+def _recent_month_choices(n: int) -> list[tuple[str, str]]:
+    """Return [(value, label), ...] for the last n months (most recent first).
+
+    value='YYYY-MM', label='Jun 2026'.
+    """
+    from datetime import date
+    today = date.today().replace(day=1)
+    out: list[tuple[str, str]] = []
+    y, m = today.year, today.month
+    for _ in range(n):
+        out.append((f"{y:04d}-{m:02d}", date(y, m, 1).strftime("%b %Y")))
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    return out
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def purchase_order_by_supplier(request):
+    """Always-grouped supplier view. ?period=YYYY-MM honored."""
+    request_get = request.GET.copy()
+    request_get["group_by"] = "supplier"
+    request.GET = request_get
+    return purchase_order_list(request)
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def purchase_order_supplier_csv(request, supplier_id):
+    """Download all POs + line items for a single supplier as CSV.
+
+    Writes UTF-8 with BOM so Excel auto-detects encoding and renders
+    Arabic (and other non-ASCII) supplier names, PO notes, and part
+    names correctly. Filename uses RFC 5987 for UTF-8 support.
+    """
+    import csv
+    import re
+    from urllib.parse import quote
+
+    from django.http import HttpResponse
+
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+
+    qs = PurchaseOrder.objects.filter(supplier=supplier).prefetch_related("items__part")
+    period = request.GET.get("period", "").strip()
+    if re.match(r"^\d{4}-\d{2}$", period):
+        year, month = map(int, period.split("-"))
+        qs = qs.filter(created_at__year=year, created_at__month=month)
+    qs = qs.order_by("-created_at")
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    ascii_name = f"POs_{supplier.code or supplier.pk}_{period or 'all'}.csv"
+    utf8_name = ascii_name
+    # RFC 5987 encoding for non-ASCII filename support
+    response["Content-Disposition"] = (
+        f'attachment; filename="{ascii_name}"; '
+        f"filename*=UTF-8''{quote(utf8_name)}"
+    )
+
+    # Bug fix: prepend UTF-8 BOM so Excel auto-detects encoding.
+    # Without BOM, Excel reads the file as Windows-1252 and shows
+    # Arabic as garbled text (mojibake). All modern tools (LibreOffice,
+    # Google Sheets, Numbers) ignore the BOM and read UTF-8 directly.
+    response.write("\ufeff")
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "PO Number", "Status", "Created", "Supplier Invoice",
+        "Expected Delivery", "Notes",
+        "Part SKU", "Part Name", "Ordered Qty", "Received Qty",
+        "Negotiated Unit Price", "Actual Unit Price", "Line Total",
+    ])
+    for po in qs:
+        for item in po.items.all():
+            writer.writerow([
+                po.po_number,
+                po.get_status_display(),
+                po.created_at.date().isoformat(),
+                po.supplier_invoice_number or "",
+                po.expected_delivery.isoformat() if po.expected_delivery else "",
+                (po.notes or "").replace("\n", " "),
+                item.part.sku,
+                item.part.name,
+                str(item.ordered_qty),
+                str(item.received_qty),
+                str(item.negotiated_unit_price or ""),
+                str(item.actual_unit_price or ""),
+                str(item.total_price or ""),
+            ])
+    return response
 
 
 @login_required
@@ -470,6 +607,10 @@ def purchase_order_receive(request, pk):
     line_changes: list[dict] = []  # for the summary notification
 
     with transaction.atomic():
+        # Persist supplier invoice ref to the PO (fix invoice-capture bug).
+        if supplier_invoice_ref:
+            po.supplier_invoice_number = supplier_invoice_ref
+            po.save(update_fields=["supplier_invoice_number", "updated_at"])
         for item in po.items.all():
             good = _to_decimal(request.POST.get(f"good_qty_{item.pk}")) or Decimal("0")
             damaged = _to_decimal(request.POST.get(f"damaged_qty_{item.pk}")) or Decimal("0")
@@ -575,9 +716,10 @@ def purchase_order_receive(request, pk):
         # Update PO status
         if not po.items.filter(received_qty__lt=models.F("ordered_qty")).exists():
             po.status = PurchaseOrder.Status.RECEIVED
+            po.received_at = timezone.now()
         else:
             po.status = PurchaseOrder.Status.PARTIAL_RECEIVED
-        po.save(update_fields=["status", "updated_at"])
+        po.save(update_fields=["status", "received_at", "updated_at"])
 
         # Update PR statuses
         for pr in po.purchase_requests.all():
@@ -587,6 +729,22 @@ def purchase_order_receive(request, pk):
                 else PurchaseRequest.Status.PARTIALLY_FULFILLED
             )
             pr.save(update_fields=["status"])
+
+        # Phase 7.7: auto-fulfill open PartIssueLines on WOs the linked
+        # PRs are attached to. This closes the loop between the receive
+        # and the WO warehouse-issue step so the user no longer has to
+        # click "📤 Issue N from stock" manually after every receive.
+        try:
+            from inventory.services import auto_fulfill_wo_lines_from_po
+            auto_fulfill_summary = auto_fulfill_wo_lines_from_po(
+                po=po, actor=request.user,
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception(
+                f"Auto-fulfill from PO {po.po_number} failed: {e}"
+            )
+            auto_fulfill_summary = {"enabled": True, "actions": [], "error": str(e)}
 
     # Outside atomic: fire summary notification
     if line_changes:
@@ -598,6 +756,18 @@ def purchase_order_receive(request, pk):
         messages.success(request, f"Received: {items_str}")
         if supplier_invoice_ref:
             messages.info(request, f"Supplier invoice ref: {supplier_invoice_ref}")
+        # Show auto-fulfill summary if any actions ran
+        auto_actions = auto_fulfill_summary.get("actions", []) if auto_fulfill_summary else []
+        issued = [a for a in auto_actions if a.get("type") == "auto_issued"]
+        if issued:
+            issue_str = ", ".join(
+                f"{a['qty']} × {a['part']} → WO-{a['wo']}"
+                for a in issued
+            )
+            messages.info(
+                request,
+                f"Auto-issued to WOs: {issue_str}",
+            )
 
     return redirect("purchase_order_detail", pk=pk)
 
@@ -621,7 +791,7 @@ def purchase_order_pdf(request, pk):
         pk=pk
     )
 
-    from maintenance.pdf_utils import build_pdf_response, _header_table, _section, _field_table, signature_block
+    from maintenance.pdf_utils import build_pdf_response, _header_table, _section, _field_table, _safe_paragraph, signature_block
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib import colors
@@ -650,14 +820,20 @@ def purchase_order_pdf(request, pk):
 
     # Items table
     elements += _section("Items")
-    item_data = [["SKU", "Part Name", "Qty", "Unit Cost", "Total"]]
+    item_data = [[
+        Paragraph("<b>SKU</b>", styles["Normal"]),
+        Paragraph("<b>Part Name</b>", styles["Normal"]),
+        Paragraph("<b>Qty</b>", styles["Normal"]),
+        Paragraph("<b>Unit Cost</b>", styles["Normal"]),
+        Paragraph("<b>Total</b>", styles["Normal"]),
+    ]]
     grand_total = Decimal("0")
     for item in po.items.all():
         total = item.ordered_qty * item.negotiated_unit_price
         grand_total += total
         item_data.append([
             item.part.sku,
-            item.part.name,
+            _safe_paragraph(item.part.name, styles["Normal"]),
             f"{item.ordered_qty:.3f}",
             f"{item.negotiated_unit_price:.4f}",
             f"{total:.4f}",
@@ -685,7 +861,11 @@ def purchase_order_pdf(request, pk):
     elements += _section("Delivery & Notes")
     elements.append(Paragraph(f"Delivery Location: Main Factory — Stores", styles["Normal"]))
     elements.append(Spacer(1, 3 * mm))
-    elements.append(Paragraph(f"Notes: {po.notes or '—'}", styles["Normal"]))
+    if po.notes:
+        elements.append(Paragraph("Notes:", styles["Normal"]))
+        elements.append(_safe_paragraph(po.notes, styles["Normal"]))
+    else:
+        elements.append(Paragraph("Notes: —", styles["Normal"]))
 
     # Signature
     elements += _section("Authorisation")
@@ -732,3 +912,91 @@ def purchase_order_close_short(request, pk):
         messages.success(request, f"PO {po.po_number} closed short.")
         return redirect("purchase_order_detail", pk=pk)
     return render(request, "procurement/po_close_short.html", {"po": po})
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def supplier_analytics(request):
+    """Phase 2: supplier performance dashboard.
+
+    Metrics per supplier over the last N days (default 90):
+    - PO count
+    - Total spend (sum of received_qty * actual_unit_price)
+    - On-time delivery rate (% of POs fully received within expected window)
+    - Average cycle time (days from PO creation to full receipt)
+
+    Sorted by total spend DESC.
+    """
+    from datetime import timedelta
+    from django.db.models import Sum, F, Avg, Count, Q
+
+    days_options = [7, 30, 90, 365]
+    try:
+        days = int(request.GET.get("days", 90))
+    except (TypeError, ValueError):
+        days = 90
+    if days not in days_options:
+        days = 90
+    cutoff = timezone.now() - timedelta(days=days)
+
+    suppliers_qs = (
+        Supplier.objects
+        .annotate(
+            po_count=Count(
+                "purchase_orders",
+                filter=Q(purchase_orders__created_at__gte=cutoff),
+            ),
+            total_spend=Sum(
+                F("purchase_orders__items__received_qty") * F("purchase_orders__items__actual_unit_price"),
+                filter=Q(
+                    purchase_orders__created_at__gte=cutoff,
+                    purchase_orders__items__received_qty__gt=0,
+                ),
+            ),
+            avg_cycle=Avg(
+                F("purchase_orders__received_at") - F("purchase_orders__created_at"),
+                filter=Q(
+                    purchase_orders__created_at__gte=cutoff,
+                    purchase_orders__received_at__isnull=False,
+                ),
+            ),
+        )
+        .filter(po_count__gt=0)
+        .order_by("-total_spend")
+    )
+
+    rows = []
+    for s in suppliers_qs:
+        pos = s.purchase_orders.filter(
+            created_at__gte=cutoff,
+            received_at__isnull=False,
+        )
+        total_pos = pos.count()
+        on_time = 0
+        for po in pos:
+            deadline = po.expected_delivery if po.expected_delivery else (po.created_at.date() + timedelta(days=14))
+            if po.received_at and po.received_at.date() <= deadline:
+                on_time += 1
+        on_time_rate = (on_time / total_pos * 100) if total_pos > 0 else 0.0
+        cycle_days = s.avg_cycle.total_seconds() / 86400 if s.avg_cycle else 0.0
+        rows.append({
+            "supplier": s,
+            "po_count": s.po_count,
+            "total_spend": s.total_spend or Decimal("0"),
+            "on_time_rate": on_time_rate,
+            "avg_cycle_days": cycle_days,
+        })
+
+    totals = {
+        "suppliers": len(rows),
+        "pos": sum(r["po_count"] for r in rows),
+        "spend": sum(r["total_spend"] for r in rows),
+        "on_time": sum(r["on_time_rate"] for r in rows) / len(rows) if rows else 0.0,
+    }
+
+    return render(request, "procurement/supplier_analytics.html", {
+        "rows": rows,
+        "days": days,
+        "days_options": days_options,
+        "totals": totals,
+    })

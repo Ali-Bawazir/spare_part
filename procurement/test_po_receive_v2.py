@@ -253,7 +253,6 @@ class PurchaseOrderReceiveV2Tests(TestCase):
         Inventory.objects.create(
             part=self.part_a, site=self.site,
             quantity_available=Decimal("0"),
-            quantity_reserved=Decimal("0"),
         )
 
         self.client.force_login(self.procurement)

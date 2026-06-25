@@ -233,6 +233,63 @@ def reorder_suggestions(request):
 
 
 @login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def reservations_dashboard(request):
+    """Phase 7.8: global view of all ACTIVE inventory reservations.
+
+    Shows every soft-claim (InventoryReservation) per part + per WO, with
+    the underlying PartIssueLine. Useful for the warehouse/procurement
+    team to see "what's claimed for which WO" without running SQL.
+    Recent RELEASED + CANCELLED rows are also shown (collapsed).
+    """
+    from inventory.models import InventoryReservation
+    from django.db.models import Sum, Count
+
+    status_filter = request.GET.get("status", "active")
+    qs = (
+        InventoryReservation.objects
+        .select_related("part", "work_order", "source_line")
+        .order_by("-created_at")
+    )
+    if status_filter in (
+        InventoryReservation.Status.ACTIVE,
+        InventoryReservation.Status.RELEASED,
+        InventoryReservation.Status.CANCELLED,
+    ):
+        qs = qs.filter(status=status_filter)
+    elif status_filter != "all":
+        status_filter = "active"
+        qs = qs.filter(status=InventoryReservation.Status.ACTIVE)
+
+    # Per-part summary (only the ACTIVE filter, always)
+    by_part = (
+        InventoryReservation.objects
+        .filter(status=InventoryReservation.Status.ACTIVE)
+        .values("part__sku", "part__name")
+        .annotate(
+            total_reserved=Sum("quantity"),
+            wo_count=Count("work_order", distinct=True),
+        )
+        .order_by("-total_reserved")[:25]
+    )
+
+    return render(request, "maintenance/reservations_dashboard.html", {
+        "reservations": qs[:200],
+        "by_part": by_part,
+        "status_filter": status_filter,
+        "active_count": InventoryReservation.objects.filter(
+            status=InventoryReservation.Status.ACTIVE
+        ).count(),
+        "released_count": InventoryReservation.objects.filter(
+            status=InventoryReservation.Status.RELEASED
+        ).count(),
+        "cancelled_count": InventoryReservation.objects.filter(
+            status=InventoryReservation.Status.CANCELLED
+        ).count(),
+    })
+
+
+@login_required
 def dashboard(request):
     role = getattr(request.user, "role", "")
     stale_before = timezone.now() - timedelta(hours=24)
@@ -1045,6 +1102,24 @@ def work_order_detail(request, pk):
     pending_part_requests = part_issues.filter(status=PartIssueLine.Status.PENDING)
     # v4.9 A5: refused part requests (for tech re-review panel)
     refused_part_requests = part_issues.filter(status=PartIssueLine.Status.REJECTED)
+
+    # Phase 7.6: build parts_display with effective unit cost + committed/issued
+    # amounts for the Parts table. Uses the same fallback chain as the
+    # _effective_unit_cost helper in inventory/services.py and the model
+    # recalculate method (line.unit_cost > 0 → last_purchase_cost → avg_cost).
+    parts_display = []
+    for line in part_issues:
+        eff_uc = (
+            line.unit_cost
+            if (line.unit_cost and line.unit_cost > 0)
+            else (line.part.last_purchase_cost or line.part.avg_cost or Decimal("0"))
+        )
+        parts_display.append({
+            "line": line,
+            "effective_unit_cost": eff_uc,
+            "committed_amount": (line.approved_qty or Decimal("0")) * eff_uc,
+            "issued_amount": (line.issued_qty or Decimal("0")) * eff_uc,
+        })
     if request.user.role not in (User.Role.MANAGER, User.Role.SUPER_ADMIN):
         refused_part_requests = refused_part_requests.filter(requested_by=request.user)
     external_repair_requests = wo.external_repair_requests.select_related(
@@ -1144,6 +1219,50 @@ def work_order_detail(request, pk):
     pending_shortage_reports = PartShortageReport.objects.filter(
         work_order=wo, status=PartShortageReport.Status.PENDING_REVIEW,
     ).select_related("part", "reported_by").order_by("-created_at")
+
+    # UX: pre-fill the shortage decision form with realistic defaults so the
+    # manager doesn't have to do the math (issue+procure+reject must sum to
+    # qty_requested, and only `usable_qty_snapshot` units can actually be
+    # issued from stock today). Default plan: issue the max we can, procure
+    # the rest, reject nothing. The form fields are still editable.
+    # Also tag each report with `line_id` (the related PartIssueLine PK, used
+    # by the shortage badge anchor on the Parts table).
+    _pending_shortage_part_ids = set()
+    for _r in pending_shortage_reports:
+        _usable = _r.usable_qty_snapshot or Decimal("0")
+        _requested = _r.qty_requested or Decimal("0")
+        # Treat negative usable snapshots as 0 (defensive).
+        if _usable < 0:
+            _usable = Decimal("0")
+        _r.suggested_issue_qty = min(_requested, _usable)
+        _r.suggested_procure_qty = max(Decimal("0"), _requested - _usable)
+        _r.suggested_reject_qty = Decimal("0")
+        # Use a normalized form (no trailing zeros) for the hint so the
+        # UI text reads naturally ("Stock has 2 of 4 needed…" not
+        # "Stock has 2.000 of 4.000 needed…").
+        def _fmt(d: Decimal) -> str:
+            d = d.normalize() if d != 0 else Decimal("0")
+            return format(d, "f")
+        _r.form_default_hint = (
+            f"Stock has {_fmt(_usable)} of {_fmt(_requested)} needed. "
+            f"Default: issue {_fmt(_r.suggested_issue_qty)}, "
+            f"procure {_fmt(_r.suggested_procure_qty)}."
+        )
+        # Anchor link target: prefer the related PartIssueLine PK if any
+        # (the shortage form lives once per report, but the badge on the
+        # Parts table points to the line).
+        _first_line = _r.issue_lines.first()
+        _r.line_id = _first_line.pk if _first_line else _r.pk
+        _pending_shortage_part_ids.add(_r.part_id)
+
+    # UX: annotate each parts_display row with whether a pending shortage
+    # exists for (wo, part) — drives the "⚠ N in shortage" badge on the
+    # Parts table.
+    for _item in parts_display:
+        _item["has_pending_shortage"] = (
+            _item["line"].part_id in _pending_shortage_part_ids
+        )
+
     approved_shortage_reports = PartShortageReport.objects.filter(
         work_order=wo, status=PartShortageReport.Status.APPROVED,
     ).select_related("part", "reported_by", "reviewed_by").order_by("-reviewed_at")
@@ -1177,14 +1296,65 @@ def work_order_detail(request, pk):
                 "remaining_to_issue": remaining,
             })
 
+    # Bug #1 fix: resolve the default site ONCE, up front. It is needed both
+    # for per-line free-stock computation below AND for the part dropdown
+    # annotation a few lines further down.
+    _default_site = Site.objects.filter(is_default=True).first()
+
+    # Phase 7.5: All PartIssueLines on this WO that are awaiting
+    # warehouse execution (status=APPROVED or ALLOCATED, issued_qty <
+    # approved_qty, with stock available). Includes lines that came
+    # through the simple request_part_on_wo + approve_part_request
+    # flow (not just the shortage-decision flow).
+    lines_awaiting_issue = []
+    for line in part_issues.filter(
+        status__in=[PartIssueLine.Status.APPROVED, PartIssueLine.Status.ALLOCATED],
+    ).select_related("part"):
+        approved = line.approved_qty or Decimal("0")
+        issued = line.issued_qty or Decimal("0")
+        if approved <= 0 or issued >= approved:
+            continue
+        remaining = approved - issued
+        # Only show if there's stock available (free_stock >= remaining).
+        # Phase 7.8: use PartAllocationService.free_stock_for_part (live
+        # aggregate of ACTIVE reservations) instead of the deprecated
+        # `quantity_reserved` DB field.
+        if _default_site:
+            from inventory.services_allocation import PartAllocationService
+            free = PartAllocationService.free_stock_for_part(line.part)
+        else:
+            free = Decimal("0")
+        lines_awaiting_issue.append({
+            "line": line,
+            "remaining": remaining,
+            "free_stock": free,
+            "has_stock": free >= remaining,
+        })
+
     # Annotate free_stock = on-hand minus reserved so the dropdown shows
     # the actual usable quantity per part (visible without JS interaction).
-    _site = Site.objects.filter(is_default=True).first()
-    if _site:
+    # Phase 7.8: the dropdown is a UX display, so we use the cached
+    # `quantity_reserved` field (which the signal keeps in sync). Business
+    # logic (shortage decisions, allocation) MUST use
+    # `PartAllocationService.free_stock_for_part` which queries the live
+    # InventoryReservation aggregate.
+    if _default_site:
+        # Phase 7.8+: free_stock is computed via a subquery that aggregates
+        # ACTIVE InventoryReservation rows (the source of truth since
+        # the deprecated Inventory.quantity_reserved DB field was dropped).
+        from django.db.models import OuterRef, Subquery, Sum
+        from inventory.models import InventoryReservation
+        _reserved_subq = (
+            InventoryReservation.objects
+            .filter(part=OuterRef("pk"), status=InventoryReservation.Status.ACTIVE)
+            .values("part")
+            .annotate(total=Sum("quantity"))
+            .values("total")[:1]
+        )
         _free_subq = (
-            Inventory.objects.filter(part=OuterRef("pk"), site=_site)
+            Inventory.objects.filter(part=OuterRef("pk"), site=_default_site)
             .annotate(
-                free=F("quantity_available") - F("quantity_reserved")
+                free=F("quantity_available") - Coalesce(Subquery(_reserved_subq), Value(Decimal("0")))
             )
             .values("free")[:1]
         )
@@ -1219,6 +1389,23 @@ def work_order_detail(request, pk):
         .order_by("-opened_at")[:20]
     )
 
+    # Phase 7.8: per-WO reservation panel. ACTIVE rows = current soft
+    # claims; recent RELEASED/CANCELLED rows show the recent lifecycle.
+    from inventory.models import InventoryReservation
+    active_reservations = (
+        InventoryReservation.objects
+        .filter(work_order=wo, status=InventoryReservation.Status.ACTIVE)
+        .select_related("part", "source_line")
+        .order_by("created_at")
+    )
+    historical_reservations = (
+        InventoryReservation.objects
+        .filter(work_order=wo)
+        .exclude(status=InventoryReservation.Status.ACTIVE)
+        .select_related("part", "source_line")
+        .order_by("-released_at", "-created_at")[:20]
+    )
+
     return render(
         request,
         "maintenance/workorder_detail.html",
@@ -1227,6 +1414,7 @@ def work_order_detail(request, pk):
             "logs": logs,
             "issue_attachments": issue_attachments,
             "part_issues": part_issues,
+            "parts_display": parts_display,
             "pending_part_requests": pending_part_requests,
             "refused_part_requests": refused_part_requests,
             "external_repair_requests": external_repair_requests,
@@ -1262,12 +1450,16 @@ def work_order_detail(request, pk):
             "approved_shortage_reports": approved_shortage_reports,
             "decided_shortage_reports": decided_shortage_reports,
             "pending_warehouse_issues": pending_warehouse_issues,
+            "lines_awaiting_issue": lines_awaiting_issue,
             "active_parts": active_parts,
             "last_request_result": last_request_result,
             # Phase 3A additions (health card + blocker panels)
             "health_card": health_card,
             "active_blockers": active_blockers,
             "blocker_history": blocker_history,
+            # Phase 7.8: per-WO reservation panel data
+            "active_reservations": active_reservations,
+            "historical_reservations": historical_reservations,
             # Phase 1+2 Cost Ledger additions
             # Cost is visible only to roles that need it for planning/procurement.
             # Operators and technicians do not see cost anywhere in the system.
@@ -1674,7 +1866,7 @@ def work_order_request_part_re_review(request, line_pk):
         reserved = Decimal("0")
     else:
         on_hand = inv.quantity_available
-        reserved = inv.quantity_reserved
+        reserved = inv.compute_quantity_reserved()
     usable = on_hand - reserved
     if usable < new_qty:
         # Only refuse if SOME stock exists but it's insufficient. If
@@ -2083,8 +2275,9 @@ def work_order_mark_vendor(request, pk):
 @role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def stock_dashboard(request):
     """Site-aware stock dashboard with search, filters, and per-site inventory."""
-    from django.db.models import OuterRef, Subquery
-    from inventory.models import Inventory, SparePart
+    from django.db.models import OuterRef, Subquery, Sum, Value
+    from django.db.models.functions import Coalesce
+    from inventory.models import Inventory, InventoryReservation, SparePart
     from maintenance.models import Site
 
     sites = Site.objects.filter(is_active=True).order_by("name")
@@ -2098,6 +2291,19 @@ def stock_dashboard(request):
     if not selected_site:
         selected_site = sites.filter(is_default=True).first()
 
+    # Phase 7.8+: reserved qty is computed from ACTIVE InventoryReservation rows
+    # (the legacy Inventory.quantity_reserved DB field was dropped in migration 0017).
+    _reserved_subq = (
+        InventoryReservation.objects
+        .filter(
+            part=OuterRef("pk"),
+            status=InventoryReservation.Status.ACTIVE,
+        )
+        .values("part")
+        .annotate(total=Sum("quantity"))
+        .values("total")[:1]
+    )
+
     parts_qs = SparePart.objects.annotate(
         inv_available=Subquery(
             Inventory.objects.filter(
@@ -2105,12 +2311,7 @@ def stock_dashboard(request):
                 site=selected_site
             ).values("quantity_available")[:1]
         ),
-        inv_reserved=Subquery(
-            Inventory.objects.filter(
-                part=OuterRef("pk"),
-                site=selected_site
-            ).values("quantity_reserved")[:1]
-        ),
+        inv_reserved=Coalesce(Subquery(_reserved_subq), Value(Decimal("0"))),
         inv_rack=Subquery(
             Inventory.objects.filter(
                 part=OuterRef("pk"),
@@ -4056,24 +4257,35 @@ def repair_manager_accept(request, pk):
             pass
         # P3.2: push vendor_repair_cost into WorkOrderCost so it rolls up into
         # the machine cost report.
+        # Bug #5 fix: use the ledger-based refresh so the cache reflects the
+        # CostTransaction rows, not the legacy PartIssueLine aggregation.
         if rwo.work_order_id:
             try:
-                cost = WorkOrderCost.objects.get(work_order_id=rwo.work_order_id)
-                cost.recalculate()
-            except WorkOrderCost.DoesNotExist:
-                WorkOrderCost.objects.create(work_order_id=rwo.work_order_id).recalculate()
+                from maintenance.cost_ledger import CostLedgerService
+                CostLedgerService._refresh_wo_cache(rwo.work_order_id)
+            except Exception as _e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"_refresh_wo_cache failed for WO {rwo.work_order_id}: {_e}"
+                )
         # Phase 1+2 Cost Ledger: post the vendor_repair cost for this closed ERO.
+        # Bug fix: surface ledger failures as messages.error instead of swallowing.
         try:
             from maintenance.cost_ledger import CostLedgerService
             CostLedgerService.post_vendor_repair(
                 external_repair_order=rwo,
                 actor=request.user,
-                memo=f"ERO #{rwo.number} closed: {rwo.invoice_ref or 'no invoice ref'}",
+                memo=f"ERO #{rwo.pk} closed: {rwo.invoice_ref or 'no invoice ref'}",
             )
         except Exception as _ledger_err:
             import logging
-            logging.getLogger(__name__).warning(
+            logging.getLogger(__name__).exception(
                 f"Cost ledger post_vendor_repair failed for ERO {rwo.pk}: {_ledger_err}"
+            )
+            messages.error(
+                request,
+                f"ERO closed, but cost ledger post failed: {_ledger_err}. "
+                f"Re-run from the cost ledger page.",
             )
         messages.success(
             request,
@@ -4579,7 +4791,7 @@ def work_order_part_availability(request, pk, part_id):
     site = wo.machine.site if wo.machine and wo.machine.site else _get_default_site()
     inv = Inventory.objects.filter(part=part, site=site).first()
     on_hand   = (inv.quantity_available if inv else Decimal("0"))
-    reserved  = (inv.quantity_reserved  if inv else Decimal("0"))
+    reserved  = (inv.compute_quantity_reserved() if inv else Decimal("0"))
     usable    = on_hand - reserved
 
     # 3-tier rule
@@ -5020,6 +5232,46 @@ def work_order_block_shortage(request, pk, report_id):
 @login_required
 @require_POST
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_cancel_part_line(request, pk, line_id):
+    """Manager cancels an APPROVED or ALLOCATED part line that was
+    never warehouse-issued. Releases the reservation and fires
+    PART_REJECTED so the PART blocker is cancelled.
+
+    Use this when the manager no longer needs a part that was
+    approved+allocated (e.g. wrong part ordered, scope changed).
+    Rejection reason is required (min 15 chars) for the audit trail.
+    """
+    from inventory.models import PartIssueLine
+    from inventory.services import cancel_approved_part_request
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    line = get_object_or_404(PartIssueLine, pk=line_id, work_order=wo)
+    reason = (request.POST.get("reason") or "").strip()
+    if len(reason) < 15:
+        messages.error(
+            request,
+            f"Cancellation reason must be at least 15 characters "
+            f"(got {len(reason)}).",
+        )
+        return redirect("work_order_detail", pk=wo.pk)
+    try:
+        cancel_approved_part_request(
+            line=line, manager=request.user, reason=reason,
+        )
+    except ValueError as e:
+        messages.error(request, f"⚠️ Could not cancel line: {e}")
+        return redirect("work_order_detail", pk=wo.pk)
+    messages.success(
+        request,
+        f"✗ Cancelled {line.part.name} request. Reservation released, "
+        f"PART blocker cleared.",
+    )
+    return redirect("work_order_detail", pk=wo.pk)
+
+
 def work_order_warehouse_issue(request, pk, line_id):
     """Warehouse executes the issue against current stock (v4.8).
 
@@ -5117,6 +5369,34 @@ def reconciliation_dashboard(request):
         "total_count": total_count,
         "filters": {},
         "status_choices": WorkOrder.LifecycleStatus.choices,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def legacy_reconciliation_dashboard(request):
+    """Phase 7.8.1: show WOs still on the legacy state model.
+
+    These are pre-blocker-system WOs that haven't had any domain event
+    (part request, pause, etc.) since the migration. Their state may
+    be inconsistent. Use this dashboard to:
+    1. Spot-check that closed WOs are truly closed.
+    2. Identify WOs that need manual migration to the new model.
+    """
+    legacy_wos = (
+        WorkOrder.objects
+        .filter(blocker_system_version=0)
+        .select_related("machine", "assigned_technician")
+        .order_by("-number")[:200]
+    )
+    total = WorkOrder.objects.count()
+    legacy_count = WorkOrder.objects.filter(blocker_system_version=0).count()
+    v1_count = WorkOrder.objects.filter(blocker_system_version=1).count()
+    return render(request, "maintenance/legacy_reconciliation.html", {
+        "legacy_wos": legacy_wos,
+        "total": total,
+        "legacy_count": legacy_count,
+        "v1_count": v1_count,
     })
 
 

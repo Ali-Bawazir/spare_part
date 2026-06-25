@@ -69,7 +69,6 @@ def _make_part(sku="P-1", name="Test Part", avg_cost=None):
 def _stock_in(part, site, qty, unit_cost=Decimal("10")):
     inv, _ = Inventory.objects.get_or_create(part=part, site=site)
     inv.quantity_available = qty
-    inv.quantity_reserved = Decimal("0")
     inv.save()
     return inv
 

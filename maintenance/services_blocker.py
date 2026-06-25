@@ -300,6 +300,15 @@ class WorkOrderBlockerService:
         if external_obj is None:
             return None
 
+        # ERO_RETURNED special case: the VENDOR_REPAIR blocker is opened against
+        # the ERR, not the ERO. Do the fallback lookup BEFORE the None-guard.
+        if event_type == "ERO_RETURNED":
+            if not isinstance(external_obj, ExternalRepairRequest) \
+                    and hasattr(external_obj, "origin_request"):
+                err_obj = external_obj.origin_request
+                if err_obj is not None:
+                    external_obj = err_obj
+
         ct = ContentType.objects.get_for_model(external_obj)
         object_id = external_obj.pk
 
@@ -313,10 +322,14 @@ class WorkOrderBlockerService:
             )
             .first()
         )
-        # NOTE: do NOT early-return on open_blocker=None here. The
-        # ERO_RETURNED branch below has a fallback lookup keyed to the
-        # ExternalRepairRequest, since the VENDOR_REPAIR blocker is opened
-        # against the ERR but the RETURNED event is fired from the ERO.
+
+        # Bug #4 fix: no blocker is open for this external entity. The most
+        # common case is cancelling a PartIssueLine that was approved when
+        # stock was available (no blocker ever opened), then later cancelled
+        # — nothing to cancel on the blocker side. Silently no-op is the
+        # right behaviour here.
+        if open_blocker is None:
+            return None
 
         payload = payload or {}
 
@@ -361,31 +374,7 @@ class WorkOrderBlockerService:
         # The ERO still needs manager acceptance to close (which posts the
         # vendor_repair cost to the ledger), but that is now decoupled from
         # the WO state machine.
-        #
-        # NOTE: the VENDOR_REPAIR blocker is keyed to the
-        # ExternalRepairRequest (not the ERO), so the default lookup by
-        # content_type + object_id misses it when fired from the ERO. If
-        # the blocker wasn't found, try looking it up via the ERO's request.
         if event_type == "ERO_RETURNED":
-            # ERO has reverse relation `origin_request` pointing to the
-            # ERR that this ERO was created from. The VENDOR_REPAIR blocker
-            # is keyed to the ERR, so we look it up that way.
-            if open_blocker is None:
-                err_obj = getattr(external_obj, "origin_request", None)
-                if err_obj is not None:
-                    err_ct = ContentType.objects.get_for_model(ExternalRepairRequest)
-                    open_blocker = (
-                        WorkOrderBlocker.objects
-                        .select_for_update()
-                        .filter(
-                            content_type=err_ct,
-                            object_id=err_obj.pk,
-                            status=WorkOrderBlocker.Status.OPEN,
-                        )
-                        .first()
-                    )
-            if open_blocker is None:
-                return None
             return cls.resolve_blocker(
                 blocker=open_blocker,
                 resolution_note=payload.get("note", "Vendor returned part"),

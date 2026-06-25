@@ -55,6 +55,7 @@
       {% endif %}
       {% if user.role == 'manager' or user.role == 'procurement' or user.role == 'super_admin' %}
       <a href="{% url 'supplier_list' %}" class="mms-nav-link{% if current_url_name and 'supplier' in current_url_name %} is-active{% endif %}">Suppliers</a>
+      <a href="{% url 'reservations_dashboard' %}" class="mms-nav-link{% if current_url_name == 'reservations_dashboard' %} is-active{% endif %}">Reservations</a>
       {% endif %}
       {% endif %}
 
@@ -69,6 +70,14 @@
         <span>Purchase Orders</span>
         {% if nav_po_open %}<span class="mms-nav-badge">{{ nav_po_open }}</span>{% endif %}
       </a>
+      <a href="{% url 'purchase_order_by_supplier' %}" class="mms-nav-link{% if current_url_name == 'purchase_order_by_supplier' %} is-active{% endif %}">
+        <span>By Supplier</span>
+      </a>
+      {% if user.role == 'manager' or user.role == 'procurement' or user.role == 'super_admin' %}
+      <a href="{% url 'supplier_analytics' %}" class="mms-nav-link{% if current_url_name == 'supplier_analytics' %} is-active{% endif %}">
+        <span>Supplier analytics</span>
+      </a>
+      {% endif %}
       {% endif %}
       {% if user.role == 'procurement' %}
       <a href="{% url 'repair_list' %}" class="mms-nav-link{% if current_url_name and 'repair' in current_url_name %} is-active{% endif %}">
@@ -139,6 +148,12 @@
         {% elif nav_shortage_in_fulfillment %}<span class="mms-nav-badge" title="In-fulfillment shortages">{{ nav_shortage_in_fulfillment }}</span>
         {% elif nav_shortage_overdue %}<span class="mms-nav-badge mms-nav-badge--danger" title="Stuck in fulfillment >7 days">{{ nav_shortage_overdue }}</span>
         {% endif %}
+      </a>
+      {% endif %}
+      {% if user.role == 'manager' or user.role == 'super_admin' %}
+      <a href="{% url 'legacy_reconciliation' %}" class="mms-nav-link{% if current_url_name == 'legacy_reconciliation' %} is-active{% endif %}">
+        <span>Legacy reconciliation</span>
+        {% if nav_legacy_count %}<span class="mms-nav-badge mms-nav-badge--accent" title="Work orders still on the legacy state model">{{ nav_legacy_count }}</span>{% endif %}
       </a>
       {% endif %}
       {% endif %}

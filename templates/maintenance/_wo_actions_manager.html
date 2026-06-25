@@ -62,11 +62,11 @@
               </tr>
               <tr>
                 <td colspan="4" style="padding:0">
-                  <details>
+                  <details id="shortage-{{ r.line_id|default:r.pk }}">
                     <summary style="padding:.5rem .75rem; cursor:pointer; background:#fafafa; border-top:1px solid #eee">
                       Review shortage for {{ r.part.name }} ▾
                     </summary>
-                    <form method="post" action="{% url 'work_order_decide_shortage' wo.pk r.pk %}" style="padding:.75rem; background:#fafafa; border-top:1px solid #eee">
+                    <form method="post" action="{% url 'work_order_decide_shortage' wo.pk r.pk %}" class="mms-shortage-decision-form" style="padding:.75rem; background:#fafafa; border-top:1px solid #eee">
                       {% csrf_token %}
                       <div class="mms-form-row">
                         <label>Decision type</label>
@@ -77,16 +77,39 @@
                       </div>
                       <div class="mms-form-row">
                         <label>Issue from stock</label>
-                        <input type="number" name="approved_issue_qty" min="0" step="0.001" value="{{ r.qty_requested }}" class="form-control">
-                        <small style="color:#6b7280">Default = {{ r.qty_requested }}. Edit to commit less.</small>
+                        <input type="number" name="approved_issue_qty"
+                               value="{{ r.suggested_issue_qty }}"
+                               min="0" max="{{ r.usable_qty_snapshot|default:0 }}"
+                               step="0.001"
+                               class="form-control shortage-issue-input"
+                               data-line-id="{{ r.line_id|default:r.pk }}"
+                               data-qty-requested="{{ r.qty_requested }}">
+                        <small style="color:#6b7280">{{ r.form_default_hint }}</small>
                       </div>
                       <div class="mms-form-row">
                         <label>Procure (via PR)</label>
-                        <input type="number" name="approved_procurement_qty" min="0" step="0.001" value="0" class="form-control">
+                        <input type="number" name="approved_procurement_qty"
+                               value="{{ r.suggested_procure_qty }}"
+                               min="0" step="0.001"
+                               class="form-control shortage-procure-input"
+                               data-line-id="{{ r.line_id|default:r.pk }}"
+                               data-qty-requested="{{ r.qty_requested }}">
                       </div>
                       <div class="mms-form-row">
                         <label>Reject (not needed)</label>
-                        <input type="number" name="rejected_qty" min="0" step="0.001" value="0" class="form-control">
+                        <input type="number" name="rejected_qty"
+                               value="{{ r.suggested_reject_qty }}"
+                               min="0" step="0.001"
+                               class="form-control shortage-reject-input"
+                               data-line-id="{{ r.line_id|default:r.pk }}"
+                               data-qty-requested="{{ r.qty_requested }}">
+                      </div>
+                      <div class="shortage-balance-warning"
+                           style="display:none; margin-top:.5rem; padding:.4rem .6rem;
+                                  background:#fff3cd; border-left:3px solid #f0ad4e;
+                                  border-radius:4px; font-size:.85em; color:#856404">
+                        ⚠ Issue + procure + reject must sum to <span class="shortage-qty-target"></span>
+                        (currently: <span class="shortage-current-sum">0</span>)
                       </div>
                       <div class="mms-form-row">
                         <label>Expected availability (procure ETA)</label>
@@ -100,7 +123,7 @@
                         <label>Decision note (optional)</label>
                         <textarea name="decision_note" rows="2" class="form-control"></textarea>
                       </div>
-                      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Submit Decision</button>
+                      <button class="mms-btn mms-btn--primary mms-btn--sm mms-shortage-submit" type="submit">Submit Decision</button>
                     </form>
                   </details>
                 </td>
@@ -129,6 +152,73 @@
                   <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">
                     📤 Issue {{ item.remaining_to_issue }} from stock
                   </button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+
+    {# Phase 7.5: Per-line Issue / Cancel panel. Catches ALL approved/ #}
+    {# allocated lines on the WO, including those that came through #}
+    {# the simple request_part_on_wo flow (not just the shortage flow). #}
+    {# Each line has an Issue button (if stock available) and a #}
+    {# Cancel button (for parts the manager no longer needs). #}
+    {% if lines_awaiting_issue %}
+      <div class="mms-card" style="margin-top:1rem; border-left:3px solid #198754">
+        <div class="mms-card-header">📤 Lines Awaiting Warehouse Issue ({{ lines_awaiting_issue|length }})</div>
+        <div class="mms-card-body">
+          <p style="font-size:.8rem; color:var(--mms-muted); margin:0 0 .5rem 0">
+            Approved by manager but not yet issued from stock. Issue from stock to clear the PART blocker and post cost to the ledger. Cancel if no longer needed.
+          </p>
+          <ul style="margin:0; padding:0; list-style:none">
+            {% for item in lines_awaiting_issue %}
+              <li style="padding:.6rem 0; border-bottom:1px solid #eee; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap">
+                <div style="flex:1; min-width:200px">
+                  <strong>{{ item.line.part.name }}</strong>
+                  <small class="text-muted">({{ item.line.part.sku }})</small>
+                  — approved {{ item.line.approved_qty }} / issued {{ item.line.issued_qty }}
+                  = <strong>{{ item.remaining }}</strong> remaining
+                  <small style="color:var(--mms-muted)"> · status: <em>{{ item.line.get_status_display }}</em></small>
+                  <small style="color:var(--mms-muted)"> · free stock: <strong>{{ item.free_stock }}</strong></small>
+                </div>
+                {% if item.has_stock %}
+                <form method="post" action="{% url 'work_order_warehouse_issue' wo.pk item.line.pk %}" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="qty" value="{{ item.remaining }}">
+                  <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit"
+                          title="Issue {{ item.remaining }} from stock">
+                    📤 Issue {{ item.remaining }} from stock
+                  </button>
+                </form>
+                {% else %}
+                <span class="mms-badge mms-badge--warning" title="Insufficient stock">
+                  ⚠ Out of stock
+                </span>
+                {% endif %}
+                <button class="mms-btn mms-btn--ghost mms-btn--sm" type="button"
+                        onclick="document.getElementById('cancel-form-{{ item.line.pk }}').style.display='block'; this.style.display='none';"
+                        title="Cancel this part request (release reservation + clear PART blocker)">
+                  ✗ Cancel
+                </button>
+                <form id="cancel-form-{{ item.line.pk }}" method="post"
+                      action="{% url 'work_order_cancel_part_line' wo.pk item.line.pk %}"
+                      style="display:none; width:100%; margin-top:.4rem">
+                  {% csrf_token %}
+                  <div class="mms-form-row" style="margin:0">
+                    <input type="text" name="reason" class="form-control"
+                           placeholder="Cancellation reason (min 15 chars — required for audit)"
+                           minlength="15" required
+                           style="font-size:.85rem; flex:1; min-width:200px">
+                    <button class="mms-btn mms-btn--danger mms-btn--sm" type="submit">
+                      ✗ Confirm cancel
+                    </button>
+                    <button class="mms-btn mms-btn--ghost mms-btn--sm" type="button"
+                            onclick="document.getElementById('cancel-form-{{ item.line.pk }}').style.display='none';">
+                      ↶ Back
+                    </button>
+                  </div>
                 </form>
               </li>
             {% endfor %}
@@ -280,3 +370,50 @@
     {% endif %}
   {% endif %}
 {% endif %}
+
+<script>
+(function () {
+  // Shortage decision form: keep issue + procure + reject summing to
+  // qty_requested, otherwise the books don't balance. Disable submit
+  // and surface a warning when the sum drifts.
+  function parseNum(el) {
+    var v = parseFloat(el && el.value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function attachShortageValidation(form) {
+    var issueInput = form.querySelector(".shortage-issue-input");
+    var procureInput = form.querySelector(".shortage-procure-input");
+    var rejectInput = form.querySelector(".shortage-reject-input");
+    if (!issueInput || !procureInput || !rejectInput) return;
+
+    var qtyRequested = parseFloat(issueInput.getAttribute("data-qty-requested")) || 0;
+    var warning = form.querySelector(".shortage-balance-warning");
+    var targetSpan = warning ? warning.querySelector(".shortage-qty-target") : null;
+    var sumSpan = warning ? warning.querySelector(".shortage-current-sum") : null;
+    var submitBtn = form.querySelector(".mms-shortage-submit") || form.querySelector("button[type='submit']");
+
+    if (targetSpan) targetSpan.textContent = qtyRequested;
+
+    function update() {
+      var sum = parseNum(issueInput) + parseNum(procureInput) + parseNum(rejectInput);
+      var ok = Math.abs(sum - qtyRequested) < 0.001;
+      if (sumSpan) sumSpan.textContent = sum;
+      if (warning) warning.style.display = ok ? "none" : "block";
+      if (submitBtn) {
+        submitBtn.disabled = !ok;
+        submitBtn.title = ok
+          ? ""
+          : "Issue + procure + reject must sum to " + qtyRequested + " (currently " + sum + ").";
+      }
+    }
+
+    issueInput.addEventListener("input", update);
+    procureInput.addEventListener("input", update);
+    rejectInput.addEventListener("input", update);
+    update();
+  }
+
+  document.querySelectorAll(".mms-shortage-decision-form").forEach(attachShortageValidation);
+})();
+</script>

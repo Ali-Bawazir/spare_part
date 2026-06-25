@@ -205,28 +205,18 @@ class CostLedgerService:
     @staticmethod
     def _refresh_wo_cache(work_order_id: int) -> None:
         """Refresh the WorkOrderCost cache from the ledger for one WO."""
-        from django.db.models import Sum
-        from django.db.models.functions import Coalesce
-        sums = (
-            CostTransaction.objects
-            .filter(work_order_id=work_order_id)
-            .values("category")
-            .annotate(total=Coalesce(Sum("amount"), Decimal("0")))
-        )
-        by_cat = {row["category"]: row["total"] for row in sums}
-        defaults = {
-            "material_cost":      by_cat.get(CostCategory.MATERIAL, Decimal("0")),
-            "vendor_repair_cost": by_cat.get(CostCategory.VENDOR_REPAIR, Decimal("0")),
-            "consumables_cost":   by_cat.get(CostCategory.CONSUMABLE, Decimal("0")),
-            "additional_cost":    by_cat.get(CostCategory.ADJUSTMENT, Decimal("0")),
-            "ledger_transaction_count": CostTransaction.objects.filter(
-                work_order_id=work_order_id
-            ).count(),
-        }
-        WorkOrderCost.objects.update_or_create(
-            work_order_id=work_order_id,
-            defaults=defaults,
-        )
+        # Bug #5 fix: do NOT use update_or_create here. The default
+        # WorkOrderCost.save() runs _auto_calculate() on first save, which
+        # re-aggregates from PartIssueLine/StockMovement and overwrites the
+        # ledger-derived values we just computed (especially painful for
+        # WO rows that don't yet have a WorkOrderCost — the brand-new row
+        # is created with ledger sums in `defaults`, then save() runs and
+        # _auto_calculate() wipes them).
+        # Instead, get_or_create without defaults so the row is created
+        # empty, then explicitly call recalculate_from_ledger() which is
+        # the single authoritative path that reads from CostTransaction.
+        woc, _ = WorkOrderCost.objects.get_or_create(work_order_id=work_order_id)
+        woc.recalculate_from_ledger()
 
 
 def work_order_id(wo) -> Optional[int]:

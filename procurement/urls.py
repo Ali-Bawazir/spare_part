@@ -13,11 +13,14 @@ urlpatterns = [
 
     # Purchase Orders (PO) — separate section
     path("purchase-orders/", views.purchase_order_list, name="purchase_order_list"),   # /procurement/purchase-orders/
+    path("purchase-orders/by-supplier/", views.purchase_order_by_supplier, name="purchase_order_by_supplier"),  # /procurement/purchase-orders/by-supplier/
+    path("purchase-orders/supplier/<int:supplier_id>/csv/", views.purchase_order_supplier_csv, name="purchase_order_supplier_csv"),  # /procurement/purchase-orders/supplier/1/csv/
     path("purchase-orders/new/", views.purchase_order_create, name="purchase_order_create"),  # /procurement/purchase-orders/new/
     path("purchase-orders/from-pr/<int:pr_pk>/", views.purchase_order_create_from_pr, name="purchase_order_create_from_pr"),
     path("purchase-orders/<int:pk>/", views.purchase_order_detail, name="purchase_order_detail"),
     path("purchase-orders/<int:pk>/receive/", views.purchase_order_receive, name="purchase_order_receive"),
     path("purchase-orders/<int:pk>/close-short/", views.purchase_order_close_short, name="purchase_order_close_short"),
     path("purchase-orders/<int:pk>/pdf/", views.purchase_order_pdf, name="purchase_order_pdf"),
+    path("supplier-analytics/", views.supplier_analytics, name="supplier_analytics"),
     path("supplier/quick-create/", views.supplier_quick_create, name="supplier_quick_create"),
 ]

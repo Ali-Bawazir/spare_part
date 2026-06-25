@@ -11,7 +11,6 @@ class InventoryAdmin(MMSAdminPermission, admin.ModelAdmin):
         "part",
         "site",
         "quantity_available",
-        "quantity_reserved",
         "rack_location",
         "last_counted_at",
         "last_counted_by",
@@ -20,7 +19,6 @@ class InventoryAdmin(MMSAdminPermission, admin.ModelAdmin):
     search_fields = ("part__sku", "part__name", "rack_location")
     readonly_fields = (
         "quantity_available",
-        "quantity_reserved",
         "last_counted_by",
         "updated_at",
     )

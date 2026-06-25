@@ -57,7 +57,7 @@ def _make_site():
 def _make_inventory(part, site, qty):
     return Inventory.objects.create(
         part=part, site=site,
-        quantity_available=qty, quantity_reserved=Decimal("0"),
+        quantity_available=qty,
     )
 
 
@@ -137,6 +137,11 @@ class WarehouseIssueLedgerPostingTests(TestCase):
         PartIssueLine.objects.filter(pk=line.pk).update(
             unit_cost=Decimal("12.50"),
         )
+        # Phase 7.x: simulate the post-approval state.
+        line.refresh_from_db()
+        line.approved_qty = Decimal("5")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         # 3. Warehouse executes the issue
         execute_warehouse_issue(line=line, qty=Decimal("5"), actor=self.manager)
         # Ledger entry should exist
@@ -388,6 +393,11 @@ class FullPipelineLedgerEntryTests(TestCase):
             decided_by=self.manager,
         )
         PartIssueLine.objects.filter(pk=line.pk).update(unit_cost=Decimal("15.00"))
+        # Phase 7.x: simulate the post-approval state.
+        line.refresh_from_db()
+        line.approved_qty = Decimal("4")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         execute_warehouse_issue(line=line, qty=Decimal("4"), actor=self.manager)
         # Verify ledger entry: 4 × 15.00 = 60.00 SAR material cost
         txn = CostTransaction.objects.filter(

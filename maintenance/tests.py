@@ -3184,7 +3184,7 @@ class Sprint1InventoryIntegrityTests(TestCase):
 
         self.inventory, _ = Inventory.objects.get_or_create(
             part=self.part, site=self.site,
-            defaults={"quantity_available": Decimal("3"), "quantity_reserved": Decimal("0")},
+            defaults={"quantity_available": Decimal("3")},
         )
 
         # An issue with priority=medium so the shortage-report snapshot
@@ -3571,7 +3571,7 @@ class V48ShortageDecisionTests(TestCase):
         )
         self.inventory, _ = Inventory.objects.get_or_create(
             part=self.part, site=self.site,
-            defaults={"quantity_available": Decimal("10"), "quantity_reserved": Decimal("0")},
+            defaults={"quantity_available": Decimal("10")},
         )
 
         self.issue = MaintenanceIssue.objects.create(
@@ -3624,7 +3624,7 @@ class V48ShortageDecisionTests(TestCase):
         report.refresh_from_db()
         self.assertEqual(report.status, PartShortageReport.Status.APPROVED)
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("2"))
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("2"))
         pr = PurchaseRequest.objects.filter(source_shortage_report=report).first()
         self.assertIsNotNone(pr)
         self.assertEqual(pr.quantity, Decimal("3"))
@@ -3651,7 +3651,7 @@ class V48ShortageDecisionTests(TestCase):
             rejected_qty=Decimal("3"), decided_by=self.manager,
         )
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("2"))
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("2"))
 
         # Edit: shift 1 from reject to issue. Procure stays 0 (no PR lock).
         edit_shortage_decision(
@@ -3660,7 +3660,7 @@ class V48ShortageDecisionTests(TestCase):
             edited_by=self.manager,
         )
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("3"))
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("3"))
 
     # ---- Scenario 3: edit decision LOCKED after execution ----
 
@@ -3686,6 +3686,10 @@ class V48ShortageDecisionTests(TestCase):
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
         line = result["line"]
+        # Phase 7.x: simulate the post-approval state.
+        line.approved_qty = Decimal("2")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         execute_warehouse_issue(line=line, qty=Decimal("2"), actor=self.manager)
         report.refresh_from_db()
         self.assertEqual(report.status, PartShortageReport.Status.IN_FULFILLMENT)
@@ -3793,6 +3797,13 @@ class V48ShortageDecisionTests(TestCase):
         self.inventory.quantity_available = Decimal("1")
         self.inventory.save()
         line = result["line"]
+        # Phase 7.x: the new flow requires approve_part_request between the
+        # shortage decision and the warehouse issue. Set the line state
+        # directly to mirror the post-approval state so this legacy test
+        # continues to verify the warehouse-issue stock-drop behavior.
+        line.approved_qty = Decimal("2")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         with self.assertRaises(ValueError) as ctx:
             execute_warehouse_issue(line=line, qty=Decimal("2"), actor=self.manager)
         self.assertIn("missing", str(ctx.exception).lower())
@@ -3818,12 +3829,17 @@ class V48ShortageDecisionTests(TestCase):
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
         line = result["line"]
+        # Phase 7.x: simulate the post-approval state the new flow would set
+        # before warehouse issue (line.status=approved, line.approved_qty=2).
+        line.approved_qty = Decimal("2")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         # First warehouse issue: 2 of 2 (full stock side).
         execute_warehouse_issue(line=line, qty=Decimal("2"), actor=self.manager)
         line.refresh_from_db()
         self.assertEqual(line.issued_qty, Decimal("2"))
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("0"))
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("0"))
         # After procurement receipt (simulated by adding stock and re-issuing):
         # No second warehouse action needed; the line is fully issued on the stock side.
         # (Procurement-side execution lands in Sprint 4.)
@@ -3850,6 +3866,10 @@ class V48ShortageDecisionTests(TestCase):
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
         line = result["line"]
+        # Phase 7.x: simulate the post-approval state.
+        line.approved_qty = Decimal("2")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         execute_warehouse_issue(line=line, qty=Decimal("2"), actor=self.manager)
         report.refresh_from_db()
         self.assertEqual(report.status, PartShortageReport.Status.IN_FULFILLMENT)
@@ -3884,13 +3904,13 @@ class V48ShortageDecisionTests(TestCase):
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("2"))
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("2"))
         transition_shortage_status(
             report, PartShortageReport.Status.BLOCKED, actor=self.manager,
             note="Investigating stock discrepancy",
         )
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("2"),
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("2"),
                          "v4.8: BLOCKED does NOT release reservation")
 
     # ---- Scenario 11: dashboard renders ----
@@ -3960,6 +3980,10 @@ class V48ShortageDecisionTests(TestCase):
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
         line = result["line"]
+        # Phase 7.x: simulate the post-approval state.
+        line.approved_qty = Decimal("2")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         execute_warehouse_issue(line=line, qty=Decimal("2"), actor=self.manager)
         # PR is in PENDING state (procurement hasn't started) — the mark
         # should STILL succeed because v4.8 doesn't check PR.status.
@@ -3974,13 +3998,13 @@ class V48ShortageDecisionTests(TestCase):
         from inventory.services import reserve_stock
 
         self.inventory.quantity_available = Decimal("10")
-        self.inventory.quantity_reserved = Decimal("0")
+        self.inventory.quantity_available = Decimal("10")
         self.inventory.save()
 
         reserve_stock(part=self.part, qty=Decimal("8"),
                       source_wo=self.wo, actor=self.manager)
         self.inventory.refresh_from_db()
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("8"))
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("8"))
 
         with self.assertRaises(ValueError) as ctx:
             reserve_stock(part=self.part, qty=Decimal("5"),
@@ -4014,7 +4038,6 @@ class V48ShortageDecisionTests(TestCase):
 
         # Set up: 2 on hand, request 5 (shortage 3). Approve issue=2.
         self.inventory.quantity_available = Decimal("2")
-        self.inventory.quantity_reserved = Decimal("0")
         self.inventory.save()
         result = request_part_on_wo(
             wo=self.wo, part=self.part, quantity=Decimal("5"),
@@ -4027,13 +4050,17 @@ class V48ShortageDecisionTests(TestCase):
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
         line = result["line"]
+        # Phase 7.x: simulate the post-approval state.
+        line.approved_qty = Decimal("2")
+        line.status = "approved"
+        line.save(update_fields=["approved_qty", "status"])
         # Should succeed: quantity_available=2 >= 2, and reservation is released in tx.
         result_issue = execute_warehouse_issue(line=line, qty=Decimal("2"), actor=self.manager)
         self.assertEqual(result_issue["actual_issued"], Decimal("2"))
         self.assertEqual(result_issue["reservation_released"], Decimal("2"))
         self.inventory.refresh_from_db()
         self.assertEqual(self.inventory.quantity_available, Decimal("0"))
-        self.assertEqual(self.inventory.quantity_reserved, Decimal("0"))
+        self.assertEqual(self.inventory.compute_quantity_reserved(), Decimal("0"))
 
 
 class V49FixesAndFeaturesTests(TestCase):

@@ -494,7 +494,7 @@ class WorkOrderOperationalStatusTests(TestCase):
 
 
 class InventoryReservationSignalTests(TestCase):
-    """Inventory.quantity_reserved must be a derived cache of ACTIVE reservations."""
+    """Inventory.compute_quantity_reserved() must sum ACTIVE reservations."""
 
     def setUp(self):
         self.manager = _make_user("manager_inv", User.Role.MANAGER)
@@ -513,7 +513,7 @@ class InventoryReservationSignalTests(TestCase):
             status=InventoryReservation.Status.ACTIVE,
         )
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_reserved, Decimal("3"))
+        self.assertEqual(self.inv.compute_quantity_reserved(), Decimal("3"))
 
     def test_release_reservation_decrements_quantity_reserved(self):
         res = InventoryReservation.objects.create(
@@ -522,12 +522,12 @@ class InventoryReservationSignalTests(TestCase):
             status=InventoryReservation.Status.ACTIVE,
         )
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_reserved, Decimal("3"))
+        self.assertEqual(self.inv.compute_quantity_reserved(), Decimal("3"))
         # Release the reservation
         res.status = InventoryReservation.Status.RELEASED
         res.save(update_fields=["status"])
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_reserved, Decimal("0"))
+        self.assertEqual(self.inv.compute_quantity_reserved(), Decimal("0"))
 
     def test_multiple_active_reservations_summed(self):
         InventoryReservation.objects.create(
@@ -539,7 +539,7 @@ class InventoryReservationSignalTests(TestCase):
             quantity=Decimal("5"), status=InventoryReservation.Status.ACTIVE,
         )
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_reserved, Decimal("7"))
+        self.assertEqual(self.inv.compute_quantity_reserved(), Decimal("7"))
 
     def test_delete_reservation_updates_cache(self):
         res = InventoryReservation.objects.create(
@@ -547,10 +547,10 @@ class InventoryReservationSignalTests(TestCase):
             quantity=Decimal("4"), status=InventoryReservation.Status.ACTIVE,
         )
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_reserved, Decimal("4"))
+        self.assertEqual(self.inv.compute_quantity_reserved(), Decimal("4"))
         res.delete()
         self.inv.refresh_from_db()
-        self.assertEqual(self.inv.quantity_reserved, Decimal("0"))
+        self.assertEqual(self.inv.compute_quantity_reserved(), Decimal("0"))
 
 
 
@@ -677,7 +677,7 @@ class PartBlockerHookTests(TestCase):
             )
         Inventory.objects.create(
             part=self.part, site=site,
-            quantity_available=Decimal("10"), quantity_reserved=Decimal("0"),
+            quantity_available=Decimal("10"),
         )
 
     def test_request_part_on_wo_opens_part_blocker(self):
@@ -721,14 +721,14 @@ class PartBlockerHookTests(TestCase):
     def test_warehouse_issue_resolves_blocker_when_full(self):
         """KEYSTONE: execute_warehouse_issue resolves the PART blocker when issued_qty == approved_qty.
 
-        Deviation from the prompt: the prompt's flow used request -> approve ->
-        execute_warehouse_issue, but execute_warehouse_issue requires the line
-        to be PENDING on entry (line.approved_qty is incremented atomically with
-        line.issued_qty inside the issue call). The keystone rule path
-        (sync_from_external_event / event_type=PART_ISSUED) is exercised
-        correctly by request -> execute_warehouse_issue alone.
+        Flow under test: request → approve → execute_warehouse_issue(qty == approved).
+        After Bug #2 fix, warehouse issue is a physical event and MUST NOT
+        increment approved_qty; the line must be APPROVED with a non-zero
+        approved_qty before warehouse issue is allowed.
         """
-        from inventory.services import request_part_on_wo, execute_warehouse_issue
+        from inventory.services import (
+            request_part_on_wo, approve_part_request, execute_warehouse_issue,
+        )
         from maintenance.models import WorkOrderBlocker
 
         result = request_part_on_wo(
@@ -736,7 +736,11 @@ class PartBlockerHookTests(TestCase):
             technician=self.technician,
         )
         line = result.get("line") if isinstance(result, dict) else result
-        # Issue the full qty (line stays in the keystone-resolves path)
+        # Manager approves the full 3 units (transition PENDING -> ALLOCATED).
+        approve_part_request(line=line, manager=self.manager)
+        line.refresh_from_db()
+        self.assertEqual(line.approved_qty, Decimal("3"))
+        # Issue the full qty (issued == approved -> keystone rule fires).
         execute_warehouse_issue(line=line, qty=Decimal("3"), actor=self.technician)
         # Blocker should be RESOLVED
         blocker = WorkOrderBlocker.objects.get(work_order=self.wo, kind=WorkOrderBlocker.Kind.PART)

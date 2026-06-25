@@ -82,7 +82,7 @@
                 <li>
                   {{ event.created_at|date:"Y-m-d H:i" }} —
                   <code>{{ event.event_type }}</code>
-                  by {{ event.actor.get_full_name|default:event.actor.username|default:"system" }}
+                  by {% if event.actor %}{{ event.actor.get_full_name|default:event.actor.username }}{% else %}system{% endif %}
                 </li>
               {% endfor %}
               {% if events|length > 5 %}

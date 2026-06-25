@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from inventory.models import (
-    Inventory, PartIssueLine, SparePart, StockMovement,
+    Inventory, InventoryReservation, PartIssueLine, SparePart, StockMovement,
 )
 from maintenance.models import (
     MaintenanceIssue, Site, WorkOrder, WorkOrderCost, Machine,
@@ -128,10 +128,9 @@ class InventoryBadgeOverAllocatedTests(TestCase):
         Site.objects.filter(is_default=True).exclude(pk=self.site.pk).update(
             is_default=False,
         )
-        Inventory.objects.create(
+        self.inv = Inventory.objects.create(
             part=self.part, site=self.site,
             quantity_available=Decimal("5"),
-            quantity_reserved=Decimal("10"),
         )
         issue = MaintenanceIssue.objects.create(
             description="x", machine=self.machine, reported_by=self.tech,
@@ -145,6 +144,15 @@ class InventoryBadgeOverAllocatedTests(TestCase):
             created_by=self.manager,
             issue=issue,
         )
+        # Create an over-allocation: 10 ACTIVE reservations vs 5 in stock.
+        # This forces free_stock = 5 - 10 = -5, which the UI must clamp
+        # to "0 (over-allocated)".
+        for _ in range(5):
+            InventoryReservation.objects.create(
+                part=self.part, work_order=self.wo,
+                quantity=Decimal("2"),
+                status=InventoryReservation.Status.ACTIVE,
+            )
 
     def test_part_dropdown_shows_over_allocated_text(self):
         self.client.force_login(self.tech)
@@ -163,12 +171,10 @@ class InventoryBadgeOverAllocatedTests(TestCase):
         Inventory.objects.create(
             part=positive, site=self.site,
             quantity_available=Decimal("15"),
-            quantity_reserved=Decimal("3"),
         )
-        # free_stock = 15 - 3 = 12
+        # free_stock = 15 (no ACTIVE reservations exist)
         self.client.force_login(self.tech)
         response = self.client.get(reverse("work_order_detail", args=[self.wo.pk]))
         self.assertEqual(response.status_code, 200)
         body = response.content.decode()
-        # free_stock = 15 - 3 = 12 → shown as "12"
-        self.assertIn("Positive Part (POS-1) — In stock: 12", body)
+        self.assertIn("Positive Part (POS-1) — In stock: 15", body)

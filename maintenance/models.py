@@ -406,6 +406,16 @@ class WorkOrder(models.Model):
     )
     rejection_reason = models.CharField(max_length=500, blank=True)
     rejection_count = models.PositiveIntegerField(default=0)
+    blocker_system_version = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text=(
+            "0 = created under legacy single-status model. "
+            "1 = created under the new lifecycle/operational/blocker model. "
+            "Auto-bumped to 1 on the first domain event (part request, pause, etc.) "
+            "that creates a WorkOrderBlocker row."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     tool = models.ForeignKey(
@@ -420,9 +430,12 @@ class WorkOrder(models.Model):
         ordering = ["-created_at"]
 
     def save(self, *args, **kwargs):
+        is_create = self.pk is None
         if not self.number:
             last = WorkOrder.objects.order_by("-number").values_list("number", flat=True).first()
             self.number = (last or 0) + 1
+        if is_create:
+            self.blocker_system_version = 1
         super().save(*args, **kwargs)
 
     def clean(self):
@@ -932,6 +945,17 @@ class WorkOrderCost(models.Model):
         max_digits=14, decimal_places=2, default=0,
         help_text="Sum of StockMovement.unit_cost × qty for ISSUE_TO_WO movements on this WO. Renamed from parts_cost."
     )
+    committed_material_cost = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0"),
+        help_text=(
+            "Sum of (PartIssueLine.approved_qty × unit_cost) for approved / "
+            "allocated / issued lines. Set at approval time. Distinct from "
+            "material_cost (which is the actual cost posted to the ledger at "
+            "warehouse-issue time). Allows the dashboard to show committed vs "
+            "actual side-by-side. Excludes pending/rejected lines. Falls back to "
+            "SparePart.last_purchase_cost or avg_cost if line.unit_cost is 0."
+        ),
+    )
     vendor_repair_cost = models.DecimalField(
         max_digits=14, decimal_places=2, default=0,
         help_text="Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this WO. Renamed from vendor_cost."
@@ -1042,9 +1066,30 @@ class WorkOrderCost(models.Model):
         self.ledger_transaction_count = CostTransaction.objects.filter(
             work_order=self.work_order,
         ).count()
+
+        # Phase 7.6: committed_material_cost = sum of approved × unit_cost
+        # (with last_purchase_cost / avg_cost fallback) for non-rejected lines.
+        # Distinct from material_cost which is the actual issued cost.
+        from inventory.models import PartIssueLine
+        committed_total = Decimal("0")
+        for line in PartIssueLine.objects.filter(
+            work_order=self.work_order,
+            status__in=[
+                PartIssueLine.Status.APPROVED,
+                PartIssueLine.Status.ALLOCATED,
+                PartIssueLine.Status.ISSUED,
+            ],
+        ).select_related("part"):
+            eff_uc = line.unit_cost if (line.unit_cost and line.unit_cost > 0) else (
+                line.part.last_purchase_cost or line.part.avg_cost or Decimal("0")
+            )
+            committed_total += (line.approved_qty or Decimal("0")) * eff_uc
+        self.committed_material_cost = committed_total
+
         self.save(update_fields=[
             "material_cost", "vendor_repair_cost", "consumables_cost",
-            "additional_cost", "ledger_transaction_count", "last_reconciled_at",
+            "additional_cost", "committed_material_cost",
+            "ledger_transaction_count", "last_reconciled_at",
         ])
 
 

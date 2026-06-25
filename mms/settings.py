@@ -159,3 +159,23 @@ CELERY_TIMEZONE = "UTC"
 # File Upload Settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+# ---------------------------------------------------------------------------
+# Phase 7.7: PO auto-fulfillment
+# ---------------------------------------------------------------------------
+# When a PO with linked PR(s) attached to a specific WO is received, the
+# receive flow auto-calls `execute_warehouse_issue` for matching open
+# PartIssueLines on that WO. This closes the loop between the supplier
+# delivery and the WO consumption, so the user no longer needs to
+# manually click "📤 Issue N from stock" on the WO page after every
+# receive.
+#
+# Safety: when OFF, the receive flow keeps the existing behaviour
+# (stock added, WO awaiting manual warehouse issue). When ON, the
+# receive flow also issues the stock to the WO automatically.
+# Stock-only PRs (work_order_id = NULL) are never auto-issued — they
+# only replenish inventory.
+PO_AUTO_ISSUE = os.environ.get("MMS_PO_AUTO_ISSUE", "True").lower() in (
+    "true", "1", "yes", "on",
+)

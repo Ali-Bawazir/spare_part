@@ -60,6 +60,8 @@ def priority_badge_class(value):
 PART_STATUS_BADGE = {
     "pending": "mms-badge mms-badge--warning",
     "approved": "mms-badge mms-badge--success",
+    "allocated": "mms-badge mms-badge--info",
+    "issued": "mms-badge mms-badge--primary",
     "rejected": "mms-badge mms-badge--muted",
 }
 
@@ -165,3 +167,22 @@ def get_item(dictionary, key):
         return dictionary.get(key)
     except (AttributeError, TypeError):
         return None
+
+
+@register.filter
+def qty_no_zeros(value):
+    """Render a Decimal (or numeric) as a clean string without
+    trailing zeros: Decimal('2.000') -> '2', Decimal('1.500') -> '1.5'.
+    Falls back to str() for non-Decimal inputs.
+    """
+    from decimal import Decimal
+    if value is None or value == "":
+        return ""
+    if isinstance(value, Decimal):
+        if value == 0:
+            return "0"
+        try:
+            return format(value.normalize(), "f")
+        except Exception:
+            return str(value)
+    return str(value)

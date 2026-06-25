@@ -13,15 +13,6 @@ class Inventory(models.Model):
     part = models.ForeignKey("SparePart", on_delete=models.PROTECT, related_name="inventory_items")
     site = models.ForeignKey("maintenance.Site", on_delete=models.PROTECT, related_name="inventory_items")
     quantity_available = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
-    quantity_reserved = models.DecimalField(
-        max_digits=14, decimal_places=3, default=Decimal("0"),
-        help_text=(
-            "Aggregate reserved quantity, used for planning/reporting purposes. "
-            "Reservations are soft claims: warehouse issue operations validate "
-            "against quantity_available only, not against quantity_available minus "
-            "quantity_reserved. Do NOT add a hard physical-lock check here."
-        ),
-    )
     quantity_quarantine = models.DecimalField(max_digits=14, decimal_places=3, default=0,
         help_text="Damaged units received from suppliers. Not visible to maintenance. "
                   "Distinct from quantity_available (usable) and quantity_rejected (audit only).")
@@ -31,8 +22,7 @@ class Inventory(models.Model):
     last_counted_at = models.DateTimeField(null=True, blank=True)
     last_counted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
+        null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name="inventory_counts",
     )
@@ -44,6 +34,21 @@ class Inventory(models.Model):
 
     def __str__(self) -> str:
         return f"{self.part.name} @ {self.site.code} ({self.quantity_available})"
+
+    def compute_quantity_reserved(self) -> Decimal:
+        """Source-of-truth reserved quantity: sum of ACTIVE InventoryReservation rows
+        for this (part, site). Use this instead of the deprecated
+        `quantity_reserved` DB field for any decision that needs the live
+        value (free-stock computation, shortage decisions, etc.).
+        """
+        from django.db.models import Sum
+        from .models import InventoryReservation
+        agg = (
+            InventoryReservation.objects
+            .filter(part=self.part, status=InventoryReservation.Status.ACTIVE)
+            .aggregate(total=Sum("quantity"))["total"]
+        )
+        return agg or Decimal("0")
 
 
 class SparePart(models.Model):
@@ -110,9 +115,11 @@ class SparePart(models.Model):
         if target_site:
             inv = self.inventory_items.filter(site=target_site).first()
             if inv:
-                return (inv.quantity_available - inv.quantity_reserved) <= self.min_stock_level
+                # Phase 7.8: use live aggregate (sum of ACTIVE reservations)
+                # instead of the deprecated DB field.
+                return (inv.quantity_available - inv.compute_quantity_reserved()) <= self.min_stock_level
         total = sum(
-            inv.quantity_available - inv.quantity_reserved
+            inv.quantity_available - inv.compute_quantity_reserved()
             for inv in self.inventory_items.all()
         )
         return total <= self.min_stock_level

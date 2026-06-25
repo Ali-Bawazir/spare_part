@@ -51,3 +51,7 @@ celerybeat-schedule.db
 
 # Node (if any future frontend)
 node_modules/screenshots/
+
+# Local scratch artifacts (MCP browser screenshots, debug dumps)
+.scratch/
+screenshots/
