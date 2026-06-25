@@ -210,7 +210,8 @@ class PurchaseOrderReceiveV2Tests(TestCase):
     # ------------------------------------------------------------------
     def test_receive_with_rejected_units_no_stock_change(self):
         """Submit rejected_qty=2 → rejected_qty == 2, no Inventory change,
-        no new StockMovement."""
+        no new StockMovement. Rejected units are audit-only and do NOT
+        count toward received_qty — the supplier still owes them."""
         self.client.force_login(self.procurement)
         with mock.patch(
             "procurement.views.notify_po_received_summary"
@@ -224,7 +225,7 @@ class PurchaseOrderReceiveV2Tests(TestCase):
 
         self.item_a.refresh_from_db()
         self.assertEqual(self.item_a.rejected_qty, Decimal("2.000"))
-        self.assertEqual(self.item_a.received_qty, Decimal("2.000"))  # counts toward received
+        self.assertEqual(self.item_a.received_qty, Decimal("0"))     # rejected is audit-only
         self.assertEqual(self.item_a.damaged_qty, Decimal("0"))
 
         # No inventory change
@@ -237,6 +238,46 @@ class PurchaseOrderReceiveV2Tests(TestCase):
     # ------------------------------------------------------------------
     # 4. reallocate_for_part called for stock-changing lines
     # ------------------------------------------------------------------
+    def test_rejected_does_not_count_as_received(self):
+        """User scenario: ordered=5, submit good=2 + damaged=1 + rejected=3.
+        Only what physically arrived (good + damaged = 3) counts toward
+        received_qty. Rejected units are an audit counter, not a stock-claim.
+        PO must stay PARTIAL_RECEIVED — supplier still owes the 3 rejected.
+        """
+        # Reduce item_a's ordered_qty to 5 for a clean scenario
+        self.item_a.ordered_qty = Decimal("5")
+        self.item_a.save(update_fields=["ordered_qty"])
+
+        self.client.force_login(self.procurement)
+        with mock.patch(
+            "procurement.views.notify_po_received_summary"
+        ), mock.patch(
+            "procurement.views.PartAllocationService.reallocate_for_part"
+        ):
+            response = self.client.post(self.url, {
+                f"good_qty_{self.item_a.pk}": "2",
+                f"damaged_qty_{self.item_a.pk}": "1",
+                f"rejected_qty_{self.item_a.pk}": "3",
+                f"actual_unit_price_{self.item_a.pk}": "10.00",
+                "supplier_invoice_ref": "INV-REJ",
+            })
+        self.assertEqual(response.status_code, 302)
+
+        # received_qty = good + damaged ONLY (3), rejected is separate
+        self.item_a.refresh_from_db()
+        self.assertEqual(self.item_a.received_qty, Decimal("3.000"))
+        self.assertEqual(self.item_a.damaged_qty, Decimal("1.000"))
+        self.assertEqual(self.item_a.rejected_qty, Decimal("3.000"))
+
+        # Stock: 2 good to available, 1 damaged to quarantine
+        inv = Inventory.objects.get(part=self.part_a, site=self.site)
+        self.assertEqual(inv.quantity_available, Decimal("2.000"))
+        self.assertEqual(inv.quantity_quarantine, Decimal("1.000"))
+
+        # PO stays PARTIAL_RECEIVED — 3 received < 5 ordered, supplier owes 3
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.status, PurchaseOrder.Status.PARTIAL_RECEIVED)
+
     def test_receive_calls_reallocate_for_part(self):
         """A WO with an open PartIssueLine exists → reallocate_for_part
         is called for the part whose stock changed, and the line gets a

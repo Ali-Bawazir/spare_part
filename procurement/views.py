@@ -578,7 +578,8 @@ def purchase_order_receive(request, pk):
     POST form fields per line item:
       - good_qty_<pk>: units received in good condition
       - damaged_qty_<pk>: units received damaged (go to quarantine)
-      - rejected_qty_<pk>: units rejected at inspection (no stock change)
+      - rejected_qty_<pk>: units rejected at inspection (no stock change;
+        audit-only counter, does NOT count toward received_qty)
       - actual_unit_price_<pk>: actual invoiced unit price (overrides negotiated)
 
     PO-level:
@@ -616,26 +617,32 @@ def purchase_order_receive(request, pk):
             damaged = _to_decimal(request.POST.get(f"damaged_qty_{item.pk}")) or Decimal("0")
             rejected = _to_decimal(request.POST.get(f"rejected_qty_{item.pk}")) or Decimal("0")
             actual_price = _to_decimal(request.POST.get(f"actual_unit_price_{item.pk}"))
-            total_received = good + damaged + rejected
 
-            if total_received <= 0 and not actual_price:
+            # What physically arrived at the warehouse (excludes rejected units
+            # which never made it past the dock). PO status is derived from
+            # this — PO only flips to RECEIVED when arrived >= ordered.
+            arrived = good + damaged
+
+            if arrived <= 0 and rejected <= 0 and not actual_price:
                 continue  # nothing to do for this line
 
             remaining = item.ordered_qty - item.received_qty
-            if total_received > remaining and remaining > 0:
+            if arrived > remaining and remaining > 0:
                 messages.warning(
                     request,
-                    f"{item.part.sku}: receiving {total_received} exceeds remaining {remaining} — capped.",
+                    f"{item.part.sku}: receiving {arrived} exceeds remaining {remaining} — capped.",
                 )
                 # proportionally scale (or just cap the good portion)
-                ratio = remaining / total_received
+                ratio = remaining / arrived
                 good = (good * ratio).quantize(Decimal("0.001"))
                 damaged = (damaged * ratio).quantize(Decimal("0.001"))
-                rejected = (rejected * ratio).quantize(Decimal("0.001"))
-                total_received = good + damaged + rejected
+                arrived = good + damaged
 
             # Update item fields
-            item.received_qty += total_received
+            # received_qty = units that physically arrived (good + damaged).
+            # Rejected units do NOT count as received — they are an audit-only
+            # counter tracked separately via rejected_qty.
+            item.received_qty += arrived
             item.damaged_qty += damaged
             item.rejected_qty += rejected
             if actual_price and actual_price > 0:
@@ -704,7 +711,7 @@ def purchase_order_receive(request, pk):
                         actor=request.user,
                     )
 
-            if total_received > 0 or actual_price:
+            if arrived > 0 or rejected > 0 or actual_price:
                 line_changes.append({
                     "sku": item.part.sku,
                     "name": item.part.name,
