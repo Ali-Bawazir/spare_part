@@ -3,6 +3,7 @@ from decimal import Decimal
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.forms.models import inlineformset_factory
 
 from .models import (
     ExternalRepairOrder,
@@ -11,7 +12,9 @@ from .models import (
     FailureMode,
     Machine,
     MaintenanceIssue,
+    PMChecklistItem,
     PMSchedule,
+    PMTemplate,
     QuickMaintenanceLog,
     Tool,
     ToolAssignment,
@@ -189,19 +192,38 @@ class PMScheduleForm(forms.ModelForm):
 
     class Meta:
         model = PMSchedule
-        fields = ("machine", "component", "title", "frequency_days", "checklist", "next_due_at", "is_active")
+        fields = (
+            "template", "machine", "component",
+            "frequency_type", "interval", "start_date", "next_due_at",
+            "priority_override", "estimated_duration_override",
+            "grace_days", "reminder_days_before",
+            "trigger_type", "is_active",
+        )
         widgets = {
-            "title": forms.TextInput(attrs=_CTRL),
-            "frequency_days": forms.NumberInput(attrs=_CTRL),
-            "checklist": forms.Textarea(attrs={**_CTRL, "rows": 5, "placeholder": "One checklist item per line"}),
+            "template": forms.Select(attrs=_SEL),
+            "frequency_type": forms.Select(attrs=_SEL),
+            "interval": forms.NumberInput(attrs={**_CTRL, "min": "1"}),
+            "start_date": forms.DateInput(attrs={**_CTRL, "type": "date"}),
             "next_due_at": forms.DateTimeInput(attrs={**_CTRL, "type": "datetime-local"}),
+            "priority_override": forms.Select(attrs=_SEL),
+            "estimated_duration_override": forms.NumberInput(attrs={**_CTRL, "min": "1"}),
+            "grace_days": forms.NumberInput(attrs={**_CTRL, "min": "0"}),
+            "reminder_days_before": forms.NumberInput(attrs={**_CTRL, "min": "0"}),
+            "trigger_type": forms.Select(attrs=_SEL),
         }
 
     def __init__(self, *args, lock_asset=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["template"].queryset = PMTemplate.objects.filter(is_active=True).order_by("code")
+        for fname in ("template", "frequency_type", "interval", "start_date", "next_due_at",
+                       "priority_override", "estimated_duration_override",
+                       "grace_days", "reminder_days_before", "trigger_type"):
+            if fname in self.fields:
+                self.fields[fname].required = True
+        self.fields["priority_override"].required = False
+        self.fields["estimated_duration_override"].required = False
         self.fields["propagate_to_children"] = forms.BooleanField(
-            required=False,
-            label="Apply to all child machines",
+            required=False, label="Apply to all child machines",
             help_text="If this machine has child machines, create PM work orders for each of them.",
             widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
         )
@@ -222,6 +244,34 @@ class PMScheduleForm(forms.ModelForm):
                     for error in errors:
                         self.add_error(field, error)
         return cleaned
+
+
+PMChecklistItemFormSet = inlineformset_factory(
+    PMTemplate, PMChecklistItem,
+    fields=("order", "text", "is_required"),
+    extra=3, can_delete=True,
+    widgets={
+        "order": forms.NumberInput(attrs={**_CTRL, "min": "1"}),
+        "text": forms.TextInput(attrs={**_CTRL, "placeholder": "Checklist item text"}),
+        "is_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    },
+)
+
+
+class PMTemplateForm(forms.ModelForm):
+    class Meta:
+        model = PMTemplate
+        fields = ("code", "title", "description", "estimated_duration_minutes",
+                  "priority", "requires_manager_review", "is_active")
+        widgets = {
+            "code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. PM-HYD-001"}),
+            "title": forms.TextInput(attrs=_CTRL),
+            "description": forms.Textarea(attrs={**_CTRL, "rows": 3}),
+            "estimated_duration_minutes": forms.NumberInput(attrs={**_CTRL, "min": "1"}),
+            "priority": forms.Select(attrs=_SEL),
+            "requires_manager_review": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
 
 
 class ToolAssignForm(forms.Form):

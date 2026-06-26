@@ -7,7 +7,7 @@
     <div class="mms-card-body">
         <dl style="margin:0; display:grid; grid-template-columns: 150px 1fr; gap:0.5rem">
             <dt>Machine</dt><dd>{{ wo.machine.name }} ({{ wo.machine.qr_code }})</dd>
-            <dt>PM Schedule</dt><dd>{{ sched.title|default:"—" }} (every {{ sched.frequency_days }} days)</dd>
+            <dt>PM Schedule</dt><dd>{% if sched %}{{ sched.template.title }} (every {{ sched.interval }} {{ sched.get_frequency_type_display|lower }}){% else %}—{% endif %}</dd>
             <dt>Technician</dt><dd>{{ wo.assigned_technician|default:"Unassigned" }}</dd>
         </dl>
     </div>

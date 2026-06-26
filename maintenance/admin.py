@@ -13,7 +13,10 @@ from .models import (
     Machine,
     MaintenanceIssue,
     Notification,
+    PMChecklistItem,
+    PMExecution,
     PMSchedule,
+    PMTemplate,
     QuickMaintenanceLog,
     Tool,
     ToolAssignment,
@@ -165,11 +168,11 @@ class QuickMaintenanceLogAdmin(MMSAdminPermission, admin.ModelAdmin):
 
 @admin.register(PMSchedule)
 class PMScheduleAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("title", "machine", "frequency_days", "next_due_at", "is_active", "created_at")
-    list_filter = ("is_active", "machine")
-    search_fields = ("title", "machine__name", "checklist")
-    readonly_fields = ("created_at",)
-    raw_id_fields = ("machine",)
+    list_display = ("template", "machine", "frequency_type", "interval", "next_due_at", "is_active", "created_at")
+    list_filter = ("is_active", "machine", "frequency_type", "trigger_type")
+    search_fields = ("template__code", "template__title", "machine__name")
+    readonly_fields = ("created_at", "effective_priority", "effective_duration_minutes")
+    raw_id_fields = ("template", "machine", "component", "created_by")
 
 
 @admin.register(Tool)
@@ -290,3 +293,30 @@ class AuditEntryAdmin(MMSAdminPermission, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+
+class PMChecklistItemInline(admin.TabularInline):
+    model = PMChecklistItem
+    extra = 1
+    fields = ("order", "text", "is_required")
+
+
+@admin.register(PMTemplate)
+class PMTemplateAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("code", "title", "priority", "estimated_duration_minutes", "is_active", "created_at")
+    list_filter = ("is_active", "priority", "requires_manager_review")
+    search_fields = ("code", "title", "description")
+    readonly_fields = ("created_at",)
+    inlines = (PMChecklistItemInline,)
+
+
+@admin.register(PMExecution)
+class PMExecutionAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("pm_schedule", "execution_sequence", "status", "scheduled_due_at", "completed_at", "approved_at")
+    list_filter = ("status",)
+    search_fields = ("pm_schedule__template__code", "pm_schedule__machine__name")
+    readonly_fields = ("created_at", "template_snapshot_json", "scheduled_due_at", "execution_sequence")
+    raw_id_fields = ("pm_schedule", "work_order", "completed_by", "approved_by")
+
+    def has_add_permission(self, request):
+        return False

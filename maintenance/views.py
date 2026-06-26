@@ -64,6 +64,8 @@ from .forms import (
     ExternalRepairRequestForm,
     IssueReportForm,
     MachineForm,
+    PMChecklistItemFormSet,
+    PMTemplateForm,
     PMScheduleForm,
     QuickLogForm,
     RepairManagerAcceptForm,
@@ -87,7 +89,10 @@ from .models import (
     Machine,
     MaintenanceIssue,
     Notification,
+    PMChecklistItem,
+    PMExecution,
     PMSchedule,
+    PMTemplate,
     QuickMaintenanceLog,
     Site,
     Tool,
@@ -100,6 +105,7 @@ from .services import (
     approve_external_repair_request,
     archive_maintenance_issue,
     archive_work_order,
+    create_pm_execution_for_wo,
     escalate_issue_to_emergency,
     get_other_active_work_order,
     has_active_emergency,
@@ -2706,8 +2712,19 @@ def pm_list(request):
     from .notifications import sync_pm_overdue_notifications
 
     sync_pm_overdue_notifications()
-    schedules = PMSchedule.objects.select_related("machine")
-    return render(request, "maintenance/pm_list.html", {"schedules": schedules})
+    schedules = PMSchedule.objects.select_related("template", "machine").order_by("next_due_at")
+    templates_meta = {
+        s.pk: {
+            "effective_priority": s.effective_priority,
+            "effective_duration_minutes": s.effective_duration_minutes,
+        }
+        for s in schedules
+    }
+    return render(
+        request,
+        "maintenance/pm_list.html",
+        {"schedules": schedules, "templates_meta": templates_meta},
+    )
 
 
 @login_required
@@ -2717,7 +2734,10 @@ def pm_create(request):
     if request.method == "POST":
         form = PMScheduleForm(request.POST)
         if form.is_valid():
-            form.save()
+            schedule = form.save(commit=False)
+            if request.user.is_authenticated:
+                schedule.created_by = request.user
+            schedule.save()
             messages.success(request, "PM schedule saved.")
             return redirect("pm_list")
     else:
@@ -2727,6 +2747,7 @@ def pm_create(request):
         initial = {"next_due_at": timezone.now()}
         machine_param = request.GET.get("machine")
         component_param = request.GET.get("component")
+        template_param = request.GET.get("template")
         resolved_machine_id = None
         resolved_component_id = None
         if component_param:
@@ -2754,6 +2775,12 @@ def pm_create(request):
             initial["machine"] = resolved_machine_id
         if resolved_component_id:
             initial["component"] = resolved_component_id
+        if template_param:
+            try:
+                tpl = PMTemplate.objects.get(pk=int(template_param))
+                initial["template"] = tpl.pk
+            except (PMTemplate.DoesNotExist, ValueError, TypeError):
+                pass
 
         # Determine if the user came from a deep-link (asset page). If so,
         # LOCK the machine + component fields so the user can't accidentally
@@ -2804,9 +2831,10 @@ def pm_spawn_wo(request, pk):
                 machine=sched.machine,
                 lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
                 created_by=request.user,
-                notes=f"PM: {sched.title}",
+                notes=f"PM: {sched.template.title}",
             )
             transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="PM work order")
+            create_pm_execution_for_wo(sched, wo, actor=request.user)
             if form.cleaned_data.get("propagate_to_children") and sched.machine.children.exists():
                 child_count = 0
                 for child_machine in sched.machine.children.all():
@@ -2819,6 +2847,7 @@ def pm_spawn_wo(request, pk):
                     )
                     transition_work_order(child_wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user,
                                          note=f"PM for {child_machine.name} (child of {sched.machine.name})")
+                    create_pm_execution_for_wo(sched, child_wo, actor=request.user)
                     child_count += 1
                 if child_count:
                     messages.success(request, f"Created {child_count} child PM work orders.")
@@ -2841,14 +2870,17 @@ def pm_execute(request, pk):
         messages.error(request, "This is not a preventive maintenance work order.")
         return redirect("work_order_detail", pk=pk)
 
-    sched = PMSchedule.objects.filter(machine=wo.machine).order_by("-created_at").first()
+    sched = (
+        PMSchedule.objects.select_related("template")
+        .filter(machine=wo.machine)
+        .order_by("-created_at")
+        .first()
+    )
 
     checklist_items = []
-    if sched and sched.checklist:
-        for line in sched.checklist.strip().split("\n"):
-            line = line.strip()
-            if line:
-                checklist_items.append({"text": line, "checked": False})
+    if sched:
+        for item in sched.template.checklist_items.all().order_by("order", "pk"):
+            checklist_items.append({"text": item.text, "checked": False})
 
     if request.method == "POST":
         form = WorkOrderCompleteForm(request.POST, instance=wo)
@@ -5665,3 +5697,65 @@ def cost_ledger_export_csv(request):
             t.adjustment_id if t.adjustment_id else "",
         ])
     return response
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def pm_template_list(request):
+    templates = PMTemplate.objects.all().prefetch_related("checklist_items", "schedules")
+    return render(request, "maintenance/pm_template_list.html", {"templates": templates})
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def pm_template_create(request):
+    if request.method == "POST":
+        form = PMTemplateForm(request.POST)
+        formset = PMChecklistItemFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                template = form.save()
+                formset.instance = template
+                formset.save()
+            messages.success(request, f"PM template {template.code} created.")
+            return redirect("pm_template_detail", pk=template.pk)
+    else:
+        form = PMTemplateForm(initial={"estimated_duration_minutes": 30, "priority": "medium"})
+        formset = PMChecklistItemFormSet()
+    return render(request, "maintenance/pm_template_form.html", {
+        "form": form, "formset": formset, "template": None, "mode": "create",
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def pm_template_edit(request, pk):
+    template = get_object_or_404(PMTemplate, pk=pk)
+    if request.method == "POST":
+        form = PMTemplateForm(request.POST, instance=template)
+        formset = PMChecklistItemFormSet(request.POST, instance=template)
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                form.save()
+                formset.save()
+            messages.success(request, f"PM template {template.code} updated.")
+            return redirect("pm_template_detail", pk=template.pk)
+    else:
+        form = PMTemplateForm(instance=template)
+        formset = PMChecklistItemFormSet(instance=template)
+    return render(request, "maintenance/pm_template_form.html", {
+        "form": form, "formset": formset, "template": template, "mode": "edit",
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN, User.Role.TECHNICIAN, User.Role.SUPERVISOR)
+def pm_template_detail(request, pk):
+    template = get_object_or_404(
+        PMTemplate.objects.prefetch_related("checklist_items", "schedules__machine"),
+        pk=pk,
+    )
+    schedules = template.schedules.select_related("machine").order_by("next_due_at")
+    return render(request, "maintenance/pm_template_detail.html", {
+        "template": template, "schedules": schedules,
+    })

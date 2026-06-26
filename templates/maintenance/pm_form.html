@@ -27,10 +27,11 @@
         {% endif %}
       {% endif %}
       {% for field in form %}
-        {% if field.name == 'component' %}{% else %}
+        {% if field.name == 'component' or field.name == 'propagate_to_children' %}{% else %}
         <div class="mms-form-row">
           {{ field.label_tag }}
           {{ field }}
+          {% if field.help_text %}<small class="form-text text-muted" style="color:#6b7280">{{ field.help_text }}</small>{% endif %}
           {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
         </div>
         {% endif %}

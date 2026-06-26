@@ -565,25 +565,178 @@ class QuickMaintenanceLog(models.Model):
         ordering = ["-created_at"]
 
 
+class PMTemplate(models.Model):
+    """Reusable PM procedure — used across many PMSchedules."""
+
+    class Priority(models.TextChoices):
+        LOW = "low", "Low"
+        MEDIUM = "medium", "Medium"
+        HIGH = "high", "High"
+        CRITICAL = "critical", "Critical"
+
+    code = models.SlugField(max_length=64, unique=True, help_text="e.g. PM-HYD-001")
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    estimated_duration_minutes = models.PositiveIntegerField(default=30)
+    priority = models.CharField(
+        max_length=16, choices=Priority.choices, default=Priority.MEDIUM
+    )
+    requires_manager_review = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["code"]
+
+    def __str__(self) -> str:
+        return f"{self.code} — {self.title}"
+
+
+class PMChecklistItem(models.Model):
+    """One line item in a PMTemplate's inspection checklist."""
+
+    template = models.ForeignKey(
+        PMTemplate, on_delete=models.CASCADE, related_name="checklist_items"
+    )
+    order = models.PositiveIntegerField(default=0)
+    text = models.CharField(max_length=500)
+    is_required = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self) -> str:
+        return f"{self.template.code} #{self.order}: {self.text}"
+
+
+class PMExecution(models.Model):
+    """Dedicated compliance record per PM cycle, independent of WorkOrder."""
+
+    class Status(models.TextChoices):
+        SUBMITTED = "submitted", "Submitted"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        MISSED = "missed", "Missed"
+
+    pm_schedule = models.ForeignKey(
+        "PMSchedule", on_delete=models.CASCADE, related_name="executions"
+    )
+    work_order = models.OneToOneField(
+        "WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pm_execution",
+    )
+    scheduled_due_at = models.DateTimeField(
+        help_text="Locks this execution to a specific due occurrence"
+    )
+    execution_sequence = models.PositiveIntegerField(
+        default=1, help_text="Cycle counter per PMSchedule"
+    )
+    template_snapshot_json = models.JSONField(
+        default=dict, blank=True,
+        help_text="Immutable snapshot of template state at WO spawn time"
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="pm_executions_completed",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="pm_executions_approved",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.SUBMITTED, db_index=True
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-scheduled_due_at", "-execution_sequence"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["pm_schedule", "scheduled_due_at"],
+                name="unique_pm_execution_per_occurrence",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"PMExecution #{self.pk} ({self.pm_schedule_id} "
+            f"seq={self.execution_sequence} {self.status})"
+        )
+
+
 class PMSchedule(models.Model):
+    """Assignment of a PMTemplate to an asset."""
+
+    class FrequencyType(models.TextChoices):
+        DAILY = "daily", "Daily"
+        WEEKLY = "weekly", "Weekly"
+        MONTHLY = "monthly", "Monthly"
+        YEARLY = "yearly", "Yearly"
+
+    class TriggerType(models.TextChoices):
+        TIME = "time", "Time-based"
+        METER = "meter", "Meter-based"
+
+    template = models.ForeignKey(
+        PMTemplate, on_delete=models.PROTECT, related_name="schedules",
+        help_text="Reusable procedure applied to this asset",
+    )
     machine = models.ForeignKey(Machine, on_delete=models.CASCADE, related_name="pm_schedules")
     component = models.ForeignKey(
         Machine, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="pm_component_schedules",
         help_text="Level-5 Component this PM targets (optional)",
     )
-    title = models.CharField(max_length=255)
-    frequency_days = models.PositiveIntegerField(default=30)
-    checklist = models.TextField(blank=True, help_text="One line per checklist item")
+    frequency_type = models.CharField(
+        max_length=16, choices=FrequencyType.choices, default=FrequencyType.MONTHLY,
+    )
+    interval = models.PositiveIntegerField(default=1, help_text="e.g. MONTHLY × 3 = every 3 months")
+    start_date = models.DateField(default=timezone.now)
     next_due_at = models.DateTimeField()
+    last_completed_at = models.DateTimeField(null=True, blank=True)
+    trigger_type = models.CharField(
+        max_length=16, choices=TriggerType.choices, default=TriggerType.TIME,
+    )
+    priority_override = models.CharField(
+        max_length=16, choices=PMTemplate.Priority.choices, null=True, blank=True,
+        help_text="If null, fall back to template.priority",
+    )
+    estimated_duration_override = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="If null, fall back to template.estimated_duration_minutes",
+    )
+    grace_days = models.PositiveIntegerField(default=7)
+    reminder_days_before = models.PositiveIntegerField(default=7)
+    auto_generate_wo = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="pm_schedules_created",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["next_due_at"]
 
     def __str__(self) -> str:
-        return f"PM: {self.title} ({self.machine})"
+        return f"PM: {self.template.title} ({self.machine})"
+
+    @property
+    def effective_priority(self) -> str:
+        return self.priority_override or self.template.priority
+
+    @property
+    def effective_duration_minutes(self) -> int:
+        return self.estimated_duration_override or self.template.estimated_duration_minutes
 
     def clean(self):
         super().clean()

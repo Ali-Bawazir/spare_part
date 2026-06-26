@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}PM templates{% endblock %}
+{% block page_heading %}PM templates{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Reusable preventive maintenance procedures. Each template can be assigned to many machines via PMSchedule.</p>
+{% if perm_pm_schedule_manage %}
+<p class="mms-actions">
+  <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'pm_template_create' %}">New template</a>
+</p>
+{% endif %}
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>Code</th><th>Title</th><th>Priority</th><th>Duration</th><th>Items</th><th>Schedules</th><th>Active</th><th></th></tr></thead>
+      <tbody>
+      {% for t in templates %}
+      <tr>
+        <td><code>{{ t.code }}</code></td>
+        <td><a href="{% url 'pm_template_detail' t.pk %}">{{ t.title }}</a></td>
+        <td>{{ t.get_priority_display }}</td>
+        <td>{{ t.estimated_duration_minutes }} min</td>
+        <td>{{ t.checklist_items.count }}</td>
+        <td>{{ t.schedules.count }}</td>
+        <td>{% if t.is_active %}<span style="color:#16a34a">Yes</span>{% else %}<span style="color:#9ca3af">No</span>{% endif %}</td>
+        <td>{% if perm_pm_schedule_manage %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_template_edit' t.pk %}">Edit</a>{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="8" class="mms-empty">No PM templates.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

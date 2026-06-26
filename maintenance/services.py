@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from .models import AuditEntry, MaintenanceIssue, WorkOrder, WorkOrderStateLog, Downtime, WorkOrderAssignmentHistory
+from .models import AuditEntry, MaintenanceIssue, PMSchedule, WorkOrder, WorkOrderStateLog, Downtime, WorkOrderAssignmentHistory
 
 User = get_user_model()
 
@@ -691,3 +691,79 @@ def technician_stats(technician: User) -> dict:
         "avg_response_minutes": avg_response_minutes,
         "recent": recent,
     }
+
+
+def capture_template_snapshot(template: "PMTemplate") -> dict:
+    """Capture template state for historical record on PMExecution."""
+    from .models import PMChecklistItem, PMTemplate as _PMT
+    if not isinstance(template, _PMT):
+        template = _PMT.objects.get(pk=template.pk)
+    items = list(
+        PMChecklistItem.objects.filter(template=template)
+        .order_by("order", "pk")
+        .values("order", "text", "is_required")
+    )
+    return {
+        "template_code": template.code,
+        "template_title": template.title,
+        "template_priority": template.priority,
+        "template_duration_minutes": template.estimated_duration_minutes,
+        "checklist": items,
+        "captured_at": timezone.now().isoformat(),
+    }
+
+
+def next_pm_execution_sequence(schedule: "PMSchedule") -> int:
+    """Return next execution_sequence for this schedule (max + 1)."""
+    from .models import PMExecution
+    last = (
+        PMExecution.objects.filter(pm_schedule=schedule)
+        .order_by("-execution_sequence")
+        .values_list("execution_sequence", flat=True)
+        .first()
+    )
+    return (last or 0) + 1
+
+
+def create_pm_execution_for_wo(schedule: "PMSchedule", work_order, actor=None) -> "PMExecution":
+    """Create a PMExecution in SUBMITTED status tied to a WO and template snapshot."""
+    from .models import PMExecution
+    snapshot = capture_template_snapshot(schedule.template)
+    execution = PMExecution.objects.create(
+        pm_schedule=schedule,
+        work_order=work_order,
+        scheduled_due_at=schedule.next_due_at,
+        execution_sequence=next_pm_execution_sequence(schedule),
+        status=PMExecution.Status.SUBMITTED,
+        template_snapshot_json=snapshot,
+        completed_by=actor,
+        completed_at=timezone.now(),
+    )
+    return execution
+
+
+def compute_next_due_at(schedule: "PMSchedule", after):
+    """Compute next due datetime after `after` using frequency_type + interval."""
+    from datetime import datetime, timedelta
+    if isinstance(after, datetime):
+        base = after
+    else:
+        from django.utils import timezone as _tz
+        base = _tz.now()
+    if schedule.frequency_type == PMSchedule.FrequencyType.DAILY:
+        return base + timedelta(days=schedule.interval)
+    if schedule.frequency_type == PMSchedule.FrequencyType.WEEKLY:
+        return base + timedelta(weeks=schedule.interval)
+    if schedule.frequency_type == PMSchedule.FrequencyType.MONTHLY:
+        months = schedule.interval
+        year = base.year + (base.month - 1 + months) // 12
+        month = (base.month - 1 + months) % 12 + 1
+        from calendar import monthrange
+        day = min(base.day, monthrange(year, month)[1])
+        return base.replace(year=year, month=month, day=day)
+    if schedule.frequency_type == PMSchedule.FrequencyType.YEARLY:
+        from calendar import monthrange
+        year = base.year + schedule.interval
+        day = min(base.day, monthrange(year, base.month)[1])
+        return base.replace(year=year, day=day)
+    return base + timedelta(days=30 * schedule.interval)
