@@ -2,10 +2,10 @@
 {% block title %}PM schedule{% endblock %}
 {% block page_heading %}PM schedule{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Define preventive task frequency and next due date for a machine.</p>
+<p class="mms-page-lead">Define preventive task frequency and next due date for a machine or component.</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
-    <form method="post" class="mms-form">
+    <form method="post" class="mms-form" id="pm-schedule-form">
       {% csrf_token %}
 {% if locked_asset %}
 <div class="mms-alert" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#dbeafe;border-left:3px solid #2563eb;border-radius:4px;color:#1e3a8a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
@@ -38,10 +38,15 @@
       {% endfor %}
 
       {% if not locked_asset %}
-      <div class="mms-form-row" id="component-row" style="display:none">
-        <label for="id_component">Component:</label>
+      <div class="mms-form-row" id="component-row">
+        <label for="id_component" style="display:flex;align-items:center;gap:0.5rem">
+          <span>Component (optional):</span>
+          <small class="mms-text-muted" style="font-size:0.85em">— leave blank to apply the PM to the whole machine</small>
+        </label>
         {{ form.component }}
-        <small class="form-text text-muted" style="color:#6b7280">Optional. Only components under the selected machine are shown.</small>
+        <small class="mms-text-muted" id="component-hint" style="font-size:0.85em;color:#6b7280;margin-top:0.25rem;display:block">
+          Select a machine above to see its components.
+        </small>
         {% if form.component.errors %}<div class="mms-field-error">{{ form.component.errors }}</div>{% endif %}
       </div>
       {% endif %}
@@ -67,7 +72,68 @@
 </div>
 
 {% if not locked_asset %}
-  {% include "maintenance/_cascading_asset_select.html" %}
+<script id="components-by-machine" type="application/json">{{ components_by_machine_json|safe }}</script>
+<script>
+(function() {
+  var machineSel = document.getElementById('id_machine');
+  var componentSel = document.getElementById('id_component');
+  var hint = document.getElementById('component-hint');
+  if (!machineSel || !componentSel) return;
+
+  var byMachine = {};
+  try { byMachine = JSON.parse(document.getElementById('components-by-machine').textContent || '{}'); }
+  catch (e) { byMachine = {}; }
+
+  // Build a quick lookup: component_pk -> machine_pk
+  var componentToMachine = {};
+  Object.keys(byMachine).forEach(function(machinePk) {
+    byMachine[machinePk].forEach(function(comp) {
+      componentToMachine[comp.pk] = parseInt(machinePk, 10);
+    });
+  });
+
+  // Annotate each <option> with its parent machine pk
+  Array.from(componentSel.options).forEach(function(opt) {
+    if (!opt.value) return;
+    opt.setAttribute('data-machine-pk', componentToMachine[opt.value] || '');
+  });
+
+  function filterComponents() {
+    var machinePk = machineSel.value;
+    var allOptions = Array.from(componentSel.options);
+    var firstOption = allOptions[0];
+    var visibleCount = 0;
+
+    allOptions.forEach(function(opt) {
+      if (opt === firstOption) {
+        opt.hidden = false;
+        return;
+      }
+      var optMachine = opt.getAttribute('data-machine-pk');
+      if (!machinePk) {
+        opt.hidden = true;
+        return;
+      }
+      var match = (optMachine === String(machinePk) || optMachine === machinePk);
+      opt.hidden = !match;
+      if (match) visibleCount += 1;
+    });
+
+    if (!machinePk) {
+      hint.textContent = 'Select a machine above to see its components.';
+      if (componentSel.value) componentSel.value = '';
+    } else if (visibleCount === 0) {
+      hint.textContent = 'No components found for this machine. Leave blank to apply to the whole machine.';
+      if (componentSel.value) componentSel.value = '';
+    } else {
+      hint.textContent = visibleCount + ' component' + (visibleCount === 1 ? '' : 's') + ' available.';
+    }
+  }
+
+  machineSel.addEventListener('change', filterComponents);
+  filterComponents();
+})();
+</script>
 {% endif %}
 {% include "maintenance/_asset_tree.html" %}
 {% endblock %}

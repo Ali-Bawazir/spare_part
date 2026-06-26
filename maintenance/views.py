@@ -2831,6 +2831,8 @@ def pm_list(request):
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def pm_create(request):
     locked_asset = None
+    resolved_machine_id = None
+    resolved_component_id = None
     if request.method == "POST":
         form = PMScheduleForm(request.POST)
         if form.is_valid():
@@ -2915,8 +2917,27 @@ def pm_create(request):
             "locked_asset": locked_asset,
             "machine": Machine.objects.filter(pk=resolved_machine_id).first() if resolved_machine_id else Machine.objects.filter(parent__isnull=True, is_active=True).order_by("pk").first(),
             "ancestors": [],
+            "components_by_machine_json": _components_by_machine_json(),
         },
     )
+
+
+def _components_by_machine_json():
+    """JSON-serializable map: machine_pk → [{pk, name, qr_code}, ...] for level-5
+    children of each level-3 machine. Used by the template JS to filter the
+    component dropdown when the user changes the machine field.
+    """
+    import json
+    out = {}
+    for machine in Machine.objects.filter(is_active=True, asset_level=3):
+        comps = [
+            {"pk": c.pk, "name": c.name, "qr_code": c.qr_code}
+            for c in machine.get_descendant_components()
+            if c.is_active
+        ]
+        if comps:
+            out[machine.pk] = comps
+    return json.dumps(out)
 
 
 @login_required
