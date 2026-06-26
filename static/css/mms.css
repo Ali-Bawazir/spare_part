@@ -200,6 +200,18 @@ body.mms-body {
   border-radius: 0 0 10px 10px;
 }
 
+.mms-nav-link--sub {
+  padding-left: 1.75rem;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.mms-nav-link--sub.is-active {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-left-color: #2563eb;
+}
+
 .mms-nav-badge {
   font-size: 0.65rem;
   font-weight: 700;
