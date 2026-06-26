@@ -179,21 +179,81 @@
 
     <!-- PM Schedules tab -->
     <div id="tab-pms" class="mms-tab-panel">
+      <div class="mms-stats-strip" style="margin-bottom:1rem">
+        <div class="mms-stat">
+          <span class="mms-stat-num">{{ pm_stats.active_count }}</span>
+          <span class="mms-stat-lbl">Active PMs</span>
+        </div>
+        <div class="mms-stat">
+          <span class="mms-stat-num">{{ pm_stats.due_this_week_count }}</span>
+          <span class="mms-stat-lbl">Due This Week</span>
+        </div>
+        <div class="mms-stat">
+          <span class="mms-stat-num" style="{% if pm_stats.overdue_count > 0 %}color:#dc2626{% endif %}">{{ pm_stats.overdue_count }}</span>
+          <span class="mms-stat-lbl">Overdue</span>
+        </div>
+        <div class="mms-stat">
+          <span class="mms-stat-num">
+            {% if pm_stats.compliance_pct is not None %}{{ pm_stats.compliance_pct }}%{% else %}—{% endif %}
+          </span>
+          <span class="mms-stat-lbl">Compliance (90d)</span>
+        </div>
+      </div>
+
       {% if related_pms %}
       <table class="mms-table">
         <thead>
-          <tr><th>Title</th><th>Frequency</th><th>Next due</th><th>Status</th></tr>
+          <tr>
+            <th>Template</th>
+            <th>Frequency</th>
+            <th>Next due</th>
+            <th>Priority</th>
+            <th>Last execution</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
           {% for pm in related_pms %}
+            {% with last_exec=pm_last_executions|get_item:pm.pk %}
             <tr>
-              <td><a href="{% url 'pm_execute' pm.pk %}">{{ pm.title }}</a></td>
-              <td>{% if pm.frequency_days %}every {{ pm.frequency_days }} days{% else %}—{% endif %}</td>
-              <td>{% if pm.next_due_at %}{{ pm.next_due_at|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+              <td>
+                <a href="{% url 'pm_template_detail' pm.template.pk %}"><code>{{ pm.template.code }}</code></a><br>
+                <small class="mms-text-muted">{{ pm.template.title }}</small>
+              </td>
+              <td>{{ pm.get_frequency_type_display }}{% if pm.interval != 1 %} × {{ pm.interval }}{% endif %}</td>
+              <td>
+                <span style="{% if pm.next_due_at < now %}color:#dc2626;font-weight:600{% endif %}">
+                  {{ pm.next_due_at|date:"Y-m-d H:i" }}
+                </span>
+                {% if pm.next_due_at < now %}<br><small class="mms-badge mms-badge--danger">OVERDUE</small>{% endif %}
+              </td>
+              <td>
+                {% with eff=pm.effective_priority %}
+                  {% if eff == 'critical' %}<span class="mms-badge mms-badge--danger">Critical</span>
+                  {% elif eff == 'high' %}<span class="mms-badge mms-badge--warning">High</span>
+                  {% elif eff == 'medium' %}<span class="mms-badge mms-badge--info">Medium</span>
+                  {% else %}<span class="mms-badge mms-badge--muted">Low</span>{% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                {% if last_exec %}
+                  <small>
+                    {{ last_exec.get_status_display }}<br>
+                    <span class="mms-text-muted">{{ last_exec.scheduled_due_at|date:"Y-m-d" }}</span>
+                  </small>
+                {% else %}<span class="mms-text-muted">—</span>{% endif %}
+              </td>
               <td>{% if pm.is_active %}<span class="mms-badge mms-badge--success">Active</span>{% else %}<span class="mms-badge mms-badge--muted">Inactive</span>{% endif %}</td>
+              <td>
+                {% if perm_pm_schedule_manage %}
+                  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' pm.pk %}">Create PM WO</a>
+                {% endif %}
+              </td>
             </tr>
+            {% endwith %}
           {% empty %}
-            <tr><td colspan="4" class="mms-empty">No PM schedules yet.</td></tr>
+            <tr><td colspan="7" class="mms-empty">No PM schedules yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

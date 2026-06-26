@@ -419,7 +419,7 @@ def sync_pm_overdue_notifications() -> int:
             created_at__gte=now - timedelta(hours=48),
         ).exists():
             continue
-        title = f"PM overdue: {sched.title}"
+        title = f"PM overdue: {sched.template.code} — {sched.template.title}"
         body = f"{tag} Machine {sched.machine.name} — due {sched.next_due_at.strftime('%Y-%m-%d %H:%M')}."
         _notify_users(
             _managers_supers(),

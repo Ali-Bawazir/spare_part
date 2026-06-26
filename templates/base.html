@@ -100,7 +100,10 @@
       <a href="{% url 'machine_list' %}" class="mms-nav-link{% if current_url_name and 'machine' in current_url_name %} is-active{% endif %}">Machines</a>
       {% endif %}
       {% if perm_pm_schedule_manage %}
-      <a href="{% url 'pm_list' %}" class="mms-nav-link{% if current_url_name and 'pm' in current_url_name %} is-active{% endif %}">Preventive</a>
+      <a href="{% url 'pm_list' %}" class="mms-nav-link{% if current_url_name and 'pm' in current_url_name %} is-active{% endif %}">
+        Preventive
+        {% if nav_pm_overdue %}<span class="mms-nav-badge mms-nav-badge--danger">{{ nav_pm_overdue }}</span>{% endif %}
+      </a>
       {% endif %}
       {% if perm_tool_page %}
       <a href="{% url 'tool_list' %}" class="mms-nav-link{% if current_url_name and 'tool' in current_url_name %} is-active{% endif %}">Tools</a>

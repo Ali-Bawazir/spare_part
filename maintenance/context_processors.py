@@ -4,7 +4,9 @@ from django.utils import timezone
 
 from accounts.capabilities import get_mms_capabilities
 from accounts.models import User
-from maintenance.models import ExternalRepairOrder, MaintenanceIssue, Notification, WorkOrder
+from maintenance.models import (
+    ExternalRepairOrder, MaintenanceIssue, Notification, PMSchedule, WorkOrder,
+)
 from inventory.models import PartShortageReport
 from procurement.models import PurchaseOrder, PurchaseRequest
 
@@ -32,6 +34,7 @@ def mms_nav(request):
             "nav_my_issues_30d": 0,
             "nav_my_issues_unresolved": 0,
             "nav_legacy_count": 0,
+            "nav_pm_overdue": 0,
             **perm,
         }
 
@@ -55,6 +58,10 @@ def mms_nav(request):
         "nav_my_issues_unresolved": 0,
         "nav_legacy_count": 0,
         "nav_notif_unread": Notification.objects.filter(recipient=u, read_at__isnull=True).count(),
+        "nav_pm_overdue": PMSchedule.objects.filter(
+            is_active=True,
+            next_due_at__lt=timezone.now(),
+        ).count(),
         **perm,
     }
 

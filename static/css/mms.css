@@ -219,6 +219,11 @@ body.mms-body {
   color: #fff;
 }
 
+.mms-nav-badge--danger {
+  background: #dc2626;
+  color: #fff;
+}
+
 .mms-sidebar-footer {
   flex-shrink: 0;
   padding: 0.95rem 1rem 1.1rem;

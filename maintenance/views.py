@@ -687,7 +687,51 @@ def machine_detail(request, pk):
 
     related_pms = PMSchedule.objects.filter(
         Q(machine=machine) | Q(component=machine)
-    ).select_related("machine", "component").order_by("-created_at")[:20]
+    ).select_related("template", "machine", "component").order_by("next_due_at")[:20]
+
+    from maintenance.models import PMExecution
+    from datetime import timedelta
+    now = timezone.now()
+    seven_days = now + timedelta(days=7)
+    all_pms_for_asset = PMSchedule.objects.filter(
+        Q(machine=machine) | Q(component=machine)
+    )
+    pm_active_count = all_pms_for_asset.filter(is_active=True).count()
+    pm_overdue_count = all_pms_for_asset.filter(
+        is_active=True,
+        next_due_at__lt=now,
+    ).count()
+    pm_due_this_week_count = all_pms_for_asset.filter(
+        is_active=True,
+        next_due_at__gte=now,
+        next_due_at__lte=seven_days,
+    ).count()
+
+    ninety_days_ago = now - timedelta(days=90)
+    recent_executions = PMExecution.objects.filter(
+        pm_schedule__in=all_pms_for_asset,
+        scheduled_due_at__gte=ninety_days_ago,
+    )
+    scheduled_count = recent_executions.count()
+    approved_on_time = recent_executions.filter(
+        status=PMExecution.Status.APPROVED,
+        approved_at__lte=F("scheduled_due_at"),
+    ).count()
+    pm_compliance_pct = (
+        int((approved_on_time / scheduled_count) * 100) if scheduled_count > 0 else None
+    )
+
+    last_executions_by_schedule = {}
+    for schedule in related_pms:
+        last = PMExecution.objects.filter(pm_schedule=schedule).order_by("-scheduled_due_at").first()
+        last_executions_by_schedule[schedule.pk] = last
+
+    pm_stats = {
+        "active_count": pm_active_count,
+        "due_this_week_count": pm_due_this_week_count,
+        "overdue_count": pm_overdue_count,
+        "compliance_pct": pm_compliance_pct,
+    }
 
     related_eros = ExternalRepairOrder.objects.filter(
         Q(machine=machine) | Q(component=machine)
@@ -739,6 +783,9 @@ def machine_detail(request, pk):
             "failure_count_90d": failure_count_90d,
             "last_activity_days": last_activity_days,
         },
+        "pm_stats": pm_stats,
+        "pm_last_executions": last_executions_by_schedule,
+        "now": timezone.now(),
     }
     if machine is not None:
         context["attachments"] = Attachment.objects.filter(
