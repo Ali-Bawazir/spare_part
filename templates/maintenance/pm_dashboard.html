@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}PM Dashboard{% endblock %}
+{% block page_heading %}PM Compliance Dashboard{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Compliance over the last {{ compliance.window_days }} days. Grace period {{ compliance.grace_days }} days.</p>
+
+<div class="mms-stats-strip">
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.total_pms }}</span>
+    <span class="mms-stat-lbl">Active PMs</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num" style="{% if hero_stats.overdue_pms > 0 %}color:#dc2626{% endif %}">{{ hero_stats.overdue_pms }}</span>
+    <span class="mms-stat-lbl">Overdue</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num" style="{% if hero_stats.due_this_week > 0 %}color:#f59e0b{% endif %}">{{ hero_stats.due_this_week }}</span>
+    <span class="mms-stat-lbl">Due This Week</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num">
+      {% if hero_stats.compliance_pct is not None %}
+        <span style="color:{% if hero_stats.compliance_pct >= 90 %}#16a34a{% elif hero_stats.compliance_pct >= 70 %}#f59e0b{% else %}#dc2626{% endif %}">{{ hero_stats.compliance_pct }}%</span>
+      {% else %}&mdash;{% endif %}
+    </span>
+    <span class="mms-stat-lbl">Compliance</span>
+  </div>
+</div>
+
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Compliance Breakdown (Last {{ compliance.window_days }} Days)</div>
+  <div class="mms-card-body">
+    <dl style="margin:0; display:grid; grid-template-columns: 220px 1fr; gap:0.5rem">
+      <dt>Scheduled PMs in window</dt><dd><strong>{{ compliance.scheduled }}</strong></dd>
+      <dt>Completed on time</dt><dd><strong style="color:#16a34a">{{ compliance.on_time }}</strong></dd>
+      <dt>Completed late (after grace)</dt>
+      <dd>
+        {% if late_count > 0 %}
+          <strong style="color:#f59e0b">{{ late_count }}</strong>
+        {% else %}
+          {{ late_count }}
+        {% endif %}
+      </dd>
+      <dt>Missed</dt>
+      <dd>{% if compliance.missed > 0 %}<strong style="color:#dc2626">{{ compliance.missed }}</strong>{% else %}{{ compliance.missed }}{% endif %}</dd>
+      <dt>Pending review</dt><dd>{{ compliance.pending }}</dd>
+      <dt>Compliance</dt>
+      <dd>
+        {% if compliance.pct is not None %}
+          <span style="font-size:1.6rem;font-weight:600;color:{% if compliance.pct >= 90 %}#16a34a{% elif compliance.pct >= 70 %}#f59e0b{% else %}#dc2626{% endif %}">{{ compliance.pct }}%</span>
+        {% else %}
+          <span class="mms-text-muted">&mdash; (no scheduled PMs in window)</span>
+        {% endif %}
+      </dd>
+    </dl>
+  </div>
+</div>
+
+<div class="mms-card">
+  <div class="mms-card-header">Per-Machine Compliance</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead>
+        <tr>
+          <th>Machine</th>
+          <th>Active PMs</th>
+          <th>Overdue</th>
+          <th>Scheduled (90d)</th>
+          <th>On time</th>
+          <th>Missed</th>
+          <th>Compliance</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in per_machine %}
+        <tr>
+          <td><a href="{% url 'machine_detail' row.machine.pk %}">{{ row.machine.name }}</a></td>
+          <td>{{ row.total_pms }}</td>
+          <td>
+            {% if row.overdue_pms > 0 %}
+              <span style="color:#dc2626;font-weight:600">{{ row.overdue_pms }}</span>
+            {% else %}
+              {{ row.overdue_pms }}
+            {% endif %}
+          </td>
+          <td>{{ row.compliance.scheduled }}</td>
+          <td>{{ row.compliance.on_time }}</td>
+          <td>
+            {% if row.compliance.missed > 0 %}
+              <span style="color:#dc2626">{{ row.compliance.missed }}</span>
+            {% else %}
+              {{ row.compliance.missed }}
+            {% endif %}
+          </td>
+          <td>
+            {% if row.compliance.pct is not None %}
+              <span style="color:{% if row.compliance.pct >= 90 %}#16a34a{% elif row.compliance.pct >= 70 %}#f59e0b{% else %}#dc2626{% endif %};font-weight:600">{{ row.compliance.pct }}%</span>
+            {% else %}
+              <span class="mms-text-muted">&mdash;</span>
+            {% endif %}
+          </td>
+          <td><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_detail' row.machine.pk %}#tab-pms">View PMs</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" class="mms-empty">No machines with PMs.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p style="margin-top:1rem">
+  <a class="mms-btn mms-btn--ghost" href="{% url 'pm_list' %}">&larr; All PM schedules</a>
+  <a class="mms-btn mms-btn--primary" href="{% url 'pm_template_list' %}">Manage templates</a>
+</p>
+{% endblock %}

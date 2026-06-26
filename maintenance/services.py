@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Optional
 
 from django.contrib.auth import get_user_model
@@ -815,3 +816,43 @@ def manager_reject_pm_execution(execution, *, manager: User, reason: str) -> Non
     execution.save(update_fields=["status", "approved_by", "approved_at", "notes"])
 
     manager_close_work_order(execution.work_order, manager, approve=False, rejection_reason=reason)
+
+
+def compute_compliance(*, window_days: int = 90, grace_days: int = 7, machine=None) -> dict:
+    from django.db.models import F
+
+    from .models import PMExecution
+
+    now = timezone.now()
+    window_start = now - timedelta(days=window_days)
+
+    qs = PMExecution.objects.filter(scheduled_due_at__gte=window_start)
+    if machine is not None:
+        qs = qs.filter(pm_schedule__machine=machine)
+
+    scheduled = qs.count()
+    on_time = qs.filter(
+        status=PMExecution.Status.APPROVED,
+        approved_at__isnull=False,
+        approved_at__lte=F("scheduled_due_at") + timedelta(days=grace_days),
+    ).count()
+    approved_total = qs.filter(status=PMExecution.Status.APPROVED).count()
+    missed = qs.filter(status=PMExecution.Status.MISSED).count()
+    pending = qs.filter(
+        status__in=[PMExecution.Status.SUBMITTED, PMExecution.Status.REJECTED]
+    ).count()
+
+    pct = None
+    if scheduled > 0:
+        pct = int(round((on_time / scheduled) * 100))
+
+    return {
+        "scheduled": scheduled,
+        "on_time": on_time,
+        "approved_total": approved_total,
+        "missed": missed,
+        "pending": pending,
+        "pct": pct,
+        "window_days": window_days,
+        "grace_days": grace_days,
+    }

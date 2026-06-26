@@ -105,6 +105,7 @@ from .services import (
     approve_external_repair_request,
     archive_maintenance_issue,
     archive_work_order,
+    compute_compliance,
     create_pm_execution_for_wo,
     escalate_issue_to_emergency,
     get_other_active_work_order,
@@ -5890,4 +5891,48 @@ def pm_template_detail(request, pk):
     schedules = template.schedules.select_related("machine").order_by("next_due_at")
     return render(request, "maintenance/pm_template_detail.html", {
         "template": template, "schedules": schedules,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def pm_dashboard(request):
+    compliance = compute_compliance()
+
+    active_pms = PMSchedule.objects.filter(is_active=True)
+    now = timezone.now()
+    seven_days = now + timedelta(days=7)
+    hero_stats = {
+        "total_pms": active_pms.count(),
+        "overdue_pms": active_pms.filter(next_due_at__lt=now).count(),
+        "due_this_week": active_pms.filter(
+            next_due_at__gte=now, next_due_at__lte=seven_days
+        ).count(),
+        "compliance_pct": compliance["pct"],
+    }
+
+    machines_with_pms = Machine.objects.filter(
+        is_active=True,
+        pm_schedules__is_active=True,
+    ).distinct().order_by("name")
+
+    per_machine = []
+    for machine in machines_with_pms:
+        machine_compliance = compute_compliance(machine=machine)
+        machine_pms_qs = PMSchedule.objects.filter(machine=machine, is_active=True)
+        per_machine.append({
+            "machine": machine,
+            "total_pms": machine_pms_qs.count(),
+            "overdue_pms": machine_pms_qs.filter(next_due_at__lt=now).count(),
+            "compliance": machine_compliance,
+        })
+
+    late_count = max(compliance["approved_total"] - compliance["on_time"], 0)
+
+    return render(request, "maintenance/pm_dashboard.html", {
+        "compliance": compliance,
+        "hero_stats": hero_stats,
+        "per_machine": per_machine,
+        "late_count": late_count,
+        "now": now,
     })
