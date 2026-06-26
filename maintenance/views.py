@@ -2922,46 +2922,66 @@ def pm_create(request):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def pm_spawn_wo(request, pk):
-    sched = get_object_or_404(PMSchedule, pk=pk)
+    sched = get_object_or_404(
+        PMSchedule.objects.select_related("template", "machine"),
+        pk=pk,
+    )
+    if not sched.is_active:
+        messages.error(request, "Cannot spawn a WO from an inactive PM schedule.")
+        return redirect("pm_list")
+    existing = PMExecution.objects.filter(
+        pm_schedule=sched,
+        scheduled_due_at=sched.next_due_at,
+        status__in=[PMExecution.Status.SUBMITTED, PMExecution.Status.REJECTED],
+    ).first()
+    if existing:
+        messages.warning(
+            request,
+            "A PM work order for this schedule's current due date is already in progress.",
+        )
+        return redirect("work_order_detail", pk=existing.work_order_id)
+    has_children = sched.machine.children.filter(is_active=True).exists()
     if request.method == "POST":
-        form = PMScheduleForm(request.POST)
-        if form.is_valid():
-            wo = WorkOrder.objects.create(
-                category=WorkOrder.Category.PREVENTIVE,
-                machine=sched.machine,
-                lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
-                created_by=request.user,
-                notes=f"PM: {sched.template.title}",
-            )
-            transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="PM work order")
-            create_pm_execution_for_wo(sched, wo, actor=request.user)
-            if form.cleaned_data.get("propagate_to_children") and sched.machine.children.exists():
-                child_count = 0
-                for child_machine in sched.machine.children.all():
-                    child_wo = WorkOrder.objects.create(
-                        category=WorkOrder.Category.PREVENTIVE,
-                        machine=child_machine,
-                        lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
-                        created_by=request.user,
-                        notes=f"PM spawned from {sched.machine.name} → {child_machine.name}",
-                    )
-                    transition_work_order(child_wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user,
-                                         note=f"PM for {child_machine.name} (child of {sched.machine.name})")
-                    create_pm_execution_for_wo(sched, child_wo, actor=request.user)
-                    child_count += 1
-                if child_count:
-                    messages.success(request, f"Created {child_count} child PM work orders.")
-            messages.success(request, f"PM work order WO-{wo.number} created.")
-            return redirect("work_order_detail", pk=wo.pk)
-    else:
-        form = PMScheduleForm()
-    return render(request, "maintenance/pm_spawn_wo.html", {"form": form, "schedule": sched})
+        propagate = request.POST.get("propagate_to_children") == "on"
+        wo = WorkOrder.objects.create(
+            category=WorkOrder.Category.PREVENTIVE,
+            machine=sched.machine,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
+            created_by=request.user,
+            notes=f"PM: {sched.template.title}",
+        )
+        transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="PM work order")
+        create_pm_execution_for_wo(sched, wo, actor=request.user)
+        child_count = 0
+        if propagate and has_children:
+            for child_machine in sched.machine.children.filter(is_active=True):
+                child_wo = WorkOrder.objects.create(
+                    category=WorkOrder.Category.PREVENTIVE,
+                    machine=child_machine,
+                    lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
+                    created_by=request.user,
+                    notes=f"PM spawned from {sched.machine.name} → {child_machine.name}",
+                )
+                transition_work_order(
+                    child_wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user,
+                    note=f"PM for {child_machine.name} (child of {sched.machine.name})",
+                )
+                child_count += 1
+        if child_count:
+            messages.success(request, f"Created {child_count} child PM work orders.")
+        messages.success(request, f"PM work order WO-{wo.number} created.")
+        return redirect("work_order_detail", pk=wo.pk)
+    return render(request, "maintenance/pm_spawn_wo.html", {"schedule": sched, "has_children": has_children})
 
 
 @login_required
 @role_required(User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def pm_execute(request, pk):
-    """Execute a PM work order with checklist."""
+    """Execute a PM work order with checklist.
+
+    URL: /pm/<pk>/execute/ — where pk is the WORK ORDER pk (not the schedule pk).
+    The WO must be PREVENTIVE category. Reads checklist from the schedule's template.
+    """
     wo = get_object_or_404(
         WorkOrder.objects.select_related("machine"),
         pk=pk,

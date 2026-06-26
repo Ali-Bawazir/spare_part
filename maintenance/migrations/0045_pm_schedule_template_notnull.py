@@ -34,7 +34,7 @@ def wipe_and_seed(apps, schema_editor):
         machine = Machine.objects.filter(asset_level=3).order_by("pk").first()
     if machine:
         manager = User.objects.filter(role="manager", is_active=True).order_by("pk").first()
-        schedule = PMSchedule.objects.create(
+        PMSchedule.objects.create(
             template=template,
             machine=machine,
             frequency_type="monthly",
@@ -45,25 +45,6 @@ def wipe_and_seed(apps, schema_editor):
             reminder_days_before=7,
             is_active=True,
             created_by=manager,
-        )
-        PMExecution.objects.create(
-            pm_schedule=schedule,
-            scheduled_due_at=schedule.next_due_at,
-            execution_sequence=1,
-            status="submitted",
-            template_snapshot_json={
-                "template_code": template.code,
-                "template_title": template.title,
-                "template_priority": template.priority,
-                "template_duration_minutes": template.estimated_duration_minutes,
-                "checklist": [
-                    {"order": 1, "text": "Check oil level", "is_required": True},
-                    {"order": 2, "text": "Inspect for leaks", "is_required": True},
-                    {"order": 3, "text": "Verify pressure gauge", "is_required": True},
-                ],
-                "grace_days": 7,
-                "captured_at": timezone.now().isoformat(),
-            },
         )
 
 
