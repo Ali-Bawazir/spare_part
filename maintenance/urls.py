@@ -30,6 +30,7 @@ urlpatterns = [
     path("work-orders/<int:pk>/mark-vendor/", views.work_order_mark_vendor, name="work_order_mark_vendor"),
     path("work-orders/<int:pk>/submit/", views.work_order_submit, name="work_order_submit"),
     path("work-orders/<int:pk>/close/", views.work_order_close, name="work_order_close"),
+    path("work-orders/<int:pk>/pm-review/", views.pm_review, name="pm_review"),
     path("work-orders/<int:pk>/issue-part/", views.work_order_issue_part, name="work_order_issue_part"),
     path("work-orders/<int:pk>/request-part/", views.work_order_request_part, name="work_order_request_part"),
     path("work-orders/<int:pk>/approve-part/<int:line_id>/", views.work_order_approve_part, name="work_order_approve_part"),

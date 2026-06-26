@@ -767,3 +767,51 @@ def compute_next_due_at(schedule: "PMSchedule", after):
         day = min(base.day, monthrange(year, base.month)[1])
         return base.replace(year=year, day=day)
     return base + timedelta(days=30 * schedule.interval)
+
+
+@transaction.atomic
+def manager_approve_pm_execution(execution, *, manager: User) -> None:
+    if not execution.work_order_id:
+        raise ValueError("PM execution has no associated work order.")
+    if execution.work_order.lifecycle_status != WorkOrder.LifecycleStatus.PENDING_REVIEW:
+        raise ValueError("Work order is not pending review.")
+    if execution.status not in (execution.Status.SUBMITTED, execution.Status.REJECTED):
+        raise ValueError(f"Cannot approve execution in status {execution.status}.")
+
+    now = timezone.now()
+    schedule = execution.pm_schedule
+
+    execution.status = execution.Status.APPROVED
+    execution.approved_by = manager
+    execution.approved_at = now
+    execution.save(update_fields=["status", "approved_by", "approved_at"])
+
+    manager_close_work_order(execution.work_order, manager, approve=True)
+
+    schedule.last_completed_at = now
+    schedule.next_due_at = compute_next_due_at(schedule, schedule.next_due_at)
+    schedule.save(update_fields=["last_completed_at", "next_due_at"])
+
+
+@transaction.atomic
+def manager_reject_pm_execution(execution, *, manager: User, reason: str) -> None:
+    if not execution.work_order_id:
+        raise ValueError("PM execution has no associated work order.")
+    if execution.work_order.lifecycle_status != WorkOrder.LifecycleStatus.PENDING_REVIEW:
+        raise ValueError("Work order is not pending review.")
+    if execution.status not in (execution.Status.SUBMITTED,):
+        raise ValueError(f"Cannot reject execution in status {execution.status}.")
+    if not reason or not reason.strip():
+        raise ValueError("Rejection reason is required.")
+
+    now = timezone.now()
+    execution.status = execution.Status.REJECTED
+    execution.approved_by = manager
+    execution.approved_at = now
+    execution.notes = (execution.notes or "").strip()
+    if execution.notes:
+        execution.notes += "\n\n"
+    execution.notes += f"[Rejected {now.strftime('%Y-%m-%d %H:%M')}] {reason.strip()[:500]}"
+    execution.save(update_fields=["status", "approved_by", "approved_at", "notes"])
+
+    manager_close_work_order(execution.work_order, manager, approve=False, rejection_reason=reason)

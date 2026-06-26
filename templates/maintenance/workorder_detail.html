@@ -18,12 +18,23 @@
   {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">Emergency</span>{% endif %}
   {% if wo.issue %}<span class="mms-badge mms-badge--info">Issue #{{ wo.issue.id }}</span>{% endif %}
   {% if wo.issue and wo.issue.priority %}<span class="{{ wo.issue.priority|priority_badge_class }}">{{ wo.issue.get_priority_display }}</span>{% endif %}
+  {% if wo.pm_execution %}<span class="mms-badge mms-badge--muted">PM: {{ wo.pm_execution.get_status_display }}</span>{% endif %}
   {% if wo.is_archived %}
 <span class="mms-badge mms-badge--archived" title="Archived by {{ wo.archived_by }} on {{ wo.archived_at|date:'Y-m-d H:i' }}">
   Archived
 </span>
 {% endif %}
 </p>
+
+{% if wo.category == 'preventive' and wo.pm_execution %}
+  {% if wo.lifecycle_status == 'pending_review' %}
+    {% if user.role == 'manager' or user.role == 'super_admin' %}
+      <p style="margin-top:0.5rem">
+        <a class="mms-btn mms-btn--primary" href="{% url 'pm_review' wo.pk %}">⚖️ Review PM</a>
+      </p>
+    {% endif %}
+  {% endif %}
+{% endif %}
 
 <div class="mms-grid mms-grid--2">
   <div class="mms-card">

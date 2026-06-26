@@ -110,7 +110,9 @@ from .services import (
     get_other_active_work_order,
     has_active_emergency,
     log_audit,
+    manager_approve_pm_execution,
     manager_close_work_order,
+    manager_reject_pm_execution,
     reject_external_repair_request,
     request_external_repair,
     technician_mark_pending_parts,
@@ -2950,6 +2952,18 @@ def pm_execute(request, pk):
             wo.action_taken = "\n".join(action_lines)
             wo.save(update_fields=["action_taken"])
 
+            pm_execution = getattr(wo, "pm_execution", None)
+            if pm_execution and pm_execution.status == PMExecution.Status.REJECTED:
+                pm_execution.status = PMExecution.Status.SUBMITTED
+                pm_execution.approved_by = None
+                pm_execution.approved_at = None
+                pm_execution.completed_by = request.user
+                pm_execution.completed_at = timezone.now()
+                pm_execution.save(update_fields=[
+                    "status", "approved_by", "approved_at",
+                    "completed_by", "completed_at",
+                ])
+
             form.save()
             technician_submit_for_review(wo, request.user)
             messages.success(request, "PM submitted for manager review.")
@@ -2997,6 +3011,77 @@ def pm_execute(request, pk):
         "related_pms": related_pms,
         "related_eros": related_eros,
         "related_prs": related_prs,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def pm_review(request, pk):
+    wo = get_object_or_404(
+        WorkOrder.objects.select_related("machine", "assigned_technician"),
+        pk=pk,
+    )
+    if wo.category != WorkOrder.Category.PREVENTIVE:
+        messages.error(request, "This is not a preventive maintenance work order.")
+        return redirect("work_order_detail", pk=pk)
+
+    pm_execution = getattr(wo, "pm_execution", None)
+    if pm_execution is None:
+        messages.error(request, "No PM execution record found for this work order.")
+        return redirect("work_order_detail", pk=pk)
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        reason = request.POST.get("reason", "").strip()
+
+        try:
+            if action == "approve":
+                manager_approve_pm_execution(pm_execution, manager=request.user)
+                schedule = pm_execution.pm_schedule
+                schedule.refresh_from_db()
+                messages.success(request, f"PM approved. Schedule advanced to {schedule.next_due_at:%Y-%m-%d %H:%M}.")
+                return redirect("work_order_detail", pk=pk)
+            elif action == "reject":
+                manager_reject_pm_execution(pm_execution, manager=request.user, reason=reason)
+                messages.warning(request, "PM rejected. Returned to technician.")
+                return redirect("work_order_detail", pk=pk)
+            else:
+                messages.error(request, "Invalid action.")
+        except ValueError as e:
+            messages.error(request, str(e))
+            return redirect("pm_review", pk=pk)
+
+    checklist_results = []
+    if wo.action_taken:
+        for line in wo.action_taken.split("\n"):
+            line = line.strip()
+            if line.startswith("[✓]"):
+                checklist_results.append({"checked": True, "text": line[3:].strip(), "note": "", "is_required": True})
+            elif line.startswith("[✗]"):
+                checklist_results.append({"checked": False, "text": line[3:].strip(), "note": "", "is_required": True})
+            elif line.startswith("Note:"):
+                if checklist_results:
+                    checklist_results[-1]["note"] = line[5:].strip()
+
+    snapshot = pm_execution.template_snapshot_json or {}
+    snapshot_checklist = snapshot.get("checklist", [])
+
+    if not checklist_results and snapshot_checklist:
+        checklist_results = [
+            {"checked": None, "text": item.get("text", ""), "note": "", "is_required": item.get("is_required", True)}
+            for item in snapshot_checklist
+        ]
+
+    return render(request, "maintenance/pm_review.html", {
+        "wo": wo,
+        "pm_execution": pm_execution,
+        "schedule": pm_execution.pm_schedule,
+        "template": pm_execution.pm_schedule.template,
+        "snapshot": snapshot,
+        "checklist_results": checklist_results,
+        "is_approved": pm_execution.status == PMExecution.Status.APPROVED,
+        "is_rejected": pm_execution.status == PMExecution.Status.REJECTED,
+        "is_submitted": pm_execution.status == PMExecution.Status.SUBMITTED,
     })
 
 
