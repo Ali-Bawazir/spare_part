@@ -432,6 +432,90 @@ def sync_pm_overdue_notifications() -> int:
     return created
 
 
+def _technicians_active() -> list[User]:
+    qs = User.objects.filter(
+        is_active=True,
+        role=User.Role.TECHNICIAN,
+    ) | User.objects.filter(is_active=True, is_superuser=True, role=User.Role.TECHNICIAN)
+    return list(qs.distinct())
+
+
+def notify_pm_upcoming(schedule, *, days_before: int) -> int:
+    from django.urls import reverse
+    kind_map = {
+        7: Notification.Kind.PM_UPCOMING_7D,
+        3: Notification.Kind.PM_UPCOMING_3D,
+        1: Notification.Kind.PM_UPCOMING_1D,
+    }
+    if days_before not in kind_map:
+        raise ValueError(f"days_before must be 7, 3, or 1 (got {days_before})")
+    kind = kind_map[days_before]
+    due_date_str = schedule.next_due_at.strftime("%Y-%m-%d")
+    tag = f"[pm_sched:{schedule.pk}|stage:UPCOMING_{days_before}D|due:{due_date_str}]"
+    if Notification.objects.filter(kind=kind, body__contains=tag).exists():
+        return 0
+    if days_before == 1:
+        recipients = _managers_supervisors_supers()
+    else:
+        recipients = _managers_supers()
+    label = "tomorrow" if days_before == 1 else f"in {days_before} days"
+    title = f"PM {label}: {schedule.template.title}"
+    body = (
+        f"{tag} Machine {schedule.machine.name} — "
+        f"due {schedule.next_due_at.strftime('%Y-%m-%d %H:%M')}."
+    )
+    _notify_users(
+        recipients,
+        kind=kind,
+        title=title[:255],
+        body=body[:2000],
+        link=reverse("pm_list"),
+    )
+    return 1
+
+
+def notify_pm_due_today(schedule) -> int:
+    from django.urls import reverse
+    due_date_str = schedule.next_due_at.strftime("%Y-%m-%d")
+    tag = f"[pm_sched:{schedule.pk}|stage:DUE_TODAY|due:{due_date_str}]"
+    if Notification.objects.filter(kind=Notification.Kind.PM_DUE_TODAY, body__contains=tag).exists():
+        return 0
+    recipients = _unique_users(_managers_supervisors_supers() + _technicians_active())
+    title = f"PM due today: {schedule.template.title}"
+    body = (
+        f"{tag} Machine {schedule.machine.name} — "
+        f"due {schedule.next_due_at.strftime('%Y-%m-%d %H:%M')}."
+    )
+    _notify_users(
+        recipients,
+        kind=Notification.Kind.PM_DUE_TODAY,
+        title=title[:255],
+        body=body[:2000],
+        link=reverse("pm_list"),
+    )
+    return 1
+
+
+def sync_pm_notifications() -> dict:
+    from .models import PMSchedule
+    counts = {"upcoming_7d": 0, "upcoming_3d": 0, "upcoming_1d": 0, "due_today": 0, "overdue": 0}
+    now = timezone.now()
+    today = now.date()
+    active_pms = PMSchedule.objects.filter(is_active=True).select_related("template", "machine")
+    for schedule in active_pms:
+        days_until_due = (schedule.next_due_at.date() - today).days
+        if days_until_due == 7:
+            counts["upcoming_7d"] += notify_pm_upcoming(schedule, days_before=7)
+        elif days_until_due == 3:
+            counts["upcoming_3d"] += notify_pm_upcoming(schedule, days_before=3)
+        elif days_until_due == 1:
+            counts["upcoming_1d"] += notify_pm_upcoming(schedule, days_before=1)
+        elif days_until_due == 0:
+            counts["due_today"] += notify_pm_due_today(schedule)
+    counts["overdue"] = sync_pm_overdue_notifications()
+    return counts
+
+
 def notify_part_shortage(wo, part, qty_requested, qty_available, shortage, reported_by):
     """Create in-app notifications for every active Manager + Super Admin
     when a PartShortageReport is raised. The notification links to the WO
