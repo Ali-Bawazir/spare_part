@@ -2988,12 +2988,19 @@ class MediaAndCostRollupTests(TestCase):
         self.assertEqual(stock_summary["total_value"], Decimal("110"))
 
     def test_pm_schedule_entity_type_accepted(self):
-        from maintenance.models import Attachment, PMSchedule
+        from maintenance.models import Attachment, PMTemplate, PMSchedule
 
+        template = PMTemplate.objects.create(
+            code="PM-LEGACY-001",
+            title="Legacy test template",
+            estimated_duration_minutes=30,
+            priority="medium",
+        )
         schedule = PMSchedule.objects.create(
+            template=template,
             machine=self.machine,
-            title="Lubricate bearings every 30 days",
-            frequency_days=30,
+            frequency_type="monthly",
+            interval=1,
             next_due_at=timezone.now() + timedelta(days=30),
         )
 
