@@ -5909,8 +5909,15 @@ def pm_template_list(request):
     return render(request, "maintenance/pm_template_list.html", {"templates": templates})
 
 
-@login_required
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def _strip_empty_formset_forms(formset):
+    """Remove extra forms with empty text so they don't get saved as blank items."""
+    formset.forms = [
+        f for f in formset.forms
+        if f.instance.pk is not None
+        or (f.cleaned_data.get("text") or "").strip()
+    ]
+
+
 def pm_template_create(request):
     if request.method == "POST":
         form = PMTemplateForm(request.POST)
@@ -5919,6 +5926,7 @@ def pm_template_create(request):
             with transaction.atomic():
                 template = form.save()
                 formset.instance = template
+                _strip_empty_formset_forms(formset)
                 formset.save()
             messages.success(request, f"PM template {template.code} created.")
             return redirect("pm_template_detail", pk=template.pk)
@@ -5940,6 +5948,7 @@ def pm_template_edit(request, pk):
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
                 form.save()
+                _strip_empty_formset_forms(formset)
                 formset.save()
             messages.success(request, f"PM template {template.code} updated.")
             return redirect("pm_template_detail", pk=template.pk)

@@ -4,7 +4,7 @@
 {% block content %}
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
-    <form method="post" class="mms-form">
+    <form method="post" class="mms-form" id="pm-template-form">
       {% csrf_token %}
       <h5 style="margin-top:0">Procedure details</h5>
       {% for field in form %}
@@ -17,21 +17,28 @@
       {% endfor %}
 
       <h5 style="margin-top:1.5rem">Checklist items</h5>
-      <p class="text-muted" style="color:#6b7280;font-size:0.9em">One line item per inspection step. Mark required items that must be completed.</p>
+      <p class="text-muted" style="color:#6b7280;font-size:0.9em">One line item per inspection step. Mark required items that must be completed. Use the "Add another item" button to add more rows.</p>
       {{ formset.management_form }}
-      <table class="mms-table" style="margin-bottom:0.5rem">
+      {% if formset.non_form_errors %}<div class="mms-field-error">{{ formset.non_form_errors }}</div>{% endif %}
+      <table class="mms-table" id="checklist-table" style="margin-bottom:0.5rem">
         <thead><tr><th style="width:80px">Order</th><th>Text</th><th style="width:120px">Required?</th><th style="width:80px">Delete</th></tr></thead>
         <tbody>
         {% for f in formset %}
-        <tr>
+        <tr class="checklist-row">
+          {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
           <td>{{ f.order }}</td>
           <td>{{ f.text }}</td>
           <td>{{ f.is_required }}</td>
-          <td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+          <td>{% if f.instance.pk %}{{ f.DELETE }}{% else %}<span class="mms-text-muted" style="font-size:0.85em">new</span>{% endif %}</td>
         </tr>
         {% endfor %}
         </tbody>
       </table>
+
+      <p>
+        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="add-row-btn">+ Add another item</button>
+        <span class="mms-text-muted" style="margin-left:0.5rem;font-size:0.85em">(empty rows are ignored on save)</span>
+      </p>
 
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">{% if mode == 'create' %}Create template{% else %}Save changes{% endif %}</button>
@@ -40,4 +47,42 @@
     </form>
   </div>
 </div>
+
+<script>
+(function() {
+  var btn = document.getElementById('add-row-btn');
+  var tbody = document.querySelector('#checklist-table tbody');
+  var totalForms = document.querySelector('input[name="checklist_items-TOTAL_FORMS"]');
+  if (!btn || !tbody || !totalForms) return;
+
+  btn.addEventListener('click', function() {
+    var currentCount = parseInt(totalForms.value, 10);
+    var lastRow = tbody.querySelector('tr.checklist-row:last-of-type');
+    if (!lastRow) return;
+
+    var newRow = lastRow.cloneNode(true);
+    var newIndex = currentCount;
+
+    newRow.querySelectorAll('input, select, textarea').forEach(function(input) {
+      if (input.name) {
+        input.name = input.name.replace(/-\d+-/, '-' + newIndex + '-');
+        input.id = input.id.replace(/-\d+-/, '-' + newIndex + '-');
+      }
+      if (input.type === 'checkbox') {
+        input.checked = false;
+      } else if (input.type === 'text' || input.type === 'number' || input.tagName === 'TEXTAREA') {
+        input.value = '';
+      } else if (input.tagName === 'SELECT') {
+        input.selectedIndex = 0;
+      }
+      if (input.name && input.name.endsWith('-order')) {
+        input.value = newIndex + 1;
+      }
+    });
+
+    tbody.appendChild(newRow);
+    totalForms.value = newIndex + 1;
+  });
+})();
+</script>
 {% endblock %}

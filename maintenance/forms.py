@@ -246,15 +246,53 @@ class PMScheduleForm(forms.ModelForm):
         return cleaned
 
 
-PMChecklistItemFormSet = inlineformset_factory(
+class BasePMChecklistItemForm(forms.ModelForm):
+    text = forms.CharField(
+        max_length=500,
+        required=False,
+        widget=forms.TextInput(attrs={**_CTRL, "placeholder": "Checklist item text"}),
+    )
+    order = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={**_CTRL, "min": "1"}),
+    )
+
+    class Meta:
+        model = PMChecklistItem
+        fields = ("order", "text", "is_required")
+        widgets = {
+            "is_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+
+class BasePMChecklistItemFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        seen_texts = set()
+        has_at_least_one = False
+        for form in self.forms:
+            if not hasattr(form, "cleaned_data"):
+                continue
+            if form.cleaned_data.get("DELETE"):
+                continue
+            text = (form.cleaned_data.get("text") or "").strip()
+            if not text:
+                continue
+            has_at_least_one = True
+            if text.lower() in seen_texts:
+                form.add_error("text", "Duplicate checklist item text.")
+            seen_texts.add(text.lower())
+        if not has_at_least_one:
+            raise forms.ValidationError("At least one checklist item is required.")
+
+
+PMChecklistItemFormSet = forms.inlineformset_factory(
     PMTemplate, PMChecklistItem,
+    form=BasePMChecklistItemForm,
+    formset=BasePMChecklistItemFormSet,
     fields=("order", "text", "is_required"),
     extra=3, can_delete=True,
-    widgets={
-        "order": forms.NumberInput(attrs={**_CTRL, "min": "1"}),
-        "text": forms.TextInput(attrs={**_CTRL, "placeholder": "Checklist item text"}),
-        "is_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-    },
+    validate_min=False,
 )
 
 
