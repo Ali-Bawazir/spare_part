@@ -3,29 +3,117 @@
 {% block page_heading %}Preventive maintenance{% endblock %}
 {% block content %}
 <p class="mms-page-lead">Schedules drive PM work orders. Spawn a WO when due.</p>
-{% if perm_pm_schedule_manage %}
+
 <p class="mms-actions">
   <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'pm_create' %}">New schedule</a>
   <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_template_list' %}">Manage templates</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_dashboard' %}">Compliance dashboard</a>
 </p>
-{% endif %}
-<div class="mms-card">
-  <div class="mms-table-wrap">
-    <table class="mms-table">
-      <thead><tr><th>Template</th><th>Machine</th><th>Frequency</th><th>Next due</th><th>Priority</th><th></th></tr></thead>
-      <tbody>
-      {% for s in schedules %}
-      <tr>
-        <td><a href="{% url 'pm_template_detail' s.template.pk %}"><code>{{ s.template.code }}</code></a> — {{ s.template.title }}</td>
-        <td>{{ s.machine }}</td>
-        <td>{{ s.get_frequency_type_display }}{% if s.interval != 1 %} × {{ s.interval }}{% endif %}</td>
-        <td>{{ s.next_due_at|date:"Y-m-d H:i" }}</td>
-        <td>{{ s.get_priority_override_display|default:s.template.get_priority_display }}</td>
-        <td>{% if perm_pm_schedule_manage %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' s.pk %}">Create PM WO</a>{% else %}—{% endif %}</td>
-      </tr>
-      {% empty %}<tr><td colspan="6" class="mms-empty">No PM schedules.</td></tr>{% endfor %}
-      </tbody>
-    </table>
+
+<form method="get" class="mms-form" style="display:flex; gap:0.5rem; align-items:flex-end; margin-bottom:1rem; flex-wrap:wrap">
+  <div>
+    <label for="id_active" style="font-size:0.85em; color:#6b7280">Active</label>
+    <select name="active" id="id_active" class="form-select form-select-sm">
+      <option value="active" {% if active_filter == 'active' %}selected{% endif %}>Active only</option>
+      <option value="inactive" {% if active_filter == 'inactive' %}selected{% endif %}>Inactive only</option>
+      <option value="all" {% if active_filter == 'all' %}selected{% endif %}>All</option>
+    </select>
   </div>
-</div>
+  <div>
+    <label for="id_status" style="font-size:0.85em; color:#6b7280">Status</label>
+    <select name="status" id="id_status" class="form-select form-select-sm">
+      <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+      <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Overdue</option>
+      <option value="due_soon" {% if status_filter == 'due_soon' %}selected{% endif %}>Due this week</option>
+      <option value="future" {% if status_filter == 'future' %}selected{% endif %}>Future</option>
+    </select>
+  </div>
+  <div>
+    <label for="id_machine" style="font-size:0.85em; color:#6b7280">Machine</label>
+    <select name="machine" id="id_machine" class="form-select form-select-sm">
+      <option value="">All machines</option>
+      {% for m in machines %}
+        <option value="{{ m.pk }}" {% if machine_filter|stringformat:"s" == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Filter</button>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_list' %}">Reset</a>
+</form>
+
+<form method="post" action="{% url 'pm_batch_spawn_wo' %}">
+  {% csrf_token %}
+
+  <div class="mms-card">
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th style="width:40px">
+              <input type="checkbox" id="select-all" title="Select all overdue">
+            </th>
+            <th>Template</th>
+            <th>Machine</th>
+            <th>Frequency</th>
+            <th>Next due</th>
+            <th>Days until due</th>
+            <th>Priority</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in schedule_data %}
+          <tr>
+            <td>
+              {% if row.schedule.is_active and row.days_until_due <= 0 %}
+              <input type="checkbox" name="schedule_ids" value="{{ row.schedule.pk }}" class="row-checkbox">
+              {% endif %}
+            </td>
+            <td><a href="{% url 'pm_template_detail' row.schedule.template.pk %}"><code>{{ row.schedule.template.code }}</code></a> — {{ row.schedule.template.title }}</td>
+            <td>{{ row.schedule.machine }}</td>
+            <td>{{ row.schedule.get_frequency_type_display }}{% if row.schedule.interval != 1 %} × {{ row.schedule.interval }}{% endif %}</td>
+            <td>{{ row.schedule.next_due_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              <span class="mms-badge mms-badge--{{ row.days_color }}">{{ row.days_label }}</span>
+            </td>
+            <td>
+              {% with eff=row.schedule.effective_priority %}
+                {% if eff == 'critical' %}<span class="mms-badge mms-badge--danger">Critical</span>
+                {% elif eff == 'high' %}<span class="mms-badge mms-badge--warning">High</span>
+                {% elif eff == 'medium' %}<span class="mms-badge mms-badge--info">Medium</span>
+                {% else %}<span class="mms-badge mms-badge--muted">Low</span>{% endif %}
+              {% endwith %}
+            </td>
+            <td>
+              <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' row.schedule.pk %}">Create PM WO</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="mms-empty">No PM schedules match the filter.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if schedule_data %}
+  <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center">
+    <button class="mms-btn mms-btn--primary" type="submit" onclick="return confirm('Create PM work orders for all selected schedules?')">Spawn WOs for selected</button>
+    <small class="mms-text-muted">Tip: only overdue schedules are checkable for batch spawn.</small>
+  </div>
+  {% endif %}
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var selectAll = document.getElementById('select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      document.querySelectorAll('.row-checkbox').forEach(function(cb) {
+        cb.checked = selectAll.checked;
+      });
+    });
+  }
+});
+</script>
 {% endblock %}

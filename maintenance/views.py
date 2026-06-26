@@ -2762,19 +2762,69 @@ def pm_list(request):
     from .notifications import sync_pm_overdue_notifications
 
     sync_pm_overdue_notifications()
-    schedules = PMSchedule.objects.select_related("template", "machine").order_by("next_due_at")
-    templates_meta = {
-        s.pk: {
-            "effective_priority": s.effective_priority,
-            "effective_duration_minutes": s.effective_duration_minutes,
-        }
-        for s in schedules
-    }
-    return render(
-        request,
-        "maintenance/pm_list.html",
-        {"schedules": schedules, "templates_meta": templates_meta},
-    )
+
+    active_filter = request.GET.get("active", "active")
+    if active_filter not in ("active", "inactive", "all"):
+        active_filter = "active"
+    status_filter = request.GET.get("status", "all")
+    if status_filter not in ("all", "overdue", "due_soon", "future"):
+        status_filter = "all"
+    machine_filter = request.GET.get("machine", "")
+
+    qs = PMSchedule.objects.select_related("template", "machine")
+    if active_filter == "active":
+        qs = qs.filter(is_active=True)
+    elif active_filter == "inactive":
+        qs = qs.filter(is_active=False)
+
+    now = timezone.now()
+    seven_days = now + timedelta(days=7)
+
+    if status_filter == "overdue":
+        qs = qs.filter(next_due_at__lt=now)
+    elif status_filter == "due_soon":
+        qs = qs.filter(next_due_at__gte=now, next_due_at__lte=seven_days)
+    elif status_filter == "future":
+        qs = qs.filter(next_due_at__gt=seven_days)
+
+    if machine_filter:
+        try:
+            qs = qs.filter(machine_id=int(machine_filter))
+        except (ValueError, TypeError):
+            machine_filter = ""
+
+    schedules = qs.order_by("next_due_at")
+
+    schedule_data = []
+    for s in schedules:
+        days = (s.next_due_at.date() - now.date()).days
+        if days < 0:
+            color = "danger"
+            label = f"{abs(days)}d overdue"
+        elif days <= 7:
+            color = "warning"
+            label = f"in {days}d"
+        else:
+            color = "muted"
+            label = f"in {days}d"
+        schedule_data.append({
+            "schedule": s,
+            "days_until_due": days,
+            "days_color": color,
+            "days_label": label,
+        })
+
+    machines = Machine.objects.filter(is_active=True, asset_level=3).order_by("name")
+
+    return render(request, "maintenance/pm_list.html", {
+        "schedules": schedules,
+        "schedule_data": schedule_data,
+        "machines": machines,
+        "active_filter": active_filter,
+        "status_filter": status_filter,
+        "machine_filter": machine_filter,
+        "now": now,
+    })
 
 
 @login_required
@@ -5936,3 +5986,45 @@ def pm_dashboard(request):
         "late_count": late_count,
         "now": now,
     })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@require_POST
+def pm_batch_spawn_wo(request):
+    """Spawn PM work orders for multiple schedules at once."""
+    schedule_ids = request.POST.getlist("schedule_ids")
+    if not schedule_ids:
+        messages.error(request, "No schedules selected.")
+        return redirect("pm_list")
+
+    created_count = 0
+    skipped_count = 0
+    for sid in schedule_ids:
+        try:
+            sched = PMSchedule.objects.select_related("template", "machine").get(pk=int(sid))
+        except (PMSchedule.DoesNotExist, ValueError, TypeError):
+            skipped_count += 1
+            continue
+        if not sched.is_active:
+            skipped_count += 1
+            continue
+        wo = WorkOrder.objects.create(
+            category=WorkOrder.Category.PREVENTIVE,
+            machine=sched.machine,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
+            created_by=request.user,
+            notes=f"PM: {sched.template.title} (batch spawn)",
+        )
+        transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="Batch PM spawn")
+        create_pm_execution_for_wo(sched, wo, actor=request.user)
+        created_count += 1
+
+    if created_count:
+        msg = f"Created {created_count} PM work order{'s' if created_count != 1 else ''}."
+        if skipped_count:
+            msg += f" Skipped {skipped_count} (invalid or inactive)."
+        messages.success(request, msg)
+    else:
+        messages.warning(request, "No work orders created. All schedules were invalid or inactive.")
+    return redirect("pm_list")
