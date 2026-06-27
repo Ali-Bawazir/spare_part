@@ -13,6 +13,9 @@ Comprehensive scenario walkthroughs for the full MMS system.
 | E: Grand tour (cross-functional) | All modules | [scenarios/full_e2e_scenarios.md](full_e2e_scenarios.md#scenario-e--cross-functional-full-issue--wo--shortage--pr--po--receive--issue--close) |
 | F: Operator self-service consumable | Consumables, stock | [scenarios/full_e2e_scenarios.md](full_e2e_scenarios.md#scenario-f--operator-self-service-consumable) |
 | PM cycle (7 stages) | PMs only | [scenarios/pm_e2e_responsibilities.md](pm_e2e_responsibilities.md) |
+| PM Work Order page (technician) | PM execute + checklist | [scenarios/pm_work_order_page.md](pm_work_order_page.md) |
+| PM how-to (action-oriented) | Create → spawn → execute → review | [scenarios/pm_how_to.md](pm_how_to.md) |
+| PM walkthrough (setup + steps) | PMs only | [scenarios/pm_walkthrough.md](pm_walkthrough.md) |
 
 ## State Machines
 
