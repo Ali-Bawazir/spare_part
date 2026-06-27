@@ -2995,75 +2995,37 @@ def pm_spawn_wo(request, pk):
     return render(request, "maintenance/pm_spawn_wo.html", {"schedule": sched, "has_children": has_children})
 
 
-@login_required
-@role_required(User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
-def pm_execute(request, pk):
-    """Execute a PM work order with checklist.
+def _pm_wo_detail_context(wo, request):
+    """Build context for the PM work order detail/execute page.
 
-    URL: /pm/<pk>/execute/ — where pk is the WORK ORDER pk (not the schedule pk).
-    The WO must be PREVENTIVE category. Reads checklist from the schedule's template.
+    Resolves the schedule from the WO's PMExecution (not by querying the
+    machine). Reads checklist from the schedule's template OR the
+    PMExecution snapshot if available. Builds asset tree and related-record
+    context.
     """
-    wo = get_object_or_404(
-        WorkOrder.objects.select_related("machine"),
-        pk=pk,
-    )
-    if wo.category != WorkOrder.Category.PREVENTIVE:
-        messages.error(request, "This is not a preventive maintenance work order.")
-        return redirect("work_order_detail", pk=pk)
-
-    sched = (
-        PMSchedule.objects.select_related("template")
-        .filter(machine=wo.machine)
-        .order_by("-created_at")
-        .first()
-    )
-
-    checklist_items = []
-    if sched:
-        for item in sched.template.checklist_items.all().order_by("order", "pk"):
-            checklist_items.append({"text": item.text, "checked": False})
-
-    if request.method == "POST":
-        form = WorkOrderCompleteForm(request.POST, instance=wo)
-        if form.is_valid():
-            checklist_results = []
-            for i, item in enumerate(checklist_items):
-                key = f"checklist_{i}"
-                checked = request.POST.get(key) == "on"
-                note_key = f"note_{i}"
-                note = request.POST.get(note_key, "").strip()
-                checklist_results.append({"text": item["text"], "checked": checked, "note": note})
-
-            action_lines = []
-            for result in checklist_results:
-                status = "✓" if result["checked"] else "✗"
-                action_lines.append(f"[{status}] {result['text']}")
-                if result["note"]:
-                    action_lines.append(f"  Note: {result['note']}")
-
-            wo.action_taken = "\n".join(action_lines)
-            wo.save(update_fields=["action_taken"])
-
-            pm_execution = getattr(wo, "pm_execution", None)
-            if pm_execution and pm_execution.status == PMExecution.Status.REJECTED:
-                pm_execution.status = PMExecution.Status.SUBMITTED
-                pm_execution.approved_by = None
-                pm_execution.approved_at = None
-                pm_execution.completed_by = request.user
-                pm_execution.completed_at = timezone.now()
-                pm_execution.save(update_fields=[
-                    "status", "approved_by", "approved_at",
-                    "completed_by", "completed_at",
-                ])
-
-            form.save()
-            technician_submit_for_review(wo, request.user)
-            messages.success(request, "PM submitted for manager review.")
-            return redirect("work_order_detail", pk=pk)
-    else:
-        form = WorkOrderCompleteForm(instance=wo)
-
     from procurement.models import PurchaseRequest
+
+    pm_execution = None
+    try:
+        pm_execution = wo.pm_execution
+    except PMExecution.DoesNotExist:
+        pm_execution = None
+    sched = None
+    checklist_items = []
+
+    if pm_execution and pm_execution.pm_schedule_id:
+        sched = PMSchedule.objects.select_related("template", "machine").get(
+            pk=pm_execution.pm_schedule_id
+        )
+
+    if sched:
+        snapshot_items = (pm_execution.template_snapshot_json or {}).get("checklist", []) if pm_execution else []
+        if snapshot_items:
+            for item in snapshot_items:
+                checklist_items.append({"text": item.get("text", ""), "checked": False})
+        else:
+            for item in sched.template.checklist_items.all().order_by("order", "pk"):
+                checklist_items.append({"text": item.text, "checked": False})
 
     tree_node = wo.component if wo.component_id else wo.machine
     ancestors = []
@@ -3077,7 +3039,7 @@ def pm_execute(request, pk):
     )[:10]
     related_wos = WorkOrder.objects.filter(
         machine=wo.machine, component=wo.component
-    )[:10]
+    ).exclude(pk=wo.pk)[:10]
     related_pms = PMSchedule.objects.filter(
         machine=wo.machine, component=wo.component
     ).exclude(pk=sched.pk if sched else None)[:10]
@@ -3088,14 +3050,14 @@ def pm_execute(request, pk):
         machine=wo.machine, component=wo.component
     )[:10]
 
-    return render(request, "maintenance/pm_execute.html", {
+    return {
         "wo": wo,
         "sched": sched,
+        "pm_execution": pm_execution,
         "checklist_items": checklist_items,
         "schedule_attachments": Attachment.objects.filter(
             entity_type="pm_schedule", entity_id=sched.pk
         ).select_related("uploaded_by").order_by("-uploaded_at") if sched else Attachment.objects.none(),
-        "form": form,
         "machine": tree_node,
         "ancestors": ancestors,
         "related_issues": related_issues,
@@ -3103,7 +3065,156 @@ def pm_execute(request, pk):
         "related_pms": related_pms,
         "related_eros": related_eros,
         "related_prs": related_prs,
-    })
+    }
+
+    if sched:
+        snapshot_items = (pm_execution.template_snapshot_json or {}).get("checklist", []) if pm_execution else []
+        if snapshot_items:
+            for item in snapshot_items:
+                checklist_items.append({"text": item.get("text", ""), "checked": False})
+        else:
+            for item in sched.template.checklist_items.all().order_by("order", "pk"):
+                checklist_items.append({"text": item.text, "checked": False})
+
+    tree_node = wo.component if wo.component_id else wo.machine
+    ancestors = []
+    current = tree_node.parent if tree_node is not None else None
+    while current is not None:
+        ancestors.insert(0, current)
+        current = current.parent
+
+    related_issues = MaintenanceIssue.objects.filter(
+        machine=wo.machine, component=wo.component
+    )[:10]
+    related_wos = WorkOrder.objects.filter(
+        machine=wo.machine, component=wo.component
+    ).exclude(pk=wo.pk)[:10]
+    related_pms = PMSchedule.objects.filter(
+        machine=wo.machine, component=wo.component
+    ).exclude(pk=sched.pk if sched else None)[:10]
+    related_eros = ExternalRepairOrder.objects.filter(
+        machine=wo.machine, component=wo.component
+    )[:10]
+    related_prs = PurchaseRequest.objects.filter(
+        machine=wo.machine, component=wo.component
+    )[:10]
+
+    return {
+        "wo": wo,
+        "sched": sched,
+        "pm_execution": pm_execution,
+        "checklist_items": checklist_items,
+        "schedule_attachments": Attachment.objects.filter(
+            entity_type="pm_schedule", entity_id=sched.pk
+        ).select_related("uploaded_by").order_by("-uploaded_at") if sched else Attachment.objects.none(),
+        "machine": tree_node,
+        "ancestors": ancestors,
+        "related_issues": related_issues,
+        "related_wos": related_wos,
+        "related_pms": related_pms,
+        "related_eros": related_eros,
+        "related_prs": related_prs,
+    }
+
+
+@login_required
+@role_required(
+    User.Role.MANAGER, User.Role.SUPER_ADMIN,
+    User.Role.TECHNICIAN, User.Role.SUPERVISOR,
+)
+def pm_wo_detail(request, pk):
+    """Dedicated PM work order page for technicians.
+
+    URL: /pm/wo/<pk>/  — where pk is the WORK ORDER pk.
+    Shows PM context (template, schedule, machine/component, last completed)
+    + the checklist (read-only when lifecycle not in assigned/in_progress)
+    + completion notes form. POST transitions the WO to pending_review and
+    the PMExecution to submitted.
+    """
+    wo = get_object_or_404(
+        WorkOrder.objects.select_related(
+            "machine", "component", "assigned_technician", "created_by",
+        ),
+        pk=pk,
+    )
+    if wo.category != WorkOrder.Category.PREVENTIVE:
+        messages.error(request, "This is not a preventive maintenance work order.")
+        return redirect("work_order_detail", pk=pk)
+
+    u = request.user
+    can_execute = (
+        (wo.assigned_technician_id == u.id)
+        or (wo.assigned_technician_id is None and u.role == User.Role.TECHNICIAN)
+        or u.role in (User.Role.MANAGER, User.Role.SUPER_ADMIN)
+    )
+    can_execute = can_execute and wo.lifecycle_status in (
+        WorkOrder.LifecycleStatus.ASSIGNED,
+        WorkOrder.LifecycleStatus.IN_PROGRESS,
+        WorkOrder.LifecycleStatus.PENDING_REVIEW,
+    )
+
+    ctx = _pm_wo_detail_context(wo, request)
+    ctx["can_execute"] = can_execute
+
+    if request.method == "POST":
+        if not can_execute:
+            messages.error(request, "You can't execute this PM.")
+            return redirect("pm_wo_detail", pk=pk)
+        checklist_items = ctx["checklist_items"]
+        checklist_results = []
+        for i, item in enumerate(checklist_items):
+            key = f"checklist_{i}"
+            checked = request.POST.get(key) == "on"
+            note_key = f"note_{i}"
+            note = request.POST.get(note_key, "").strip()
+            checklist_results.append({"text": item["text"], "checked": checked, "note": note})
+
+        action_lines = []
+        for result in checklist_results:
+            status = "✓" if result["checked"] else "✗"
+            action_lines.append(f"[{status}] {result['text']}")
+            if result["note"]:
+                action_lines.append(f"  Note: {result['note']}")
+
+        wo.action_taken = "\n".join(action_lines)
+
+        form = WorkOrderCompleteForm(request.POST, instance=wo)
+        if form.is_valid():
+            form.save()
+        wo.action_taken = "\n".join(action_lines)
+        wo.save(update_fields=["action_taken"])
+
+        pm_execution = ctx["pm_execution"]
+        if pm_execution and pm_execution.status == PMExecution.Status.REJECTED:
+            pm_execution.status = PMExecution.Status.SUBMITTED
+            pm_execution.approved_by = None
+            pm_execution.approved_at = None
+            pm_execution.completed_by = request.user
+            pm_execution.completed_at = timezone.now()
+            pm_execution.save(update_fields=[
+                "status", "approved_by", "approved_at",
+                "completed_by", "completed_at",
+            ])
+
+        technician_submit_for_review(wo, request.user)
+        messages.success(request, "PM submitted for manager review.")
+        return redirect("work_order_detail", pk=pk)
+
+    ctx["form"] = WorkOrderCompleteForm(instance=wo)
+    return render(request, "maintenance/pm_wo_detail.html", ctx)
+
+
+@login_required
+@role_required(
+    User.Role.MANAGER, User.Role.SUPER_ADMIN,
+    User.Role.TECHNICIAN, User.Role.SUPERVISOR,
+)
+def pm_execute(request, pk):
+    """Legacy PM execute URL — redirects to the new PM work order page.
+
+    URL: /pm/<pk>/execute/  — redirects to /pm/wo/<pk>/
+    """
+    return redirect("pm_wo_detail", pk=pk)
 
 
 @login_required

@@ -72,6 +72,7 @@ urlpatterns = [
     path("pm/<int:pk>/spawn-wo/", views.pm_spawn_wo, name="pm_spawn_wo"),
     path("pm/batch-spawn-wo/", views.pm_batch_spawn_wo, name="pm_batch_spawn_wo"),
     path("pm/<int:pk>/execute/", views.pm_execute, name="pm_execute"),
+    path("pm/wo/<int:pk>/", views.pm_wo_detail, name="pm_wo_detail"),
     path("pm/templates/", views.pm_template_list, name="pm_template_list"),
     path("pm/templates/new/", views.pm_template_create, name="pm_template_create"),
     path("pm/templates/<int:pk>/", views.pm_template_detail, name="pm_template_detail"),

@@ -226,7 +226,7 @@ class PMResubmitAfterRejectTests(TestCase):
             "action_taken": "[✓] Step 1 redone",
             "notes": "",
         }
-        r = self.client.post(reverse("pm_execute", args=[self.wo.pk]), data=post_data)
+        r = self.client.post(reverse("pm_wo_detail", args=[self.wo.pk]), data=post_data)
         self.assertEqual(r.status_code, 302)
         self.execution.refresh_from_db()
         self.assertEqual(self.execution.status, PMExecution.Status.SUBMITTED)
@@ -246,7 +246,7 @@ class PMResubmitAfterRejectTests(TestCase):
             "action_taken": "redo",
             "notes": "",
         }
-        self.client.post(reverse("pm_execute", args=[self.wo.pk]), data=post_data)
+        self.client.post(reverse("pm_wo_detail", args=[self.wo.pk]), data=post_data)
         self.execution.refresh_from_db()
         self.assertEqual(self.execution.status, PMExecution.Status.SUBMITTED)
         self.assertIsNone(self.execution.approved_by)

@@ -31,7 +31,16 @@
     {% if user.role == 'manager' or user.role == 'super_admin' %}
       <p style="margin-top:0.5rem">
         <a class="mms-btn mms-btn--primary" href="{% url 'pm_review' wo.pk %}">⚖️ Review PM</a>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'pm_wo_detail' wo.pk %}">📋 View PM Work Order</a>
       </p>
+    {% endif %}
+  {% else %}
+    {% if wo.lifecycle_status == 'assigned' or wo.lifecycle_status == 'in_progress' %}
+      {% if user.role == 'technician' or user.role == 'manager' or user.role == 'super_admin' or user.role == 'supervisor' %}
+        <p style="margin-top:0.5rem">
+          <a class="mms-btn mms-btn--primary" href="{% url 'pm_wo_detail' wo.pk %}">▶ Execute PM (with checklist)</a>
+        </p>
+      {% endif %}
     {% endif %}
   {% endif %}
 {% endif %}

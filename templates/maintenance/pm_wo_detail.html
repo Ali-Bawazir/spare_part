@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% block title %}PM Work Order WO-{{ wo.number }} — Bawazir MMS{% endblock %}
+{% block page_heading %}PM Work Order — WO-{{ wo.number }}{% endblock %}
+{% block content %}
+
+<nav class="mms-breadcrumb" style="margin-bottom:0.75rem">
+    <a href="{% url 'work_order_detail' wo.pk %}">← Back to WO-{{ wo.number }}</a>
+</nav>
+
+<div class="mms-banner mms-banner--info" style="margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem">
+    <span style="font-size:1.5rem">🔁</span>
+    <div style="flex:1">
+        <strong>This is a Preventive Maintenance work order.</strong>
+        <div class="text-muted" style="font-size:.85rem">
+            Follow the checklist below. When you finish, submit for manager review.
+        </div>
+    </div>
+    <span class="mms-badge mms-badge--muted">PM</span>
+</div>
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">PM Context</div>
+    <div class="mms-card-body">
+        <dl style="margin:0; display:grid; grid-template-columns: 180px 1fr; gap:0.5rem">
+            <dt>Work Order</dt>
+            <dd>
+                <a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a>
+                — created {{ wo.created_at|date:"Y-m-d H:i" }}
+            </dd>
+
+            <dt>Lifecycle status</dt>
+            <dd>
+                <span class="{{ wo.lifecycle_status|wo_status_badge_class }}">{{ wo.get_lifecycle_status_display }}</span>
+                {% if wo.pm_execution %}
+                    · <span class="mms-badge mms-badge--muted">PM: {{ wo.pm_execution.get_status_display }}</span>
+                {% endif %}
+            </dd>
+
+            <dt>Machine</dt>
+            <dd>{{ wo.machine.name }} <span class="text-muted">({{ wo.machine.qr_code }})</span></dd>
+
+            {% if wo.component %}
+            <dt>Component</dt>
+            <dd>{{ wo.component.name }} <span class="text-muted">({{ wo.component.asset_code }})</span></dd>
+            {% endif %}
+
+            <dt>Priority</dt>
+            <dd>
+                {% if sched %}
+                    <span class="{{ sched.effective_priority|priority_badge_class }}">{{ sched.get_effective_priority_display }}</span>
+                {% else %}—{% endif %}
+            </dd>
+
+            <dt>Technician</dt>
+            <dd>{{ wo.assigned_technician|default:"Unassigned" }}</dd>
+
+            {% if sched %}
+            <dt>PM Schedule</dt>
+            <dd>
+                {{ sched.template.title }}
+                <span class="text-muted">({{ sched.template.code }})</span>
+                {% if sched.component %}
+                    on <strong>{{ sched.component.name }}</strong>
+                {% else %}
+                    on <strong>{{ sched.machine.name }}</strong>
+                {% endif %}
+            </dd>
+
+            <dt>Frequency</dt>
+            <dd>Every {{ sched.interval }} {{ sched.get_frequency_type_display|lower }}{% if sched.interval != 1 %}s{% endif %}</dd>
+
+            <dt>Estimated duration</dt>
+            <dd>{{ sched.effective_duration_minutes }} minutes</dd>
+
+            <dt>Schedule info</dt>
+            <dd>
+                Last completed: <strong>{{ sched.last_completed_at|date:"Y-m-d"|default:"Never" }}</strong><br>
+                Next due: <strong>{{ sched.next_due_at|date:"Y-m-d" }}</strong>
+            </dd>
+            {% endif %}
+
+            {% if pm_execution %}
+            <dt>PM Execution</dt>
+            <dd>
+                #{{ pm_execution.execution_sequence }} ·
+                scheduled for {{ pm_execution.scheduled_due_at|date:"Y-m-d" }}<br>
+                {% if pm_execution.completed_by %}
+                    Completed by {{ pm_execution.completed_by.username }} on {{ pm_execution.completed_at|date:"Y-m-d H:i" }}
+                {% endif %}
+                {% if pm_execution.approved_by %}
+                    <br>Approved by {{ pm_execution.approved_by.username }} on {{ pm_execution.approved_at|date:"Y-m-d H:i" }}
+                {% endif %}
+            </dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+{% if schedule_attachments %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">Reference Photos (read-only)</div>
+  <div class="mms-card-body" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+    {% for att in schedule_attachments %}
+      {% if att.mime_type and 'image' in att.mime_type %}
+        <a href="{{ att.file.url }}" target="_blank" title="{{ att.filename }}">
+          <img src="{% if att.thumbnail %}{{ att.thumbnail.url }}{% else %}{{ att.file.url }}{% endif %}"
+               alt="{{ att.filename }}"
+               style="width:100px;height:100px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if can_execute %}
+    {% if checklist_items %}
+    <div class="mms-card">
+        <div class="mms-card-header">
+            <h5 style="margin:0">Inspection Checklist ({{ checklist_items|length }} items)</h5>
+        </div>
+        <div class="mms-card-body">
+            <form method="post">
+                {% csrf_token %}
+                {% for item in checklist_items %}
+                <div class="checklist-item" style="padding:0.75rem 0; border-bottom:1px solid #eee">
+                    <div style="display:flex; gap:0.5rem; align-items:flex-start">
+                        <input type="checkbox"
+                               name="checklist_{{ forloop.counter0 }}"
+                               id="check_{{ forloop.counter0 }}"
+                               style="margin-top:4px"
+                               {% if item.checked %}checked{% endif %}>
+                        <div style="flex:1">
+                            <label for="check_{{ forloop.counter0 }}" style="cursor:pointer; font-weight:500">{{ item.text }}</label>
+                            <div style="margin-top:0.25rem">
+                                <input type="text"
+                                       name="note_{{ forloop.counter0 }}"
+                                       class="form-control form-control-sm"
+                                       placeholder="Add note (optional)"
+                                       style="max-width:400px">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div style="margin-top:1.5rem">
+                    <h6>Completion Notes</h6>
+                    {{ form.as_p }}
+                </div>
+
+                <div class="mms-form-actions">
+                    <button class="mms-btn mms-btn--primary" type="submit">✓ Submit for Review</button>
+                    <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="mms-card">
+        <div class="mms-card-header"><h5 style="margin:0">PM Execution</h5></div>
+        <div class="mms-card-body">
+            <p class="text-muted">No checklist defined for this PM template. You can still submit for review with notes.</p>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <div class="mms-form-actions">
+                    <button class="mms-btn mms-btn--primary" type="submit">✓ Submit for Review</button>
+                    <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+{% else %}
+    <div class="mms-card">
+        <div class="mms-card-header"><h5 style="margin:0">Inspection Checklist (read-only)</h5></div>
+        <div class="mms-card-body">
+            {% if checklist_items %}
+                {% for item in checklist_items %}
+                <div style="padding:0.5rem 0; border-bottom:1px solid #eee">
+                    <span class="text-muted">☐</span> {{ item.text }}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No checklist defined.</p>
+            {% endif %}
+
+            {% if wo.action_taken %}
+            <div style="margin-top:1.5rem">
+                <h6>Last submission</h6>
+                <pre style="background:#f8f9fa; padding:0.75rem; border-radius:4px; white-space:pre-wrap; font-size:.85rem">{{ wo.action_taken }}</pre>
+            </div>
+            {% endif %}
+
+            <p style="margin-top:1.5rem">
+                <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">← Back to WO</a>
+                {% if wo.lifecycle_status == 'pending_review' and user.role == 'manager' or user.role == 'super_admin' %}
+                    <a href="{% url 'pm_review' wo.pk %}" class="mms-btn mms-btn--primary">⚖️ Review PM</a>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+{% endif %}
+
+<style>
+.checklist-item:last-child { border-bottom: none !important; }
+</style>
+
+{% include "maintenance/_asset_tree.html" %}
+{% endblock %}

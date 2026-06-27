@@ -773,14 +773,14 @@ class MaintenanceFlowTests(TestCase):
         self.assertEqual(response.context['machine'].pk, self.component_a.pk)
 
     def test_pm_execute_shows_tree(self):
-        """The PM execute page includes the asset tree widget in its context."""
+        """The PM work order page includes the asset tree widget in its context."""
         wo = WorkOrder.objects.create(
             machine=self.machine, component=self.component_a,
             category=WorkOrder.Category.PREVENTIVE,
             created_by=self.manager,
         )
         self.client.force_login(self.manager)
-        response = self.client.get(reverse('pm_execute', kwargs={'pk': wo.pk}))
+        response = self.client.get(reverse('pm_wo_detail', kwargs={'pk': wo.pk}))
         self.assertEqual(response.status_code, 200)
         self.assertIn('ancestors', response.context)
         self.assertEqual(response.context['machine'].pk, self.component_a.pk)
