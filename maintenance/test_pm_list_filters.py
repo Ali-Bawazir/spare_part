@@ -192,10 +192,44 @@ class PMBatchSpawnTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertEqual(WorkOrder.objects.count(), 0)
 
-    def test_batch_spawn_get_method_rejected(self):
+    def test_batch_spawn_get_shows_confirmation_page(self):
+        """GET on the batch-spawn URL should now show a confirmation page,
+        not return 405. POST still does the actual work."""
+        self.client.force_login(self.manager)
+        r = self.client.get(
+            reverse("pm_batch_spawn_wo"),
+            data={"schedule_ids": f"{self.s1.pk},{self.s2.pk}"},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("schedules", r.context)
+        self.assertEqual(len(r.context["schedules"]), 2)
+        body = r.content.decode()
+        self.assertIn("Confirm", body)
+
+    def test_batch_spawn_get_no_ids_shows_empty(self):
+        """GET with no schedule_ids shows a 'no valid schedules' empty state."""
         self.client.force_login(self.manager)
         r = self.client.get(reverse("pm_batch_spawn_wo"))
-        self.assertEqual(r.status_code, 405)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context["schedules"]), 0)
+        self.assertIn("No valid schedules", r.content.decode())
+
+    def test_batch_spawn_skips_already_pending_schedules(self):
+        """If a schedule already has a SUBMITTED PMExecution at next_due_at,
+        a second batch spawn should skip it (no duplicate WOs)."""
+        # First spawn creates the WO + PMExecution
+        self.client.force_login(self.manager)
+        self.client.post(reverse("pm_batch_spawn_wo"), data={
+            "schedule_ids": [str(self.s1.pk), str(self.s2.pk)],
+        })
+        self.assertEqual(WorkOrder.objects.filter(category="preventive").count(), 2)
+
+        # Second batch for the same schedules should be deduped
+        r = self.client.post(reverse("pm_batch_spawn_wo"), data={
+            "schedule_ids": [str(self.s1.pk), str(self.s2.pk)],
+        })
+        # No new WOs created
+        self.assertEqual(WorkOrder.objects.filter(category="preventive").count(), 2)
 
     def test_batch_spawn_forbidden_for_technician(self):
         self.client.force_login(self.technician)

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Confirm batch PM spawn{% endblock %}
+{% block page_heading %}Confirm batch PM spawn{% endblock %}
+{% block content %}
+<p class="mms-page-lead">Review the schedules below and confirm to spawn a work order for each.</p>
+
+{% if schedules %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{{ schedules|length }} schedule{{ schedules|length|pluralize }} will create a work order</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead>
+        <tr>
+          <th>Template</th>
+          <th>Machine</th>
+          <th>Component</th>
+          <th>Frequency</th>
+          <th>Next due</th>
+          <th>Priority</th>
+          <th>Estimated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in schedules %}
+        <tr>
+          <td><a href="{% url 'pm_template_detail' s.template.pk %}"><code>{{ s.template.code }}</code></a><br>
+              <small class="mms-text-muted">{{ s.template.title }}</small></td>
+          <td>{{ s.machine.name }}<br>
+              <small class="mms-text-muted">{{ s.machine.qr_code }}</small></td>
+          <td>{% if s.component %}{{ s.component.name }}{% else %}<span class="mms-text-muted">—</span>{% endif %}</td>
+          <td>{{ s.get_frequency_type_display }}{% if s.interval != 1 %} × {{ s.interval }}{% endif %}</td>
+          <td>{{ s.next_due_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ s.get_priority_override_display|default:s.template.get_priority_display }}</td>
+          <td>{{ s.effective_duration_minutes }} min</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form method="post" action="{% url 'pm_batch_spawn_wo' %}">
+  {% csrf_token %}
+  {% for s in schedules %}
+  <input type="hidden" name="schedule_ids" value="{{ s.pk }}">
+  {% endfor %}
+  <div class="mms-form-actions">
+    <button class="mms-btn mms-btn--primary" type="submit" onclick="return confirm('Spawn {{ schedules|length }} PM work order{{ schedules|length|pluralize }}?')">
+      ✓ Confirm — Spawn {{ schedules|length }} Work Order{{ schedules|length|pluralize }}
+    </button>
+    <a class="mms-btn mms-btn--ghost" href="{% url 'pm_list' %}">Cancel</a>
+  </div>
+</form>
+
+{% else %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body">
+    <p class="mms-empty" style="margin:0">No valid schedules to spawn.</p>
+    {% if requested_ids %}
+    <p class="mms-text-muted">Requested IDs: {{ requested_ids|join:", " }}. These may be inactive or non-existent.</p>
+    {% else %}
+    <p class="mms-text-muted">Add <code>?schedule_ids=1,2,3</code> to the URL to see a confirmation.</p>
+    {% endif %}
+    <p style="margin-top:1rem"><a class="mms-btn mms-btn--primary" href="{% url 'pm_list' %}">← Back to PM list</a></p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

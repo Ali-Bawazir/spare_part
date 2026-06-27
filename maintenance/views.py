@@ -6040,9 +6040,28 @@ def pm_dashboard(request):
 
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
-@require_POST
 def pm_batch_spawn_wo(request):
-    """Spawn PM work orders for multiple schedules at once."""
+    """Spawn PM work orders for multiple schedules at once.
+
+    GET ?schedule_ids=1,2,3  → confirmation page (lists what would be spawned)
+    POST schedule_ids=1,2,3  → actually spawn the WOs and redirect to pm_list
+    """
+    if request.method == "GET":
+        ids_param = request.GET.get("schedule_ids", "")
+        try:
+            ids = [int(s) for s in ids_param.split(",") if s.strip().isdigit()]
+        except (ValueError, TypeError):
+            ids = []
+        schedules = (
+            PMSchedule.objects.select_related("template", "machine")
+            .filter(pk__in=ids, is_active=True)
+            if ids else PMSchedule.objects.none()
+        )
+        return render(request, "maintenance/pm_batch_spawn_confirm.html", {
+            "schedules": schedules,
+            "requested_ids": ids,
+        })
+
     schedule_ids = request.POST.getlist("schedule_ids")
     if not schedule_ids:
         messages.error(request, "No schedules selected.")
@@ -6050,6 +6069,7 @@ def pm_batch_spawn_wo(request):
 
     created_count = 0
     skipped_count = 0
+    skipped_pending = 0
     for sid in schedule_ids:
         try:
             sched = PMSchedule.objects.select_related("template", "machine").get(pk=int(sid))
@@ -6058,6 +6078,16 @@ def pm_batch_spawn_wo(request):
             continue
         if not sched.is_active:
             skipped_count += 1
+            continue
+        # Dedupe: skip schedules that already have a SUBMITTED/REJECTED
+        # PMExecution at the current next_due_at. Mirrors pm_spawn_wo.
+        existing = PMExecution.objects.filter(
+            pm_schedule=sched,
+            scheduled_due_at=sched.next_due_at,
+            status__in=[PMExecution.Status.SUBMITTED, PMExecution.Status.REJECTED],
+        ).first()
+        if existing:
+            skipped_pending += 1
             continue
         wo = WorkOrder.objects.create(
             category=WorkOrder.Category.PREVENTIVE,
@@ -6072,9 +6102,19 @@ def pm_batch_spawn_wo(request):
 
     if created_count:
         msg = f"Created {created_count} PM work order{'s' if created_count != 1 else ''}."
+        skipped_notes = []
+        if skipped_pending:
+            skipped_notes.append(f"{skipped_pending} already pending")
         if skipped_count:
-            msg += f" Skipped {skipped_count} (invalid or inactive)."
+            skipped_notes.append(f"{skipped_count} invalid or inactive")
+        if skipped_notes:
+            msg += f" Skipped: {', '.join(skipped_notes)}."
         messages.success(request, msg)
+    elif skipped_pending and not skipped_count:
+        messages.warning(
+            request,
+            f"No new work orders created — all {skipped_pending} selected schedule{'s' if skipped_pending != 1 else ''} already have a pending execution.",
+        )
     else:
         messages.warning(request, "No work orders created. All schedules were invalid or inactive.")
     return redirect("pm_list")
