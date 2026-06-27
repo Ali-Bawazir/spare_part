@@ -44,16 +44,19 @@ Find a work order with **Preventive** in the category column.
 
 Click the WO number. You land on `/work-orders/<id>/`.
 
-**Look for the green button** just under the status badges:
+**If the WO is in `Assigned`** — you'll see a **Start work** button. Click it
+first; the lifecycle moves to `In progress` and the checklist appears below.
+
+**If the WO is in `In progress`** — you'll see the **PM Inspection Checklist**
+inline inside the "My actions (technician)" panel. The checklist has one
+checkbox + note input per template step. Fill it without leaving the page.
+
+There is also a green button at the top:
 
 > ▶ **Execute PM (with checklist)**
 
-This button is the new entry point. It only appears for:
-- PM work orders (category = Preventive)
-- Lifecycle = `Assigned` or `In Progress`
-- Your role is Technician, Manager, Super Admin, or Supervisor
-
-If you don't see it, check the lifecycle badge at the top of the page.
+…that links to the dedicated page (Section 3 below). Use it if you prefer a
+larger, focused view. Both paths produce the same `action_taken` summary.
 
 ### 3. Land on the PM Work Order Page
 
@@ -151,8 +154,10 @@ to `submitted` on the next POST.
 
 | URL | Purpose | Who Can Access |
 |---|---|---|
-| `/pm/wo/<pk>/` | The PM work order page (this scenario) | Assigned technician + manager roles |
+| `/work-orders/<pk>/` | **The WO detail page — now shows inline PM checklist** | Assigned technician + manager roles |
+| `/pm/wo/<pk>/` | The dedicated PM work order page (this scenario) | Assigned technician + manager roles |
 | `/pm/<pk>/execute/` | Legacy URL — redirects to `/pm/wo/<pk>/` | (always redirects) |
+| `/work-orders/<pk>/submit/` | POST endpoint for inline checklist submission | Assigned technician |
 | `/work-orders/<pk>/pm-review/` | Manager approve/reject page | Manager only |
 | `/pm/schedules/<pk>/` | PM schedule detail (for context) | Manager |
 | `/pm/` | PM list (overdue, all schedules) | Manager + supervisor |

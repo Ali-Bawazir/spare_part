@@ -1225,6 +1225,29 @@ def work_order_detail(request, pk):
     external_repair_request_form = ExternalRepairRequestForm()
     external_repair_decision_form = ExternalRepairRequestDecisionForm()
 
+    # Inline PM checklist: when the WO is preventive and assigned to the
+    # current technician (or any manager-level reviewer), expose the
+    # checklist so it can be rendered inside the action panel without
+    # requiring the technician to navigate to /pm/wo/<pk>/.
+    pm_checklist_items = []
+    can_complete_pm = False
+    if wo.category == WorkOrder.Category.PREVENTIVE:
+        pm_checklist_items = _resolve_pm_checklist(wo)
+        if pm_checklist_items:
+            can_complete_pm = (
+                wo.lifecycle_status in (
+                    WorkOrder.LifecycleStatus.ASSIGNED,
+                    WorkOrder.LifecycleStatus.IN_PROGRESS,
+                    WorkOrder.LifecycleStatus.PENDING_REVIEW,
+                )
+                and (
+                    wo.assigned_technician_id == request.user.id
+                    or request.user.role in (
+                        User.Role.MANAGER, User.Role.SUPER_ADMIN, User.Role.SUPERVISOR,
+                    )
+                )
+            )
+
     # P3.1 P1.5: last received supplier price per part — shown as a
     # hint under the Part select in the request form so the technician
     # knows roughly what the manager will see in the procurement note.
@@ -1535,6 +1558,10 @@ def work_order_detail(request, pk):
             "lines_awaiting_issue": lines_awaiting_issue,
             "active_parts": active_parts,
             "last_request_result": last_request_result,
+            # Inline PM checklist (rendered in _wo_actions_technician.html
+            # so the technician can tick items without leaving the WO page).
+            "pm_checklist_items": pm_checklist_items,
+            "can_complete_pm": can_complete_pm,
             # Phase 3A additions (health card + blocker panels)
             "health_card": health_card,
             "active_blockers": active_blockers,
@@ -1747,6 +1774,34 @@ def work_order_submit(request, pk):
         messages.error(request, "Check completion fields.")
         return redirect("work_order_detail", pk=pk)
     form.save()
+
+    # Inline PM checklist: when the WO is preventive and the POST carries
+    # checklist_<i> / note_<i> keys, overwrite action_taken with the
+    # structured summary expected by pm_review ([✓]/[✗] markers).
+    # Same format as _pm_wo_detail_context/PM work order page.
+    if wo.category == WorkOrder.Category.PREVENTIVE:
+        has_checklist_data = any(k.startswith("checklist_") for k in request.POST)
+        if has_checklist_data:
+            checklist_items = _resolve_pm_checklist(wo)
+            if checklist_items:
+                wo.action_taken = _build_pm_action_taken(checklist_items, request.POST)
+                wo.save(update_fields=["action_taken"])
+
+    # Phase 3+ reject-loop: if the PMExecution was REJECTED, this resubmit
+    # transitions it back to SUBMITTED so the manager sees the next attempt.
+    if wo.category == WorkOrder.Category.PREVENTIVE:
+        pm_execution = getattr(wo, "pm_execution", None)
+        if pm_execution and pm_execution.status == PMExecution.Status.REJECTED:
+            pm_execution.status = PMExecution.Status.SUBMITTED
+            pm_execution.approved_by = None
+            pm_execution.approved_at = None
+            pm_execution.completed_by = request.user
+            pm_execution.completed_at = timezone.now()
+            pm_execution.save(update_fields=[
+                "status", "approved_by", "approved_at",
+                "completed_by", "completed_at",
+            ])
+
     technician_submit_for_review(wo, request.user)
     messages.success(request, "Submitted for manager review.")
     return redirect("work_order_detail", pk=pk)
@@ -2995,86 +3050,99 @@ def pm_spawn_wo(request, pk):
     return render(request, "maintenance/pm_spawn_wo.html", {"schedule": sched, "has_children": has_children})
 
 
-def _pm_wo_detail_context(wo, request):
-    """Build context for the PM work order detail/execute page.
+def _resolve_pm_schedule_for_wo(wo):
+    """Return (schedule, pm_execution_or_None) for a PM WO.
 
-    Resolves the schedule from the WO's PMExecution (not by querying the
-    machine). Reads checklist from the schedule's template OR the
-    PMExecution snapshot if available. Builds asset tree and related-record
-    context.
+    Resolution order:
+    1. PMExecution.pm_schedule (authoritative for new WOs)
+    2. Most recent PMSchedule for the WO's machine (fallback for legacy
+       WOs created before PMExecution existed — picks the schedule that
+       was active when the WO was filed).
     """
-    from procurement.models import PurchaseRequest
-
     pm_execution = None
     try:
         pm_execution = wo.pm_execution
     except PMExecution.DoesNotExist:
         pm_execution = None
-    sched = None
-    checklist_items = []
-
     if pm_execution and pm_execution.pm_schedule_id:
-        sched = PMSchedule.objects.select_related("template", "machine").get(
-            pk=pm_execution.pm_schedule_id
-        )
+        sched = PMSchedule.objects.select_related("template", "machine").filter(
+            pk=pm_execution.pm_schedule_id,
+        ).first()
+        if sched:
+            return sched, pm_execution
+    sched = (
+        PMSchedule.objects.select_related("template", "machine")
+        .filter(machine=wo.machine)
+        .order_by("-created_at")
+        .first()
+    )
+    return sched, pm_execution
 
-    if sched:
-        snapshot_items = (pm_execution.template_snapshot_json or {}).get("checklist", []) if pm_execution else []
+
+def _resolve_pm_checklist(wo):
+    """Return the active checklist for a PM work order, or [].
+
+    Resolution order:
+    1. PMExecution.template_snapshot_json.checklist (historical snapshot)
+    2. PMExecution.pm_schedule.template.checklist_items (live template)
+    3. Most recent PMSchedule for the WO's machine (legacy fallback for
+       WOs without a PMExecution — common in pre-Phase-8 data)
+
+    Returns a list of {"text": str, "checked": False}. The `checked` value
+    is always False at render time — the technician marks it during submission.
+    Returns [] only when no schedule / template can be resolved.
+    """
+    sched, pm_execution = _resolve_pm_schedule_for_wo(wo)
+    if not sched:
+        return []
+
+    if pm_execution:
+        snapshot_items = (pm_execution.template_snapshot_json or {}).get("checklist", [])
         if snapshot_items:
-            for item in snapshot_items:
-                checklist_items.append({"text": item.get("text", ""), "checked": False})
-        else:
-            for item in sched.template.checklist_items.all().order_by("order", "pk"):
-                checklist_items.append({"text": item.text, "checked": False})
+            return [{"text": item.get("text", ""), "checked": False} for item in snapshot_items]
 
-    tree_node = wo.component if wo.component_id else wo.machine
-    ancestors = []
-    current = tree_node.parent if tree_node is not None else None
-    while current is not None:
-        ancestors.insert(0, current)
-        current = current.parent
+    return [
+        {"text": item.text, "checked": False}
+        for item in sched.template.checklist_items.all().order_by("order", "pk")
+    ]
 
-    related_issues = MaintenanceIssue.objects.filter(
-        machine=wo.machine, component=wo.component
-    )[:10]
-    related_wos = WorkOrder.objects.filter(
-        machine=wo.machine, component=wo.component
-    ).exclude(pk=wo.pk)[:10]
-    related_pms = PMSchedule.objects.filter(
-        machine=wo.machine, component=wo.component
-    ).exclude(pk=sched.pk if sched else None)[:10]
-    related_eros = ExternalRepairOrder.objects.filter(
-        machine=wo.machine, component=wo.component
-    )[:10]
-    related_prs = PurchaseRequest.objects.filter(
-        machine=wo.machine, component=wo.component
-    )[:10]
 
-    return {
-        "wo": wo,
-        "sched": sched,
-        "pm_execution": pm_execution,
-        "checklist_items": checklist_items,
-        "schedule_attachments": Attachment.objects.filter(
-            entity_type="pm_schedule", entity_id=sched.pk
-        ).select_related("uploaded_by").order_by("-uploaded_at") if sched else Attachment.objects.none(),
-        "machine": tree_node,
-        "ancestors": ancestors,
-        "related_issues": related_issues,
-        "related_wos": related_wos,
-        "related_pms": related_pms,
-        "related_eros": related_eros,
-        "related_prs": related_prs,
-    }
+def _build_pm_action_taken(checklist_items, post_data):
+    """Build the structured action_taken string from checklist submissions.
 
-    if sched:
-        snapshot_items = (pm_execution.template_snapshot_json or {}).get("checklist", []) if pm_execution else []
-        if snapshot_items:
-            for item in snapshot_items:
-                checklist_items.append({"text": item.get("text", ""), "checked": False})
-        else:
-            for item in sched.template.checklist_items.all().order_by("order", "pk"):
-                checklist_items.append({"text": item.text, "checked": False})
+    Format (consumed by pm_review view):
+        [✓] Step 1
+          Note: optional note
+        [✗] Step 2
+          Note: ...
+
+    `checklist_items` is the resolved list of {"text", "checked"} items.
+    `post_data` is request.POST — keys "checklist_<i>" = "on" if ticked,
+    keys "note_<i>" = note text.
+    """
+    lines = []
+    for i, item in enumerate(checklist_items):
+        checked = post_data.get(f"checklist_{i}") == "on"
+        note = (post_data.get(f"note_{i}", "") or "").strip()
+        marker = "✓" if checked else "✗"
+        lines.append(f"[{marker}] {item['text']}")
+        if note:
+            lines.append(f"  Note: {note}")
+    return "\n".join(lines)
+
+
+def _pm_wo_detail_context(wo, request):
+    """Build context for the PM work order detail/execute page.
+
+    Resolves the schedule from the WO's PMExecution (with a legacy fallback
+    for WOs without PMExecution). Reads checklist from the schedule's
+    template OR the PMExecution snapshot if available. Builds asset tree
+    and related-record context.
+    """
+    from procurement.models import PurchaseRequest
+
+    sched, pm_execution = _resolve_pm_schedule_for_wo(wo)
+    checklist_items = _resolve_pm_checklist(wo)
 
     tree_node = wo.component if wo.component_id else wo.machine
     ancestors = []

@@ -1,4 +1,5 @@
-"""Tests for the dedicated PM Work Order page (/pm/wo/<pk>/)."""
+"""Tests for the dedicated PM Work Order page (/pm/wo/<pk>/)
+and the inline PM checklist on the WO detail page (/work-orders/<pk>/)."""
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -216,3 +217,167 @@ class PMWorkOrderSubmitTests(TestCase):
         self.assertIn("Step 2", wo.action_taken)
         self.assertIn("ok", wo.action_taken)
         self.assertIn("needs work", wo.action_taken)
+
+
+class PMInlineChecklistOnWODetailTests(TestCase):
+    """The PM inspection checklist is rendered inline on the WO detail
+    page so the technician doesn't have to navigate to /pm/wo/<pk>/."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager = User.objects.create_user(
+            username="manager_inline", password="x", role=User.Role.MANAGER,
+        )
+        cls.technician = User.objects.create_user(
+            username="tech_inline", password="x", role=User.Role.TECHNICIAN,
+        )
+        cls.site = Site.objects.filter(is_default=True).first() or Site.objects.create(
+            name="X", is_default=True, is_active=True,
+        )
+        cls.machine = Machine.objects.create(
+            name="Inline Test Machine", qr_code="M-INL-001",
+            asset_code="M-INL-001", asset_level=3,
+            is_active=True, site=cls.site,
+        )
+
+    def _make_pm_wo(self, lifecycle=WorkOrder.LifecycleStatus.IN_PROGRESS):
+        template = PMTemplate.objects.create(
+            code="PM-INLINE-001", title="Inline PM",
+            estimated_duration_minutes=30,
+            priority=PMTemplate.Priority.MEDIUM,
+            requires_manager_review=True, is_active=True,
+        )
+        PMChecklistItem.objects.create(template=template, order=1, text="Step A")
+        PMChecklistItem.objects.create(template=template, order=2, text="Step B")
+        schedule = PMSchedule.objects.create(
+            template=template, machine=self.machine,
+            frequency_type=PMSchedule.FrequencyType.MONTHLY, interval=1,
+            start_date=timezone.now().date(), next_due_at=timezone.now(),
+            is_active=True, created_by=self.manager,
+        )
+        wo = WorkOrder.objects.create(
+            machine=self.machine,
+            category=WorkOrder.Category.PREVENTIVE,
+            created_by=self.manager,
+            assigned_technician=self.technician,
+            lifecycle_status=lifecycle,
+        )
+        return template, schedule, wo
+
+    def test_wo_detail_renders_inline_checklist_for_in_progress_pm_wo(self):
+        _, _, wo = self._make_pm_wo()
+        self.client.force_login(self.technician)
+        r = self.client.get(reverse("work_order_detail", args=[wo.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "PM Inspection Checklist (2 items)")
+        self.assertContains(r, 'name="checklist_0"')
+        self.assertContains(r, 'name="checklist_1"')
+        self.assertContains(r, 'name="note_0"')
+        self.assertContains(r, 'name="note_1"')
+
+    def test_wo_detail_does_not_render_checklist_when_assigned_before_start(self):
+        # Lifecycle=assigned: technician must click "Start work" first.
+        # The submit/checklist panel only shows in_progress (matches the
+        # `work_order_submit` view's lifecycle precondition).
+        _, _, wo = self._make_pm_wo(lifecycle=WorkOrder.LifecycleStatus.ASSIGNED)
+        self.client.force_login(self.technician)
+        r = self.client.get(reverse("work_order_detail", args=[wo.pk]))
+        self.assertEqual(r.status_code, 200)
+        # Start work button is shown, but no inline checklist yet.
+        self.assertContains(r, "Start work")
+        self.assertNotContains(r, "PM Inspection Checklist")
+
+    def test_wo_detail_does_not_render_checklist_for_non_pm_wo(self):
+        wo = WorkOrder.objects.create(
+            machine=self.machine,
+            category=WorkOrder.Category.BREAKDOWN,
+            created_by=self.manager,
+            assigned_technician=self.technician,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
+        )
+        self.client.force_login(self.technician)
+        r = self.client.get(reverse("work_order_detail", args=[wo.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, "PM Inspection Checklist")
+        self.assertNotContains(r, 'name="checklist_0"')
+
+    def test_wo_detail_does_not_render_checklist_when_no_template_exists(self):
+        # No PM template, no schedule, no checklist → the panel hides.
+        wo = WorkOrder.objects.create(
+            machine=self.machine,
+            category=WorkOrder.Category.PREVENTIVE,
+            created_by=self.manager,
+            assigned_technician=self.technician,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
+        )
+        self.client.force_login(self.technician)
+        r = self.client.get(reverse("work_order_detail", args=[wo.pk]))
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, "PM Inspection Checklist")
+
+    def test_inline_submit_stores_structured_action_taken(self):
+        _, _, wo = self._make_pm_wo()
+        self.client.force_login(self.technician)
+        r = self.client.post(
+            reverse("work_order_submit", args=[wo.pk]),
+            data={
+                "checklist_0": "on",
+                "note_0": "all good",
+                "checklist_1": "",
+                "note_1": "needs followup",
+                "root_cause": "rc",
+                "action_taken": "user-typed action_taken",
+                "notes": "user notes",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        wo.refresh_from_db()
+        # Structured format expected by pm_review view.
+        self.assertIn("[✓] Step A", wo.action_taken)
+        self.assertIn("[✗] Step B", wo.action_taken)
+        self.assertIn("all good", wo.action_taken)
+        self.assertIn("needs followup", wo.action_taken)
+        self.assertEqual(wo.lifecycle_status, WorkOrder.LifecycleStatus.PENDING_REVIEW)
+
+    def test_submit_without_checklist_keeps_action_taken_for_non_pm(self):
+        wo = WorkOrder.objects.create(
+            machine=self.machine,
+            category=WorkOrder.Category.BREAKDOWN,
+            created_by=self.manager,
+            assigned_technician=self.technician,
+            lifecycle_status=WorkOrder.LifecycleStatus.IN_PROGRESS,
+        )
+        self.client.force_login(self.technician)
+        r = self.client.post(
+            reverse("work_order_submit", args=[wo.pk]),
+            data={
+                "root_cause": "broken",
+                "action_taken": "replaced",
+                "notes": "ok",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        wo.refresh_from_db()
+        self.assertEqual(wo.action_taken, "replaced")
+        self.assertEqual(wo.lifecycle_status, WorkOrder.LifecycleStatus.PENDING_REVIEW)
+
+    def test_inline_submit_with_checklist_does_not_break_when_pm_execution_missing(self):
+        # Legacy WO without PMExecution: submit should still store action_taken.
+        _, _, wo = self._make_pm_wo()
+        wo.pm_execution.delete() if hasattr(wo, "pm_execution") else None
+        self.client.force_login(self.technician)
+        r = self.client.post(
+            reverse("work_order_submit", args=[wo.pk]),
+            data={
+                "checklist_0": "on",
+                "note_0": "x",
+                "checklist_1": "on",
+                "note_1": "y",
+                "root_cause": "rc",
+                "action_taken": "x",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        wo.refresh_from_db()
+        self.assertIn("[✓] Step A", wo.action_taken)
+        self.assertIn("[✓] Step B", wo.action_taken)

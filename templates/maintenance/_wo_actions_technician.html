@@ -47,17 +47,43 @@
   </div>
   {% if wo.lifecycle_status == 'in_progress' %}
   <div class="mms-divider"></div>
-  {% if wo.category == 'preventive' %}
-  <a href="{% url 'pm_execute' wo.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">Execute PM Checklist</a>
+  {% if wo.category == 'preventive' and pm_checklist_items %}
+  <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">PM Inspection Checklist ({{ pm_checklist_items|length }} item{{ pm_checklist_items|length|pluralize }})</p>
+  <p style="font-size:.75rem;color:var(--mms-muted);margin:.25rem 0 .5rem 0">
+    Tick each step. Add a note if something needs the manager's attention.
+  </p>
   <div class="mms-divider"></div>
   {% endif %}
   <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Execution flow</p>
   <div class="mms-divider"></div>
   <form method="post" action="{% url 'work_order_submit' wo.pk %}" class="mms-stack">
     {% csrf_token %}
+    {% if wo.category == 'preventive' and pm_checklist_items %}
+      {% for item in pm_checklist_items %}
+      <div class="mms-form-row" style="border-bottom:1px solid var(--mms-divider,#eee);padding-bottom:.5rem">
+        <label style="display:flex;gap:.5rem;align-items:flex-start;font-weight:500">
+          <input type="checkbox"
+                 name="checklist_{{ forloop.counter0 }}"
+                 id="checklist_inline_{{ forloop.counter0 }}"
+                 style="margin-top:4px">
+          <span>{{ item.text }}</span>
+        </label>
+        <input type="text"
+               name="note_{{ forloop.counter0 }}"
+               id="note_inline_{{ forloop.counter0 }}"
+               class="form-control form-control-sm"
+               placeholder="Add note (optional)"
+               style="max-width:400px;margin-top:.25rem">
+      </div>
+      {% endfor %}
+      <div class="mms-divider"></div>
+    {% endif %}
     <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Completion submission</p>
     {% for field in complete_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
     <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit for review</button>
+    {% if wo.category == 'preventive' and pm_checklist_items %}
+    <a href="{% url 'pm_wo_detail' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">Open dedicated PM page →</a>
+    {% endif %}
   </form>
   {% endif %}
 
