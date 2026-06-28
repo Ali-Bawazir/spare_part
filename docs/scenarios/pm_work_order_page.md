@@ -44,19 +44,25 @@ Find a work order with **Preventive** in the category column.
 
 Click the WO number. You land on `/work-orders/<id>/`.
 
-**If the WO is in `Assigned`** — you'll see a **Start work** button. Click it
-first; the lifecycle moves to `In progress` and the checklist appears below.
+**If the WO is in `Assigned`** — you'll see the **PM Inspection Checklist**
+inline immediately. The submit button reads **"✓ Start work & submit PM
+for review"**. Click it once you finish: labor starts, the WO moves to
+`In progress`, then `Pending review` — all in one transaction.
 
-**If the WO is in `In progress`** — you'll see the **PM Inspection Checklist**
-inline inside the "My actions (technician)" panel. The checklist has one
-checkbox + note input per template step. Fill it without leaving the page.
+**If the WO is in `In progress`** — same checklist, but the submit button
+reads **"Submit for review"** (labor is already running).
+
+Both lifecycles support the same inline checklist workflow. The legacy
+"Start work" button is preserved so you can still begin labor without
+filling the checklist yet (useful for "I need to look at it first" pauses).
 
 There is also a green button at the top:
 
 > ▶ **Execute PM (with checklist)**
 
-…that links to the dedicated page (Section 3 below). Use it if you prefer a
-larger, focused view. Both paths produce the same `action_taken` summary.
+…that links to the dedicated `/pm/wo/<pk>/` page (Section 3). Use it if you
+prefer a larger, focused view. Both paths produce the same `action_taken`
+summary.
 
 ### 3. Land on the PM Work Order Page
 

@@ -45,12 +45,16 @@
     </form>
     {% endif %}
   </div>
-  {% if wo.lifecycle_status == 'in_progress' %}
+  {% if wo.lifecycle_status == 'in_progress' or wo.category == 'preventive' and wo.lifecycle_status == 'assigned' %}
   <div class="mms-divider"></div>
   {% if wo.category == 'preventive' and pm_checklist_items %}
   <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">PM Inspection Checklist ({{ pm_checklist_items|length }} item{{ pm_checklist_items|length|pluralize }})</p>
   <p style="font-size:.75rem;color:var(--mms-muted);margin:.25rem 0 .5rem 0">
-    Tick each step. Add a note if something needs the manager's attention.
+    {% if wo.lifecycle_status == 'assigned' %}
+      Tick each step. Submitting will start labor and send for manager review in one click.
+    {% else %}
+      Tick each step. Add a note if something needs the manager's attention.
+    {% endif %}
   </p>
   <div class="mms-divider"></div>
   {% endif %}
@@ -80,7 +84,13 @@
     {% endif %}
     <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Completion submission</p>
     {% for field in complete_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
-    <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit for review</button>
+    <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">
+      {% if wo.category == 'preventive' and wo.lifecycle_status == 'assigned' %}
+        ✓ Start work & submit PM for review
+      {% else %}
+        Submit for review
+      {% endif %}
+    </button>
     {% if wo.category == 'preventive' and pm_checklist_items %}
     <a href="{% url 'pm_wo_detail' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">Open dedicated PM page →</a>
     {% endif %}

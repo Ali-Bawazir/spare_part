@@ -1766,20 +1766,40 @@ def work_order_submit(request, pk):
         return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
-    if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
+
+    # PM WOs may submit directly from `assigned` lifecycle (UX shortcut):
+    # technician fills the checklist, clicks "Start work & submit", and the
+    # view auto-starts labor then submits for review in one transaction.
+    # Non-PM WOs still require explicit Start work first.
+    is_pm = wo.category == WorkOrder.Category.PREVENTIVE
+    if not is_pm and wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
         messages.error(request, "Submit for review is only available while work is in progress.")
         return redirect("work_order_detail", pk=pk)
+    if is_pm and wo.lifecycle_status not in (
+        WorkOrder.LifecycleStatus.ASSIGNED,
+        WorkOrder.LifecycleStatus.IN_PROGRESS,
+    ):
+        messages.error(request, "Submit for review is not available in this state.")
+        return redirect("work_order_detail", pk=pk)
+
     form = WorkOrderCompleteForm(request.POST, instance=wo)
     if not form.is_valid():
         messages.error(request, "Check completion fields.")
         return redirect("work_order_detail", pk=pk)
+
+    # Auto-start labor for PM WOs that are still in `assigned` state.
+    # This stitches Start + Complete + Submit into a single click.
+    if is_pm and wo.lifecycle_status == WorkOrder.LifecycleStatus.ASSIGNED:
+        technician_start_work(wo, request.user)
+        wo.refresh_from_db()
+
     form.save()
 
     # Inline PM checklist: when the WO is preventive and the POST carries
     # checklist_<i> / note_<i> keys, overwrite action_taken with the
     # structured summary expected by pm_review ([✓]/[✗] markers).
     # Same format as _pm_wo_detail_context/PM work order page.
-    if wo.category == WorkOrder.Category.PREVENTIVE:
+    if is_pm:
         has_checklist_data = any(k.startswith("checklist_") for k in request.POST)
         if has_checklist_data:
             checklist_items = _resolve_pm_checklist(wo)
@@ -1789,7 +1809,7 @@ def work_order_submit(request, pk):
 
     # Phase 3+ reject-loop: if the PMExecution was REJECTED, this resubmit
     # transitions it back to SUBMITTED so the manager sees the next attempt.
-    if wo.category == WorkOrder.Category.PREVENTIVE:
+    if is_pm:
         pm_execution = getattr(wo, "pm_execution", None)
         if pm_execution and pm_execution.status == PMExecution.Status.REJECTED:
             pm_execution.status = PMExecution.Status.SUBMITTED

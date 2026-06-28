@@ -275,17 +275,88 @@ class PMInlineChecklistOnWODetailTests(TestCase):
         self.assertContains(r, 'name="note_0"')
         self.assertContains(r, 'name="note_1"')
 
-    def test_wo_detail_does_not_render_checklist_when_assigned_before_start(self):
-        # Lifecycle=assigned: technician must click "Start work" first.
-        # The submit/checklist panel only shows in_progress (matches the
-        # `work_order_submit` view's lifecycle precondition).
+    def test_wo_detail_renders_inline_checklist_when_assigned_pm_wo(self):
+        # Phase 8+ UX: PM WOs in `assigned` lifecycle show the checklist
+        # directly. The "Start work & submit PM for review" button
+        # transitions assigned → in_progress → pending_review in one click.
         _, _, wo = self._make_pm_wo(lifecycle=WorkOrder.LifecycleStatus.ASSIGNED)
         self.client.force_login(self.technician)
         r = self.client.get(reverse("work_order_detail", args=[wo.pk]))
         self.assertEqual(r.status_code, 200)
-        # Start work button is shown, but no inline checklist yet.
+        self.assertContains(r, "PM Inspection Checklist (2 items)")
+        self.assertContains(r, "Start work & submit PM for review")
+        # The legacy "Start work" button can stay too — clicking it just
+        # starts labor without submitting the checklist.
         self.assertContains(r, "Start work")
-        self.assertNotContains(r, "PM Inspection Checklist")
+
+    def test_pm_assigned_submit_transitions_directly_to_pending_review(self):
+        # Submitting from `assigned` lifecycle (PM only) auto-starts labor
+        # then transitions to pending_review in one request.
+        _, _, wo = self._make_pm_wo(lifecycle=WorkOrder.LifecycleStatus.ASSIGNED)
+        self.assertEqual(wo.lifecycle_status, WorkOrder.LifecycleStatus.ASSIGNED)
+        self.client.force_login(self.technician)
+        r = self.client.post(
+            reverse("work_order_submit", args=[wo.pk]),
+            data={
+                "checklist_0": "on",
+                "note_0": "ok",
+                "checklist_1": "on",
+                "note_1": "",
+                "root_cause": "rc",
+                "action_taken": "x",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        wo.refresh_from_db()
+        self.assertEqual(wo.lifecycle_status, WorkOrder.LifecycleStatus.PENDING_REVIEW)
+        # Labor was auto-started (started_at set, downtime record created).
+        self.assertIsNotNone(wo.labor_started_at)
+        # action_taken has the structured checklist summary.
+        self.assertIn("[✓] Step A", wo.action_taken)
+        self.assertIn("[✓] Step B", wo.action_taken)
+
+    def test_pm_assigned_submit_no_pm_execution_works_via_legacy_fallback(self):
+        # Legacy WO (no PMExecution) in `assigned` lifecycle: submit should
+        # auto-start and transition to pending_review. Checklist still
+        # renders via machine-fallback schedule resolution.
+        _, _, wo = self._make_pm_wo(lifecycle=WorkOrder.LifecycleStatus.ASSIGNED)
+        wo.pm_execution.delete() if hasattr(wo, "pm_execution") else None
+        self.client.force_login(self.technician)
+        r = self.client.post(
+            reverse("work_order_submit", args=[wo.pk]),
+            data={
+                "checklist_0": "on",
+                "note_0": "a",
+                "checklist_1": "",
+                "note_1": "b",
+                "root_cause": "rc",
+                "action_taken": "x",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        wo.refresh_from_db()
+        self.assertEqual(wo.lifecycle_status, WorkOrder.LifecycleStatus.PENDING_REVIEW)
+        self.assertIn("[✓] Step A", wo.action_taken)
+
+    def test_non_pm_assigned_submit_still_blocked(self):
+        # Non-PM WOs must still go through the Start work → in_progress
+        # → Submit flow. Submitting from `assigned` is rejected.
+        wo = WorkOrder.objects.create(
+            machine=self.machine,
+            category=WorkOrder.Category.BREAKDOWN,
+            created_by=self.manager,
+            assigned_technician=self.technician,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
+        )
+        self.client.force_login(self.technician)
+        r = self.client.post(
+            reverse("work_order_submit", args=[wo.pk]),
+            data={"root_cause": "rc", "action_taken": "x", "notes": ""},
+        )
+        self.assertEqual(r.status_code, 302)
+        wo.refresh_from_db()
+        # Lifecycle did NOT advance (still assigned).
+        self.assertEqual(wo.lifecycle_status, WorkOrder.LifecycleStatus.ASSIGNED)
 
     def test_wo_detail_does_not_render_checklist_for_non_pm_wo(self):
         wo = WorkOrder.objects.create(
