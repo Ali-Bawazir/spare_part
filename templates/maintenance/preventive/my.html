@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% block title %}My Maintenance — Bawazir MMS{% endblock %}
+{% block page_heading %}My Maintenance{% endblock %}
+{% block content %}
+
+<div class="mms-banner mms-banner--info" style="margin-bottom:1rem">
+    <strong>Today</strong> is {{ today|date:"l · j F Y" }}
+</div>
+
+{% if returned %}
+<div class="mms-card" style="border-left:4px solid #f0ad4e; margin-bottom:1rem">
+    <div class="mms-card-body">
+        <strong>⚠ Returned: {{ returned.pm_schedule.template.title }}</strong><br>
+        <span class="text-muted">"{{ returned.rejection_reason }}" — by {{ returned.rejected_by.username|default:"Manager" }}</span>
+        <div style="margin-top:0.5rem">
+            <a class="mms-btn mms-btn--primary" href="{% url 'preventive:execute' returned.pk %}">Resume</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ──── Anchor count chips ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body" style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <a href="#today" class="mms-btn mms-btn--ghost mms-btn--sm">Today ({{ today_count }})</a>
+        <a href="#upcoming" class="mms-btn mms-btn--ghost mms-btn--sm">Upcoming ({{ upcoming_count }})</a>
+        <a href="#completed" class="mms-btn mms-btn--ghost mms-btn--sm">Completed ({{ completed_count }})</a>
+    </div>
+</div>
+
+{# ──── TODAY ──── #}
+<h2 id="today" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">TODAY</h2>
+
+{% if today_occurrences %}
+    {% for occ in today_occurrences %}
+    <div class="mms-card" style="margin-bottom:0.75rem">
+        <div class="mms-card-body">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                    <strong style="font-size:1.05rem">{{ occ.scheduled_due_at|date:"H:i" }} · {{ occ.pm_schedule.template.title }}</strong>
+                    <div class="text-muted" style="font-size:.85rem">
+                        {{ occ.pm_schedule.machine.name }}
+                        · {{ occ.pm_schedule.get_frequency_type_display }}
+                        {% if occ.pm_schedule.interval != 1 %}× {{ occ.pm_schedule.interval }}{% endif %}
+                        · {{ occ.pm_schedule.effective_duration_minutes }} min
+                    </div>
+                </div>
+                <a class="mms-btn mms-btn--primary mms-btn--sm"
+                   href="{% url 'preventive:execute' occ.pk %}">Start</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="mms-card" style="margin-bottom:0.75rem">
+    <div class="mms-card-body text-muted">
+        No maintenance today.<br>
+        You're all caught up.
+    </div>
+</div>
+{% endif %}
+
+{# ──── UPCOMING (calendar style) ──── #}
+<h2 id="upcoming" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">UPCOMING</h2>
+
+{% if upcoming_by_day %}
+    {% for day in upcoming_by_day %}
+    <div class="mms-card" style="margin-bottom:0.5rem">
+        <div class="mms-card-body">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <strong>{{ day.label }}</strong>
+                <span class="text-muted" style="font-size:.85rem">{{ day.occurrences|length }} job{{ day.occurrences|length|pluralize }}</span>
+            </div>
+            <ul style="margin:0.5rem 0 0 1.25rem;padding:0">
+                {% for occ in day.occurrences %}
+                <li style="font-size:.9rem">
+                    {{ occ.scheduled_due_at|date:"H:i" }} · {{ occ.pm_schedule.template.title }}
+                    <span class="text-muted"> · {{ occ.pm_schedule.machine.name }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="mms-card" style="margin-bottom:0.5rem">
+    <div class="mms-card-body text-muted">Nothing upcoming.</div>
+</div>
+{% endif %}
+
+{# ──── COMPLETED (includes Waiting for approval) ──── #}
+<h2 id="completed" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">COMPLETED</h2>
+
+{% if completed_today %}
+    {% for occ in completed_today %}
+    <div class="mms-card" style="margin-bottom:0.5rem">
+        <div class="mms-card-body">
+            <strong>{{ occ.pm_schedule.template.title }}</strong>
+            <span class="text-muted" style="margin-left:0.5rem">
+                {% if occ.status == 'approved' %}
+                    Approved
+                {% elif occ.work_order.lifecycle_status == 'pending_review' %}
+                    <strong style="color:#f0ad4e">Waiting for approval</strong>
+                {% endif %}
+            </span>
+            <span class="text-muted" style="margin-left:0.5rem">
+                {% if occ.work_order.labor_stopped_at %}
+                    {{ occ.work_order.labor_stopped_at|date:"H:i" }}
+                {% endif %}
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="mms-card" style="margin-bottom:0.5rem">
+    <div class="mms-card-body text-muted">No completed maintenance today.</div>
+</div>
+{% endif %}
+
+{% endblock %}

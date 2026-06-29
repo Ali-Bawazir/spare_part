@@ -189,12 +189,21 @@ class PMScheduleForm(forms.ModelForm):
         required=False,
         widget=forms.Select(attrs=_SEL),
     )
+    due_time = forms.TimeField(
+        required=False,
+        help_text="Time-of-day for scheduled occurrences (default 08:00)",
+    )
+    ends_at = forms.DateField(
+        required=False,
+        help_text="Schedule stops generating occurrences after this date",
+    )
 
     class Meta:
         model = PMSchedule
         fields = (
             "template", "machine", "component",
             "frequency_type", "interval", "start_date", "next_due_at",
+            "due_time", "ends_at",
             "priority_override", "estimated_duration_override",
             "grace_days", "reminder_days_before",
             "trigger_type", "is_active",
@@ -297,10 +306,15 @@ PMChecklistItemFormSet = forms.inlineformset_factory(
 
 
 class PMTemplateForm(forms.ModelForm):
+    requires_photo_min_count = forms.IntegerField(
+        required=False, min_value=0, max_value=20,
+        help_text="Minimum number of photos the technician must attach",
+    )
+
     class Meta:
         model = PMTemplate
         fields = ("code", "title", "description", "estimated_duration_minutes",
-                  "priority", "requires_manager_review", "is_active")
+                  "priority", "requires_manager_review", "requires_photo_min_count", "is_active")
         widgets = {
             "code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. PM-HYD-001"}),
             "title": forms.TextInput(attrs=_CTRL),

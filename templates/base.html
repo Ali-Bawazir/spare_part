@@ -100,12 +100,31 @@
       <a href="{% url 'machine_list' %}" class="mms-nav-link{% if current_url_name and 'machine' in current_url_name %} is-active{% endif %}">Machines</a>
       {% endif %}
       {% if perm_pm_schedule_manage %}
-      <a href="{% url 'pm_list' %}" class="mms-nav-link{% if current_url_name and current_url_name|slice:":3" == 'pm_' and current_url_name != 'pm_dashboard' %} is-active{% endif %}">
-        Preventive
-        {% if nav_pm_overdue %}<span class="mms-nav-badge mms-nav-badge--danger">{{ nav_pm_overdue }}</span>{% endif %}
+      <div class="mms-nav-section" data-section="preventive">Preventive Maintenance</div>
+      <a href="{% url 'preventive:mgr_dashboard' %}" class="mms-nav-link{% if current_url_name == 'mgr_dashboard' %} is-active{% endif %}">
+        Dashboard
       </a>
-      <a href="{% url 'pm_dashboard' %}" class="mms-nav-link mms-nav-link--sub{% if current_url_name == 'pm_dashboard' %} is-active{% endif %}">
-        PM Dashboard
+      <a href="{% url 'preventive:mgr_today' %}" class="mms-nav-link{% if current_url_name == 'mgr_today' %} is-active{% endif %}">
+        Today's Schedule
+      </a>
+      <a href="{% url 'preventive:mgr_reviews' %}" class="mms-nav-link{% if current_url_name == 'mgr_reviews' %} is-active{% endif %}">
+        Reviews
+        {% if nav_pm_reviews_pending %}<span class="mms-nav-badge mms-nav-badge--danger">{{ nav_pm_reviews_pending }}</span>{% endif %}
+      </a>
+      <a href="{% url 'preventive:mgr_plans' %}" class="mms-nav-link{% if current_url_name == 'mgr_plans' %} is-active{% endif %}">
+        Maintenance Plans
+      </a>
+      <a href="{% url 'preventive:mgr_templates' %}" class="mms-nav-link{% if current_url_name == 'mgr_templates' %} is-active{% endif %}">
+        Templates
+      </a>
+      <a href="{% url 'preventive:mgr_history' %}" class="mms-nav-link{% if current_url_name == 'mgr_history' %} is-active{% endif %}">
+        History
+      </a>
+      {% endif %}
+      {% if user.role == 'technician' or user.role == 'supervisor' or user.role == 'super_admin' %}
+      <a href="{% url 'preventive:my' %}" class="mms-nav-link{% if current_url_name == 'my' %} is-active{% endif %}">
+        Preventive Maintenance
+        {% if nav_pm_today_count %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_pm_today_count }}</span>{% endif %}
       </a>
       {% endif %}
       {% if perm_tool_page %}

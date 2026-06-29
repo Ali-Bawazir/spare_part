@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Today's Schedule — Bawazir MMS{% endblock %}
+{% block page_heading %}Today's Schedule{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <strong>{{ today|date:"l · j F Y" }}</strong>
+</div>
+
+{% if by_slot %}
+    {% for slot, occs in by_slot.items %}
+    <div class="mms-card" style="margin-bottom:0.5rem">
+        <div class="mms-card-body">
+            <strong>{{ slot }}</strong>
+            {% for occ in occs %}
+            <div style="border-top:1px solid #eee;padding-top:0.5rem;margin-top:0.5rem">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                    <div>
+                        <strong>{{ occ.pm_schedule.template.title }}</strong>
+                        <div class="text-muted" style="font-size:.85rem">
+                            {{ occ.pm_schedule.machine.name }}
+                            {% if occ.assigned_technician %}
+                                · {{ occ.assigned_technician.username }}
+                            {% else %}
+                                · <span style="color:#dc3545">Unassigned</span>
+                            {% endif %}
+                            {% if occ.status == 'submitted' and occ.work_order.lifecycle_status == 'pending_review' %}
+                                · <span class="text-muted" style="color:#f0ad4e">Waiting Review</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:0.25rem">
+                        {% if not occ.assigned_technician %}
+                        <form method="post" action="{% url 'preventive:mgr_plan_assign' occ.pm_schedule.pk %}" style="display:inline">
+                            {% csrf_token %}
+                            <select name="technician_id" class="form-select form-select-sm" style="display:inline;width:auto">
+                                <option value="">Select...</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.pk }}">{{ t.username }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Assign</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'preventive:mgr_plan_assign' occ.pm_schedule.pk %}" style="display:inline">
+                            {% csrf_token %}
+                            <select name="technician_id" class="form-select form-select-sm" style="display:inline;width:auto">
+                                <option value="">Reassign to...</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.pk }}">{{ t.username }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Reassign</button>
+                        </form>
+                        {% endif %}
+                        <a href="{% url 'preventive:execute' occ.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">Open</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="mms-card">
+    <div class="mms-card-body text-muted">No maintenance scheduled today.</div>
+</div>
+{% endif %}
+
+{% endblock %}

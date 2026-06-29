@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Preventive Maintenance Dashboard — Bawazir MMS{% endblock %}
+{% block page_heading %}Preventive Maintenance{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <strong>Today</strong> is {{ today|date:"l · j F Y" }}
+</div>
+
+{# ──── 5 counts ──── #}
+<div class="mms-grid mms-grid--5" style="margin-bottom:1.5rem">
+    <a href="{% url 'preventive:mgr_today' %}" class="mms-card" style="text-decoration:none">
+        <div class="mms-card-body">
+            <span class="text-muted" style="font-size:.85rem">Due Today</span>
+            <div style="font-size:2rem;font-weight:700">{{ due_today }}</div>
+        </div>
+    </a>
+    <div class="mms-card" style="border-left:4px solid #dc3545">
+        <div class="mms-card-body">
+            <span class="text-muted" style="font-size:.85rem">Overdue</span>
+            <div style="font-size:2rem;font-weight:700">{{ overdue }}</div>
+        </div>
+    </div>
+    <a href="{% url 'preventive:mgr_reviews' %}" class="mms-card" style="text-decoration:none;border-left:4px solid #f0ad4e">
+        <div class="mms-card-body">
+            <span class="text-muted" style="font-size:.85rem">Waiting Review</span>
+            <div style="font-size:2rem;font-weight:700">{{ waiting_review }}</div>
+        </div>
+    </a>
+    <a href="{% url 'preventive:mgr_today' %}" class="mms-card" style="text-decoration:none;border-left:4px solid #6c757d">
+        <div class="mms-card-body">
+            <span class="text-muted" style="font-size:.85rem">Unassigned</span>
+            <div style="font-size:2rem;font-weight:700">{{ unassigned }}</div>
+        </div>
+    </a>
+    <div class="mms-card" style="border-left:4px solid #28a745">
+        <div class="mms-card-body">
+            <span class="text-muted" style="font-size:.85rem">Completed Today</span>
+            <div style="font-size:2rem;font-weight:700">{{ completed_today }}</div>
+        </div>
+    </div>
+</div>
+
+{# ──── Navigation links ──── #}
+<div class="mms-card">
+    <div class="mms-card-body">
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+            <a href="{% url 'preventive:mgr_today' %}" class="mms-btn mms-btn--ghost">
+                Today's Schedule →
+            </a>
+            <a href="{% url 'preventive:mgr_reviews' %}" class="mms-btn mms-btn--ghost">
+                Reviews ({{ waiting_review }}) →
+            </a>
+            <a href="{% url 'preventive:mgr_plans' %}" class="mms-btn mms-btn--ghost">
+                Maintenance Plans →
+            </a>
+            <a href="{% url 'preventive:mgr_templates' %}" class="mms-btn mms-btn--ghost">
+                Templates →
+            </a>
+            <a href="{% url 'preventive:mgr_history' %}" class="mms-btn mms-btn--ghost">
+                History →
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

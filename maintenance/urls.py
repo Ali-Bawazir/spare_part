@@ -1,4 +1,5 @@
-from django.urls import path
+from django.urls import path, include
+from django.views.generic import RedirectView
 
 from . import views
 
@@ -77,6 +78,14 @@ urlpatterns = [
     path("pm/templates/new/", views.pm_template_create, name="pm_template_create"),
     path("pm/templates/<int:pk>/", views.pm_template_detail, name="pm_template_detail"),
     path("pm/templates/<int:pk>/edit/", views.pm_template_edit, name="pm_template_edit"),
+    path("preventive/", include("maintenance.urls_preventive")),
+    # Old PM URLs → new Preventive URLs (302 during rollout, flip to 301 after 2-4 weeks)
+    path("pm/", RedirectView.as_view(url="/preventive/manage/plans/", permanent=False), name="pm_redirect_list"),
+    path("pm/dashboard/", RedirectView.as_view(url="/preventive/manage/", permanent=False)),
+    path("pm/<int:pk>/spawn-wo/", RedirectView.as_view(pattern_name="preventive:mgr_plan_detail", permanent=False)),
+    path("pm/<int:pk>/execute/", RedirectView.as_view(pattern_name="preventive:execute", permanent=False)),
+    path("pm/wo/<int:pk>/", RedirectView.as_view(pattern_name="preventive:execute", permanent=False)),
+    path("pm/batch-spawn-wo/", RedirectView.as_view(url="/preventive/manage/plans/", permanent=False)),
     path("tools/", views.tool_list, name="tool_list"),
     path("tools/new/", views.tool_create, name="tool_create"),
     path("tools/<int:pk>/edit/", views.tool_edit, name="tool_edit"),

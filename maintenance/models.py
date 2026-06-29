@@ -392,6 +392,10 @@ class WorkOrder(models.Model):
     downtime_ended_at = models.DateTimeField(null=True, blank=True)
     is_archived = models.BooleanField(default=False, db_index=True)
     archived_at = models.DateTimeField(null=True, blank=True)
+    photo_count = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Denormalized count of attached photos — used for fast Complete gating",
+    )
     archived_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="archived_work_orders"
@@ -582,6 +586,10 @@ class PMTemplate(models.Model):
         max_length=16, choices=Priority.choices, default=Priority.MEDIUM
     )
     requires_manager_review = models.BooleanField(default=True)
+    requires_photo_min_count = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Minimum number of photos the technician must attach when completing this PM",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -647,13 +655,31 @@ class PMExecution(models.Model):
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="pm_executions_approved",
+        related_name="pm_executions_legacy_approved",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=16, choices=Status.choices, default=Status.SUBMITTED, db_index=True
     )
     notes = models.TextField(blank=True)
+    assigned_technician = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="pm_executions_assigned",
+    )
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    reassignment_count = models.PositiveIntegerField(default=0)
+    last_reassignment_reason = models.CharField(max_length=500, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="pm_executions_approved",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="pm_executions_rejected",
+    )
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -716,6 +742,14 @@ class PMSchedule(models.Model):
     grace_days = models.PositiveIntegerField(default=7)
     reminder_days_before = models.PositiveIntegerField(default=7)
     auto_generate_wo = models.BooleanField(default=False)
+    due_time = models.TimeField(
+        default="08:00",
+        help_text="Time-of-day for scheduled occurrences (used for grouping Today's Schedule)",
+    )
+    ends_at = models.DateField(
+        null=True, blank=True,
+        help_text="Schedule stops generating occurrences after this date",
+    )
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -889,6 +923,16 @@ class Notification(models.Model):
         EMERGENCY_INTERRUPTED = "emergency_interrupted", "Emergency WO interrupted another WO"
         LABOR_RESUMED = "labor_resumed", "Labor resumed on WO"
         PO_RECEIVED_SUMMARY = "po_received_summary", "PO received (summary)"
+        # Phase 8: PM workflow notifications (workflow-first CMMS)
+        PM_MORNING_SUMMARY = "pm_morning_summary", "PM morning summary (technician)"
+        PM_MANAGER_MORNING = "pm_manager_morning", "PM manager morning summary"
+        PM_NEW_ASSIGNMENT = "pm_new_assignment", "PM assigned to you"
+        PM_RETURNED = "pm_returned", "PM submission returned"
+        PM_OVERDUE_TECH = "pm_overdue_tech", "PM is overdue"
+        PM_OVERDUE_MANAGER = "pm_overdue_manager", "PM overdue (manager alert)"
+        PM_UNASSIGNED = "pm_unassigned", "PM has no technician"
+        PM_WAITING_REVIEW = "pm_waiting_review", "PM awaiting manager review"
+        PM_PLAN_PAUSED = "pm_plan_paused", "PM plan paused"
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1628,3 +1672,26 @@ class WorkOrderBlockerEvent(models.Model):
             models.Index(fields=["blocker", "created_at"]),
             models.Index(fields=["event_type", "created_at"]),
         ]
+
+
+class MaintenanceSettings(models.Model):
+    """Singleton row tracking cron state for daily maintenance generation."""
+
+    last_generate_run = models.DateTimeField(null=True, blank=True)
+    morning_summary_sent_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = "Maintenance settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # singleton
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return 'Maintenance settings'
+

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% block title %}Begin Maintenance — {{ template.title }}{% endblock %}
+{% block page_heading %}{{ template.title }}{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <div class="text-muted">
+        {{ sched.machine.name }} ·
+        {{ sched.get_frequency_type_display }}{% if sched.interval != 1 %} × {{ sched.interval }}{% endif %}
+    </div>
+</div>
+
+{% if is_returned %}
+<div class="mms-card" style="border-left:4px solid #f0ad4e; margin-bottom:1rem">
+    <div class="mms-card-body">
+        <strong>⚠ Returned</strong> — "{{ pm_execution.rejection_reason }}" by {{ pm_execution.rejected_by.username|default:"Manager" }}
+    </div>
+</div>
+{% endif %}
+
+{# ──── Timer ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+                <span class="text-muted" style="font-size:.85rem">Elapsed</span><br>
+                <span id="pm-elapsed" style="font-size:1.4rem;font-weight:700">00:00</span>
+            </div>
+            <div style="text-align:right">
+                <span class="text-muted" style="font-size:.85rem">Expected</span><br>
+                <span style="font-size:1.1rem">{{ sched.effective_duration_minutes }} min</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {# ──── Checklist ──── #}
+    <div class="mms-card" style="margin-bottom:1rem">
+        <div class="mms-card-header"><strong>Checklist</strong></div>
+        <div class="mms-card-body">
+            {% for item in checklist %}
+            <div class="mms-form-row" style="border-bottom:1px solid #eee;padding:0.5rem 0">
+                <label style="display:flex;gap:0.5rem;align-items:flex-start;font-weight:500">
+                    <input type="checkbox"
+                           name="checklist_{{ forloop.counter0 }}"
+                           id="checklist_{{ forloop.counter0 }}"
+                           style="margin-top:4px"
+                           {% if is_returned %}disabled{% endif %}>
+                    <span>{{ item.text }}</span>
+                </label>
+                <input type="text"
+                       name="note_{{ forloop.counter0 }}"
+                       id="note_{{ forloop.counter0 }}"
+                       class="form-control form-control-sm"
+                       placeholder="Add note (optional)"
+                       style="max-width:400px;margin-top:0.25rem"
+                       {% if is_returned %}disabled{% endif %}>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ──── Notes ──── #}
+    <div class="mms-card" style="margin-bottom:1rem">
+        <div class="mms-card-body">
+            <label for="notes"><strong>Notes</strong></label>
+            <textarea name="notes" id="notes" class="form-control" rows="3"
+                      placeholder="Overall notes (optional, but counts as completion)"></textarea>
+        </div>
+    </div>
+
+    {# ──── Photos ──── #}
+    <div class="mms-card" style="margin-bottom:1rem">
+        <div class="mms-card-header">
+            <strong>Photos</strong>
+            {% if required_photo_count > 0 %}
+            <span class="text-muted" style="font-size:.85rem"> · {{ required_photo_count }} required</span>
+            {% endif %}
+            <span class="text-muted" style="font-size:.85rem;margin-left:0.5rem">({{ photo_count }} uploaded)</span>
+        </div>
+        <div class="mms-card-body">
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem">
+                {% for att in wo.attachments.all %}
+                <img src="{{ att.thumbnail.url }}" alt="{{ att.filename }}"
+                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
+                {% empty %}
+                <span class="text-muted">No photos uploaded yet.</span>
+                {% endfor %}
+            </div>
+            <input type="file" name="photo" accept="image/*,video/*" class="form-control">
+            <button type="submit" name="action" value="add_photo"
+                    class="mms-btn mms-btn--ghost mms-btn--sm" style="margin-top:0.5rem">
+                Add photo
+            </button>
+        </div>
+    </div>
+
+    {# ──── Complete button ──── #}
+    <div class="mms-form-actions" style="display:flex;gap:0.5rem;align-items:center;margin-top:1rem">
+        <button type="submit" name="action" value="complete" class="mms-btn mms-btn--primary">
+            Complete Maintenance
+        </button>
+        <a href="{% url 'preventive:my' %}" class="mms-btn mms-btn--ghost">Cancel</a>
+    </div>
+</form>
+
+{# ──── Timer JS ──── #}
+<script>
+(function() {
+    var startedAt = {{ wo.labor_started_at|date:"U" }};  // unix seconds
+    var expectedMin = {{ sched.effective_duration_minutes }};
+    var elapsedEl = document.getElementById("pm-elapsed");
+
+    function tick() {
+        var now = Math.floor(Date.now() / 1000);
+        var sec = Math.max(0, now - startedAt);
+        var mm = Math.floor(sec / 60);
+        var ss = sec % 60;
+        elapsedEl.textContent =
+            String(mm).padStart(2, "0") + ":" + String(ss).padStart(2, "0");
+        // Color thresholds
+        if (sec > expectedMin * 60) {
+            elapsedEl.style.color = "#dc3545";  // red
+        } else if (sec > expectedMin * 60 * 0.8) {
+            elapsedEl.style.color = "#f0ad4e";  // amber
+        } else {
+            elapsedEl.style.color = "#28a745";  // green
+        }
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+</script>
+
+{% endblock %}

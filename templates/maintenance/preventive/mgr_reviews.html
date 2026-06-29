@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Reviews — Bawazir MMS{% endblock %}
+{% block page_heading %}Reviews{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <strong>{{ pending.count }}</strong> pending
+</div>
+
+{% if pending %}
+    {% for occ in pending %}
+    <div class="mms-card" style="margin-bottom:0.75rem">
+        <div class="mms-card-body">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                    <strong style="font-size:1.05rem">{{ occ.pm_schedule.template.title }}</strong>
+                    <div class="text-muted" style="font-size:.85rem">
+                        {{ occ.pm_schedule.machine.name }}
+                        · {{ occ.assigned_technician.username|default:"Unassigned" }}
+                    </div>
+                    <div class="text-muted" style="font-size:.85rem;margin-top:0.25rem">
+                        Submitted {{ occ.work_order.labor_stopped_at|date:"H:i" }}
+                        {% if occ.work_order.labor_started_at %}
+                        · {{ occ.work_order.labor_started_at|timesince:occ.work_order.labor_stopped_at }} elapsed
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                    <form method="post" action="{% url 'preventive:review_approve' occ.pk %}" style="display:inline">
+                        {% csrf_token %}
+                        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Approve</button>
+                    </form>
+                    <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm"
+                            onclick="document.getElementById('return-{{ occ.pk }}').style.display='block'">
+                        Return
+                    </button>
+                </div>
+            </div>
+            <div id="return-{{ occ.pk }}" style="display:none;margin-top:0.75rem;border-top:1px solid #eee;padding-top:0.75rem">
+                <form method="post" action="{% url 'preventive:review_return' occ.pk %}">
+                    {% csrf_token %}
+                    <label><strong>Return reason (required)</strong></label>
+                    <textarea name="reason" rows="2" class="form-control" required></textarea>
+                    <div style="margin-top:0.5rem">
+                        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Return to technician</button>
+                        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm"
+                                onclick="document.getElementById('return-{{ occ.pk }}').style.display='none'">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="mms-card">
+    <div class="mms-card-body text-muted">No pending reviews.</div>
+</div>
+{% endif %}
+
+{% endblock %}

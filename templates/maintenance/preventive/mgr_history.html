@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}History — Bawazir MMS{% endblock %}
+{% block page_heading %}History{% endblock %}
+{% block content %}
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <form method="get" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;align-items:end">
+            <div>
+                <label for="f-machine">Machine</label>
+                <select name="machine" id="f-machine" class="form-select">
+                    <option value="">Any</option>
+                    {% for m in machines %}
+                    <option value="{{ m.pk }}" {% if selected_machine == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="f-tech">Technician</label>
+                <select name="technician" id="f-tech" class="form-select">
+                    <option value="">Any</option>
+                    {% for t in technicians %}
+                    <option value="{{ t.pk }}" {% if selected_technician == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="f-days">Date range</label>
+                <select name="days" id="f-days" class="form-select">
+                    <option value="7" {% if selected_days == 7 %}selected{% endif %}>Last 7 days</option>
+                    <option value="30" {% if selected_days == 30 %}selected{% endif %}>Last 30 days</option>
+                    <option value="90" {% if selected_days == 90 %}selected{% endif %}>Last 90 days</option>
+                    <option value="365" {% if selected_days == 365 %}selected{% endif %}>Last year</option>
+                </select>
+            </div>
+            <div>
+                <label for="f-status">Status</label>
+                <select name="status" id="f-status" class="form-select">
+                    <option value="">Any</option>
+                    <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Returned</option>
+                </select>
+            </div>
+            <div style="grid-column:1/-1">
+                <button type="submit" class="mms-btn mms-btn--primary">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if executions %}
+<div class="mms-card">
+    <div class="mms-card-body">
+        <table class="mms-table" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Machine</th>
+                    <th>Maintenance</th>
+                    <th>Technician</th>
+                    <th>Actual vs Expected</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for occ in executions %}
+                <tr>
+                    <td>{{ occ.scheduled_due_at|date:"Y-m-d" }}</td>
+                    <td>{{ occ.pm_schedule.machine.name }}</td>
+                    <td>{{ occ.pm_schedule.template.title }}</td>
+                    <td>{{ occ.completed_by.username|default_if_none:"—"|default:"—" }}{% if not occ.completed_by %}{{ occ.assigned_technician.username|default_if_none:"—" }}{% endif %}</td>
+                    <td>
+                        {% if occ.work_order.labor_started_at and occ.work_order.labor_stopped_at %}
+                            {{ occ.work_order.labor_started_at|timesince:occ.work_order.labor_stopped_at }}
+                            vs {{ occ.pm_schedule.effective_duration_minutes }} min
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if occ.status == 'approved' %}
+                            <span style="color:#28a745">✓ Approved</span>
+                        {% elif occ.status == 'rejected' %}
+                            <span style="color:#dc3545">✗ Returned</span>
+                        {% else %}
+                            {{ occ.get_status_display }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="mms-card">
+    <div class="mms-card-body text-muted">{{ empty_message }}</div>
+</div>
+{% endif %}
+
+{% endblock %}

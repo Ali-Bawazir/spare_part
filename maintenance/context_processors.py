@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.capabilities import get_mms_capabilities
@@ -138,5 +139,29 @@ def mms_nav(request):
     # Legacy-state reconciliation counter for managers.
     if role in (User.Role.MANAGER, User.Role.SUPER_ADMIN):
         ctx["nav_legacy_count"] = WorkOrder.objects.filter(blocker_system_version=0).count()
+
+    # Phase 8 PM workflow nav badges
+    from maintenance.models import PMExecution
+    today = timezone.now().date()
+    if role in (User.Role.MANAGER, User.Role.SUPER_ADMIN):
+        ctx["nav_pm_reviews_pending"] = PMExecution.objects.filter(
+            status=PMExecution.Status.SUBMITTED,
+            work_order__lifecycle_status="pending_review",
+        ).count()
+    if role in (User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN):
+        ctx["nav_pm_today_count"] = PMExecution.objects.filter(
+            scheduled_due_at__date=today,
+            pm_schedule__is_active=True,
+        ).filter(
+            Q(assigned_technician=u) | Q(assigned_technician__isnull=True)
+        ).exclude(status=PMExecution.Status.APPROVED).count()
+        # Add Q import if not present
+        from django.db.models import Q as _Q
+        ctx["nav_pm_today_count"] = PMExecution.objects.filter(
+            scheduled_due_at__date=today,
+            pm_schedule__is_active=True,
+        ).filter(
+            _Q(assigned_technician=u) | _Q(assigned_technician__isnull=True)
+        ).exclude(status=PMExecution.Status.APPROVED).count()
 
     return ctx

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Maintenance Plans — Bawazir MMS{% endblock %}
+{% block page_heading %}Maintenance Plans{% endblock %}
+{% block content %}
+
+<div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+    <a href="?state=active" class="mms-btn mms-btn--{% if filter_state == 'active' %}primary{% else %}ghost{% endif %} mms-btn--sm">Active</a>
+    <a href="?state=paused" class="mms-btn mms-btn--{% if filter_state == 'paused' %}primary{% else %}ghost{% endif %} mms-btn--sm">Paused</a>
+    <a href="?state=archived" class="mms-btn mms-btn--{% if filter_state == 'archived' %}primary{% else %}ghost{% endif %} mms-btn--sm">Archived</a>
+    <a href="?state=all" class="mms-btn mms-btn--{% if filter_state == 'all' %}primary{% else %}ghost{% endif %} mms-btn--sm">All</a>
+    <span style="flex:1"></span>
+    <a href="{% url 'preventive:mgr_plan_create' %}" class="mms-btn mms-btn--primary mms-btn--sm">+ New Plan</a>
+</div>
+
+<div class="mms-card">
+    <div class="mms-card-body">
+        <table class="mms-table" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Machine</th>
+                    <th>Maintenance</th>
+                    <th>Due</th>
+                    <th>Assigned</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+                <tr>
+                    <td>{{ plan.machine.name }}</td>
+                    <td>{{ plan.template.title }}</td>
+                    <td>
+                        {% if plan.next_due_at %}
+                            {{ plan.next_due_at|date:"Y-m-d H:i" }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if plan.assigned_technician %}
+                            {{ plan.assigned_technician.username }}
+                        {% else %}
+                            <span style="color:#dc3545">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if plan.is_active %}
+                            <span class="mms-badge mms-badge--success">Active</span>
+                        {% elif plan.archived_at %}
+                            <span class="mms-badge mms-badge--muted">Archived</span>
+                        {% else %}
+                            <span class="mms-badge mms-badge--warning">Paused</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'preventive:mgr_plan_detail' plan.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">Open</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-muted">No plans in this filter.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
