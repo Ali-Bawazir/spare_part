@@ -14,7 +14,7 @@
 {% if is_returned %}
 <div class="mms-card" style="border-left:4px solid #f0ad4e; margin-bottom:1rem">
     <div class="mms-card-body">
-        <strong>⚠ Returned</strong> — "{{ pm_execution.rejection_reason }}" by {{ pm_execution.rejected_by.username|default:"Manager" }}
+        <strong>⚠ Returned</strong> — "{{ pm_execution.rejection_reason }}" by {{ pm_execution.rejected_by.username|default_if_none:"Manager" }}
     </div>
 </div>
 {% endif %}

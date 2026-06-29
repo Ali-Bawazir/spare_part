@@ -93,6 +93,9 @@ class WorkflowDailyScenarioTests(TestCase):
         result = scheduling_service.generate_today()
         self.assertEqual(result["count"], 1)
         self.assertEqual(PMExecution.objects.filter(pm_schedule__template=template).count(), 1)
+        # The occurrence must be dated today, not the schedule's stale next_due_at
+        occ = PMExecution.objects.get(pm_schedule__template=template)
+        self.assertEqual(occ.scheduled_due_at.date(), timezone.now().date())
 
     def test_cron_is_idempotent_same_day(self):
         template = _make_template()

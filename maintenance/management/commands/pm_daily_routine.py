@@ -29,7 +29,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        from maintenance.services import maintenance_engine as engine
+        from maintenance.preventive_engine import maintenance_engine as engine
 
         self.stdout.write(f"[{timezone.now():%H:%M}] Starting PM daily routine")
 

@@ -12,7 +12,7 @@
 <div class="mms-card" style="border-left:4px solid #f0ad4e; margin-bottom:1rem">
     <div class="mms-card-body">
         <strong>⚠ Returned: {{ returned.pm_schedule.template.title }}</strong><br>
-        <span class="text-muted">"{{ returned.rejection_reason }}" — by {{ returned.rejected_by.username|default:"Manager" }}</span>
+        <span class="text-muted">"{{ returned.rejection_reason }}" — by {{ returned.rejected_by.username|default_if_none:"Manager" }}</span>
         <div style="margin-top:0.5rem">
             <a class="mms-btn mms-btn--primary" href="{% url 'preventive:execute' returned.pk %}">Resume</a>
         </div>

@@ -37,7 +37,7 @@
                     </td>
                     <td>
                         {% if plan.assigned_technician %}
-                            {{ plan.assigned_technician.username }}
+                            {{ plan.assigned_technician.username|default_if_none:"—" }}
                         {% else %}
                             <span style="color:#dc3545">—</span>
                         {% endif %}

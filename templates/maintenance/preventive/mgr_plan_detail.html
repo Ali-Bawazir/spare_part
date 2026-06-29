@@ -31,7 +31,7 @@
             {% if schedule.ends_at %}
             <dt>Ends</dt><dd>{{ schedule.ends_at|date:"Y-m-d" }}</dd>
             {% endif %}
-            <dt>Created</dt><dd>{{ schedule.created_at|date:"Y-m-d" }} by {{ schedule.created_by.username|default:"—" }}</dd>
+            <dt>Created</dt><dd>{{ schedule.created_at|date:"Y-m-d" }} by {{ schedule.created_by.username|default_if_none:"—" }}</dd>
         </dl>
     </div>
 </div>
@@ -89,7 +89,7 @@
                 {% if next_occ %}
                     {{ next_occ.scheduled_due_at|date:"Y-m-d H:i" }}
                     {% if next_occ.assigned_technician %}
-                        · {{ next_occ.assigned_technician.username }}
+                        · {{ next_occ.assigned_technician.username|default_if_none:"—" }}
                     {% else %}
                         · <span style="color:#dc3545">Unassigned</span>
                     {% endif %}
@@ -102,7 +102,7 @@
                 {% if last_completed %}
                     {{ last_completed.scheduled_due_at|date:"Y-m-d" }}
                     {% if last_completed.completed_by %}
-                        by {{ last_completed.completed_by.username }}
+                        by {{ last_completed.completed_by.username|default_if_none:"—" }}
                     {% endif %}
                     {% if last_completed.work_order.labor_started_at and last_completed.work_order.labor_stopped_at %}
                         · {{ last_completed.work_order.labor_started_at|timesince:last_completed.work_order.labor_stopped_at }} elapsed
@@ -153,7 +153,11 @@
                             —
                         {% endif %}
                     </td>
-                    <td>{{ occ.completed_by.username|default:occ.assigned_technician.username|default:"—" }}</td>
+                    <td>
+                        {% if occ.completed_by %}{{ occ.completed_by.username|default_if_none:"—" }}
+                        {% elif occ.assigned_technician %}{{ occ.assigned_technician.username|default_if_none:"—" }}
+                        {% else %}—{% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

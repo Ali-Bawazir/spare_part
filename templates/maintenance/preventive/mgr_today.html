@@ -20,7 +20,7 @@
                         <div class="text-muted" style="font-size:.85rem">
                             {{ occ.pm_schedule.machine.name }}
                             {% if occ.assigned_technician %}
-                                · {{ occ.assigned_technician.username }}
+                                · {{ occ.assigned_technician.username|default_if_none:"—" }}
                             {% else %}
                                 · <span style="color:#dc3545">Unassigned</span>
                             {% endif %}

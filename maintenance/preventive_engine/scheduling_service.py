@@ -93,10 +93,15 @@ def generate_today(today: date = None, *, force: bool = False) -> dict:
         # Respect ends_at
         if sched.ends_at and sched.ends_at < today:
             continue
-        due_at = sched.next_due_at
-        # Snap to schedule.due_time if next_due_at is at midnight
-        if hasattr(sched.due_time, "hour"):
-            due_at = due_at.replace(hour=sched.due_time.hour, minute=sched.due_time.minute)
+        # Build due_at as today + schedule.due_time (not sched.next_due_at which may be old)
+        from datetime import datetime, time as dtime
+        due_time_obj = sched.due_time if hasattr(sched.due_time, "hour") else dtime(8, 0)
+        due_at_naive = datetime.combine(today, due_time_obj)
+        due_at = (
+            timezone.make_aware(due_at_naive)
+            if timezone.is_naive(due_at_naive)
+            else due_at_naive
+        )
         # Idempotent: same (schedule, due_at) returns the same row
         _, was_created = PMExecution.objects.get_or_create(
             pm_schedule=sched,
