@@ -239,7 +239,7 @@ def _handle_complete(request, pm_execution, wo, checklist):
         entity_type="work_order",
         entity_id=wo.pk,
     ).count()
-    required_photo_count = pm_execution.pm_execution.pm_schedule.template.requires_photo_min_count
+    required_photo_count = pm_execution.pm_schedule.template.requires_photo_min_count
 
     result = engine.complete_occurrence(
         pm_execution,

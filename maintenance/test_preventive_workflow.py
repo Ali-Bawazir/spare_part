@@ -373,3 +373,91 @@ class ManagerPagesRenderTests(TestCase):
         self.client.force_login(self.manager)
         r = self.client.get(reverse("preventive:my"))
         self.assertEqual(r.status_code, 200)  # manager role allowed on tech page too
+
+class CompleteMaintenanceE2ETests(TestCase):
+    """End-to-end test of complete flow: assign → start → complete → approve → schedule advances."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.site = Site.objects.filter(is_default=True).first() or Site.objects.create(
+            name="X", is_default=True, is_active=True,
+        )
+        from maintenance.models import Machine
+        cls.machine = Machine.objects.create(
+            name="E2E Machine", qr_code="M-E2E-001",
+            asset_code="M-E2E-001", asset_level=3,
+            is_active=True, site=cls.site,
+        )
+        cls.manager = User.objects.create_user(
+            username="mgr_e2e", password="x", role=User.Role.MANAGER,
+        )
+        cls.technician = User.objects.create_user(
+            username="tech_e2e", password="x", role=User.Role.TECHNICIAN,
+        )
+
+    def test_full_flow_assign_complete_approve(self):
+        from maintenance.preventive_engine import maintenance_engine as engine
+        from django.utils import timezone
+
+        template = PMTemplate.objects.create(
+            code="PM-E2E", title="E2E Test",
+            estimated_duration_minutes=30, priority="medium",
+            requires_manager_review=True, is_active=True,
+        )
+        PMChecklistItem.objects.create(template=template, order=1, text="Check A")
+        PMChecklistItem.objects.create(template=template, order=2, text="Check B")
+
+        schedule = PMSchedule.objects.create(
+            template=template, machine=self.machine,
+            frequency_type="monthly", interval=1,
+            start_date=timezone.now().date(),
+            next_due_at=timezone.now(),
+            is_active=True, created_by=self.manager,
+        )
+
+        # Cron creates occurrence
+        occ = PMExecution.objects.create(
+            pm_schedule=schedule,
+            scheduled_due_at=timezone.now(),
+            status="submitted",
+        )
+
+        # 1. Manager assigns
+        engine.assign(occ, self.technician, by=self.manager)
+        occ.refresh_from_db()
+        self.assertEqual(occ.assigned_technician, self.technician)
+
+        # 2. Technician starts
+        wo = engine.start_occurrence(occ, self.technician, work_order_creator=self.technician)
+        self.assertEqual(wo.lifecycle_status, "in_progress")
+        self.assertIsNotNone(wo.labor_started_at)
+
+        # 3. Technician completes
+        result = engine.complete_occurrence(
+            occ, self.technician,
+            checklist_results=[
+                {"text": "Check A", "checked": True, "note": "ok"},
+                {"text": "Check B", "checked": True, "note": "ok"},
+            ],
+            notes="All good",
+        )
+        self.assertTrue(result.success)
+
+        occ.refresh_from_db()
+        wo.refresh_from_db()
+        self.assertEqual(wo.lifecycle_status, "pending_review")
+        self.assertIn("[✓] Check A", wo.action_taken)
+
+        # 4. Manager approves
+        engine.approve(occ, self.manager)
+
+        occ.refresh_from_db()
+        wo.refresh_from_db()
+        schedule.refresh_from_db()
+        self.assertEqual(occ.status, "approved")
+        self.assertEqual(wo.lifecycle_status, "closed")
+        # Schedule advanced
+        self.assertGreater(schedule.next_due_at, timezone.now())
+
+        # 5. History records the completion
+        self.assertIsNotNone(schedule.last_completed_at)
