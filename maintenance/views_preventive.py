@@ -46,36 +46,56 @@ def tech_my(request):
     today = timezone.now().date()
     now = timezone.now()
 
-    # Today's occurrences (any technician with work scheduled today)
-    today_occurrences = (
+    # Today's occurrences — split into "Mine" (assigned to me, in progress)
+    # vs "Pool" (unassigned, in progress). Pending review / approved items
+    # are NOT in Today — they live in the Completed section below.
+    today_qs = (
         PMExecution.objects
         .filter(
             scheduled_due_at__date=today,
             pm_schedule__is_active=True,
         )
-        .filter(
-            Q(assigned_technician=user) | Q(assigned_technician__isnull=True)
-        )
-        .exclude(status=PMExecution.Status.APPROVED)
+        .filter(work_order__lifecycle_status__in=["assigned", "in_progress"])
         .select_related("pm_schedule", "pm_schedule__template", "pm_schedule__machine", "assigned_technician")
+        .order_by("scheduled_due_at")
+    )
+    today_mine = today_qs.filter(assigned_technician=user)
+    # Pool = unassigned today. Include occurrences WITHOUT a WO yet
+    # (lifecycle_status is on WorkOrder, not PMExecution) OR with lifecycle
+    # in assigned/in_progress.
+    today_pool = (
+        PMExecution.objects
+        .filter(
+            scheduled_due_at__date=today,
+            pm_schedule__is_active=True,
+            assigned_technician__isnull=True,
+        )
+        .filter(
+            Q(work_order__isnull=True) |
+            Q(work_order__lifecycle_status__in=["assigned", "in_progress"])
+        )
+        .select_related("pm_schedule", "pm_schedule__template", "pm_schedule__machine")
         .order_by("scheduled_due_at")
     )
 
-    # Upcoming occurrences (next 7 days, grouped by day name)
-    upcoming_occurrences = (
-        PMExecution.objects
-        .filter(
-            scheduled_due_at__date__gt=today,
-            scheduled_due_at__date__lte=today + timedelta(days=14),
-            pm_schedule__is_active=True,
-            status=PMExecution.Status.SUBMITTED,
-        )
-        .filter(
-            Q(assigned_technician=user) | Q(assigned_technician__isnull=True)
-        )
-        .select_related("pm_schedule", "pm_schedule__template", "pm_schedule__machine", "assigned_technician")
-        .order_by("scheduled_due_at")
-    )
+    # Upcoming — show PMExecutions in the next 14 days. We auto-create
+    # placeholder rows for plans whose next_due_at is in the future so the
+    # technician can mentally prepare. (Daily cron will fill in their
+    # work_order when the day arrives.)
+    # _build_due_at is internal; we don't need it
+    upcoming_window = []
+    for sched in PMSchedule.objects.filter(
+        is_active=True,
+        next_due_at__date__gt=today,
+        next_due_at__date__lte=today + timedelta(days=14),
+    ).select_related("template", "machine", "component"):
+        # Skip if assigned to a different tech (we'd need to know who)
+        # For MVP, all upcoming plans show.
+        upcoming_window.append({
+            "schedule": sched,
+            "due_at": sched.next_due_at,
+        })
+    upcoming_plans = upcoming_window
 
     # Completed today (includes Waiting for approval + Approved)
     completed_today = (
@@ -103,25 +123,29 @@ def tech_my(request):
         .first()
     )
 
-    # Upcoming grouped by day name (Apple Calendar style)
-    upcoming_by_day = _group_upcoming_by_day(upcoming_occurrences)
+    # Upcoming grouped by day name (Apple Calendar style) — using PLANS not occurrences
+    upcoming_by_day = _group_upcoming_plans_by_day(upcoming_plans)
 
     context = {
-        "today_occurrences": today_occurrences,
+        "today_mine": today_mine,
+        "today_pool": today_pool,
         "upcoming_by_day": upcoming_by_day,
         "completed_today": completed_today,
         "returned": returned,
-        "today_count": today_occurrences.count(),
-        "upcoming_count": upcoming_occurrences.count(),
+        "today_count": today_mine.count() + today_pool.count(),
+        "today_mine_count": today_mine.count(),
+        "today_pool_count": today_pool.count(),
+        "upcoming_count": len(upcoming_plans),
         "completed_count": completed_today.count(),
         "today": today,
     }
     return render(request, "maintenance/preventive/my.html", context)
 
 
-def _group_upcoming_by_day(occurrences):
-    """Group occurrences into a list of (day_label, [occurrences]) tuples.
+def _group_upcoming_plans_by_day(plan_dicts):
+    """Group upcoming-window dicts into a list of (day_label, [items]) tuples.
 
+    Each input is a dict {"schedule": PMSchedule, "due_at": datetime}.
     Day labels: 'Tomorrow', 'Tue 1 Jul', 'Wed 2 Jul', etc.
     """
     today = timezone.now().date()
@@ -129,22 +153,21 @@ def _group_upcoming_by_day(occurrences):
     from collections import OrderedDict
     by_day = OrderedDict()
 
-    for occ in occurrences:
-        d = occ.scheduled_due_at.date()
+    for item in plan_dicts:
+        d = item["due_at"].date()
         if d == tomorrow:
             key = ("Tomorrow", d)
         else:
             key = (d.strftime("%a %-d %b"), d)
-        by_day.setdefault(key, []).append(occ)
+        by_day.setdefault(key, []).append(item)
 
-    # Filter out empty "Tomorrow" entry if no occurrences tomorrow
     result = []
-    for (label, date), occs in by_day.items():
+    for (label, date), items in by_day.items():
         result.append({
             "label": label,
             "date": date,
             "is_tomorrow": label == "Tomorrow",
-            "occurrences": occs,
+            "items": items,
         })
     return result
 
@@ -266,8 +289,14 @@ def _handle_complete(request, pm_execution, wo, checklist):
 @require_POST
 @role_required(User.Role.TECHNICIAN, User.Role.SUPER_ADMIN, User.Role.SUPERVISOR, User.Role.MANAGER)
 def tech_start(request, occurrence_id):
-    """Start labor on a PM occurrence."""
+    """Pick up + start labor on a PM occurrence.
+
+    For unassigned tasks (pool), the technician claims ownership first.
+    For already-assigned tasks, just starts the work.
+    """
     pm_execution = get_object_or_404(PMExecution, pk=occurrence_id)
+    if pm_execution.assigned_technician_id is None:
+        engine.assign(pm_execution, request.user, by=request.user)
     engine.start_occurrence(pm_execution, request.user, work_order_creator=request.user)
     return redirect("preventive:execute", occurrence_id=pm_execution.pk)
 

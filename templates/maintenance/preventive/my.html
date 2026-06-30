@@ -29,12 +29,13 @@
     </div>
 </div>
 
-{# ──── TODAY ──── #}
+{# ──── TODAY — split into Mine vs Pool ──── #}
 <h2 id="today" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">TODAY</h2>
 
-{% if today_occurrences %}
-    {% for occ in today_occurrences %}
-    <div class="mms-card" style="margin-bottom:0.75rem">
+{% if today_mine %}
+<h3 style="font-size:.85rem;font-weight:600;color:var(--mms-muted);margin:.5rem 0 .25rem 0;letter-spacing:.04em">YOUR TASKS</h3>
+    {% for occ in today_mine %}
+    <div class="mms-card" style="margin-bottom:0.75rem;border-left:4px solid #28a745">
         <div class="mms-card-body">
             <div style="display:flex;justify-content:space-between;align-items:flex-start">
                 <div>
@@ -52,7 +53,33 @@
         </div>
     </div>
     {% endfor %}
-{% else %}
+{% endif %}
+
+{% if today_pool %}
+<h3 style="font-size:.85rem;font-weight:600;color:var(--mms-muted);margin:1rem 0 .25rem 0;letter-spacing:.04em">UNASSIGNED — PICK UP</h3>
+    {% for occ in today_pool %}
+    <div class="mms-card" style="margin-bottom:0.5rem;border-left:4px solid #f0ad4e;opacity:.92">
+        <div class="mms-card-body" style="padding:.75rem">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                    <strong style="font-size:.95rem">{{ occ.scheduled_due_at|date:"H:i" }} · {{ occ.pm_schedule.template.title }}</strong>
+                    <div class="text-muted" style="font-size:.8rem">
+                        {{ occ.pm_schedule.machine.name }}
+                        · {{ occ.pm_schedule.effective_duration_minutes }} min
+                        · <span style="color:#f0ad4e">Unassigned</span>
+                    </div>
+                </div>
+                <form method="post" action="{% url 'preventive:start' occ.pk %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Pick up</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+{% if not today_mine and not today_pool %}
 <div class="mms-card" style="margin-bottom:0.75rem">
     <div class="mms-card-body text-muted">
         No maintenance today.<br>
@@ -70,13 +97,13 @@
         <div class="mms-card-body">
             <div style="display:flex;justify-content:space-between;align-items:center">
                 <strong>{{ day.label }}</strong>
-                <span class="text-muted" style="font-size:.85rem">{{ day.occurrences|length }} job{{ day.occurrences|length|pluralize }}</span>
+                <span class="text-muted" style="font-size:.85rem">{{ day.plans|length }} job{{ day.plans|length|pluralize }}</span>
             </div>
             <ul style="margin:0.5rem 0 0 1.25rem;padding:0">
-                {% for occ in day.occurrences %}
+                {% for item in day.items %}
                 <li style="font-size:.9rem">
-                    {{ occ.scheduled_due_at|date:"H:i" }} · {{ occ.pm_schedule.template.title }}
-                    <span class="text-muted"> · {{ occ.pm_schedule.machine.name }}</span>
+                    {{ item.due_at|date:"H:i" }} · {{ item.schedule.template.title }}
+                    <span class="text-muted"> · {{ item.schedule.machine.name }}</span>
                 </li>
                 {% endfor %}
             </ul>

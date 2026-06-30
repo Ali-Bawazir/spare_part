@@ -461,3 +461,89 @@ class CompleteMaintenanceE2ETests(TestCase):
 
         # 5. History records the completion
         self.assertIsNotNone(schedule.last_completed_at)
+
+
+class PickUpPoolE2ETests(TestCase):
+    """Verify: when tech picks up an unassigned task, it's auto-assigned to them,
+    and after Complete Maintenance it appears in Completed (not Today)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.site = Site.objects.filter(is_default=True).first() or Site.objects.create(
+            name="X", is_default=True, is_active=True,
+        )
+        from maintenance.models import Machine
+        cls.machine = Machine.objects.create(
+            name="Pickup Test Machine", qr_code="M-PU-001",
+            asset_code="M-PU-001", asset_level=3,
+            is_active=True, site=cls.site,
+        )
+        cls.manager = User.objects.create_user(
+            username="mgr_pu", password="x", role=User.Role.MANAGER,
+        )
+        cls.technician = User.objects.create_user(
+            username="tech_pu", password="x", role=User.Role.TECHNICIAN,
+        )
+
+    def test_pickup_assigns_and_completes(self):
+        from maintenance.preventive_engine import maintenance_engine as engine
+        from django.utils import timezone
+
+        template = PMTemplate.objects.create(
+            code="PM-PICKUP", title="Pickup Test", estimated_duration_minutes=15,
+            priority="medium", requires_manager_review=True, is_active=True,
+        )
+        PMChecklistItem.objects.create(template=template, order=1, text="Item A")
+
+        schedule = PMSchedule.objects.create(
+            template=template, machine=self.machine,
+            frequency_type="monthly", interval=1,
+            start_date=timezone.now().date(),
+            next_due_at=timezone.now(),
+            is_active=True, created_by=self.manager,
+        )
+        occ = PMExecution.objects.create(
+            pm_schedule=schedule,
+            scheduled_due_at=timezone.now(),
+            status="submitted",
+            # assigned_technician is None — unassigned pool
+        )
+
+        # Tech hits the "Pick up" button on /preventive/my/ (POST to start)
+        self.client.force_login(self.technician)
+        r = self.client.post(reverse("preventive:start", args=[occ.pk]))
+        self.assertEqual(r.status_code, 302)
+
+        occ.refresh_from_db()
+        # Auto-assigned to the tech
+        self.assertEqual(occ.assigned_technician, self.technician)
+        self.assertIsNotNone(occ.assigned_at)
+        # WO created
+        self.assertIsNotNone(occ.work_order)
+        # Tech is now the WO owner
+        self.assertEqual(occ.work_order.assigned_technician, self.technician)
+
+        # Complete the maintenance
+        r = self.client.post(
+            reverse("preventive:complete", args=[occ.pk]),
+            data={
+                "checklist_0": "on",
+                "note_0": "ok",
+                "notes": "Done",
+                "action": "complete",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+
+        occ.refresh_from_db()
+        # Submitted to manager, WO in pending_review
+        self.assertEqual(occ.status, "submitted")
+        self.assertEqual(occ.work_order.lifecycle_status, "pending_review")
+
+        # Now verify the My Maintenance page shows it in Completed (not Today)
+        r = self.client.get(reverse("preventive:my"))
+        self.assertEqual(r.status_code, 200)
+        today_mine = list(r.context["today_mine"])
+        completed_today = list(r.context["completed_today"])
+        self.assertNotIn(occ, today_mine)
+        self.assertIn(occ, completed_today)

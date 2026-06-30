@@ -72,30 +72,6 @@
                       placeholder="Overall notes (optional, but counts as completion)"></textarea>
         </div>
     </div>
-
-    {# ──── Photos ──── #}
-    <div class="mms-card" style="margin-bottom:1rem">
-        <div class="mms-card-header">
-            <strong>Photos</strong>
-            {% if required_photo_count > 0 %}
-            <span class="text-muted" style="font-size:.85rem"> · {{ required_photo_count }} required</span>
-            {% endif %}
-            <span class="text-muted" style="font-size:.85rem;margin-left:0.5rem">({{ photo_count }} uploaded)</span>
-        </div>
-        <div class="mms-card-body">
-            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem">
-                {% for att in wo.attachments.all %}
-                <img src="{{ att.thumbnail.url }}" alt="{{ att.filename }}"
-                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
-                {% empty %}
-                <span class="text-muted">No photos uploaded yet.</span>
-                {% endfor %}
-            </div>
-            <input type="file" name="photo" accept="image/*,video/*" class="form-control">
-            <button type="submit" name="action" value="add_photo"
-                    class="mms-btn mms-btn--ghost mms-btn--sm" style="margin-top:0.5rem">
-                Add photo
-            </button>
         </div>
     </div>
 
@@ -107,6 +83,47 @@
         <a href="{% url 'preventive:my' %}" class="mms-btn mms-btn--ghost">Cancel</a>
     </div>
 </form>
+
+{# ──── Photos (separate form — auto-submits on file selection, OUTSIDE main form) ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">
+        <strong>Photos</strong>
+        {% if required_photo_count > 0 %}
+        <span style="font-size:.85rem;color:{% if photo_count >= required_photo_count %}#28a745{% else %}#dc3545{% endif %}">
+            · {{ photo_count }} / {{ required_photo_count }} required
+        </span>
+        {% endif %}
+    </div>
+    <div class="mms-card-body">
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+            {% for att in wo.attachments.all %}
+            <div style="position:relative">
+                <img src="{{ att.thumbnail.url }}" alt="{{ att.filename }}"
+                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
+            </div>
+            {% empty %}
+            <span class="text-muted" style="font-size:.85rem">No photos uploaded yet.</span>
+            {% endfor %}
+        </div>
+        <form method="post"
+              enctype="multipart/form-data"
+              action="{% url 'preventive:add_photo' pm_execution.pk %}"
+              id="photo-upload-form"
+              style="display:flex;gap:0.5rem;align-items:center">
+            {% csrf_token %}
+            <label class="mms-btn mms-btn--ghost mms-btn--sm" style="cursor:pointer;margin:0">
+                <span id="photo-label">+ Add photo</span>
+                <input type="file" name="photo" accept="image/*,video/*"
+                       style="display:none"
+                       onchange="document.getElementById('photo-upload-form').submit()">
+            </label>
+            <span id="photo-status" class="text-muted" style="font-size:.8rem"></span>
+        </form>
+        <div class="text-muted" style="font-size:.75rem;margin-top:0.25rem">
+            Tap to upload. Photo uploads immediately. Multiple photos supported.
+        </div>
+    </div>
+</div>
 
 {# ──── Timer JS ──── #}
 <script>
