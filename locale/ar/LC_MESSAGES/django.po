@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 22:24+0300\n"
+"POT-Creation-Date: 2026-07-06 23:36+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,7 +15,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
 
 #: accounts/admin.py:26 accounts/admin.py:29 accounts/forms.py:24
 #: accounts/forms.py:112
@@ -417,7 +418,7 @@ msgstr ""
 
 #: inventory/models.py:183
 msgid "Issue to work order"
-msgstr ""
+msgstr "Issue to أمر عمل"
 
 #: inventory/models.py:184
 msgid "Consumable use"
@@ -698,11 +699,11 @@ msgstr ""
 
 #: inventory/services.py:208
 msgid "Cannot issue parts to a closed work order."
-msgstr ""
+msgstr "Cannot issue parts to a closed أمر عمل."
 
 #: inventory/services.py:212
 msgid "Parts already issued for this work order and part combination."
-msgstr ""
+msgstr "Parts already issued for this أمر عمل and part combination."
 
 #: inventory/services.py:241
 #, python-format
@@ -766,7 +767,7 @@ msgstr ""
 
 #: inventory/services.py:647 maintenance/views.py:1899
 msgid "Cannot request parts on a closed work order."
-msgstr ""
+msgstr "Cannot request parts on a closed أمر عمل."
 
 #: inventory/services.py:921 maintenance/services.py:536
 #: maintenance/views.py:2130
@@ -1368,11 +1369,11 @@ msgstr "جديد"
 
 #: maintenance/models.py:199 templates/maintenance/issue_detail.html:31
 msgid "Validated"
-msgstr ""
+msgstr "تم التحقق"
 
 #: maintenance/models.py:200
 msgid "Converted to work order"
-msgstr ""
+msgstr "تم التحويل إلى أمر عمل"
 
 #: maintenance/models.py:228
 msgid "Issue Type"
@@ -1678,7 +1679,7 @@ msgstr ""
 
 #: maintenance/models.py:905
 msgid "Emergency work order"
-msgstr ""
+msgstr "Emergency أمر عمل"
 
 #: maintenance/models.py:906 templates/maintenance/reports_low_stock.html:19
 #: templates/maintenance/stock_dashboard.html:69
@@ -2125,7 +2126,7 @@ msgstr ""
 
 #: maintenance/services.py:777 maintenance/services.py:801
 msgid "PM execution has no associated work order."
-msgstr ""
+msgstr "PM execution has no associated أمر عمل."
 
 #: maintenance/services.py:779 maintenance/services.py:803
 #: maintenance/views.py:1835
@@ -2198,7 +2199,7 @@ msgstr ""
 
 #: maintenance/services_notifications.py:460
 msgid "An emergency work order auto-paused this WO."
-msgstr ""
+msgstr "An emergency أمر عمل auto-paused this WO."
 
 #: maintenance/services_notifications.py:492
 msgid "Technician resumed work on this WO."
@@ -2384,7 +2385,7 @@ msgstr ""
 
 #: maintenance/views.py:1692
 msgid "You can only start work orders assigned to you."
-msgstr ""
+msgstr "You can only start أمر عملs assigned to you."
 
 #: maintenance/views.py:1704
 msgid "Cannot start work in this state."
@@ -2402,7 +2403,7 @@ msgstr ""
 
 #: maintenance/views.py:1736
 msgid "You can only pause work orders assigned to you."
-msgstr ""
+msgstr "You can only pause أمر عملs assigned to you."
 
 #: maintenance/views.py:1739
 msgid "Not in progress."
@@ -2414,7 +2415,7 @@ msgstr ""
 
 #: maintenance/views.py:1765
 msgid "You can only submit work orders assigned to you."
-msgstr ""
+msgstr "You can only submit أمر عملs assigned to you."
 
 #: maintenance/views.py:1776
 msgid "Submit for review is only available while work is in progress."
@@ -2450,7 +2451,7 @@ msgstr ""
 
 #: maintenance/views.py:1896
 msgid "You can only request parts on work orders assigned to you."
-msgstr ""
+msgstr "You can only request parts on أمر عملs assigned to you."
 
 #: maintenance/views.py:1933
 msgid "Manager will review."
@@ -2502,7 +2503,7 @@ msgstr "أمر عمل طارئ created"
 
 #: maintenance/views.py:2393
 msgid "You can only mark parts for work orders assigned to you."
-msgstr ""
+msgstr "You can only mark parts for أمر عملs assigned to you."
 
 #: maintenance/views.py:2399 maintenance/views.py:2421
 msgid "Invalid form."
@@ -2514,7 +2515,7 @@ msgstr ""
 
 #: maintenance/views.py:2415
 msgid "You can only mark vendor status for work orders assigned to you."
-msgstr ""
+msgstr "You can only mark vendor status for أمر عملs assigned to you."
 
 #: maintenance/views.py:2425
 msgid "Work order set to waiting for vendor (labor timer stopped)."
@@ -2543,11 +2544,11 @@ msgstr ""
 
 #: maintenance/views.py:3049
 msgid "PM work order"
-msgstr ""
+msgstr "PM أمر عمل"
 
 #: maintenance/views.py:3229 maintenance/views.py:3316
 msgid "This is not a preventive maintenance work order."
-msgstr ""
+msgstr "This is not a preventive maintenance أمر عمل."
 
 #: maintenance/views.py:3249
 msgid "You can't execute this PM."
@@ -2559,7 +2560,7 @@ msgstr ""
 
 #: maintenance/views.py:3321
 msgid "No PM execution record found for this work order."
-msgstr ""
+msgstr "No PM execution record found for this أمر عمل."
 
 #: maintenance/views.py:3337
 msgid "PM rejected. Returned to technician."
@@ -2687,7 +2688,7 @@ msgstr "Authorised by مدير الصيانة:"
 
 #: maintenance/views.py:3818
 msgid "Quick log saved."
-msgstr ""
+msgstr "تسجيل سريع saved."
 
 #: maintenance/views.py:6104
 msgid "Occurred at"
@@ -3142,7 +3143,7 @@ msgstr "المشكلات"
 #: templates/base.html:34 templates/maintenance/_cost_tab.html:537
 #: templates/maintenance/dashboard.html:208
 msgid "Work orders"
-msgstr ""
+msgstr "أوامر العمل"
 
 #: templates/base.html:37 templates/base.html:410
 #: templates/maintenance/my_workorders.html:30
@@ -3155,7 +3156,7 @@ msgstr "أمر عمل طارئ"
 
 #: templates/base.html:43 templates/base.html:423
 msgid "Quick log"
-msgstr ""
+msgstr "تسجيل سريع"
 
 #: templates/base.html:47
 msgid "Inventory"
@@ -3170,7 +3171,7 @@ msgstr "المخزون"
 #: templates/base.html:52 templates/maintenance/dashboard.html:212
 #: templates/maintenance/machine_cost_report.html:88
 msgid "Consumables"
-msgstr ""
+msgstr "المواد الاستهلاكية"
 
 #: templates/base.html:55
 msgid "Inventory Lookup"
@@ -3183,7 +3184,7 @@ msgstr "الموردون"
 
 #: templates/base.html:59
 msgid "Reservations"
-msgstr ""
+msgstr "الحجوزات"
 
 #: templates/base.html:64 templates/maintenance/dashboard.html:213
 msgid "Supply"
@@ -3199,11 +3200,11 @@ msgstr "أوامر الشراء"
 
 #: templates/base.html:75
 msgid "By Supplier"
-msgstr ""
+msgstr "حسب المورد"
 
 #: templates/base.html:79 templates/procurement/supplier_analytics.html:9
 msgid "Supplier analytics"
-msgstr ""
+msgstr "تحليلات الموردين"
 
 #: templates/base.html:85
 msgid "External Repairs"
@@ -3242,7 +3243,7 @@ msgstr "الأدوات"
 
 #: templates/base.html:135 templates/maintenance/technician_report.html:47
 msgid "External repairs"
-msgstr ""
+msgstr "الإصلاحات الخارجية"
 
 #: templates/base.html:140
 msgid "System"
@@ -3262,7 +3263,7 @@ msgstr "الإشعارات"
 
 #: templates/base.html:150 templates/maintenance/dashboard.html:215
 msgid "KPIs"
-msgstr ""
+msgstr "مؤشرات الأداء"
 
 #: templates/base.html:153
 msgid "Audit log"
@@ -3272,16 +3273,16 @@ msgstr "سجل التدقيق"
 #: templates/maintenance/dashboard.html:214 templates/maintenance/kpi.html:135
 #: templates/maintenance/reporters_report.html:23
 msgid "Reports"
-msgstr ""
+msgstr "التقارير"
 
 #: templates/base.html:160 templates/maintenance/dashboard.html:217
 #: templates/maintenance/reports.html:88
 msgid "Machine cost report"
-msgstr ""
+msgstr "تقرير تكلفة الماكينة"
 
 #: templates/base.html:163
 msgid "Pending repairs"
-msgstr ""
+msgstr "إصلاحات معلقة"
 
 #: templates/base.html:164
 msgid "Returned EROs awaiting manager acceptance"
@@ -3289,11 +3290,11 @@ msgstr ""
 
 #: templates/base.html:167
 msgid "Pending approvals"
-msgstr ""
+msgstr "موافقات معلقة"
 
 #: templates/base.html:172
 msgid "Shortage dashboard"
-msgstr ""
+msgstr "لوحة النقص"
 
 #: templates/base.html:173
 msgid "Pending shortage reports awaiting decision"
@@ -3305,15 +3306,15 @@ msgstr ""
 
 #: templates/base.html:175
 msgid "Stuck in fulfillment >7 days"
-msgstr ""
+msgstr "متأخرة في التنفيذ أكثر من 7 أيام"
 
 #: templates/base.html:181
 msgid "Legacy reconciliation"
-msgstr ""
+msgstr "تسوية قديمة"
 
 #: templates/base.html:182
 msgid "Work orders still on the legacy state model"
-msgstr ""
+msgstr "أوامر العمل still on the legacy state model"
 
 #: templates/base.html:191
 msgid "Admin"
@@ -3467,7 +3468,7 @@ msgstr ""
 
 #: templates/maintenance/_cost_tab.html:451
 msgid "Costs will appear here after work orders are closed."
-msgstr ""
+msgstr "Costs will appear here after أمر عملs are closed."
 
 #: templates/maintenance/_cost_tab.html:463
 #: templates/maintenance/_cost_tab.html:566
@@ -4264,49 +4265,53 @@ msgstr "الدور:"
 msgid "— quick access based on your permissions."
 msgstr ""
 
+#: templates/maintenance/dashboard.html:6
+msgid "Reach your most-used pages instantly."
+msgstr ""
+
 #: templates/maintenance/dashboard.html:10
 msgid "New issues"
-msgstr ""
+msgstr "مشكلات جديدة"
 
 #: templates/maintenance/dashboard.html:13
 msgid "Open work orders"
-msgstr ""
+msgstr "أوامر عمل مفتوحة"
 
 #: templates/maintenance/dashboard.html:19 templates/maintenance/kpi.html:14
 msgid "Open emergency WO"
-msgstr ""
+msgstr "أمر عمل طارئ مفتوح"
 
 #: templates/maintenance/dashboard.html:22
 msgid "Pending part requests"
-msgstr ""
+msgstr "طلبات أجزاء معلقة"
 
 #: templates/maintenance/dashboard.html:25
 msgid "Pending ext. repair req."
-msgstr ""
+msgstr "طلبات إصلاح خارجي معلقة"
 
 #: templates/maintenance/dashboard.html:28
 msgid "Paused WO"
-msgstr ""
+msgstr "أمر عمل متوقف"
 
 #: templates/maintenance/dashboard.html:31
 msgid "Overdue WO (&gt;7d)"
-msgstr ""
+msgstr "أوامر عمل متأخرة (&gt;7d)"
 
 #: templates/maintenance/dashboard.html:34
 msgid "Pending PRs"
-msgstr ""
+msgstr "طلبات شراء معلقة"
 
 #: templates/maintenance/dashboard.html:39
 msgid "Shortages awaiting decision"
-msgstr ""
+msgstr "حالات نقص بانتظار القرار"
 
 #: templates/maintenance/dashboard.html:45
 msgid "Shortages in fulfillment"
-msgstr ""
+msgstr "حالات نقص قيد التنفيذ"
 
 #: templates/maintenance/dashboard.html:51
 msgid "Stuck in fulfillment &gt;7d"
-msgstr ""
+msgstr "متأخرة في التنفيذ أكثر من 7 أيام"
 
 #: templates/maintenance/dashboard.html:55
 msgid "Low stock items"
@@ -4322,11 +4327,11 @@ msgstr ""
 
 #: templates/maintenance/dashboard.html:70
 msgid "Issues NEW &gt; 24h"
-msgstr ""
+msgstr "مشكلات جديدة لأكثر من 24 ساعة"
 
 #: templates/maintenance/dashboard.html:73
 msgid "PM schedules overdue"
-msgstr ""
+msgstr "جداول صيانة وقائية متأخرة"
 
 #: templates/maintenance/dashboard.html:76
 msgid "My in-progress WO"
@@ -4338,7 +4343,7 @@ msgstr ""
 
 #: templates/maintenance/dashboard.html:84
 msgid "Parts Missing Image"
-msgstr ""
+msgstr "قطع بدون صورة"
 
 #: templates/maintenance/dashboard.html:94
 msgid "Review now →"
@@ -4350,35 +4355,101 @@ msgstr ""
 
 #: templates/maintenance/dashboard.html:113
 msgid "Open shortage dashboard →"
-msgstr ""
+msgstr "← افتح لوحة النقص"
 
 #: templates/maintenance/dashboard.html:119
 msgid "Needs attention"
-msgstr ""
+msgstr "تحتاج انتباه"
 
 #: templates/maintenance/dashboard.html:121
 msgid "issue(s) still in"
-msgstr ""
+msgstr "مشكلة لا تزال في"
 
 #: templates/maintenance/dashboard.html:121
 msgid "after 24h —"
-msgstr ""
+msgstr "بعد 24 ساعة -"
 
 #: templates/maintenance/dashboard.html:121
 msgid "review issues"
-msgstr ""
+msgstr "مراجعة المشكلات"
 
 #: templates/maintenance/dashboard.html:123
 msgid "Overdue PM (next due)"
-msgstr ""
+msgstr "صيانة وقائية متأخرة (الاستحقاق القادم)"
 
 #: templates/maintenance/dashboard.html:125
 msgid "PM schedules"
-msgstr ""
+msgstr "جداول الصيانة الوقائية"
 
 #: templates/maintenance/dashboard.html:134
 msgid "Quick actions — manager queue"
-msgstr "إجراءات سريعة — manager queue"
+msgstr "إجراءات سريعة - قائمة المدير"
+
+#: templates/maintenance/dashboard.html:138
+#, python-format
+msgid "%(counter)s part request awaiting your approval"
+msgid_plural "%(counter)s part requests awaiting your approval"
+msgstr[0] "%(counter)s طلب جزء بانتظار موافقتك"
+msgstr[1] "%(counter)s طلب جزء بانتظار موافقتك"
+msgstr[2] "%(counter)s طلب جزء بانتظار موافقتك"
+msgstr[3] "%(counter)s طلب جزء بانتظار موافقتك"
+msgstr[4] "%(counter)s طلب جزء بانتظار موافقتك"
+msgstr[5] "%(counter)s طلب جزء بانتظار موافقتك"
+
+#: templates/maintenance/dashboard.html:143
+#, python-format
+msgid "%(counter)s ext. repair request to review"
+msgid_plural "%(counter)s ext. repair requests to review"
+msgstr[0] "%(counter)s طلب إصلاح خارجي للمراجعة"
+msgstr[1] "%(counter)s طلب إصلاح خارجي للمراجعة"
+msgstr[2] "%(counter)s طلب إصلاح خارجي للمراجعة"
+msgstr[3] "%(counter)s طلب إصلاح خارجي للمراجعة"
+msgstr[4] "%(counter)s طلب إصلاح خارجي للمراجعة"
+msgstr[5] "%(counter)s طلب إصلاح خارجي للمراجعة"
+
+#: templates/maintenance/dashboard.html:148
+#, python-format
+msgid "%(counter)s WO pending your review"
+msgid_plural "%(counter)s WOs pending your review"
+msgstr[0] "%(counter)s أمر عمل بانتظار مراجعتك"
+msgstr[1] "%(counter)s أمر عمل بانتظار مراجعتك"
+msgstr[2] "%(counter)s أمر عمل بانتظار مراجعتك"
+msgstr[3] "%(counter)s أمر عمل بانتظار مراجعتك"
+msgstr[4] "%(counter)s أمر عمل بانتظار مراجعتك"
+msgstr[5] "%(counter)s أمر عمل بانتظار مراجعتك"
+
+#: templates/maintenance/dashboard.html:153
+#, python-format
+msgid "%(counter)s paused WO"
+msgid_plural "%(counter)s paused WOs"
+msgstr[0] "%(counter)s أمر عمل متوقف"
+msgstr[1] "%(counter)s أمر عمل متوقف"
+msgstr[2] "%(counter)s أمر عمل متوقف"
+msgstr[3] "%(counter)s أمر عمل متوقف"
+msgstr[4] "%(counter)s أمر عمل متوقف"
+msgstr[5] "%(counter)s أمر عمل متوقف"
+
+#: templates/maintenance/dashboard.html:158
+#, python-format
+msgid "%(counter)s overdue WO (>7d)"
+msgid_plural "%(counter)s overdue WOs (>7d)"
+msgstr[0] "%(counter)s أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[1] "%(counter)s أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[2] "%(counter)s أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[3] "%(counter)s أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[4] "%(counter)s أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[5] "%(counter)s أمر عمل متأخر (أكثر من 7 أيام)"
+
+#: templates/maintenance/dashboard.html:163
+#, python-format
+msgid "%(counter)s returned repair awaiting acceptance"
+msgid_plural "%(counter)s returned repairs awaiting acceptance"
+msgstr[0] "%(counter)s إصلاح مُعاد بانتظار القبول"
+msgstr[1] "%(counter)s إصلاح مُعاد بانتظار القبول"
+msgstr[2] "%(counter)s إصلاح مُعاد بانتظار القبول"
+msgstr[3] "%(counter)s إصلاح مُعاد بانتظار القبول"
+msgstr[4] "%(counter)s إصلاح مُعاد بانتظار القبول"
+msgstr[5] "%(counter)s إصلاح مُعاد بانتظار القبول"
 
 #: templates/maintenance/dashboard.html:167
 msgid "All caught up. Nothing pending your decision."
@@ -4386,7 +4457,7 @@ msgstr ""
 
 #: templates/maintenance/dashboard.html:175
 msgid "Quick actions — supply"
-msgstr "إجراءات سريعة — supply"
+msgstr "إجراءات سريعة - supply"
 
 #: templates/maintenance/dashboard.html:198
 msgid "All caught up. Nothing pending your action."
@@ -4394,26 +4465,26 @@ msgstr ""
 
 #: templates/maintenance/dashboard.html:204
 msgid "Shortcuts"
-msgstr ""
+msgstr "الاختصارات"
 
 #: templates/maintenance/dashboard.html:207
 #: templates/maintenance/issue_list.html:12
 #: templates/maintenance/machine_list.html:71
 msgid "Report issue"
-msgstr ""
+msgstr "إبلاغ عن مشكلة"
 
 #: templates/maintenance/dashboard.html:209
 #: templates/maintenance/my_workorders.html:8
 msgid "My work orders"
-msgstr ""
+msgstr "My أمر عملs"
 
 #: templates/maintenance/dashboard.html:225
 msgid "Recent notifications"
-msgstr ""
+msgstr "إشعارات حديثة"
 
 #: templates/maintenance/dashboard.html:229
 msgid "All notifications"
-msgstr ""
+msgstr "كل الإشعارات"
 
 #: templates/maintenance/dashboard.html:231
 #: templates/maintenance/notifications.html:32
@@ -4422,7 +4493,7 @@ msgstr ""
 
 #: templates/maintenance/dashboard.html:236
 msgid "Your queue"
-msgstr ""
+msgstr "قائمة انتظارك"
 
 #: templates/maintenance/dashboard.html:239
 msgid "Your issues"
@@ -4459,7 +4530,7 @@ msgstr ""
 
 #: templates/maintenance/dashboard.html:294
 msgid "No personal queue items."
-msgstr ""
+msgstr "لا توجد عناصر في قائمة انتظارك."
 
 #: templates/maintenance/emergency_wo.html:14
 #: templates/maintenance/issue_form.html:33
@@ -4663,7 +4734,7 @@ msgstr ""
 #: templates/maintenance/issue_form.html:7
 #: templates/maintenance/issue_list.html:13
 msgid "Scan machine QR"
-msgstr ""
+msgstr "مسح رمز QR للماكينة"
 
 #: templates/maintenance/issue_form.html:9
 msgid "View machines"
@@ -4702,29 +4773,29 @@ msgstr ""
 
 #: templates/maintenance/issue_list.html:25
 msgid "My reports"
-msgstr ""
+msgstr "تقاريري"
 
 #: templates/maintenance/issue_list.html:28
 #: templates/procurement/po_list.html:36
 msgid "All time"
-msgstr ""
+msgstr "كل الوقت"
 
 #: templates/maintenance/issue_list.html:30
 msgid "Last 7d"
-msgstr ""
+msgstr "آخر 7 أيام"
 
 #: templates/maintenance/issue_list.html:32
 msgid "Last 30d"
-msgstr ""
+msgstr "آخر 30 يوم"
 
 #: templates/maintenance/issue_list.html:34
 msgid "Last 90d"
-msgstr ""
+msgstr "آخر 90 يوم"
 
 #: templates/maintenance/issue_list.html:45
 #: templates/maintenance/machine_detail.html:158
 msgid "Reporter"
-msgstr ""
+msgstr "المُبلِغ"
 
 #: templates/maintenance/issue_list.html:61
 msgid "Validate"
@@ -4778,7 +4849,7 @@ msgstr ""
 
 #: templates/maintenance/kpi.html:15
 msgid "PM work orders closed (90d)"
-msgstr ""
+msgstr "PM أمر عملs closed (90d)"
 
 #: templates/maintenance/kpi.html:16
 msgid "Lost tools"
@@ -4833,7 +4904,7 @@ msgstr ""
 
 #: templates/maintenance/kpi.html:118
 msgid "No closed corrective work orders in the last 90 days."
-msgstr ""
+msgstr "No closed corrective أمر عملs in the last 90 days."
 
 #: templates/maintenance/kpi.html:128
 msgid "Top reporters (30d)"
@@ -5028,7 +5099,7 @@ msgstr ""
 #: templates/maintenance/machine_detail.html:144
 #: templates/maintenance/machine_detail.html:149
 msgid "No work orders yet."
-msgstr ""
+msgstr "No أمر عملs yet."
 
 #: templates/maintenance/machine_detail.html:158
 #: templates/maintenance/preventive/mgr_history.html:58
@@ -5106,7 +5177,7 @@ msgstr ""
 #: templates/maintenance/machine_detail.html:257
 #: templates/maintenance/machine_detail.html:261
 msgid "No PM schedules yet."
-msgstr ""
+msgstr "No جداول الصيانة الوقائية yet."
 
 #: templates/maintenance/machine_detail.html:269
 #: templates/maintenance/pm_template_list.html:15
@@ -5284,7 +5355,7 @@ msgstr "عرض"
 
 #: templates/maintenance/my_workorders.html:15
 msgid "Open work orders assigned to you"
-msgstr ""
+msgstr "أوامر عمل مفتوحة assigned to you"
 
 #: templates/maintenance/my_workorders.html:18
 msgid "In-progress right now"
@@ -5299,11 +5370,11 @@ msgstr ""
 
 #: templates/maintenance/my_workorders.html:75
 msgid "No open work orders assigned to you. 🎉"
-msgstr ""
+msgstr "No open أمر عملs assigned to you. 🎉"
 
 #: templates/maintenance/my_workorders.html:84
 msgid "View all work orders"
-msgstr ""
+msgstr "View all أمر عملs"
 
 #: templates/maintenance/notifications.html:6
 msgid "In-app alerts: new issues, validated issues,"
@@ -5311,7 +5382,7 @@ msgstr ""
 
 #: templates/maintenance/notifications.html:6
 msgid "emergency work orders"
-msgstr ""
+msgstr "emergency أمر عملs"
 
 #: templates/maintenance/notifications.html:6
 msgid ", assignments, manager review,"
@@ -5405,7 +5476,7 @@ msgstr ""
 
 #: templates/maintenance/pm_batch_spawn_confirm.html:6
 msgid "Review the schedules below and confirm to spawn a work order for each."
-msgstr ""
+msgstr "Review the schedules below and confirm to spawn a أمر عمل for each."
 
 #: templates/maintenance/pm_batch_spawn_confirm.html:21
 msgid "Estimated"
@@ -5471,7 +5542,7 @@ msgstr ""
 
 #: templates/maintenance/pm_dashboard.html:115
 msgid "&larr; All PM schedules"
-msgstr ""
+msgstr "&larr; All جداول الصيانة الوقائية"
 
 #: templates/maintenance/pm_dashboard.html:116
 #: templates/maintenance/pm_list.html:10
@@ -5498,7 +5569,7 @@ msgstr ""
 
 #: templates/maintenance/pm_list.html:6
 msgid "Schedules drive PM work orders. Spawn a WO when due."
-msgstr ""
+msgstr "Schedules drive PM أمر عملs. Spawn a WO when due."
 
 #: templates/maintenance/pm_list.html:9
 msgid "New schedule"
@@ -5547,7 +5618,7 @@ msgstr ""
 
 #: templates/maintenance/pm_list.html:93
 msgid "No PM schedules match the filter."
-msgstr ""
+msgstr "No جداول الصيانة الوقائية match the filter."
 
 #: templates/maintenance/pm_list.html:102
 msgid "Spawn WOs for selected"
@@ -6121,7 +6192,7 @@ msgstr ""
 
 #: templates/maintenance/quick_log.html:6
 msgid "Ad-hoc notes on a machine without opening a full issue or work order."
-msgstr ""
+msgstr "Ad-hoc notes on a machine without opening a full issue or أمر عمل."
 
 #: templates/maintenance/reconciliation_dashboard.html:14
 msgid "All WorkOrders are on the blocker system (version 1+)."
@@ -6312,16 +6383,16 @@ msgstr ""
 
 #: templates/maintenance/reports.html:24
 msgid "Work orders by status"
-msgstr ""
+msgstr "أوامر العمل by status"
 
 #: templates/maintenance/reports.html:29
 #: templates/maintenance/workorder_list.html:33
 msgid "No work orders."
-msgstr ""
+msgstr "No أمر عملs."
 
 #: templates/maintenance/reports.html:33
 msgid "View all work orders →"
-msgstr ""
+msgstr "View all أمر عملs →"
 
 #: templates/maintenance/reports.html:40
 msgid "Technician throughput (closed WO count)"
@@ -6427,7 +6498,7 @@ msgstr ""
 
 #: templates/maintenance/reports_parts_issued.html:6
 msgid "All spare parts issued against work orders, ranked by total quantity."
-msgstr ""
+msgstr "All spare parts issued against أمر عملs, ranked by total quantity."
 
 #: templates/maintenance/reports_parts_issued.html:10
 msgid "UOM"
@@ -6443,7 +6514,7 @@ msgstr ""
 
 #: templates/maintenance/reports_technicians.html:6
 msgid "All technicians ranked by closed work orders and average repair time."
-msgstr ""
+msgstr "All technicians ranked by closed أمر عملs and average repair time."
 
 #: templates/maintenance/reports_technicians.html:10
 msgid "Avg repair hours"
@@ -6459,7 +6530,7 @@ msgstr ""
 
 #: templates/maintenance/reports_work_orders.html:7
 msgid "All work orders with status breakdown."
-msgstr ""
+msgstr "All أمر عملs with status breakdown."
 
 #: templates/maintenance/reports_work_orders.html:11
 msgid "Overdue (&gt;7d)"
@@ -6731,7 +6802,7 @@ msgstr ""
 
 #: templates/maintenance/spare_part_detail.html:162
 msgid "Recent work orders using this part"
-msgstr ""
+msgstr "Recent أمر عملs using this part"
 
 #: templates/maintenance/spare_part_detail.html:186
 msgid "Pending purchase requests"
@@ -6962,7 +7033,7 @@ msgstr ""
 
 #: templates/maintenance/technician_report.html:26
 msgid "work orders closed"
-msgstr ""
+msgstr "أمر عملs closed"
 
 #: templates/maintenance/technician_report.html:33
 msgid "actively being worked"
@@ -7003,7 +7074,7 @@ msgstr ""
 
 #: templates/maintenance/technician_report.html:77
 msgid "Recent closed work orders"
-msgstr ""
+msgstr "Recent closed أمر عملs"
 
 #: templates/maintenance/technician_report.html:84
 #: templates/maintenance/workorder_detail.html:81
@@ -7016,7 +7087,7 @@ msgstr ""
 
 #: templates/maintenance/technician_report.html:108
 msgid "No closed work orders yet."
-msgstr ""
+msgstr "No closed أمر عملs yet."
 
 #: templates/maintenance/tool_form.html:6
 msgid ""
@@ -7151,11 +7222,11 @@ msgstr ""
 
 #: templates/maintenance/workorder_create_confirm.html:35
 msgid "Create work order"
-msgstr ""
+msgstr "Create أمر عمل"
 
 #: templates/maintenance/workorder_detail.html:9
 msgid "Back to work orders"
-msgstr ""
+msgstr "Back to أمر عملs"
 
 #: templates/maintenance/workorder_detail.html:35
 msgid "📋 View PM Work Order"
@@ -7195,7 +7266,7 @@ msgstr ""
 
 #: templates/maintenance/workorder_detail.html:111
 msgid "You already have an active work order:"
-msgstr ""
+msgstr "You already have an active أمر عمل:"
 
 #: templates/maintenance/workorder_detail.html:111
 msgid ""

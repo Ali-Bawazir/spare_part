@@ -3,7 +3,7 @@
 {% block title %}Dashboard{% endblock %}
 {% block page_heading %}Dashboard{% endblock %}
 {% block content %}
-<p class="mms-page-lead">{% trans "Role:" %}<strong>{{ role }}</strong>{% trans "— quick access based on your permissions." %}</p>
+<p class="mms-page-lead">{% trans "Role:" %}<strong>{{ role }}</strong>{% trans "— quick access based on your permissions." %} {% trans "Reach your most-used pages instantly." %}</p>
 
 <div class="mms-grid mms-grid--kpis">
   {% if open_issues is not None %}
@@ -118,7 +118,7 @@
 <div class="mms-card" style="margin-top:1rem;border:1px solid rgba(180,83,9,.35)">
   <div class="mms-card-header">{% trans "Needs attention" %}</div>
   <div class="mms-card-body">
-    {% if stale_new_issues and perm_view_issues %}<p><strong>{{ stale_new_issues }}</strong>{% trans "issue(s) still in" %}<em>{% trans "New" %}</em>{% trans "after 24h —" %}<a href="{% url 'issue_list' %}">{% trans "review issues" %}</a>.</p>{% endif %}
+    {% if stale_new_issues and perm_view_issues %}<p><strong>{{ stale_new_issues }}</strong> {% trans "issue(s) still in" %} <em>{% trans "New" %}</em> {% trans "after 24h —" %} <a href="{% url 'issue_list' %}">{% trans "review issues" %}</a>.</p>{% endif %}
     {% if overdue_pm and perm_pm_schedule_manage %}
     <p style="margin-top:.75rem;font-size:.85rem;font-weight:600">{% trans "Overdue PM (next due)" %}</p>
     <ul style="margin:.35rem 0 0 1.1rem;font-size:.875rem">{% for s in overdue_pm %}<li>{{ s.machine.name }} — {{ s.title }} (due {{ s.next_due_at|date:"Y-m-d H:i" }})</li>{% endfor %}</ul>
@@ -135,32 +135,32 @@
     <div class="mms-card-body mms-stack">
       {% if pending_part_requests %}
       <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_list' %}?has_pending_part=1">
-        {{ pending_part_requests }} part request{{ pending_part_requests|pluralize }} awaiting your approval
+        {% blocktrans count counter=pending_part_requests %}{{ counter }} part request awaiting your approval{% plural %}{{ counter }} part requests awaiting your approval{% endblocktrans %}
       </a>
       {% endif %}
       {% if pending_external_repair_requests %}
       <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}">
-        {{ pending_external_repair_requests }} ext. repair request{{ pending_external_repair_requests|pluralize }} to review
+        {% blocktrans count counter=pending_external_repair_requests %}{{ counter }} ext. repair request to review{% plural %}{{ counter }} ext. repair requests to review{% endblocktrans %}
       </a>
       {% endif %}
       {% if pending_review %}
       <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_list' %}?status=pending_review">
-        {{ pending_review }} WO pending your review
+        {% blocktrans count counter=pending_review %}{{ counter }} WO pending your review{% plural %}{{ counter }} WOs pending your review{% endblocktrans %}
       </a>
       {% endif %}
       {% if paused_wos %}
       <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?status=paused">
-        {{ paused_wos }} paused WO
+        {% blocktrans count counter=paused_wos %}{{ counter }} paused WO{% plural %}{{ counter }} paused WOs{% endblocktrans %}
       </a>
       {% endif %}
       {% if overdue_wos %}
       <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?overdue=1">
-        {{ overdue_wos }} overdue WO (&gt;7d)
+        {% blocktrans count counter=overdue_wos %}{{ counter }} overdue WO (>7d){% plural %}{{ counter }} overdue WOs (>7d){% endblocktrans %}
       </a>
       {% endif %}
       {% if nav_ero_returned %}
       <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}?status=returned">
-        {{ nav_ero_returned }} returned repair{{ nav_ero_returned|pluralize }} awaiting acceptance
+        {% blocktrans count counter=nav_ero_returned %}{{ counter }} returned repair awaiting acceptance{% plural %}{{ counter }} returned repairs awaiting acceptance{% endblocktrans %}
       </a>
       {% endif %}
       {% if not pending_part_requests and not pending_external_repair_requests and not pending_review and not paused_wos and not overdue_wos and not nav_ero_returned %}

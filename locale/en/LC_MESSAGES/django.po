@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 22:24+0300\n"
+"POT-Creation-Date: 2026-07-06 23:19+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4380,6 +4380,48 @@ msgstr ""
 #: templates/maintenance/dashboard.html:134
 msgid "Quick actions — manager queue"
 msgstr ""
+
+#: templates/maintenance/dashboard.html:138
+#, python-format
+msgid "%(counter)s part request awaiting your approval"
+msgid_plural "%(counter)s part requests awaiting your approval"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/maintenance/dashboard.html:143
+#, python-format
+msgid "%(counter)s ext. repair request to review"
+msgid_plural "%(counter)s ext. repair requests to review"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/maintenance/dashboard.html:148
+#, python-format
+msgid "%(counter)s WO pending your review"
+msgid_plural "%(counter)s WOs pending your review"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/maintenance/dashboard.html:153
+#, python-format
+msgid "%(counter)s paused WO"
+msgid_plural "%(counter)s paused WOs"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/maintenance/dashboard.html:158
+#, python-format
+msgid "%(counter)s overdue WO (>7d)"
+msgid_plural "%(counter)s overdue WOs (>7d)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/maintenance/dashboard.html:163
+#, python-format
+msgid "%(counter)s returned repair awaiting acceptance"
+msgid_plural "%(counter)s returned repairs awaiting acceptance"
+msgstr[0] ""
+msgstr[1] ""
 
 #: templates/maintenance/dashboard.html:167
 msgid "All caught up. Nothing pending your decision."
