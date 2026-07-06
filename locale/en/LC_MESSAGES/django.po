@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 22:19+0300\n"
+"POT-Creation-Date: 2026-07-06 22:24+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2248,6 +2248,50 @@ msgstr ""
 msgid "HIGH COST"
 msgstr ""
 
+#: maintenance/test_i18n.py:65 templates/base.html:24
+msgid "Dashboard"
+msgstr ""
+
+#: maintenance/test_i18n.py:66 templates/maintenance/pm_form.html:56
+#: templates/maintenance/preventive/mgr_plan_form.html:24
+#: templates/maintenance/preventive/mgr_template_form.html:41
+#: templates/maintenance/quick_log.html:13
+#: templates/maintenance/repair_officer.html:13
+#: templates/maintenance/stock_in.html:23
+#: templates/procurement/pr_officer.html:21
+msgid "Save"
+msgstr ""
+
+#: maintenance/test_i18n.py:67 templates/accounts/mms_user_create.html:24
+#: templates/accounts/mms_user_edit.html:24
+#: templates/maintenance/issue_detail.html:101
+#: templates/maintenance/part_adjust.html:94
+#: templates/maintenance/pm_batch_spawn_confirm.html:52
+#: templates/maintenance/pm_review.html:98
+#: templates/maintenance/pm_spawn_wo.html:36
+#: templates/maintenance/pm_template_form.html:46
+#: templates/maintenance/pm_wo_detail.html:156
+#: templates/maintenance/pm_wo_detail.html:171
+#: templates/maintenance/preventive/execute.html:84
+#: templates/maintenance/preventive/mgr_plan_form.html:25
+#: templates/maintenance/preventive/mgr_reviews.html:48
+#: templates/maintenance/preventive/mgr_template_form.html:42
+#: templates/maintenance/qr_scan.html:44
+#: templates/maintenance/repair_accept.html:39
+#: templates/maintenance/spare_part_form.html:121
+#: templates/maintenance/spare_part_form.html:123
+#: templates/maintenance/supplier_form.html:63
+#: templates/maintenance/workorder_create_confirm.html:36
+#: templates/maintenance/workorder_part_re_review.html:81
+#: templates/maintenance/workorder_switch_confirm.html:28
+#: templates/procurement/po_close_short.html:34
+#: templates/procurement/po_form.html:100
+#: templates/procurement/po_form.html:117
+#: templates/procurement/po_receive.html:113
+#: templates/procurement/pr_officer.html:39
+msgid "Cancel"
+msgstr ""
+
 #: maintenance/validators.py:18
 msgid "Component requires a machine to be set."
 msgstr ""
@@ -2646,6 +2690,77 @@ msgstr ""
 msgid "Quick log saved."
 msgstr ""
 
+#: maintenance/views.py:6104
+msgid "Occurred at"
+msgstr ""
+
+#: maintenance/views.py:6104
+msgid "Work order"
+msgstr ""
+
+#: maintenance/views.py:6104 templates/maintenance/_cost_ledger_table.html:115
+#: templates/maintenance/failure_mode_report.html:24
+#: templates/maintenance/my_workorders.html:39
+#: templates/maintenance/reorder_suggestions.html:16
+#: templates/maintenance/spare_part_form.html:36
+#: templates/maintenance/stock_dashboard.html:62
+#: templates/maintenance/stock_lookup.html:50
+#: templates/maintenance/supplier_detail.html:70
+#: templates/maintenance/workorder_list.html:20
+msgid "Category"
+msgstr ""
+
+#: maintenance/views.py:6104
+msgid "Source type"
+msgstr ""
+
+#: maintenance/views.py:6105
+msgid "Source ID"
+msgstr ""
+
+#: maintenance/views.py:6105 templates/maintenance/_cost_ledger_table.html:117
+msgid "Amount"
+msgstr ""
+
+#: maintenance/views.py:6105
+msgid "Currency"
+msgstr ""
+
+#: maintenance/views.py:6105 templates/maintenance/_cost_ledger_table.html:118
+#: templates/maintenance/_wo_actions_technician.html:138
+#: templates/maintenance/consumables.html:56
+#: templates/maintenance/consumables.html:89
+#: templates/maintenance/machine_cost_report.html:55
+#: templates/maintenance/workorder_part_re_review.html:52
+#: templates/procurement/pr_detail.html:76
+msgid "Quantity"
+msgstr ""
+
+#: maintenance/views.py:6106 templates/maintenance/_cost_ledger_table.html:119
+msgid "Unit cost"
+msgstr ""
+
+#: maintenance/views.py:6106 templates/maintenance/_cost_ledger_table.html:120
+msgid "Memo"
+msgstr ""
+
+#: maintenance/views.py:6106 templates/maintenance/_cost_ledger_table.html:121
+#: templates/maintenance/audit_log.html:10
+msgid "Actor"
+msgstr ""
+
+#: maintenance/views.py:6106
+msgid "Is reversal"
+msgstr ""
+
+#: maintenance/views.py:6107
+msgid "Supersedes ID"
+msgstr ""
+
+#: maintenance/views.py:6107
+msgid "Adjustment ID"
+msgstr ""
+
 #: maintenance/views_preventive.py:285
 msgid "Maintenance submitted for review."
 msgstr ""
@@ -2890,6 +3005,10 @@ msgstr ""
 msgid "Auto-issued to WOs: %(items)s"
 msgstr ""
 
+#: procurement/views.py:818
+msgid "PURCHASE ORDER"
+msgstr ""
+
 #: procurement/views.py:904
 msgid "POST required"
 msgstr ""
@@ -2941,36 +3060,6 @@ msgstr ""
 #: templates/accounts/mms_user_create.html:23
 #: templates/accounts/mms_user_list.html:7
 msgid "Create user"
-msgstr ""
-
-#: templates/accounts/mms_user_create.html:24
-#: templates/accounts/mms_user_edit.html:24
-#: templates/maintenance/issue_detail.html:101
-#: templates/maintenance/part_adjust.html:94
-#: templates/maintenance/pm_batch_spawn_confirm.html:52
-#: templates/maintenance/pm_review.html:98
-#: templates/maintenance/pm_spawn_wo.html:36
-#: templates/maintenance/pm_template_form.html:46
-#: templates/maintenance/pm_wo_detail.html:156
-#: templates/maintenance/pm_wo_detail.html:171
-#: templates/maintenance/preventive/execute.html:84
-#: templates/maintenance/preventive/mgr_plan_form.html:25
-#: templates/maintenance/preventive/mgr_reviews.html:48
-#: templates/maintenance/preventive/mgr_template_form.html:42
-#: templates/maintenance/qr_scan.html:44
-#: templates/maintenance/repair_accept.html:39
-#: templates/maintenance/spare_part_form.html:121
-#: templates/maintenance/spare_part_form.html:123
-#: templates/maintenance/supplier_form.html:63
-#: templates/maintenance/workorder_create_confirm.html:36
-#: templates/maintenance/workorder_part_re_review.html:81
-#: templates/maintenance/workorder_switch_confirm.html:28
-#: templates/procurement/po_close_short.html:34
-#: templates/procurement/po_form.html:100
-#: templates/procurement/po_form.html:117
-#: templates/procurement/po_receive.html:113
-#: templates/procurement/pr_officer.html:39
-msgid "Cancel"
 msgstr ""
 
 #: templates/accounts/mms_user_edit.html:6
@@ -3041,10 +3130,6 @@ msgstr ""
 
 #: templates/base.html:23
 msgid "Overview"
-msgstr ""
-
-#: templates/base.html:24
-msgid "Dashboard"
 msgstr ""
 
 #: templates/base.html:29 templates/base.html:384 templates/base.html:442
@@ -3364,48 +3449,9 @@ msgstr ""
 msgid "When"
 msgstr ""
 
-#: templates/maintenance/_cost_ledger_table.html:115
-#: templates/maintenance/failure_mode_report.html:24
-#: templates/maintenance/my_workorders.html:39
-#: templates/maintenance/reorder_suggestions.html:16
-#: templates/maintenance/spare_part_form.html:36
-#: templates/maintenance/stock_dashboard.html:62
-#: templates/maintenance/stock_lookup.html:50
-#: templates/maintenance/supplier_detail.html:70
-#: templates/maintenance/workorder_list.html:20
-msgid "Category"
-msgstr ""
-
 #: templates/maintenance/_cost_ledger_table.html:116
 #: templates/maintenance/consumables.html:128
 msgid "Source"
-msgstr ""
-
-#: templates/maintenance/_cost_ledger_table.html:117
-msgid "Amount"
-msgstr ""
-
-#: templates/maintenance/_cost_ledger_table.html:118
-#: templates/maintenance/_wo_actions_technician.html:138
-#: templates/maintenance/consumables.html:56
-#: templates/maintenance/consumables.html:89
-#: templates/maintenance/machine_cost_report.html:55
-#: templates/maintenance/workorder_part_re_review.html:52
-#: templates/procurement/pr_detail.html:76
-msgid "Quantity"
-msgstr ""
-
-#: templates/maintenance/_cost_ledger_table.html:119
-msgid "Unit cost"
-msgstr ""
-
-#: templates/maintenance/_cost_ledger_table.html:120
-msgid "Memo"
-msgstr ""
-
-#: templates/maintenance/_cost_ledger_table.html:121
-#: templates/maintenance/audit_log.html:10
-msgid "Actor"
 msgstr ""
 
 #: templates/maintenance/_cost_ledger_table.html:130
@@ -5445,16 +5491,6 @@ msgstr ""
 
 #: templates/maintenance/pm_form.html:45
 msgid "— leave blank to apply the PM to the whole machine"
-msgstr ""
-
-#: templates/maintenance/pm_form.html:56
-#: templates/maintenance/preventive/mgr_plan_form.html:24
-#: templates/maintenance/preventive/mgr_template_form.html:41
-#: templates/maintenance/quick_log.html:13
-#: templates/maintenance/repair_officer.html:13
-#: templates/maintenance/stock_in.html:23
-#: templates/procurement/pr_officer.html:21
-msgid "Save"
 msgstr ""
 
 #: templates/maintenance/pm_form.html:63

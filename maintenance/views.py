@@ -6094,13 +6094,17 @@ def cost_ledger_export_csv(request):
     qs = qs.order_by("-occurred_at", "-pk")
 
     response = HttpResponse(content_type="text/csv; charset=utf-8")
+    # UTF-8 BOM so Excel on Windows reads Arabic headers correctly
+    response.write("\ufeff")
+    # ASCII filename (per i18n plan); headers translated via gettext
     filename = "cost_ledger_all.csv" if request.GET.get("all") == "1" else f"cost_ledger_last_{days}d.csv"
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     writer = csv.writer(response)
     writer.writerow([
-        "occurred_at", "work_order", "category", "source_type", "source_id",
-        "amount", "currency", "quantity", "unit_cost", "memo", "actor",
-        "is_reversal", "supersedes_id", "adjustment_id",
+        _("Occurred at"), _("Work order"), _("Category"), _("Source type"),
+        _("Source ID"), _("Amount"), _("Currency"), _("Quantity"),
+        _("Unit cost"), _("Memo"), _("Actor"), _("Is reversal"),
+        _("Supersedes ID"), _("Adjustment ID"),
     ])
     for t in qs.iterator():
         writer.writerow([

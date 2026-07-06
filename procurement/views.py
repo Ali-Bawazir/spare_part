@@ -815,7 +815,7 @@ def purchase_order_pdf(request, pk):
     # Header
     elements.append(_header_table())
     elements.append(Spacer(1, 4 * mm))
-    elements.append(Paragraph(f"<b>PURCHASE ORDER</b>", styles["Normal"]))
+    elements.append(Paragraph(f"<b>{_('PURCHASE ORDER')}</b>", styles["Normal"]))
 
     # PO info
     elements += _section("Order Details")

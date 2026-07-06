@@ -1556,3 +1556,148 @@ body.mms-nav-locked {
   cursor: pointer;
 }
 [dir="rtl"] .mms-lang-switch { direction: rtl; }
+
+/* ==========================================================================
+   i18n RTL support (Commit 4)
+   When [dir="rtl"] is set (Arabic locale), mirror LTR-specific properties.
+   Only target the most visible layout-affecting rules. Per-chart RTL fixes
+   added on-demand when charts actually render wrong.
+   ========================================================================== */
+
+[dir="rtl"] body {
+  text-align: right;
+}
+
+/* Sidebar flip */
+[dir="rtl"] .mms-sidebar {
+  right: 0;
+  left: auto;
+}
+[dir="rtl"] .mms-main {
+  margin-left: 0;
+  margin-right: var(--mms-sidebar-w, 250px);
+}
+
+/* Nav links: align icon on the right in RTL */
+[dir="rtl"] .mms-nav-link {
+  text-align: right;
+}
+
+/* Topbar order: language switcher goes to the LEFT in RTL (mirrored) */
+[dir="rtl"] .mms-topbar {
+  flex-direction: row-reverse;
+}
+
+/* Border accents that were left-rails become right-rails */
+[dir="rtl"] .border-left {
+  border-left: 0 !important;
+  border-right: 4px solid #dc3545;
+}
+
+/* Asset tree chevrons: flip arrow direction */
+[dir="rtl"] .mms-asset-tree-chevron,
+[dir="rtl"] .mms-tree-toggle,
+[dir="rtl"] .mms-tree-arrow {
+  transform: scaleX(-1);
+}
+
+/* Mobile bottom nav: reverse order visually (HTML order unchanged) */
+[dir="rtl"] .mms-mobile-bottom-nav {
+  flex-direction: row-reverse;
+}
+
+/* Tables: numeric columns stay LTR even in RTL context */
+[dir="rtl"] td.numeric,
+[dir="rtl"] th.numeric,
+[dir="rtl"] .mms-numeric {
+  direction: ltr;
+  text-align: right;
+}
+
+/* Inputs and form controls */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="number"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+/* Inline help icons: icon should be on the LEFT of label in RTL */
+[dir="rtl"] .mms-help-icon {
+  margin-left: 0;
+  margin-right: .25rem;
+}
+
+/* Margin/padding utilities that were absolute become inline */
+[dir="rtl"] .ml-1, [dir="rtl"] .ml-2, [dir="rtl"] .ml-3 {
+  margin-left: 0;
+}
+[dir="rtl"] .mr-1, [dir="rtl"] .mr-2, [dir="rtl"] .mr-3 {
+  margin-right: 0;
+}
+
+/* Brand mark and logo: keep LTR for branded text */
+[dir="rtl"] .mms-brand-title,
+[dir="rtl"] .mms-brand-sub {
+  direction: ltr;
+  text-align: right;
+}
+
+/* KPI cards and badges stay LTR for numbers */
+[dir="rtl"] .mms-kpi-value {
+  direction: ltr;
+}
+
+/* Modal / dialog: flip header icon */
+[dir="rtl"] .modal-header .close {
+  margin-left: -1rem;
+  margin-right: auto;
+}
+
+/* Login brand centered stays centered regardless of dir */
+
+/* Charts: default LTR; per-chart RTL fix added on-demand (per plan: 
+   only fix charts that actually render incorrectly) */
+
+/* Form checkboxes and radios */
+[dir="rtl"] .form-check {
+  padding-left: 0;
+  padding-right: 1.25rem;
+}
+[dir="rtl"] .form-check-input {
+  margin-left: 0;
+  margin-right: -1.25rem;
+}
+
+/* Alerts / flash messages */
+[dir="rtl"] .alert {
+  text-align: right;
+}
+[dir="rtl"] .alert .mms-alert-link {
+  margin-left: 0;
+  margin-right: .5rem;
+}
+
+/* Tables: header text alignment */
+[dir="rtl"] th {
+  text-align: right;
+}
+
+/* Dropdown menus */
+[dir="rtl"] .dropdown-menu {
+  right: 0;
+  left: auto;
+  text-align: right;
+}
+
+/* List groups */
+[dir="rtl"] .list-group {
+  padding-right: 0;
+}
+
+/* Generic inline-block helpers */
+[dir="rtl"] .mms-flip {
+  transform: scaleX(-1);
+}
