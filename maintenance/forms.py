@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.forms.models import inlineformset_factory
+from django.utils.translation import gettext_lazy as _
 
 from .models import (
     ExternalRepairOrder,
@@ -31,19 +32,19 @@ class IssueReportForm(forms.ModelForm):
     issue_type = forms.ModelChoiceField(
         queryset=FailureCategory.objects.filter(is_active=True),
         required=False,
-        label="Failure Category",
-        help_text="Top-level failure classification",
+        label=_("Failure Category"),
+        help_text=_("Top-level failure classification"),
     )
     failure_mode = forms.ModelChoiceField(
         queryset=FailureMode.objects.filter(is_active=True),
         required=False,
-        label="Failure Mode",
-        help_text="Specific failure pattern (optional)",
+        label=_("Failure Mode"),
+        help_text=_("Specific failure pattern (optional)"),
     )
     is_emergency = forms.BooleanField(
         required=False,
-        label="Mark as emergency",
-        help_text=(
+        label=_("Mark as emergency"),
+        help_text=_(
             "P3.3: tick if this issue is an emergency. The issue will be "
             "set to CRITICAL priority, and any WO created from it will "
             "be an Emergency WO."
@@ -145,15 +146,15 @@ class WorkOrderPauseForm(forms.Form):
     pause_reason = forms.ChoiceField(
         choices=WorkOrder.PauseReason.choices,
         widget=forms.Select(attrs=_SEL),
-        label="Reason for pause",
+        label=_("Reason for pause"),
     )
     pause_note = forms.CharField(
         required=False,
         max_length=500,
         widget=forms.Textarea(
-            attrs={**_CTRL, "rows": 2, "placeholder": "Required when reason is 'Other'"}
+            attrs={**_CTRL, "rows": 2, "placeholder": _("Required when reason is 'Other'")}
         ),
-        label="Note",
+        label=_("Note"),
     )
 
     def clean(self):
@@ -162,7 +163,7 @@ class WorkOrderPauseForm(forms.Form):
         note = (cleaned.get("pause_note") or "").strip()
         if reason == WorkOrder.PauseReason.OTHER and not note:
             raise forms.ValidationError(
-                {"pause_note": "Note is required when reason is 'Other'."}
+                {"pause_note": _("Note is required when reason is 'Other'.")}
             )
         return cleaned
 
@@ -191,11 +192,11 @@ class PMScheduleForm(forms.ModelForm):
     )
     due_time = forms.TimeField(
         required=False,
-        help_text="Time-of-day for scheduled occurrences (default 08:00)",
+        help_text=_("Time-of-day for scheduled occurrences (default 08:00)"),
     )
     ends_at = forms.DateField(
         required=False,
-        help_text="Schedule stops generating occurrences after this date",
+        help_text=_("Schedule stops generating occurrences after this date"),
     )
 
     class Meta:
@@ -232,8 +233,8 @@ class PMScheduleForm(forms.ModelForm):
         self.fields["priority_override"].required = False
         self.fields["estimated_duration_override"].required = False
         self.fields["propagate_to_children"] = forms.BooleanField(
-            required=False, label="Apply to all child machines",
-            help_text="If this machine has child machines, create PM work orders for each of them.",
+            required=False, label=_("Apply to all child machines"),
+            help_text=_("If this machine has child machines, create PM work orders for each of them."),
             widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
         )
         if lock_asset:
@@ -259,7 +260,7 @@ class BasePMChecklistItemForm(forms.ModelForm):
     text = forms.CharField(
         max_length=500,
         required=False,
-        widget=forms.TextInput(attrs={**_CTRL, "placeholder": "Checklist item text"}),
+        widget=forms.TextInput(attrs={**_CTRL, "placeholder": _("Checklist item text")}),
     )
     order = forms.IntegerField(
         required=False,
@@ -289,10 +290,10 @@ class BasePMChecklistItemFormSet(forms.BaseInlineFormSet):
                 continue
             has_at_least_one = True
             if text.lower() in seen_texts:
-                form.add_error("text", "Duplicate checklist item text.")
+                form.add_error("text", _("Duplicate checklist item text."))
             seen_texts.add(text.lower())
         if not has_at_least_one:
-            raise forms.ValidationError("At least one checklist item is required.")
+            raise forms.ValidationError(_("At least one checklist item is required."))
 
 
 PMChecklistItemFormSet = forms.inlineformset_factory(
@@ -308,7 +309,7 @@ PMChecklistItemFormSet = forms.inlineformset_factory(
 class PMTemplateForm(forms.ModelForm):
     requires_photo_min_count = forms.IntegerField(
         required=False, min_value=0, max_value=20,
-        help_text="Minimum number of photos the technician must attach",
+        help_text=_("Minimum number of photos the technician must attach"),
     )
 
     class Meta:
@@ -333,8 +334,8 @@ class ToolAssignForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["tool"].queryset = Tool.objects.filter(status=Tool.Status.AVAILABLE).order_by("name")
-        self.fields["tool"].empty_label = "Select an available tool"
-        self.fields["tool"].help_text = "Only tools in Available status can be assigned."
+        self.fields["tool"].empty_label = _("Select an available tool")
+        self.fields["tool"].help_text = _("Only tools in Available status can be assigned.")
         self.fields["tool"].label_from_instance = lambda obj: f"{obj.name} ({obj.code})"
         self.fields["assignee"].queryset = User.objects.filter(
             role__in=[User.Role.OPERATOR, User.Role.TECHNICIAN],
@@ -457,9 +458,9 @@ class EmergencyWOForm(forms.Form):
         queryset=Machine.objects.filter(is_active=True, asset_level=5),
         required=False,
         widget=forms.Select(attrs=_SEL),
-        help_text="Optional: Target a specific component (level-5)",
+        help_text=_("Optional: Target a specific component (level-5)"),
     )
-    title = forms.CharField(max_length=255, widget=forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Line stop — hydraulic leak"}))
+    title = forms.CharField(max_length=255, widget=forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Line stop — hydraulic leak")}))
     detail = forms.CharField(widget=forms.Textarea(attrs={**_CTRL, "rows": 4}))
 
     def __init__(self, *args, lock_asset=False, **kwargs):
@@ -473,7 +474,7 @@ class TechVendorNoteForm(forms.Form):
     note = forms.CharField(
         required=False,
         max_length=500,
-        widget=forms.TextInput(attrs={**_CTRL, "placeholder": "Optional note for the log"}),
+        widget=forms.TextInput(attrs={**_CTRL, "placeholder": _("Optional note for the log")}),
     )
 
 
@@ -488,14 +489,14 @@ class ExternalRepairRequestForm(forms.ModelForm):
                 attrs={
                     **_CTRL,
                     "rows": 3,
-                    "placeholder": "What's wrong with the part? Why does it need an external repair?",
+                    "placeholder": _("What's wrong with the part? Why does it need an external repair?"),
                 }
             ),
             "part_description": forms.Textarea(
                 attrs={
                     **_CTRL,
                     "rows": 2,
-                    "placeholder": "Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1')",
+                    "placeholder": _("Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1')"),
                 }
             ),
         }
@@ -503,9 +504,9 @@ class ExternalRepairRequestForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if not (cleaned.get("diagnosis_note") or "").strip():
-            self.add_error("diagnosis_note", "Diagnosis note is required.")
+            self.add_error("diagnosis_note", _("Diagnosis note is required."))
         if not (cleaned.get("part_description") or "").strip():
-            self.add_error("part_description", "Part description is required.")
+            self.add_error("part_description", _("Part description is required."))
         return cleaned
 
 
@@ -513,21 +514,21 @@ class ExternalRepairRequestDecisionForm(forms.Form):
     """Manager approves or rejects a PENDING external-repair request."""
 
     ACTION_CHOICES = (
-        ("approve", "Approve (create ERO)"),
-        ("reject", "Reject"),
+        ("approve", _("Approve (create ERO)")),
+        ("reject", _("Reject")),
     )
     action = forms.ChoiceField(choices=ACTION_CHOICES, widget=forms.Select(attrs=_SEL))
     manager_note = forms.CharField(
         required=False,
         widget=forms.Textarea(
-            attrs={**_CTRL, "rows": 2, "placeholder": "Required on reject; optional on approve."}
+            attrs={**_CTRL, "rows": 2, "placeholder": _("Required on reject; optional on approve.")}
         ),
     )
 
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("action") == "reject" and not (cleaned.get("manager_note") or "").strip():
-            self.add_error("manager_note", "A rejection reason is required.")
+            self.add_error("manager_note", _("A rejection reason is required."))
         return cleaned
 
 
@@ -541,29 +542,29 @@ class CostAdjustmentForm(forms.Form):
         max_digits=12, decimal_places=2,
         widget=forms.NumberInput(attrs={
             **_CTRL, "step": "0.01",
-            "placeholder": "Signed: positive adds, negative reduces",
+            "placeholder": _("Signed: positive adds, negative reduces"),
         }),
-        help_text="Signed amount. Positive adds to the WO total, negative reduces it.",
+        help_text=_("Signed amount. Positive adds to the WO total, negative reduces it."),
     )
     memo = forms.CharField(
         max_length=300,
         widget=forms.Textarea(attrs={
             **_CTRL, "rows": 3,
-            "placeholder": "Why does this adjustment exist? (min 10 chars)",
+            "placeholder": _("Why does this adjustment exist? (min 10 chars)"),
         }),
-        help_text="Required. Min 10 characters. Explains why this adjustment exists.",
+        help_text=_("Required. Min 10 characters. Explains why this adjustment exists."),
     )
 
     def clean_memo(self):
         memo = (self.cleaned_data.get("memo") or "").strip()
         if len(memo) < 10:
-            raise ValidationError({"memo": "Memo must be at least 10 characters."})
+            raise ValidationError({"memo": _("Memo must be at least 10 characters.")})
         return memo
 
     def clean_amount(self):
         amount = self.cleaned_data.get("amount")
         if amount is None or Decimal(str(amount)) == 0:
-            raise ValidationError("Amount must be non-zero.")
+            raise ValidationError(_("Amount must be non-zero."))
         return amount
 
 
@@ -577,22 +578,22 @@ class RepairManagerAcceptForm(forms.Form):
         max_digits=12, decimal_places=2, min_value=Decimal("0"),
         widget=forms.NumberInput(attrs={
             **_CTRL, "step": "0.01", "min": "0",
-            "placeholder": "Vendor invoice total",
+            "placeholder": _("Vendor invoice total"),
         }),
-        help_text="Required — final vendor invoice amount.",
+        help_text=_("Required — final vendor invoice amount."),
     )
     invoice_ref = forms.CharField(
         max_length=120,
         widget=forms.TextInput(attrs={
-            **_CTRL, "placeholder": "Vendor invoice number",
+            **_CTRL, "placeholder": _("Vendor invoice number"),
         }),
-        help_text="Required — vendor invoice number (UC-20).",
+        help_text=_("Required — vendor invoice number (UC-20)."),
     )
     note = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
             **_CTRL, "rows": 2,
-            "placeholder": "Optional verification note (e.g. condition of returned part)",
+            "placeholder": _("Optional verification note (e.g. condition of returned part)"),
         }),
     )
 
@@ -600,10 +601,10 @@ class RepairManagerAcceptForm(forms.Form):
         cleaned = super().clean()
         cost = cleaned.get("actual_cost")
         if cost is None or cost <= 0:
-            self.add_error("actual_cost", "Actual cost must be greater than zero.")
+            self.add_error("actual_cost", _("Actual cost must be greater than zero."))
         inv = (cleaned.get("invoice_ref") or "").strip()
         if not inv:
-            self.add_error("invoice_ref", "Vendor invoice number is required.")
+            self.add_error("invoice_ref", _("Vendor invoice number is required."))
         else:
             cleaned["invoice_ref"] = inv
         return cleaned

@@ -42,6 +42,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, List
 
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 if TYPE_CHECKING:
     from .models import WorkOrder
@@ -165,15 +166,15 @@ class WorkOrderHealthService:
         # Human-readable notes (only the most relevant flags).
         notes: List[str] = []
         if waiting_days > _WAIT_HIGH_DAYS:
-            notes.append(f"WAITING > {_WAIT_HIGH_DAYS} DAYS")
+            notes.append(_(f"WAITING > {_WAIT_HIGH_DAYS} DAYS"))
         if is_emergency:
-            notes.append("EMERGENCY")
+            notes.append(_("EMERGENCY"))
         if priority == "critical":
-            notes.append("CRITICAL PRIORITY")
+            notes.append(_("CRITICAL PRIORITY"))
         if open_blockers_count >= _BLOCKERS_HIGH:
-            notes.append(f"{_BLOCKERS_HIGH}+ OPEN BLOCKERS")
+            notes.append(_(f"{_BLOCKERS_HIGH}+ OPEN BLOCKERS"))
         if total_cost > _COST_HIGH:
-            notes.append("HIGH COST")
+            notes.append(_("HIGH COST"))
 
         return cls.HealthCard(
             lifecycle_status=lifecycle_status,

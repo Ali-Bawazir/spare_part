@@ -6,6 +6,7 @@ from io import BytesIO
 from typing import Optional
 
 from django.http import HttpResponse
+from django.utils.translation import gettext as _
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -149,9 +150,9 @@ def build_pdf_response(filename: str) -> BytesIO:
     return buf, doc
 
 
-def _header_table(brand: str = "Bawazir Maintenance") -> Table:
+def _header_table(brand: str = _("Bawazir Maintenance")) -> Table:
     return Table(
-        [[brand, "Maintenance & Spare Parts Management"]],
+        [[brand, _("Maintenance & Spare Parts Management")]],
         colWidths=[80 * mm, 90 * mm],
         style=TableStyle([
             ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),

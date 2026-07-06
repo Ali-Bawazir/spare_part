@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from django.contrib import messages
+from django.utils.translation import gettext as _
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
 from django.http import HttpResponseRedirect, JsonResponse
@@ -281,7 +282,7 @@ def _handle_complete(request, pm_execution, wo, checklist):
     # Notify manager of waiting review
     engine.notify_waiting_review(pm_execution)
 
-    messages.success(request, "Maintenance submitted for review.")
+    messages.success(request, _("Maintenance submitted for review."))
     return redirect("preventive:my")
 
 
@@ -309,12 +310,12 @@ def tech_add_photo(request, occurrence_id):
     pm_execution = get_object_or_404(PMExecution, pk=occurrence_id)
     wo = pm_execution.work_order
     if not wo:
-        messages.error(request, "Start the maintenance before adding photos.")
+        messages.error(request, _("Start the maintenance before adding photos."))
         return redirect("preventive:execute", occurrence_id=pm_execution.pk)
 
     upload = request.FILES.get("photo")
     if not upload:
-        messages.error(request, "No photo uploaded.")
+        messages.error(request, _("No photo uploaded."))
         return redirect("preventive:execute", occurrence_id=pm_execution.pk)
 
     Attachment.objects.create(
@@ -331,7 +332,7 @@ def tech_add_photo(request, occurrence_id):
     ).count()
     wo.save(update_fields=["photo_count"])
 
-    messages.success(request, "Photo added.")
+    messages.success(request, _("Photo added."))
     return redirect("preventive:execute", occurrence_id=pm_execution.pk)
 
 
@@ -456,7 +457,7 @@ def mgr_reviews(request):
 def mgr_review_approve(request, occurrence_id):
     pm_execution = get_object_or_404(PMExecution, pk=occurrence_id)
     engine.approve(pm_execution, request.user)
-    messages.success(request, "Approved.")
+    messages.success(request, _("Approved."))
     return redirect("preventive:mgr_reviews")
 
 
@@ -467,11 +468,11 @@ def mgr_review_return(request, occurrence_id):
     pm_execution = get_object_or_404(PMExecution, pk=occurrence_id)
     reason = request.POST.get("reason", "").strip()
     if not reason:
-        messages.error(request, "Return reason is required.")
+        messages.error(request, _("Return reason is required."))
         return redirect("preventive:mgr_reviews")
     engine.return_to_technician(pm_execution, request.user, reason=reason)
     engine.notify_returned(pm_execution, reason)
-    messages.info(request, "Returned to technician.")
+    messages.info(request, _("Returned to technician."))
     return redirect("preventive:mgr_reviews")
 
 
@@ -514,7 +515,7 @@ def _template_form(request, template):
                         text=t.strip(),
                         is_required=True,
                     )
-            messages.success(request, "Template saved.")
+            messages.success(request, _("Template saved."))
             return redirect("preventive:mgr_templates")
     else:
         form = PMTemplateForm(instance=template)
@@ -568,7 +569,7 @@ def _plan_form(request, schedule):
         form = PMScheduleForm(request.POST, instance=schedule)
         if form.is_valid():
             form.save()
-            messages.success(request, "Plan saved.")
+            messages.success(request, _("Plan saved."))
             if schedule:
                 return redirect("preventive:mgr_plan_detail", pk=schedule.pk)
             return redirect("preventive:mgr_plans")
@@ -667,7 +668,7 @@ def mgr_plan_assign(request, pk):
         else:
             engine.assign(occ, technician, by=request.user)
 
-    messages.success(request, "Assigned.")
+    messages.success(request, _("Assigned."))
     return redirect("preventive:mgr_plan_detail", pk=schedule.pk)
 
 
@@ -682,9 +683,9 @@ def mgr_plan_pause(request, pk):
 
     if was_active:
         engine.notify_plan_paused(schedule)
-        messages.info(request, "Plan paused.")
+        messages.info(request, _("Plan paused."))
     else:
-        messages.success(request, "Plan resumed.")
+        messages.success(request, _("Plan resumed."))
     return redirect("preventive:mgr_plan_detail", pk=schedule.pk)
 
 
@@ -697,7 +698,7 @@ def mgr_plan_archive(request, pk):
     schedule.archived_by = request.user
     schedule.is_active = False
     schedule.save(update_fields=["archived_at", "archived_by", "is_active"])
-    messages.info(request, "Plan archived.")
+    messages.info(request, _("Plan archived."))
     return redirect("preventive:mgr_plans")
 
 
@@ -716,7 +717,7 @@ def mgr_plan_run_now(request, pk):
         )
         if schedule.assigned_technician:
             engine.assign(occ, schedule.assigned_technician, by=request.user)
-    messages.success(request, "Maintenance scheduled for now.")
+    messages.success(request, _("Maintenance scheduled for now."))
     return redirect("preventive:mgr_today")
 
 

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
 
 from mms.admin_mixins import MMSAdminPermission
 
@@ -78,11 +79,11 @@ class SparePartAdmin(MMSAdminPermission, admin.ModelAdmin):
     list_filter = ("is_consumable", "is_repairable", "supplier", "status")
     search_fields = ("sku", "name", "description")
     fieldsets = (
-        ("Identification", {"fields": ("sku", "name", "description", "qr_code")}),
-        ("Classification", {"fields": ("category", "unit", "is_consumable", "is_repairable", "status")}),
-        ("Stock levels", {"fields": ("quantity_on_hand", "min_stock_level", "max_stock_level")}),
-        ("Procurement", {"fields": ("supplier", "avg_cost", "last_purchase_cost")}),
-        ("Audit", {"fields": ("created_at",), "classes": ("collapse",)}),
+        (_("Identification"), {"fields": ("sku", "name", "description", "qr_code")}),
+        (_("Classification"), {"fields": ("category", "unit", "is_consumable", "is_repairable", "status")}),
+        (_("Stock levels"), {"fields": ("quantity_on_hand", "min_stock_level", "max_stock_level")}),
+        (_("Procurement"), {"fields": ("supplier", "avg_cost", "last_purchase_cost")}),
+        (_("Audit"), {"fields": ("created_at",), "classes": ("collapse",)}),
     )
     readonly_fields = ("created_at", "qr_code", "quantity_on_hand")
     ordering = ("name",)
@@ -138,9 +139,9 @@ class PartIssueLineAdmin(MMSAdminPermission, admin.ModelAdmin):
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     fieldsets = (
-        ("Identification", {"fields": ("work_order", "part", "status")}),
-        ("Quantities", {"fields": ("quantity", "unit_cost", "invoice_ref", "supplier_name")}),
-        ("People", {"fields": ("requested_by", "issued_by", "approved_by", "approved_at")}),
-        ("Decision", {"fields": ("rejection_reason", "is_emergency_auto_approved")}),
-        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+        (_("Identification"), {"fields": ("work_order", "part", "status")}),
+        (_("Quantities"), {"fields": ("quantity", "unit_cost", "invoice_ref", "supplier_name")}),
+        (_("People"), {"fields": ("requested_by", "issued_by", "approved_by", "approved_at")}),
+        (_("Decision"), {"fields": ("rejection_reason", "is_emergency_auto_approved")}),
+        (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
     )

@@ -22,6 +22,7 @@ from datetime import timedelta
 
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from accounts.models import User
 from inventory.models import PartIssueLine, PartShortageReport
@@ -73,10 +74,10 @@ def _wo_label(wo: WorkOrder) -> str:
 def _blocker_kind_label(blocker: WorkOrderBlocker) -> str:
     """Map blocker.kind to a user-friendly label for the title."""
     return {
-        WorkOrderBlocker.Kind.PART: "part",
-        WorkOrderBlocker.Kind.SHORTAGE: "shortage",
-        WorkOrderBlocker.Kind.VENDOR_REPAIR: "vendor repair",
-        WorkOrderBlocker.Kind.OPERATIONAL: "operational pause",
+        WorkOrderBlocker.Kind.PART: _("part"),
+        WorkOrderBlocker.Kind.SHORTAGE: _("shortage"),
+        WorkOrderBlocker.Kind.VENDOR_REPAIR: _("vendor repair"),
+        WorkOrderBlocker.Kind.OPERATIONAL: _("operational pause"),
     }.get(blocker.kind, blocker.kind)
 
 
@@ -172,16 +173,16 @@ def _notify_blocker_opened(event: WorkOrderBlockerEvent) -> int:
     blocker = event.blocker
     wo = blocker.work_order
     kind_label = _blocker_kind_label(blocker)
-    title = f"{_wo_label(wo)} blocked: {kind_label}"
+    title = _(f"{_wo_label(wo)} blocked: {kind_label}")
     body_parts: list[str] = []
     if blocker.note:
         body_parts.append(blocker.note)
     machine_name = getattr(getattr(wo, "machine", None), "name", None)
     if machine_name:
-        body_parts.append(f"Machine: {machine_name}")
+        body_parts.append(_(f"Machine: {machine_name}"))
     part_name = _resolve_part_name(blocker)
     if part_name:
-        body_parts.append(f"Part: {part_name}")
+        body_parts.append(_(f"Part: {part_name}"))
     body = " — ".join(p for p in body_parts if p)
 
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
@@ -208,14 +209,14 @@ def _notify_blocker_resolved(event: WorkOrderBlockerEvent) -> int:
     blocker = event.blocker
     wo = blocker.work_order
     kind_label = _blocker_kind_label(blocker)
-    title = f"{_wo_label(wo)} unblocked: {kind_label}"
+    title = _(f"{_wo_label(wo)} unblocked: {kind_label}")
     body_parts: list[str] = []
     note = (event.payload or {}).get("note") or blocker.resolution_note
     if note:
         body_parts.append(note)
     machine_name = getattr(getattr(wo, "machine", None), "name", None)
     if machine_name:
-        body_parts.append(f"Machine: {machine_name}")
+        body_parts.append(_(f"Machine: {machine_name}"))
     body = " — ".join(p for p in body_parts if p)
 
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
@@ -242,14 +243,14 @@ def _notify_blocker_cancelled(event: WorkOrderBlockerEvent) -> int:
     blocker = event.blocker
     wo = blocker.work_order
     kind_label = _blocker_kind_label(blocker)
-    title = f"{_wo_label(wo)} blocker cancelled: {kind_label}"
+    title = _(f"{_wo_label(wo)} blocker cancelled: {kind_label}")
     body_parts: list[str] = []
     reason = (event.payload or {}).get("reason") or blocker.cancel_reason
     if reason:
         body_parts.append(reason)
     machine_name = getattr(getattr(wo, "machine", None), "name", None)
     if machine_name:
-        body_parts.append(f"Machine: {machine_name}")
+        body_parts.append(_(f"Machine: {machine_name}"))
     body = " — ".join(p for p in body_parts if p)
 
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
@@ -278,8 +279,8 @@ def _notify_part_approved(event: WorkOrderBlockerEvent) -> int:
     line = blocker.external_ref if isinstance(blocker.external_ref, PartIssueLine) else None
     part_sku = line.part.sku if line and line.part else ""
     part_name = line.part.name if line and line.part else ""
-    title = f"{_wo_label(wo)} part approved: {part_sku or 'part'}"
-    body = f"{part_name} — manager approved the part request."
+    title = _(f"{_wo_label(wo)} part approved: {part_sku or _('part')}")
+    body = _(f"{part_name} — manager approved the part request.")
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
 
     recipients = list(_managers_supervisors_supers())
@@ -309,8 +310,8 @@ def _notify_part_rejected(event: WorkOrderBlockerEvent) -> int:
     line = blocker.external_ref if isinstance(blocker.external_ref, PartIssueLine) else None
     part_sku = line.part.sku if line and line.part else ""
     reason = (event.payload or {}).get("reason") or getattr(line, "rejection_reason", "")
-    title = f"{_wo_label(wo)} part request rejected: {part_sku or 'part'}"
-    body = f"Reason: {reason}" if reason else "Manager rejected the part request."
+    title = _(f"{_wo_label(wo)} part request rejected: {part_sku or _('part')}")
+    body = _(f"Reason: {reason}") if reason else _("Manager rejected the part request.")
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
 
     recipients = list(_managers_supers())
@@ -342,8 +343,8 @@ def _notify_shortage_raised(event: WorkOrderBlockerEvent) -> int:
     report = blocker.external_ref if isinstance(blocker.external_ref, PartShortageReport) else None
     part_sku = report.part.sku if report and report.part else ""
     shortage_qty = report.shortage_qty if report else 0
-    title = f"{_wo_label(wo)} part shortage reported: {part_sku or 'part'}"
-    body = f"Shortage: {shortage_qty} units — awaiting manager decision."
+    title = _(f"{_wo_label(wo)} part shortage reported: {part_sku or _('part')}")
+    body = _(f"Shortage: {shortage_qty} units — awaiting manager decision.")
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
 
     recipients = _unique_users(_managers_supervisors_supers())
@@ -369,8 +370,8 @@ def _notify_shortage_fulfilled(event: WorkOrderBlockerEvent) -> int:
     wo = blocker.work_order
     report = blocker.external_ref if isinstance(blocker.external_ref, PartShortageReport) else None
     part_sku = report.part.sku if report and report.part else ""
-    title = f"{_wo_label(wo)} shortage resolved: {part_sku or 'part'}"
-    body = "Procurement / warehouse fulfilled the shortage."
+    title = _(f"{_wo_label(wo)} shortage resolved: {part_sku or _('part')}")
+    body = _("Procurement / warehouse fulfilled the shortage.")
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
 
     recipients = _unique_users(
@@ -395,8 +396,8 @@ def _notify_ero_created(event: WorkOrderBlockerEvent) -> int:
     blocker = event.blocker
     wo = blocker.work_order
     ero = _resolve_ero(blocker)
-    title = f"{_wo_label(wo)} external repair order created"
-    body = f"ERO '{ero.title}' is awaiting vendor assignment." if ero else "External repair order created."
+    title = _(f"{_wo_label(wo)} external repair order created")
+    body = _(f"ERO '{ero.title}' is awaiting vendor assignment.") if ero else _("External repair order created.")
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
 
     recipients = list(_managers_supervisors_supers()) + list(_procurement_supers())
@@ -425,8 +426,8 @@ def _notify_ero_accepted(event: WorkOrderBlockerEvent) -> int:
     blocker = event.blocker
     wo = blocker.work_order
     ero = _resolve_ero(blocker)
-    title = f"{_wo_label(wo)} vendor repair accepted"
-    body = f"Vendor repair '{ero.title}' accepted — part is back." if ero else "Vendor repair accepted."
+    title = _(f"{_wo_label(wo)} vendor repair accepted")
+    body = _(f"Vendor repair '{ero.title}' accepted — part is back.") if ero else _("Vendor repair accepted.")
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
 
     recipients = list(_managers_supervisors_supers())
@@ -455,13 +456,13 @@ def _notify_emergency_interrupted(event: WorkOrderBlockerEvent) -> int:
     blocker = event.blocker
     wo = blocker.work_order
     source_wo = blocker.source_work_order
-    title = f"{_wo_label(wo)} paused: emergency override"
-    body_parts: list[str] = ["An emergency work order auto-paused this WO."]
+    title = _(f"{_wo_label(wo)} paused: emergency override")
+    body_parts: list[str] = [_("An emergency work order auto-paused this WO.")]
     if source_wo is not None:
-        body_parts.append(f"Source: WO-{source_wo.number}.")
+        body_parts.append(_(f"Source: WO-{source_wo.number}."))
     machine_name = getattr(getattr(wo, "machine", None), "name", None)
     if machine_name:
-        body_parts.append(f"Machine: {machine_name}")
+        body_parts.append(_(f"Machine: {machine_name}"))
     body = " — ".join(p for p in body_parts if p)
 
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
@@ -487,11 +488,11 @@ def _notify_emergency_interrupted(event: WorkOrderBlockerEvent) -> int:
 def _notify_labor_resumed(event: WorkOrderBlockerEvent) -> int:
     blocker = event.blocker
     wo = blocker.work_order
-    title = f"{_wo_label(wo)} labor resumed"
-    body_parts: list[str] = ["Technician resumed work on this WO."]
+    title = _(f"{_wo_label(wo)} labor resumed")
+    body_parts: list[str] = [_("Technician resumed work on this WO.")]
     machine_name = getattr(getattr(wo, "machine", None), "name", None)
     if machine_name:
-        body_parts.append(f"Machine: {machine_name}")
+        body_parts.append(_(f"Machine: {machine_name}"))
     body = " — ".join(p for p in body_parts if p)
 
     link = reverse("work_order_detail", kwargs={"pk": wo.pk})
@@ -590,12 +591,12 @@ def notify_po_received_summary(po, actor) -> int:
                 sku = getattr(part, "sku", "") if part else ""
                 name = getattr(part, "name", "") if part else ""
                 line_summaries.append(f"{qty:g}× {sku or name}".strip())
-        body = ", ".join(line_summaries) if line_summaries else "Lines received."
+        body = ", ".join(line_summaries) if line_summaries else _("Lines received.")
     else:
-        body = "PO received."
+        body = _("PO received.")
 
     po_number = getattr(po, "po_number", None) or str(getattr(po, "pk", ""))
-    title = f"\U0001F4E6 PO {po_number} received"
+    title = _(f"\U0001F4E6 PO {po_number} received")
     link = reverse("purchase_order_detail", kwargs={"pk": po.pk})
 
     recipients = list(_managers_supervisors_supers()) + list(_procurement_supers())

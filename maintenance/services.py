@@ -6,6 +6,7 @@ from typing import Optional
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from .models import AuditEntry, MaintenanceIssue, PMSchedule, WorkOrder, WorkOrderStateLog, Downtime, WorkOrderAssignmentHistory
 
@@ -79,8 +80,8 @@ def pause_other_in_progress(
     """
     if reason in ("awaiting_parts", "awaiting_vendor"):
         raise ValueError(
-            f"{reason!r} is a work-order status, not a pause reason. "
-            f"Transition the WO to WAITING_FOR_PARTS or WAITING_FOR_VENDOR instead."
+            _(f"{reason!r} is a work-order status, not a pause reason. "
+              f"Transition the WO to WAITING_FOR_PARTS or WAITING_FOR_VENDOR instead.")
         )
     qs = WorkOrder.objects.filter(
         assigned_technician=technician,
@@ -104,7 +105,7 @@ def pause_other_in_progress(
         if prev_assignment:
             prev_assignment.unassigned_at = timezone.now()
             prev_assignment.reason = (
-                f"Auto-paused: {dict(WorkOrder.PauseReason.choices)[reason]}"
+                _(f"Auto-paused: {dict(WorkOrder.PauseReason.choices)[reason]}")
             )
             prev_assignment.save()
         # Phase 2B: open OPERATIONAL blocker on each auto-paused WO, with the
@@ -119,7 +120,7 @@ def pause_other_in_progress(
             WorkOrderBlockerService.open_operational_blocker(
                 work_order=other,
                 opened_by=None,  # system-initiated
-                note=f"Auto-paused (reason={reason})",
+                note=_(f"Auto-paused (reason={reason})"),
                 pause_reason=WorkOrder.PauseReason.EMERGENCY,
                 source_work_order=source_wo,
             )
@@ -156,7 +157,7 @@ def work_order_pause(
     ])
     state_log_note = (
         (pause_note or "")[:500] if (pause_note or "").strip()
-        else f"Paused: {dict(WorkOrder.PauseReason.choices)[pause_reason]}"
+        else _(f"Paused: {dict(WorkOrder.PauseReason.choices)[pause_reason]}")
     )
     # Phase 2B: open OPERATIONAL blocker if the pause is "significant".
     # Content-based rule (ADR-0007 sub-decision 6).
@@ -228,7 +229,7 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
             work_order=wo,
             downtime_type=Downtime.DowntimeType.EMERGENCY if wo.is_emergency else Downtime.DowntimeType.BREAKDOWN,
             start_time=timezone.now(),
-            reason=f"WO started — {'Emergency' if wo.is_emergency else 'Breakdown'}",
+            reason=_(f"WO started — {'Emergency' if wo.is_emergency else 'Breakdown'}"),
         )
     if wo.lifecycle_status == WorkOrder.LifecycleStatus.IN_PROGRESS:
         return
@@ -259,7 +260,7 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
     wo.labor_started_at = now
     wo.labor_stopped_at = None
     wo.save(update_fields=["downtime_started_at", "labor_started_at", "labor_stopped_at", "updated_at"])
-    transition_work_order(wo, WorkOrder.LifecycleStatus.IN_PROGRESS, actor=technician, note="Start work")
+    transition_work_order(wo, WorkOrder.LifecycleStatus.IN_PROGRESS, actor=technician, note=_("Start work"))
     from .notifications import notify_wo_started
     notify_wo_started(wo)
     # Phase 2B: resolve all open OPERATIONAL blockers on this WO. This
@@ -280,7 +281,7 @@ def technician_start_work(wo: WorkOrder, technician: User) -> None:
                 WorkOrderBlockerService.resolve_blocker(
                     blocker=blocker,
                     resolution_note=(
-                        f"Resumed at {wo.labor_started_at.isoformat() if wo.labor_started_at else 'now'}"
+                        _(f"Resumed at {wo.labor_started_at.isoformat() if wo.labor_started_at else _('now')}")
                     ),
                     resolved_by=technician,
                 )
@@ -296,7 +297,7 @@ def technician_submit_for_review(wo: WorkOrder, technician: User) -> None:
     now = timezone.now()
     wo.labor_stopped_at = now
     wo.save(update_fields=["labor_stopped_at", "updated_at"])
-    transition_work_order(wo, WorkOrder.LifecycleStatus.PENDING_REVIEW, actor=technician, note="Submitted for review")
+    transition_work_order(wo, WorkOrder.LifecycleStatus.PENDING_REVIEW, actor=technician, note=_("Submitted for review"))
     from .notifications import notify_wo_pending_review
 
     notify_wo_pending_review(wo)
@@ -305,7 +306,7 @@ def technician_submit_for_review(wo: WorkOrder, technician: User) -> None:
 @transaction.atomic
 def technician_mark_pending_parts(wo: WorkOrder, technician: User, note: str = "") -> None:
     if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
-        raise ValueError("Work order must be in progress.")
+        raise ValueError(_("Work order must be in progress."))
     wo.labor_stopped_at = timezone.now()
     wo.save(update_fields=["labor_stopped_at", "updated_at"])
     from maintenance.services_wo_status import WorkOrderService
@@ -320,7 +321,7 @@ def technician_mark_pending_parts(wo: WorkOrder, technician: User, note: str = "
 @transaction.atomic
 def technician_mark_waiting_vendor(wo: WorkOrder, technician: User, note: str = "") -> None:
     if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
-        raise ValueError("Work order must be in progress.")
+        raise ValueError(_("Work order must be in progress."))
     wo.labor_stopped_at = timezone.now()
     wo.save(update_fields=["labor_stopped_at", "updated_at"])
     from maintenance.services_wo_status import WorkOrderService
@@ -351,12 +352,12 @@ def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool, reject
         wo.rejected_by = None
         wo.rejection_reason = ""
         wo.save(update_fields=["rejected_at", "rejected_by", "rejection_reason", "updated_at"])
-        transition_work_order(wo, WorkOrder.LifecycleStatus.CLOSED, actor=manager, note="Approved & closed")
+        transition_work_order(wo, WorkOrder.LifecycleStatus.CLOSED, actor=manager, note=_("Approved & closed"))
         from .notifications import notify_wo_closed
         notify_wo_closed(wo)
     else:
         if not rejection_reason or not rejection_reason.strip():
-            raise ValueError("Rejection reason is required.")
+            raise ValueError(_("Rejection reason is required."))
         wo.rejection_count = (wo.rejection_count or 0) + 1
         wo.rejected_at = now
         wo.rejected_by = manager
@@ -368,9 +369,9 @@ def manager_close_work_order(wo: WorkOrder, manager: User, approve: bool, reject
             "labor_started_at", "labor_stopped_at", "updated_at"
         ])
         transition_work_order(
-            wo, WorkOrder.LifecycleStatus.IN_PROGRESS, 
-            actor=manager, 
-            note=f"Rejected: {rejection_reason.strip()[:200]}"
+            wo, WorkOrder.LifecycleStatus.IN_PROGRESS,
+            actor=manager,
+            note=_(f"Rejected: {rejection_reason.strip()[:200]}")
         )
 
 
@@ -417,7 +418,7 @@ def escalate_issue_to_emergency(issue: MaintenanceIssue, *, actor: User) -> None
 def archive_work_order(wo, actor, reason=""):
     """Archive a work order. Archived WOs are hidden from normal queries."""
     if wo.is_archived:
-        raise ValueError("Work order is already archived.")
+        raise ValueError(_("Work order is already archived."))
     wo.is_archived = True
     wo.archived_at = timezone.now()
     wo.archived_by = actor
@@ -432,7 +433,7 @@ def archive_work_order(wo, actor, reason=""):
 def restore_work_order(wo, actor):
     """Restore an archived work order."""
     if not wo.is_archived:
-        raise ValueError("Work order is not archived.")
+        raise ValueError(_("Work order is not archived."))
     wo.is_archived = False
     wo.archived_at = None
     wo.archived_by = None
@@ -446,7 +447,7 @@ def restore_work_order(wo, actor):
 @transaction.atomic
 def archive_maintenance_issue(issue, actor, reason=""):
     if issue.is_archived:
-        raise ValueError("Issue is already archived.")
+        raise ValueError(_("Issue is already archived."))
     issue.is_archived = True
     issue.archived_at = timezone.now()
     issue.archived_by = actor
@@ -470,11 +471,11 @@ def request_external_repair(
     ExternalRepairOrder is created and linked back via FK.
     """
     if work_order.assigned_technician_id != requested_by.id:
-        raise ValueError("Only the assigned technician can request external repair.")
+        raise ValueError(_("Only the assigned technician can request external repair."))
     if not diagnosis_note.strip():
-        raise ValueError("Diagnosis note is required.")
+        raise ValueError(_("Diagnosis note is required."))
     if not part_description.strip():
-        raise ValueError("Part description is required.")
+        raise ValueError(_("Part description is required."))
 
     from .models import ExternalRepairRequest, ExternalRepairOrder
 
@@ -495,7 +496,7 @@ def request_external_repair(
     try:
         from maintenance.services_blocker import WorkOrderBlockerService
         from maintenance.models import WorkOrderBlocker
-        _label = f"Vendor repair — {part_description.strip()[:80]}" if part_description else "Vendor repair"
+        _label = _(f"Vendor repair — {part_description.strip()[:80]}") if part_description else _("Vendor repair")
         WorkOrderBlockerService.open_blocker(
             work_order=work_order,
             kind=WorkOrderBlocker.Kind.VENDOR_REPAIR,
@@ -532,14 +533,14 @@ def approve_external_repair_request(
     from .models import ExternalRepairRequest, ExternalRepairOrder
 
     if err.status != ExternalRepairRequest.Status.PENDING:
-        raise ValueError("Only PENDING requests can be approved.")
+        raise ValueError(_("Only PENDING requests can be approved."))
 
     now = timezone.now()
     note = (manager_note or "").strip()
 
     ero = ExternalRepairOrder.objects.create(
         work_order=err.work_order,
-        title=f"External repair for {err.part_description[:60]}",
+        title=_(f"External repair for {err.part_description[:60]}"),
         description=err.diagnosis_note,
         created_by=manager,
         handled_by=manager,
@@ -599,10 +600,10 @@ def reject_external_repair_request(
     from .models import ExternalRepairRequest
 
     if err.status != ExternalRepairRequest.Status.PENDING:
-        raise ValueError("Only PENDING requests can be rejected.")
+        raise ValueError(_("Only PENDING requests can be rejected."))
     note = (manager_note or "").strip()
     if not note:
-        raise ValueError("A rejection reason is required.")
+        raise ValueError(_("A rejection reason is required."))
 
     err.status = ExternalRepairRequest.Status.REJECTED
     err.reviewed_by = manager
@@ -773,11 +774,11 @@ def compute_next_due_at(schedule: "PMSchedule", after):
 @transaction.atomic
 def manager_approve_pm_execution(execution, *, manager: User) -> None:
     if not execution.work_order_id:
-        raise ValueError("PM execution has no associated work order.")
+        raise ValueError(_("PM execution has no associated work order."))
     if execution.work_order.lifecycle_status != WorkOrder.LifecycleStatus.PENDING_REVIEW:
-        raise ValueError("Work order is not pending review.")
+        raise ValueError(_("Work order is not pending review."))
     if execution.status not in (execution.Status.SUBMITTED, execution.Status.REJECTED):
-        raise ValueError(f"Cannot approve execution in status {execution.status}.")
+        raise ValueError(_(f"Cannot approve execution in status {execution.status}."))
 
     now = timezone.now()
     schedule = execution.pm_schedule
@@ -797,13 +798,13 @@ def manager_approve_pm_execution(execution, *, manager: User) -> None:
 @transaction.atomic
 def manager_reject_pm_execution(execution, *, manager: User, reason: str) -> None:
     if not execution.work_order_id:
-        raise ValueError("PM execution has no associated work order.")
+        raise ValueError(_("PM execution has no associated work order."))
     if execution.work_order.lifecycle_status != WorkOrder.LifecycleStatus.PENDING_REVIEW:
-        raise ValueError("Work order is not pending review.")
+        raise ValueError(_("Work order is not pending review."))
     if execution.status not in (execution.Status.SUBMITTED,):
-        raise ValueError(f"Cannot reject execution in status {execution.status}.")
+        raise ValueError(_(f"Cannot reject execution in status {execution.status}."))
     if not reason or not reason.strip():
-        raise ValueError("Rejection reason is required.")
+        raise ValueError(_("Rejection reason is required."))
 
     now = timezone.now()
     execution.status = execution.Status.REJECTED
@@ -812,7 +813,7 @@ def manager_reject_pm_execution(execution, *, manager: User, reason: str) -> Non
     execution.notes = (execution.notes or "").strip()
     if execution.notes:
         execution.notes += "\n\n"
-    execution.notes += f"[Rejected {now.strftime('%Y-%m-%d %H:%M')}] {reason.strip()[:500]}"
+    execution.notes += _(f"[Rejected {now.strftime('%Y-%m-%d %H:%M')}] {reason.strip()[:500]}")
     execution.save(update_fields=["status", "approved_by", "approved_at", "notes"])
 
     manager_close_work_order(execution.work_order, manager, approve=False, rejection_reason=reason)

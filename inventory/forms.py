@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from .models import SparePart
 
@@ -44,7 +45,7 @@ class PartRequestForm(forms.Form):
     note = forms.CharField(
         required=False,
         max_length=500,
-        widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": "Optional note for the manager"}),
+        widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional note for the manager")}),
     )
 
 
@@ -54,7 +55,7 @@ class PartRequestDecisionForm(forms.Form):
     On reject, a reason is required. On edit, a new_qty is required.
     """
     action = forms.ChoiceField(
-        choices=[("approve", "Approve"), ("reject", "Reject"), ("edit", "Edit Qty")],
+        choices=[("approve", _("Approve")), ("reject", _("Reject")), ("edit", _("Edit Qty"))],
         widget=forms.Select(attrs=_SEL),
     )
     new_qty = forms.DecimalField(
@@ -66,7 +67,7 @@ class PartRequestDecisionForm(forms.Form):
     )
     rejection_reason = forms.CharField(
         required=False,
-        widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": "Required when rejecting"}),
+        widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Required when rejecting")}),
     )
 
     def clean(self):
@@ -74,13 +75,13 @@ class PartRequestDecisionForm(forms.Form):
         action = cleaned.get("action")
         if action == "reject" and not (cleaned.get("rejection_reason") or "").strip():
             raise forms.ValidationError(
-                {"rejection_reason": "Rejection reason is required."}
+                {"rejection_reason": _("Rejection reason is required.")}
             )
         if action == "edit":
             new_qty = cleaned.get("new_qty")
             if not new_qty or new_qty <= 0:
                 raise forms.ValidationError(
-                    {"new_qty": "New qty is required when editing."}
+                    {"new_qty": _("New qty is required when editing.")}
                 )
         return cleaned
 
@@ -103,7 +104,7 @@ class IssueConsumableForm(forms.Form):
     consumed_by = forms.ModelChoiceField(
         queryset=None,  # Set in __init__
         widget=forms.Select(attrs=_SEL),
-        label="Operator",
+        label=_("Operator"),
     )
     part = forms.ModelChoiceField(
         queryset=SparePart.objects.filter(
@@ -114,7 +115,7 @@ class IssueConsumableForm(forms.Form):
     )
     quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL))
     machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL))
-    note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": "Optional note"}))
+    note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional note")}))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -147,11 +148,11 @@ class SparePartForm(forms.ModelForm):
             "status",
         )
         widgets = {
-            "sku": forms.TextInput(attrs={**_CTRL, "placeholder": "BRG-6006"}),
-            "name": forms.TextInput(attrs={**_CTRL, "placeholder": "Ball bearing 6006"}),
+            "sku": forms.TextInput(attrs={**_CTRL, "placeholder": _("BRG-6006")}),
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("Ball bearing 6006")}),
             "description": forms.Textarea(attrs={**_CTRL, "rows": 2}),
-            "category": forms.TextInput(attrs={**_CTRL, "placeholder": "Bearings"}),
-            "unit": forms.TextInput(attrs={**_CTRL, "placeholder": "pcs"}),
+            "category": forms.TextInput(attrs={**_CTRL, "placeholder": _("Bearings")}),
+            "unit": forms.TextInput(attrs={**_CTRL, "placeholder": _("pcs")}),
             "supplier": forms.Select(attrs={**_SEL}),
             "is_consumable": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_repairable": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -166,9 +167,9 @@ class SparePartForm(forms.ModelForm):
     def clean_sku(self):
         sku = (self.cleaned_data.get("sku") or "").strip().upper()
         if not sku:
-            raise forms.ValidationError("SKU is required.")
+            raise forms.ValidationError(_("SKU is required."))
         if SparePart.objects.filter(sku=sku).exclude(pk=self.instance.pk if self.instance.pk else None).exists():
-            raise forms.ValidationError(f"SKU '{sku}' is already in use.")
+            raise forms.ValidationError(_("SKU '%(sku)s' is already in use.") % {"sku": sku})
         return sku
 
 
@@ -180,14 +181,14 @@ class SparePartCreateForm(SparePartForm):
         min_value=Decimal("0"),
         max_digits=14,
         decimal_places=3,
-        label="Opening quantity",
-        help_text="Initial stock at default site. Leave blank or 0 if no opening stock.",
+        label=_("Opening quantity"),
+        help_text=_("Initial stock at default site. Leave blank or 0 if no opening stock."),
         widget=forms.NumberInput(attrs={**_CTRL, "min": "0", "step": "1", "placeholder": "0"}),
     )
     rack_location = forms.CharField(
         required=False,
         max_length=64,
-        label="Rack location",
-        help_text="Storage location at default site.",
-        widget=forms.TextInput(attrs={**_CTRL, "placeholder": "A-01-03"}),
+        label=_("Rack location"),
+        help_text=_("Storage location at default site."),
+        widget=forms.TextInput(attrs={**_CTRL, "placeholder": _("A-01-03")}),
     )

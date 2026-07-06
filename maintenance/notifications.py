@@ -28,6 +28,7 @@ from datetime import timedelta
 
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.db.models import Q
 
 from accounts.models import User
@@ -111,7 +112,7 @@ def _procurement_request_recipients() -> list[User]:
 
 
 def notify_new_issue(issue: MaintenanceIssue) -> None:
-    title = f"New issue #{issue.pk} — {issue.machine.name}"
+    title = _(f"New issue #{issue.pk} — {issue.machine.name}")
     body = (issue.description or "")[:500]
     _notify_users(
         _managers_supervisors_supers(),
@@ -123,8 +124,8 @@ def notify_new_issue(issue: MaintenanceIssue) -> None:
 
 
 def notify_issue_validated(issue: MaintenanceIssue) -> None:
-    title = f"Issue #{issue.pk} validated ({issue.get_priority_display()})"
-    body = f"{issue.machine.name} — ready for work order."
+    title = _(f"Issue #{issue.pk} validated ({issue.get_priority_display()})")
+    body = _(f"{issue.machine.name} — ready for work order.")
     _notify_users(
         _managers_supers(),
         kind=Notification.Kind.ISSUE_VALIDATED,
@@ -135,9 +136,9 @@ def notify_issue_validated(issue: MaintenanceIssue) -> None:
 
 
 def notify_emergency_work_order(wo) -> None:
-    title = f"Emergency WO: WO-{wo.number}"
+    title = _(f"Emergency WO: WO-{wo.number}")
     notes = (wo.notes or "").strip()
-    body = f"{wo.machine.name}. {notes[:500]}" if notes else f"{wo.machine.name}."
+    body = _(f"{wo.machine.name}. {notes[:500]}") if notes else _(f"{wo.machine.name}.")
     recipients = _emergency_wo_recipients()
     _notify_users(
         recipients,
@@ -156,9 +157,9 @@ def notify_emergency_work_order(wo) -> None:
 
 def notify_emergency_issue_reported(issue) -> None:
     """P3.3: notify manager + on-call tech when an emergency issue is reported."""
-    title = f"EMERGENCY issue: {issue.machine.name}"
+    title = _(f"EMERGENCY issue: {issue.machine.name}")
     desc = (issue.description or "")[:500]
-    body = f"Reported by {issue.reported_by.username}. {desc}"
+    body = _(f"Reported by {issue.reported_by.username}. {desc}")
     recipients = _emergency_wo_recipients()
     _notify_users(
         recipients,
@@ -171,8 +172,8 @@ def notify_emergency_issue_reported(issue) -> None:
 
 
 def notify_wo_pending_review(wo) -> None:
-    title = f"WO-{wo.number} pending review"
-    body = f"{wo.machine.name} — technician submitted."
+    title = _(f"WO-{wo.number} pending review")
+    body = _(f"{wo.machine.name} — technician submitted.")
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.WO_PENDING_REVIEW,
@@ -186,8 +187,8 @@ def notify_wo_assigned(wo) -> None:
     if not wo.assigned_technician_id:
         return
     tech = wo.assigned_technician
-    title = f"Assigned: WO-{wo.number}"
-    body = f"{wo.machine.name} — {wo.get_category_display()}."
+    title = _(f"Assigned: WO-{wo.number}")
+    body = _(f"{wo.machine.name} — {wo.get_category_display()}.")
     # Notify technician + supervisors + managers
     _notify_users(
         [tech],
@@ -199,15 +200,15 @@ def notify_wo_assigned(wo) -> None:
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.WO_ASSIGNED,
-        title=f"WO-{wo.number} assigned to {tech.get_full_name() or tech.username}",
-        body=f"{wo.machine.name} — {wo.get_category_display()}.",
+        title=_(f"WO-{wo.number} assigned to {tech.get_full_name() or tech.username}"),
+        body=_(f"{wo.machine.name} — {wo.get_category_display()}."),
         link=reverse("work_order_detail", kwargs={"pk": wo.pk}),
     )
 
 
 def notify_low_stock(part, *, sku: str, qty) -> None:
-    title = f"Low stock: {sku}"
-    body = f"Quantity on hand is now {qty} (at or below minimum)."
+    title = _(f"Low stock: {sku}")
+    body = _(f"Quantity on hand is now {qty} (at or below minimum).")
     _notify_users(
         _unique_users(_procurement_supers() + _managers_supers()),
         kind=Notification.Kind.LOW_STOCK,
@@ -219,8 +220,8 @@ def notify_low_stock(part, *, sku: str, qty) -> None:
 
 
 def notify_procurement_request(pr) -> None:
-    title = f"Purchase request #{pr.pk}"
-    body = f"{pr.part.sku} × {pr.quantity} — {pr.get_status_display()}."
+    title = _(f"Purchase request #{pr.pk}")
+    body = _(f"{pr.part.sku} × {pr.quantity} — {pr.get_status_display()}.")
     recipients = _procurement_request_recipients()
     _notify_users(
         recipients,
@@ -238,8 +239,8 @@ def notify_procurement_request(pr) -> None:
 
 
 def notify_repair_returned(rwo: ExternalRepairOrder) -> None:
-    title = f"Repair returned: {rwo.title}"
-    body = "Verify repair quality and cost, then accept (UC-20)."
+    title = _(f"Repair returned: {rwo.title}")
+    body = _("Verify repair quality and cost, then accept (UC-20).")
     recipients = _unique_users(_procurement_supers() + _managers_supervisors_supers())
     _notify_users(
         recipients,
@@ -257,8 +258,8 @@ def notify_repair_returned(rwo: ExternalRepairOrder) -> None:
 
 def notify_repair_request_created(err) -> None:
     """Technician submitted a PENDING external-repair request → notify managers + supervisors."""
-    title = f"External repair requested on WO-{err.work_order.number}"
-    body = (
+    title = _(f"External repair requested on WO-{err.work_order.number}")
+    body = _(
         f"Technician {err.requested_by.get_full_name() or err.requested_by.username} "
         f"requests external repair for: {err.part_description[:120]}"
     )
@@ -285,8 +286,8 @@ def notify_repair_draft_created(ero) -> None:
     sending the part out, and recording the return. Without this notification
     they must poll /repairs/.
     """
-    title = f"New external repair order: {ero.title}"
-    body = (
+    title = _(f"New external repair order: {ero.title}")
+    body = _(
         f"A new external repair order is awaiting vendor assignment. "
         f"Linked to WO-{ero.work_order.number}. "
         f"Action required: pick a vendor, request a quote, then mark as sent."
@@ -312,8 +313,8 @@ def notify_repair_sent_to_vendor(ero) -> None:
     Gives the manager visibility that the repair actually left the facility
     and is now in the vendor's hands.
     """
-    title = f"ERO sent to vendor: {ero.title}"
-    body = (
+    title = _(f"ERO sent to vendor: {ero.title}")
+    body = _(
         f"The maintenance supply officer has sent this repair to "
         f"{ero.vendor_name or 'the vendor'}. "
         f"Sent at: "
@@ -338,8 +339,8 @@ def notify_repair_sent_to_vendor(ero) -> None:
 
 def notify_wo_created(wo) -> None:
     """WO created from a validated issue → notify managers, supervisors, super admins."""
-    title = f"WO-{wo.number} created"
-    body = f"{wo.machine.name} — created from issue #{wo.issue_id}."
+    title = _(f"WO-{wo.number} created")
+    body = _(f"{wo.machine.name} — created from issue #{wo.issue_id}.")
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.WO_CREATED,
@@ -351,9 +352,9 @@ def notify_wo_created(wo) -> None:
 
 def notify_wo_started(wo) -> None:
     """Technician started work → notify managers, supervisors, super admins."""
-    title = f"WO-{wo.number} started"
-    tech_name = wo.assigned_technician.get_full_name() or wo.assigned_technician.username if wo.assigned_technician else "Technician"
-    body = f"{wo.machine.name} — {tech_name} started work."
+    title = _(f"WO-{wo.number} started")
+    tech_name = wo.assigned_technician.get_full_name() or wo.assigned_technician.username if wo.assigned_technician else _("Technician")
+    body = _(f"{wo.machine.name} — {tech_name} started work.")
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.WO_STARTED,
@@ -366,8 +367,8 @@ def notify_wo_started(wo) -> None:
 def notify_wo_paused(wo) -> None:
     """WO paused or moved to waiting status → notify managers, supervisors, super admins."""
     status_label = wo.get_lifecycle_status_display()
-    title = f"WO-{wo.number} {status_label}"
-    body = f"{wo.machine.name} — lifecycle changed to {status_label}."
+    title = _(f"WO-{wo.number} {status_label}")
+    body = _(f"{wo.machine.name} — lifecycle changed to {status_label}.")
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.WO_PAUSED,
@@ -379,8 +380,8 @@ def notify_wo_paused(wo) -> None:
 
 def notify_wo_closed(wo) -> None:
     """WO closed/rejected → notify managers, supervisors, super admins."""
-    title = f"WO-{wo.number} closed"
-    body = f"{wo.machine.name} — work order closed."
+    title = _(f"WO-{wo.number} closed")
+    body = _(f"{wo.machine.name} — work order closed.")
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.WO_CLOSED,
@@ -392,8 +393,8 @@ def notify_wo_closed(wo) -> None:
 
 def notify_stale_issue(issue: MaintenanceIssue) -> None:
     """Issue remains NEW beyond threshold → notify managers, supervisors, super admins."""
-    title = f"Stale issue #{issue.pk} — {issue.machine.name}"
-    body = f"Priority {issue.get_priority_display()} — not yet validated."
+    title = _(f"Stale issue #{issue.pk} — {issue.machine.name}")
+    body = _(f"Priority {issue.get_priority_display()} — not yet validated.")
     _notify_users(
         _managers_supervisors_supers(),
         kind=Notification.Kind.ISSUE_STALE,
@@ -419,8 +420,8 @@ def sync_pm_overdue_notifications() -> int:
             created_at__gte=now - timedelta(hours=48),
         ).exists():
             continue
-        title = f"PM overdue: {sched.template.code} — {sched.template.title}"
-        body = f"{tag} Machine {sched.machine.name} — due {sched.next_due_at.strftime('%Y-%m-%d %H:%M')}."
+        title = _(f"PM overdue: {sched.template.code} — {sched.template.title}")
+        body = _(f"{tag} Machine {sched.machine.name} — due {sched.next_due_at.strftime('%Y-%m-%d %H:%M')}.")
         _notify_users(
             _managers_supers(),
             kind=Notification.Kind.PM_OVERDUE,
@@ -448,7 +449,7 @@ def notify_pm_upcoming(schedule, *, days_before: int) -> int:
         1: Notification.Kind.PM_UPCOMING_1D,
     }
     if days_before not in kind_map:
-        raise ValueError(f"days_before must be 7, 3, or 1 (got {days_before})")
+        raise ValueError(_(f"days_before must be 7, 3, or 1 (got {days_before})"))
     kind = kind_map[days_before]
     due_date_str = schedule.next_due_at.strftime("%Y-%m-%d")
     tag = f"[pm_sched:{schedule.pk}|stage:UPCOMING_{days_before}D|due:{due_date_str}]"
@@ -458,9 +459,9 @@ def notify_pm_upcoming(schedule, *, days_before: int) -> int:
         recipients = _managers_supervisors_supers()
     else:
         recipients = _managers_supers()
-    label = "tomorrow" if days_before == 1 else f"in {days_before} days"
-    title = f"PM {label}: {schedule.template.title}"
-    body = (
+    label = _("tomorrow") if days_before == 1 else _(f"in {days_before} days")
+    title = _(f"PM {label}: {schedule.template.title}")
+    body = _(
         f"{tag} Machine {schedule.machine.name} — "
         f"due {schedule.next_due_at.strftime('%Y-%m-%d %H:%M')}."
     )
@@ -481,8 +482,8 @@ def notify_pm_due_today(schedule) -> int:
     if Notification.objects.filter(kind=Notification.Kind.PM_DUE_TODAY, body__contains=tag).exists():
         return 0
     recipients = _unique_users(_managers_supervisors_supers() + _technicians_active())
-    title = f"PM due today: {schedule.template.title}"
-    body = (
+    title = _(f"PM due today: {schedule.template.title}")
+    body = _(
         f"{tag} Machine {schedule.machine.name} — "
         f"due {schedule.next_due_at.strftime('%Y-%m-%d %H:%M')}."
     )
@@ -542,8 +543,8 @@ def notify_part_shortage(wo, part, qty_requested, qty_available, shortage, repor
         return
 
     shortage_int = int(shortage) if shortage == shortage.to_integral_value() else shortage
-    title = f"Part shortage: {part.sku}"
-    body = (
+    title = _(f"Part shortage: {part.sku}")
+    body = _(
         f"{reported_by.username} reported a shortage on WO-{wo.number}: "
         f"need {qty_requested} × {part.name}, "
         f"only {qty_available} in stock, "
@@ -575,8 +576,8 @@ def notify_part_request_re_review(new_line, old_line):
     if not managers.exists():
         return
 
-    title = f"Re-review requested: {new_line.part.sku}"
-    body = (
+    title = _(f"Re-review requested: {new_line.part.sku}")
+    body = _(
         f"{new_line.requested_by.get_full_name() or new_line.requested_by.username} "
         f"requested re-review of refused part #{old_line.pk} on WO-{new_line.work_order.number}."
     )
@@ -607,9 +608,9 @@ def notify_part_received(po, part, qty, actor):
         return
 
     qty_str = str(qty) if hasattr(qty, "isoformat") is False else str(qty)
-    title = f"Part received: {part.sku}"
+    title = _(f"Part received: {part.sku}")
     po_number = getattr(po, "po_number", None) or getattr(po, "number", None) or str(po.pk)
-    body = f"{qty_str} × {part.name} received against PO-{po_number}."
+    body = _(f"{qty_str} × {part.name} received against PO-{po_number}.")
     link = reverse("purchase_order_detail", kwargs={"pk": po.pk})
 
     for r in recipients:
@@ -632,8 +633,8 @@ def notify_vendor_return(ero, part, note, actor):
     if not recipients.exists():
         return
 
-    title = f"Vendor return: {part.sku}"
-    body = f"{part.name} returned from vendor: {note}"
+    title = _(f"Vendor return: {part.sku}")
+    body = _(f"{part.name} returned from vendor: {note}")
     link = reverse("repair_officer", kwargs={"pk": ero.pk})
 
     for r in recipients:
@@ -661,8 +662,8 @@ def notify_wo_part_received(work_order, part, qty, po, actor):
     if not recipients.exists():
         return
 
-    title = f"📦 Part received: {part.sku} for WO-{work_order.number}"
-    body = (
+    title = _(f"📦 Part received: {part.sku} for WO-{work_order.number}")
+    body = _(
         f"{qty:g}× {part.name} received against PO-{po.po_number}. "
         f"You can pick it up from the warehouse."
     )
@@ -694,8 +695,8 @@ def notify_wo_part_returned(work_order, part, ero, actor):
     if not recipients.exists():
         return
 
-    title = f"🔁 Part returned from vendor: {part.sku} for WO-{work_order.number}"
-    body = (
+    title = _(f"🔁 Part returned from vendor: {part.sku} for WO-{work_order.number}")
+    body = _(
         f"{part.name} returned from vendor against ERO #{ero.pk}. "
         f"You can re-install it on the asset."
     )
@@ -726,10 +727,10 @@ def notify_wo_part_rejected(line, reason, actor):
     if not recipients.exists():
         return
 
-    title = f"❌ Part request rejected: {line.part.sku} on WO-{work_order.number}"
-    body = (
+    title = _(f"❌ Part request rejected: {line.part.sku} on WO-{work_order.number}")
+    body = _(
         f"Your request for {line.quantity:g}× {line.part.name} was rejected. "
-        f"Reason: {reason or 'No reason given'}. "
+        f"Reason: {reason or _('No reason given')}. "
         f"Edit & re-submit, switch parts, or use the shortage flow."
     )
     link = reverse("work_order_detail", kwargs={"pk": work_order.pk})

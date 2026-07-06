@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from maintenance.models import WorkOrder
 from maintenance.services import log_audit
@@ -39,7 +40,7 @@ def stock_in(
 ) -> StockMovement:
     site = site or _get_default_site()
     if not site:
-        raise ValueError("No default site configured. Please create a Site first.")
+        raise ValueError(_("No default site configured. Please create a Site first."))
 
     recent = StockMovement.objects.filter(
         part=part, movement_type=StockMovement.MovementType.STOCK_IN,
@@ -47,7 +48,7 @@ def stock_in(
         created_at__gte=timezone.now() - timezone.timedelta(seconds=10)
     ).exists()
     if recent:
-        raise ValueError("Duplicate stock-in detected. Please wait before submitting again.")
+        raise ValueError(_("Duplicate stock-in detected. Please wait before submitting again."))
 
     try:
         inv = Inventory.objects.select_for_update().get(part=part, site=site)
@@ -179,7 +180,7 @@ def _deduct_and_record_issue(
         work_order=wo, performed_by=issued_by,
         supplier_name=supplier_name, unit_cost=unit_cost,
         invoice_ref=invoice_ref, reference=ref,
-        note=f"Issued to WO-{wo.number}",
+        note=_("Issued to WO-%(wo)s") % {"wo": wo.number},
     )
     return pil
 
@@ -200,15 +201,15 @@ def issue_part_to_work_order(
 ) -> tuple[bool, str]:
     site = site or _get_default_site()
     if not site:
-        return False, "No default site configured."
+        return False, _("No default site configured.")
     if quantity <= 0:
-        return False, "Quantity must be positive."
+        return False, _("Quantity must be positive.")
     if wo.lifecycle_status == WorkOrder.LifecycleStatus.CLOSED:
-        return False, "Cannot issue parts to a closed work order."
+        return False, _("Cannot issue parts to a closed work order.")
 
     existing = PartIssueLine.objects.filter(work_order=wo, part=part).exists()
     if existing:
-        return False, "Parts already issued for this work order and part combination."
+        return False, _("Parts already issued for this work order and part combination.")
 
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
     # Phase 7.8: live aggregate (sum of ACTIVE reservations) instead of
@@ -237,7 +238,10 @@ def issue_part_to_work_order(
             CostLedgerService.post_material(
                 part_issue_line=pil,
                 actor=issued_by,
-                memo=f"Part issued: {part.name} x {pil.issued_qty}",
+                memo=_("Part issued: %(name)s x %(qty)s") % {
+                "name": part.name,
+                "qty": pil.issued_qty,
+            },
             )
         except Exception as e:
             import logging
@@ -270,7 +274,7 @@ def issue_part_to_work_order(
                 logging.getLogger(__name__).warning(
                     f"Failed to fire PART_ISSUED for line {pil.pk}: {e}"
                 )
-        return True, f"Issued full quantity ({quantity})."
+        return True, _("Issued full quantity (%(qty)s).") % {"qty": quantity}
 
     elif available > 0:
         short = quantity - available
@@ -294,7 +298,10 @@ def issue_part_to_work_order(
             CostLedgerService.post_material(
                 part_issue_line=pil,
                 actor=issued_by,
-                memo=f"Part issued (partial): {part.name} x {pil.issued_qty}",
+                memo=_("Part issued (partial): %(name)s x %(qty)s") % {
+                "name": part.name,
+                "qty": pil.issued_qty,
+            },
             )
         except Exception as e:
             import logging
@@ -326,8 +333,11 @@ def issue_part_to_work_order(
                     f"Failed to fire PART_ISSUED for line {pil.pk}: {e}"
                 )
         return True, (
-            f"Partial issue: {available} issued; {short} short. "
-            f"Manager should open a PurchaseRequest manually."
+            _("Partial issue: %(available)s issued; %(short)s short. "
+            "Manager should open a PurchaseRequest manually.") % {
+                "available": available,
+                "short": short,
+            }
         )
 
     # Zero stock on hand — refuse to deduct (nothing was issued).
@@ -341,8 +351,11 @@ def issue_part_to_work_order(
     )
     _maybe_notify_low_stock(part, site)
     return False, (
-        f"Out of stock for {part.sku}: 0 available, requested {quantity:g}. "
-        f"Manager must open a PurchaseRequest to procure this part."
+        _("Out of stock for %(sku)s: 0 available, requested %(qty).1f. "
+        "Manager must open a PurchaseRequest to procure this part.") % {
+            "sku": part.sku,
+            "qty": quantity,
+        }
     )
 
 
@@ -366,15 +379,15 @@ def consumable_use(
     Both created atomically; StockMovement FK linked on ConsumableAssignment.
     """
     if not part.is_consumable:
-        return False, "Selected part is not marked as consumable."
+        return False, _("Selected part is not marked as consumable.")
     if not part.allow_operator_consumption:
-        return False, "This item is not available for operator self-service."
+        return False, _("This item is not available for operator self-service.")
     if quantity <= 0:
-        return False, "Quantity must be positive."
+        return False, _("Quantity must be positive.")
 
     site = site or _get_default_site()
     if not site:
-        return False, "No default site configured."
+        return False, _("No default site configured.")
 
     from django.utils import timezone
     from inventory.models import ConsumableAssignment
@@ -387,13 +400,13 @@ def consumable_use(
         created_at__gte=timezone.now() - timezone.timedelta(seconds=5),
     ).exists()
     if recent:
-        return False, "Duplicate consumable log detected. Please wait."
+        return False, _("Duplicate consumable log detected. Please wait.")
 
     # Lock inventory row
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
     quantity_before = inv.quantity_available
     if inv.quantity_available < quantity:
-        return False, "Cannot exceed stock."
+        return False, _("Cannot exceed stock.")
     inv.quantity_available -= quantity
     inv.save()
     quantity_after = inv.quantity_available
@@ -485,7 +498,10 @@ def consumable_use(
         CostLedgerService.post_consumable(
             stock_movement=stock_movement,
             actor=consumed_by,
-            memo=f"Consumable: {part.name} x {quantity}",
+            memo=_("Consumable: %(name)s x %(qty)s") % {
+                "name": part.name,
+                "qty": quantity,
+            },
         )
     except Exception as e:
         import logging
@@ -498,7 +514,7 @@ def consumable_use(
         raise
 
     _maybe_notify_low_stock(part, site)
-    return True, f"Logged {quantity} x {part.name}."
+    return True, _("Logged %(qty)s x %(name)s.") % {"qty": quantity, "name": part.name}
 
 
 def issue_consumable(
@@ -520,13 +536,13 @@ def issue_consumable(
     - Source = SUPERVISOR_ISSUE
     """
     if not part.is_consumable:
-        return False, "Selected part is not marked as consumable."
+        return False, _("Selected part is not marked as consumable.")
     if quantity <= 0:
-        return False, "Quantity must be positive."
+        return False, _("Quantity must be positive.")
 
     site = site or _get_default_site()
     if not site:
-        return False, "No default site configured."
+        return False, _("No default site configured.")
 
     from django.utils import timezone
     from inventory.models import ConsumableAssignment
@@ -535,7 +551,7 @@ def issue_consumable(
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
     quantity_before = inv.quantity_available
     if inv.quantity_available < quantity:
-        return False, "Cannot exceed stock."
+        return False, _("Cannot exceed stock.")
     inv.quantity_available -= quantity
     inv.save()
     quantity_after = inv.quantity_available
@@ -588,7 +604,11 @@ def issue_consumable(
     )
 
     _maybe_notify_low_stock(part, site)
-    return True, f"Issued {quantity} x {part.name} to {consumed_by.username}."
+    return True, _("Issued %(qty)s x %(name)s to %(user)s.") % {
+        "qty": quantity,
+        "name": part.name,
+        "user": consumed_by.username,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -622,9 +642,9 @@ def request_part_on_wo(
     movement has an explicit approver.
     """
     if quantity <= 0:
-        raise ValueError("Quantity must be positive.")
+        raise ValueError(_("Quantity must be positive."))
     if wo.lifecycle_status == WorkOrder.LifecycleStatus.CLOSED:
-        raise ValueError("Cannot request parts on a closed work order.")
+        raise ValueError(_("Cannot request parts on a closed work order."))
 
     # Idempotency: one PENDING line per (WO, part)
     existing = PartIssueLine.objects.filter(
@@ -898,13 +918,13 @@ def approve_part_request(
     if line.status == PartIssueLine.Status.APPROVED:
         return line
     if line.status != PartIssueLine.Status.PENDING:
-        raise ValueError("Only PENDING requests can be approved.")
+        raise ValueError(_("Only PENDING requests can be approved."))
     if line.quantity <= 0:
-        raise ValueError("Quantity must be positive.")
+        raise ValueError(_("Quantity must be positive."))
 
     site = _get_default_site()
     if not site:
-        raise ValueError("No default site configured.")
+        raise ValueError(_("No default site configured."))
 
     # Phase 2B-3 (ADR-0007 sub-decision 7): 5-stage pipeline.
     # Approval ONLY sets approved_qty and runs allocation. Stock is
@@ -1006,10 +1026,10 @@ def reject_part_request(*, line: PartIssueLine, manager, reason: str) -> PartIss
     `pending_parts` even after the request was rejected).
     """
     if line.status != PartIssueLine.Status.PENDING:
-        raise ValueError("Only PENDING requests can be rejected.")
+        raise ValueError(_("Only PENDING requests can be rejected."))
     reason_clean = (reason or "").strip()
     if not reason_clean:
-        raise ValueError("Rejection reason is required.")
+        raise ValueError(_("Rejection reason is required."))
     line.status = PartIssueLine.Status.REJECTED
     line.rejection_reason = reason_clean[:1000]
     line.approved_by = manager
@@ -1057,16 +1077,16 @@ def cancel_approved_part_request(
         PartIssueLine.Status.ALLOCATED,
     ):
         raise ValueError(
-            f"Only APPROVED or ALLOCATED requests can be cancelled "
-            f"(this line is {line.status})."
+            _("Only APPROVED or ALLOCATED requests can be cancelled "
+            "(this line is %(status)s).") % {"status": line.status}
         )
     if line.issued_qty and line.issued_qty > 0:
         raise ValueError(
-            "Cannot cancel a line that has already been issued from stock."
+            _("Cannot cancel a line that has already been issued from stock.")
         )
     reason = (reason or "").strip()
     if len(reason) < 15:
-        raise ValueError("Cancellation reason must be at least 15 characters.")
+        raise ValueError(_("Cancellation reason must be at least 15 characters."))
 
     # Release the inventory reservation if any.
     # Phase 7.8: cancel the specific InventoryReservation rows attached
@@ -1076,7 +1096,7 @@ def cancel_approved_part_request(
     # approach of decrementing the aggregate directly.
     from inventory.models import InventoryReservation
     now = timezone.now()
-    cancel_reason = f"Line cancelled: {reason[:200]}"
+    cancel_reason = _("Line cancelled: %(reason)s") % {"reason": reason[:200]}
     for res in (
         InventoryReservation.objects
         .select_for_update()
@@ -1143,7 +1163,7 @@ def cancel_approved_part_request(
     return line
     reason = (reason or "").strip()
     if not reason:
-        raise ValueError("Rejection reason is required.")
+        raise ValueError(_("Rejection reason is required."))
     line.status = PartIssueLine.Status.REJECTED
     line.rejection_reason = reason[:1000]
     line.approved_by = manager
@@ -1175,10 +1195,10 @@ def edit_part_request_qty(*, line: PartIssueLine, manager, new_quantity: Decimal
     figure needs to change.
     """
     if line.status != PartIssueLine.Status.PENDING:
-        raise ValueError("Only PENDING requests can be edited.")
+        raise ValueError(_("Only PENDING requests can be edited."))
     new_quantity = Decimal(str(new_quantity))
     if new_quantity <= 0:
-        raise ValueError("Quantity must be positive.")
+        raise ValueError(_("Quantity must be positive."))
     old_qty = line.quantity
     new_shortage = max(Decimal("0"), line.requested_qty - new_quantity)
     line.quantity = new_quantity
@@ -1260,11 +1280,11 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
     Raises ValueError if (quantity_available - quantity_reserved) < qty.
     """
     if qty <= 0:
-        raise ValueError("Reservation qty must be positive.")
+        raise ValueError(_("Reservation qty must be positive."))
 
     site = _get_default_site()
     if not site:
-        raise ValueError("No default site configured.")
+        raise ValueError(_("No default site configured."))
     try:
         inv = Inventory.objects.select_for_update().get(part=part, site=site)
     except Inventory.DoesNotExist:
@@ -1276,9 +1296,15 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
     unreserved = inv.quantity_available - inv.compute_quantity_reserved()
     if unreserved < qty:
         raise ValueError(
-            f"Cannot reserve {qty:g} × {part.sku}: only {unreserved:g} unreserved "
-            f"({inv.quantity_available:g} on hand). "
-            f"Missing {qty - unreserved:g} unit(s)."
+            _("Cannot reserve %(qty).1f × %(sku)s: only %(unreserved).1f unreserved "
+            "(%(available).1f on hand). "
+            "Missing %(missing).1f unit(s).") % {
+                "qty": qty,
+                "sku": part.sku,
+                "unreserved": unreserved,
+                "available": inv.quantity_available,
+                "missing": qty - unreserved,
+            }
         )
 
     # Create the InventoryReservation row FIRST so the post_save signal
@@ -1291,7 +1317,7 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
         quantity=qty,
         status=InventoryReservation.Status.ACTIVE,
         source_line=None,  # legacy path; no PartIssueLine FK
-        release_reason="legacy reserve_stock() call",
+        release_reason=_("legacy reserve_stock() call"),
     )
     # Refresh inv from DB to pick up any signal-driven changes
     inv.refresh_from_db()
@@ -1323,10 +1349,10 @@ def release_reservation(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, 
     Raises ValueError if (live) quantity_reserved < qty.
     """
     if qty <= 0:
-        raise ValueError("Release qty must be positive.")
+        raise ValueError(_("Release qty must be positive."))
     site = _get_default_site()
     if not site:
-        raise ValueError("No default site configured.")
+        raise ValueError(_("No default site configured."))
     inv = Inventory.objects.select_for_update().get(part=part, site=site)
 
     # Cancel legacy (no source_line) ACTIVE reservations first.
@@ -1352,7 +1378,7 @@ def release_reservation(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, 
         if take >= res.quantity:
             res.status = InventoryReservation.Status.RELEASED
             res.released_at = now
-            res.release_reason = f"legacy release_reservation() call by {actor}"
+            res.release_reason = _("legacy release_reservation() call by %(actor)s") % {"actor": actor}
             res.save(update_fields=["status", "released_at", "release_reason"])
         else:
             res.quantity -= take
@@ -1361,7 +1387,7 @@ def release_reservation(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, 
                 part=res.part, work_order=res.work_order, quantity=take,
                 status=InventoryReservation.Status.RELEASED,
                 source_line=None, released_at=now,
-                release_reason=f"Partial release on legacy release_reservation() by {actor}",
+                release_reason=_("Partial release on legacy release_reservation() by %(actor)s") % {"actor": actor},
                 priority_at_creation=res.priority_at_creation,
             )
         remaining -= take
@@ -1371,9 +1397,15 @@ def release_reservation(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, 
         # go negative if we decremented it; surface a clear error.
         live_reserved = inv.compute_quantity_reserved()
         raise ValueError(
-            f"Cannot release {qty:g} × {part.sku}: only {qty - remaining:g} released "
-            f"from legacy reservations; {remaining:g} requested but no matching "
-            f"reservation rows. Live reserved = {live_reserved:g}."
+            _("Cannot release %(qty).1f × %(sku)s: only %(released).1f released "
+            "from legacy reservations; %(remaining).1f requested but no matching "
+            "reservation rows. Live reserved = %(live_reserved).1f.") % {
+                "qty": qty,
+                "sku": part.sku,
+                "released": qty - remaining,
+                "remaining": remaining,
+                "live_reserved": live_reserved,
+            }
         )
     inv.refresh_from_db()
     log_audit(
@@ -1430,8 +1462,13 @@ def transition_shortage_status(report: PartShortageReport, new_status: str, *, a
     valid = VALID_SHORTAGE_TRANSITIONS.get(report.status, set())
     if new_status not in valid:
         raise ValueError(
-            f"Invalid shortage status transition: {report.status} → {new_status}. "
-            f"Valid transitions from {report.status}: {sorted(valid) or 'none (terminal)'}"
+            _("Invalid shortage status transition: %(old)s → %(new)s. "
+            "Valid transitions from %(old2)s: %(valid)s") % {
+                "old": report.status,
+                "new": new_status,
+                "old2": report.status,
+                "valid": sorted(valid) or "none (terminal)",
+            }
         )
     old = report.status
     report.status = new_status
@@ -1454,7 +1491,10 @@ def transition_shortage_status(report: PartShortageReport, new_status: str, *, a
                 from inventory.models import InventoryReservation
                 from django.utils import timezone as _tz
                 cancel_reason = (
-                    f"Shortage report closed (was {old}); releasing {released:g} unit(s)"
+                    _("Shortage report closed (was %(old)s); releasing %(released).1f unit(s)") % {
+                        "old": old,
+                        "released": released,
+                    }
                 )
                 now = _tz.now()
                 for res in (
@@ -1503,8 +1543,8 @@ def create_shortage_decision(
     """
     if report.status != PartShortageReport.Status.PENDING_REVIEW:
         raise ValidationError(
-            f"Only PENDING_REVIEW reports can receive a decision. "
-            f"Current status: {report.status}."
+            _("Only PENDING_REVIEW reports can receive a decision. "
+            "Current status: %(status)s.") % {"status": report.status}
         )
 
     decision = PartShortageDecision(
@@ -1574,22 +1614,27 @@ def edit_shortage_decision(
     """
     if report.is_decision_locked:
         raise ValidationError(
-            f"Decision is locked: report is in {report.status}. "
-            f"Close this report and create a new shortage if fulfillment needs to change."
+            _("Decision is locked: report is in %(status)s. "
+            "Close this report and create a new shortage if fulfillment needs to change.") % {
+                "status": report.status,
+            }
         )
 
     decision = report.decision
     if decision is None:
-        raise ValidationError("Report has no decision to edit.")
+        raise ValidationError(_("Report has no decision to edit."))
 
     # v4.8 procurement lock
     from procurement.models import PurchaseRequest
     existing_pr = PurchaseRequest.objects.filter(source_shortage_report=report).first()
     if existing_pr is not None and approved_procurement_qty != decision.approved_procurement_qty:
         raise ValidationError(
-            f"Cannot edit procurement qty: PR #{existing_pr.pk} already created "
-            f"for this shortage. Close this shortage and create a new one, "
-            f"or manually edit PR #{existing_pr.pk}."
+            _("Cannot edit procurement qty: PR #%(pk)s already created "
+            "for this shortage. Close this shortage and create a new one, "
+            "or manually edit PR #%(pk2)s.") % {
+                "pk": existing_pr.pk,
+                "pk2": existing_pr.pk,
+            }
         )
 
     old_issue = decision.approved_issue_qty
@@ -1643,25 +1688,29 @@ def mark_shortage_fulfilled(*, report: PartShortageReport, actor) -> PartShortag
     """
     if report.status != PartShortageReport.Status.IN_FULFILLMENT:
         raise ValidationError(
-            f"Only IN_FULFILLMENT reports can be marked fulfilled. "
-            f"Current status: {report.status}."
+            _("Only IN_FULFILLMENT reports can be marked fulfilled. "
+            "Current status: %(status)s.") % {"status": report.status}
         )
     decision = getattr(report, "decision", None)
     if not decision or decision.decision_type != PartShortageDecision.DecisionType.APPROVE:
-        raise ValidationError("Only approved shortages can be marked fulfilled.")
+        raise ValidationError(_("Only approved shortages can be marked fulfilled."))
 
     if report.qty_issued < decision.approved_issue_qty:
         missing = decision.approved_issue_qty - report.qty_issued
         raise ValidationError(
-            f"Cannot mark fulfilled: only {report.qty_issued:g} of "
-            f"{decision.approved_issue_qty:g} stock units issued. "
-            f"Issue the remaining {missing:g} from stock first."
+            _("Cannot mark fulfilled: only %(issued).1f of "
+            "%(approved).1f stock units issued. "
+            "Issue the remaining %(missing).1f from stock first.") % {
+                "issued": report.qty_issued,
+                "approved": decision.approved_issue_qty,
+                "missing": missing,
+            }
         )
 
     note = (
-        "Manager verified full fulfillment (procurement verification deferred to Sprint 4)"
+        _("Manager verified full fulfillment (procurement verification deferred to Sprint 4)")
         if decision.approved_procurement_qty > 0
-        else "Manager verified full fulfillment"
+        else _("Manager verified full fulfillment")
     )
     transition_shortage_status(
         report, PartShortageReport.Status.FULFILLED, actor=actor, note=note,
@@ -1713,29 +1762,37 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
         PartIssueLine.Status.APPROVED,
         PartIssueLine.Status.ALLOCATED,
     ):
-        raise ValueError(f"Line is {line.status}, cannot issue.")
+        raise ValueError(_("Line is %(status)s, cannot issue.") % {"status": line.status})
     if not line.approved_qty or line.approved_qty <= 0:
         raise ValueError(
-            f"Line has no approved_qty (status={line.status}). "
-            f"Manager must approve before warehouse issue."
+            _("Line has no approved_qty (status=%(status)s). "
+            "Manager must approve before warehouse issue.") % {"status": line.status}
         )
     if qty <= 0:
-        raise ValueError("Issue qty must be positive.")
+        raise ValueError(_("Issue qty must be positive."))
 
     site = _get_default_site()
     if not site:
-        raise ValueError("No default site configured.")
+        raise ValueError(_("No default site configured."))
     inv = Inventory.objects.select_for_update().get(part=line.part, site=site)
 
     # v4.6: check quantity_available (physical on-hand) only.
     if inv.quantity_available <= 0:
         raise ValueError(
-            f"Out of stock for {line.part.sku}: 0 available, requested {qty:g}."
+            _("Out of stock for %(sku)s: 0 available, requested %(qty).1f.") % {
+                "sku": line.part.sku,
+                "qty": qty,
+            }
         )
     if inv.quantity_available < qty:
         raise ValueError(
-            f"Cannot issue {qty:g} × {line.part.sku}: only {inv.quantity_available:g} available. "
-            f"Missing {qty - inv.quantity_available:g} unit(s). Manager must decide."
+            _("Cannot issue %(qty).1f × %(sku)s: only %(available).1f available. "
+            "Missing %(missing).1f unit(s). Manager must decide.") % {
+                "qty": qty,
+                "sku": line.part.sku,
+                "available": inv.quantity_available,
+                "missing": qty - inv.quantity_available,
+            }
         )
 
     # Release reservation as part of the issue.
@@ -1766,7 +1823,11 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
             res.status = InventoryReservation.Status.RELEASED
             res.released_at = timezone.now()
             res.release_reason = (
-                f"Warehouse issue {qty:g} × {line.part.sku} to WO-{line.work_order.number}"
+                _("Warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s") % {
+                    "qty": qty,
+                    "sku": line.part.sku,
+                    "wo": line.work_order.number,
+                }
             )
             res.save(update_fields=["status", "released_at", "release_reason"])
         else:
@@ -1782,8 +1843,12 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
                 source_line=res.source_line,
                 released_at=timezone.now(),
                 release_reason=(
-                    f"Partial release on warehouse issue {qty:g} × "
-                    f"{line.part.sku} to WO-{line.work_order.number}"
+                    _("Partial release on warehouse issue %(qty).1f × "
+                    "%(sku)s to WO-%(wo)s") % {
+                        "qty": qty,
+                        "sku": line.part.sku,
+                        "wo": line.work_order.number,
+                    }
                 ),
                 priority_at_creation=res.priority_at_creation,
             )
@@ -1815,8 +1880,12 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
                 res.status = InventoryReservation.Status.RELEASED
                 res.released_at = timezone.now()
                 res.release_reason = (
-                    f"Warehouse issue {qty:g} × {line.part.sku} to WO-{line.work_order.number} "
-                    f"(legacy reserve)"
+                    _("Warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s "
+                    "(legacy reserve)") % {
+                        "qty": qty,
+                        "sku": line.part.sku,
+                        "wo": line.work_order.number,
+                    }
                 )
                 res.save(update_fields=["status", "released_at", "release_reason"])
             else:
@@ -1830,8 +1899,12 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
                     source_line=None,
                     released_at=timezone.now(),
                     release_reason=(
-                        f"Partial release on warehouse issue (legacy reserve) "
-                        f"{qty:g} × {line.part.sku} to WO-{line.work_order.number}"
+                        _("Partial release on warehouse issue (legacy reserve) "
+                        "%(qty).1f × %(sku)s to WO-%(wo)s") % {
+                            "qty": qty,
+                            "sku": line.part.sku,
+                            "wo": line.work_order.number,
+                        }
                     ),
                     priority_at_creation=res.priority_at_creation,
                 )
@@ -1886,7 +1959,10 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
         report.save(update_fields=["qty_issued"])
         transition_shortage_status(
             report, PartShortageReport.Status.IN_FULFILLMENT, actor=actor,
-            note=f"Warehouse issued {qty:g} × {line.part.sku}",
+            note=_("Warehouse issued %(qty).1f × %(sku)s") % {
+                "qty": qty,
+                "sku": line.part.sku,
+            },
         )
     elif report is not None:
         report.qty_issued = (report.qty_issued or Decimal("0")) + qty
@@ -1902,7 +1978,10 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
         work_order=line.work_order,
         performed_by=actor,
         unit_cost=_effective_unit_cost(line),
-        note=f"Warehouse issued to WO-{line.work_order.number} (released {reservation_released:g} reservation)",
+        note=_("Warehouse issued to WO-%(wo)s (released %(released).1f reservation)") % {
+            "wo": line.work_order.number,
+            "released": reservation_released,
+        },
         reference={"line_id": line.pk, "reservation_released": str(reservation_released)},
     )
     log_audit(
@@ -1937,7 +2016,11 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
     CostLedgerService.post_material(
         part_issue_line=line,
         actor=actor,
-        memo=f"Warehouse issued to WO-{line.work_order.number}: {line.part.name} x {qty:g}",
+        memo=_("Warehouse issued to WO-%(wo)s: %(name)s x %(qty).1f") % {
+            "wo": line.work_order.number,
+            "name": line.part.name,
+            "qty": qty,
+        },
     )
 
     # Low-stock notification (matches the existing pattern in approve_part_request)

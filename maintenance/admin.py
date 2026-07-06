@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
 
 from inventory.models import PartIssueLine
 from mms.admin_mixins import MMSAdminPermission
@@ -120,12 +121,12 @@ class WorkOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
 
     fieldsets = (
         (
-            "Identification",
+            _("Identification"),
             {"fields": ("number", "category", "is_emergency", "issue", "machine")},
         ),
-        ("Assignment", {"fields": ("lifecycle_status", "assigned_technician", "created_by")}),
+        (_("Assignment"), {"fields": ("lifecycle_status", "assigned_technician", "created_by")}),
         (
-            "Execution",
+            _("Execution"),
             {
                 "fields": (
                     "root_cause",
@@ -138,7 +139,7 @@ class WorkOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
                 )
             },
         ),
-        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+        (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
     )
 
 
@@ -238,8 +239,8 @@ class ExternalRepairOrderAdmin(MMSAdminPermission, admin.ModelAdmin):
 
     fieldsets = (
         (None, {"fields": ("title", "description", "status", "work_order")}),
-        ("Vendor & cost", {"fields": ("vendor_name", "estimated_cost", "actual_cost")}),
-        ("People & dates", {"fields": ("created_by", "handled_by", "sent_at", "closed_at", "created_at")}),
+        (_("Vendor & cost"), {"fields": ("vendor_name", "estimated_cost", "actual_cost")}),
+        (_("People & dates"), {"fields": ("created_by", "handled_by", "sent_at", "closed_at", "created_at")}),
     )
 
 
@@ -269,9 +270,9 @@ class ExternalRepairRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
 
     fieldsets = (
         (None, {"fields": ("work_order", "status", "repair_order")}),
-        ("Request", {"fields": ("requested_by", "diagnosis_note", "part_description")}),
-        ("Review", {"fields": ("reviewed_by", "reviewed_at", "manager_note")}),
-        ("Audit", {"fields": ("created_at",)}),
+        (_("Request"), {"fields": ("requested_by", "diagnosis_note", "part_description")}),
+        (_("Review"), {"fields": ("reviewed_by", "reviewed_at", "manager_note")}),
+        (_("Audit"), {"fields": ("created_at",)}),
     )
 
 

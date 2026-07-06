@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.translation import gettext as _
 
 from accounts.forms import MMSUserCreateForm, MMSUserEditForm
 from accounts.models import User
@@ -18,30 +19,30 @@ def _require_super_admin(request):
 
 def _mms_user_delete_block_reason(actor: User, target: User) -> str:
     if target.pk == actor.pk:
-        return "You cannot delete your own account."
+        return _("You cannot delete your own account.")
     if target.is_super_admin_role():
         others = User.objects.exclude(pk=target.pk)
         if not any(u.is_super_admin_role() for u in others):
-            return "Cannot delete the last Super Admin or Django superuser. Promote another account first."
+            return _("Cannot delete the last Super Admin or Django superuser. Promote another account first.")
     return ""
 
 
 def _mms_user_deactivate_block_reason(actor: User, target: User) -> str:
     if target.pk == actor.pk:
-        return "You cannot deactivate your own account."
+        return _("You cannot deactivate your own account.")
     if not target.is_active:
-        return "This account is already inactive."
+        return _("This account is already inactive.")
     if target.is_super_admin_role():
         others = User.objects.exclude(pk=target.pk).filter(is_active=True)
         if not any(u.is_super_admin_role() for u in others):
-            return "Cannot deactivate the last active Super Admin or Django superuser."
+            return _("Cannot deactivate the last active Super Admin or Django superuser.")
     return ""
 
 
 @login_required
 def mms_user_list(request):
     if not _require_super_admin(request):
-        messages.error(request, "Only Super Admins (or Django superusers) can manage users.")
+        messages.error(request, _("Only Super Admins (or Django superusers) can manage users."))
         return redirect("dashboard")
     users = list(User.objects.all().order_by("username")[:500])
     for u in users:
@@ -52,7 +53,7 @@ def mms_user_list(request):
 @login_required
 def mms_user_create(request):
     if not _require_super_admin(request):
-        messages.error(request, "Only Super Admins (or Django superusers) can create users.")
+        messages.error(request, _("Only Super Admins (or Django superusers) can create users."))
         return redirect("dashboard")
 
     if request.method == "POST":
@@ -77,7 +78,7 @@ def mms_user_create(request):
             )
             if u.is_staff and form.cleaned_data.get("grant_admin_apps"):
                 assign_staff_model_permissions(User, usernames=(u.username,))
-            messages.success(request, f"User {u.username!r} created.")
+            messages.success(request, _("User %s created.") % u.username)
             return redirect("mms_user_list")
     else:
         form = MMSUserCreateForm()
@@ -87,7 +88,7 @@ def mms_user_create(request):
 @login_required
 def mms_user_edit(request, pk):
     if not _require_super_admin(request):
-        messages.error(request, "Only Super Admins (or Django superusers) can edit users.")
+        messages.error(request, _("Only Super Admins (or Django superusers) can edit users."))
         return redirect("dashboard")
 
     target = get_object_or_404(User, pk=pk)
@@ -121,7 +122,7 @@ def mms_user_edit(request, pk):
                     "password_changed": bool(pwd),
                 },
             )
-            messages.success(request, f"User {user.username!r} updated.")
+            messages.success(request, _("User %s updated.") % user.username)
             return redirect("mms_user_list")
     else:
         form = MMSUserEditForm(instance=target, actor=request.user)
@@ -132,7 +133,7 @@ def mms_user_edit(request, pk):
 @login_required
 def mms_user_delete(request, pk):
     if not _require_super_admin(request):
-        messages.error(request, "Only Super Admins (or Django superusers) can delete users.")
+        messages.error(request, _("Only Super Admins (or Django superusers) can delete users."))
         return redirect("dashboard")
 
     target = get_object_or_404(User, pk=pk)
@@ -149,9 +150,11 @@ def mms_user_delete(request, pk):
         except ProtectedError:
             messages.warning(
                 request,
-                "This user cannot be removed from the database while maintenance, inventory, or "
-                "procurement records still reference them. Use \"Deactivate account\" below to block "
-                "sign-in and keep history, or reassign those records in Django admin and try delete again.",
+                _(
+                    "This user cannot be removed from the database while maintenance, inventory, or "
+                    "procurement records still reference them. Use \"Deactivate account\" below to block "
+                    "sign-in and keep history, or reassign those records in Django admin and try delete again."
+                ),
             )
             return redirect("mms_user_delete", pk=pk)
         log_audit(
@@ -161,7 +164,7 @@ def mms_user_delete(request, pk):
             object_id=str(uid),
             payload={"username": username},
         )
-        messages.success(request, f"User {username!r} was deleted.")
+        messages.success(request, _("User %s was deleted.") % username)
         return redirect("mms_user_list")
 
     return render(
@@ -177,7 +180,7 @@ def mms_user_delete(request, pk):
 @login_required
 def mms_user_deactivate(request, pk):
     if not _require_super_admin(request):
-        messages.error(request, "Only Super Admins (or Django superusers) can deactivate users.")
+        messages.error(request, _("Only Super Admins (or Django superusers) can deactivate users."))
         return redirect("dashboard")
 
     target = get_object_or_404(User, pk=pk)
@@ -202,6 +205,8 @@ def mms_user_deactivate(request, pk):
     )
     messages.success(
         request,
-        f"User {username!r} is now inactive (they cannot sign in; records that reference them are unchanged).",
+        _(
+            "User %s is now inactive (they cannot sign in; records that reference them are unchanged)."
+        ) % username,
     )
     return redirect("mms_user_list")

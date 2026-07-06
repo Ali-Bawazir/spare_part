@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from django.utils.translation import gettext as _
 
 
 _VIDEO_EXTS = {".mp4", ".mov", ".webm", ".avi"}
@@ -66,7 +67,7 @@ class VideoCompressionService:
             FileNotFoundError: if `file_path` does not exist.
         """
         if not file_path or not os.path.exists(file_path):
-            raise FileNotFoundError(f"Video file not found: {file_path!r}")
+            raise FileNotFoundError(_("Video file not found: %(path)s") % {"path": f"{file_path!r}"})
 
         original_size = os.path.getsize(file_path)
         ext = os.path.splitext(file_path)[1].lower()
@@ -79,7 +80,7 @@ class VideoCompressionService:
                 compressed_size=original_size,
                 ratio_pct=100,
                 skipped=True,
-                reason="not a video",
+                reason=_("not a video"),
             )
 
         if original_size < _SIZE_THRESHOLD_BYTES:
@@ -90,7 +91,7 @@ class VideoCompressionService:
                 compressed_size=original_size,
                 ratio_pct=100,
                 skipped=True,
-                reason="file too small (<5MB) to benefit from compression",
+                reason=_("file too small (<5MB) to benefit from compression"),
             )
 
         # Phase 1.x stub: ffmpeg is not wired yet.
@@ -101,7 +102,7 @@ class VideoCompressionService:
             compressed_size=original_size,
             ratio_pct=100,
             skipped=True,
-            reason="Phase 2: ffmpeg not yet wired",
+            reason=_("Phase 2: ffmpeg not yet wired"),
         )
 
 

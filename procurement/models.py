@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from inventory.models import SparePart
 
@@ -11,7 +12,7 @@ class Supplier(models.Model):
     name = models.CharField(max_length=255, unique=True)
     contact = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
-    is_repair_vendor = models.BooleanField(default=False, help_text="Also handles external repairs")
+    is_repair_vendor = models.BooleanField(default=False, help_text=_("Also handles external repairs"))
     code = models.CharField(
         max_length=64,
         unique=True,
@@ -21,8 +22,8 @@ class Supplier(models.Model):
         # Bug fix: was SlugField, which only accepts ASCII. CharField allows
         # Arabic and other non-ASCII codes. DB column type is unchanged
         # (VARCHAR(64)); only form-validator behavior changes.
-        help_text="Unique supplier code. Supports Arabic, e.g. SUP-001 or مورد-001. "
-                  "Used in QR format SUPPLIER:{code}.",
+        help_text=_("Unique supplier code. Supports Arabic, e.g. SUP-001 or مورد-001. "
+                  "Used in QR format SUPPLIER:{code}."),
     )
     contact_person = models.CharField(max_length=128, blank=True)
     phone = models.CharField(max_length=64, blank=True)
@@ -55,11 +56,11 @@ class Supplier(models.Model):
 
 class PurchaseRequest(models.Model):
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending officer"
-        CONVERTED_TO_PO = "converted_to_po", "Converted to PO"
-        PARTIALLY_FULFILLED = "partially_fulfilled", "Partially fulfilled"
-        FULFILLED = "fulfilled", "Fulfilled"
-        CANCELLED = "cancelled", "Cancelled"
+        PENDING = "pending", _("Pending officer")
+        CONVERTED_TO_PO = "converted_to_po", _("Converted to PO")
+        PARTIALLY_FULFILLED = "partially_fulfilled", _("Partially fulfilled")
+        FULFILLED = "fulfilled", _("Fulfilled")
+        CANCELLED = "cancelled", _("Cancelled")
 
     part = models.ForeignKey(SparePart, on_delete=models.PROTECT, related_name="purchase_requests")
     work_order = models.ForeignKey(
@@ -117,7 +118,7 @@ class PurchaseRequest(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="purchase_requests",
-        help_text=(
+        help_text=_(
             "Set when this PR was auto-created from a shortage decision. "
             "Null for manual PRs. SET_NULL on delete (closing the shortage "
             "does not delete the PR)."
@@ -151,12 +152,12 @@ class PurchaseOrder(models.Model):
     """Actual procurement order sent to a supplier."""
 
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
-        SENT = "sent", "Sent to supplier"
-        PARTIAL_RECEIVED = "partial", "Partial received"
-        RECEIVED = "received", "Fully received"
-        CLOSED_SHORT = "closed_short", "Closed short"
-        CANCELLED = "cancelled", "Cancelled"
+        DRAFT = "draft", _("Draft")
+        SENT = "sent", _("Sent to supplier")
+        PARTIAL_RECEIVED = "partial", _("Partial received")
+        RECEIVED = "received", _("Fully received")
+        CLOSED_SHORT = "closed_short", _("Closed short")
+        CANCELLED = "cancelled", _("Cancelled")
 
     po_number = models.CharField(max_length=12, unique=True, editable=False)
     supplier = models.ForeignKey(
@@ -180,7 +181,7 @@ class PurchaseOrder(models.Model):
     supplier_invoice_total  = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     currency                = models.CharField(max_length=3, default="USD")
     exchange_rate           = models.DecimalField(max_digits=12, decimal_places=6, default=1,
-        help_text="PO currency → site currency at receive time")
+        help_text=_("PO currency → site currency at receive time"))
     invoice_attachment      = models.ForeignKey("maintenance.Attachment", on_delete=models.SET_NULL,
                                                 null=True, blank=True, related_name="po_invoice_for")
 
@@ -255,9 +256,9 @@ class PurchaseOrderItem(models.Model):
     """Line item on a purchase order tracking ordered vs received."""
 
     class Condition(models.TextChoices):
-        GOOD     = "good",     "Good"
-        DAMAGED  = "damaged",  "Damaged (quarantine)"
-        REJECTED = "rejected", "Rejected at inspection"
+        GOOD     = "good",     _("Good")
+        DAMAGED  = "damaged",  _("Damaged (quarantine)")
+        REJECTED = "rejected", _("Rejected at inspection")
 
     purchase_order = models.ForeignKey(
         PurchaseOrder,
@@ -272,19 +273,19 @@ class PurchaseOrderItem(models.Model):
     ordered_qty = models.DecimalField(max_digits=14, decimal_places=3)
     received_qty = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     negotiated_unit_price = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"),
-        help_text="Price agreed on the PO. Renamed from unit_price.")
+        help_text=_("Price agreed on the PO. Renamed from unit_price."))
     actual_unit_price = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True,
-        help_text="What was actually invoiced by the supplier. Used for weighted-avg cost recompute.")
+        help_text=_("What was actually invoiced by the supplier. Used for weighted-avg cost recompute."))
     total_price = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal("0"))
     damaged_qty       = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     rejected_qty      = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     backordered_qty   = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"),
-        help_text="Units the supplier owes but hasn't delivered. ordered_qty = received_qty + backordered_qty + cancelled_qty.")
+        help_text=_("Units the supplier owes but hasn't delivered. ordered_qty = received_qty + backordered_qty + cancelled_qty."))
     condition         = models.CharField(max_length=16, choices=Condition.choices, default=Condition.GOOD)
     line_note         = models.CharField(max_length=500, blank=True)
 
     class Meta:
-        verbose_name_plural = "purchase order items"
+        verbose_name_plural = _("purchase order items")
 
     def __str__(self) -> str:
         return f"{self.part.sku} x{self.ordered_qty} (recv {self.received_qty})"

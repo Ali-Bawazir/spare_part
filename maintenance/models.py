@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class Site(models.Model):
@@ -39,8 +40,8 @@ class FailureCategory(models.Model):
 
     class Meta:
         ordering = ["name"]
-        verbose_name = "Failure Category"
-        verbose_name_plural = "Failure Categories"
+        verbose_name = _("Failure Category")
+        verbose_name_plural = _("Failure Categories")
 
     def __str__(self) -> str:
         return f"{self.name} ({self.code})"
@@ -61,8 +62,8 @@ class FailureMode(models.Model):
 
     class Meta:
         ordering = ["code"]
-        verbose_name = "Failure Mode"
-        verbose_name_plural = "Failure Modes"
+        verbose_name = _("Failure Mode")
+        verbose_name_plural = _("Failure Modes")
 
     def __str__(self) -> str:
         return f"{self.code} — {self.name}"
@@ -82,13 +83,16 @@ class Machine(models.Model):
     )
     asset_level = models.PositiveIntegerField(
         default=3,
-        choices=[(1, "Area"), (2, "Production Line"), (3, "Machine"), (4, "Subassembly"), (5, "Component")],
+        choices=[
+            (1, _("Area")), (2, _("Production Line")), (3, _("Machine")),
+            (4, _("Subassembly")), (5, _("Component")),
+        ],
     )
     asset_type = models.CharField(
         max_length=32, blank=True,
         choices=[
-            ("production", "Production"), ("utility", "Utility"),
-            ("safety", "Safety"), ("hvac", "HVAC"), ("other", "Other"),
+            ("production", _("Production")), ("utility", _("Utility")),
+            ("safety", _("Safety")), ("hvac", _("HVAC")), ("other", _("Other")),
         ],
     )
     site = models.ForeignKey(
@@ -99,24 +103,27 @@ class Machine(models.Model):
         "FailureCategory", on_delete=models.SET_NULL,
         null=True, blank=True, related_name="machines"
     )
-    serial_number = models.CharField(max_length=128, blank=True, help_text="Serial number (level-5 Component)")
-    manufacturer = models.CharField(max_length=255, blank=True, help_text="Manufacturer (level-5 Component)")
-    model_number = models.CharField(max_length=128, blank=True, help_text="Model number (level-5 Component)")
-    install_date = models.DateField(null=True, blank=True, help_text="Date installed (level-5 Component)")
-    expected_life_days = models.PositiveIntegerField(null=True, blank=True, help_text="Expected service life in days (level-5 Component)")
+    serial_number = models.CharField(max_length=128, blank=True, help_text=_("Serial number (level-5 Component)"))
+    manufacturer = models.CharField(max_length=255, blank=True, help_text=_("Manufacturer (level-5 Component)"))
+    model_number = models.CharField(max_length=128, blank=True, help_text=_("Model number (level-5 Component)"))
+    install_date = models.DateField(null=True, blank=True, help_text=_("Date installed (level-5 Component)"))
+    expected_life_days = models.PositiveIntegerField(null=True, blank=True, help_text=_("Expected service life in days (level-5 Component)"))
     criticality = models.CharField(
         max_length=20, blank=True,
-        choices=[("LOW", "Low"), ("MEDIUM", "Medium"), ("HIGH", "High"), ("CRITICAL", "Critical")],
-        help_text="Criticality rating (level-5 Component)",
+        choices=[("LOW", _("Low")), ("MEDIUM", _("Medium")), ("HIGH", _("High")), ("CRITICAL", _("Critical"))],
+        help_text=_("Criticality rating (level-5 Component)"),
     )
     status = models.CharField(
         max_length=20, blank=True, default="active",
-        choices=[("active", "Active"), ("inactive", "Inactive"), ("retired", "Retired"), ("awaiting_repair", "Awaiting Repair")],
-        help_text="Component status",
+        choices=[
+            ("active", _("Active")), ("inactive", _("Inactive")),
+            ("retired", _("Retired")), ("awaiting_repair", _("Awaiting Repair")),
+        ],
+        help_text=_("Component status"),
     )
     asset_code = models.CharField(
         max_length=128, blank=True, default="",
-        help_text="Hierarchical asset code (e.g. FM-01-CONV-BRG-001)",
+        help_text=_("Hierarchical asset code (e.g. FM-01-CONV-BRG-001)"),
     )
 
     class Meta:
@@ -188,15 +195,15 @@ class ArchivedManager(models.Manager):
 
 class MaintenanceIssue(models.Model):
     class Status(models.TextChoices):
-        NEW = "new", "New"
-        VALIDATED = "validated", "Validated"
-        CONVERTED = "converted", "Converted to work order"
+        NEW = "new", _("New")
+        VALIDATED = "validated", _("Validated")
+        CONVERTED = "converted", _("Converted to work order")
 
     class Priority(models.TextChoices):
-        CRITICAL = "critical", "Critical"
-        HIGH = "high", "High"
-        MEDIUM = "medium", "Medium"
-        LOW = "low", "Low"
+        CRITICAL = "critical", _("Critical")
+        HIGH = "high", _("High")
+        MEDIUM = "medium", _("Medium")
+        LOW = "low", _("Low")
 
     machine = models.ForeignKey(Machine, on_delete=models.PROTECT, related_name="issues")
     component = models.ForeignKey(
@@ -218,8 +225,8 @@ class MaintenanceIssue(models.Model):
         blank=True,
         null=True,
         related_name="issues",
-        verbose_name="Issue Type",
-        help_text="Classified failure category (Phase 2: FailureMode sub-classification)",
+        verbose_name=_("Issue Type"),
+        help_text=_("Classified failure category (Phase 2: FailureMode sub-classification)"),
     )
     failure_mode = models.ForeignKey(
         "FailureMode",
@@ -227,7 +234,7 @@ class MaintenanceIssue(models.Model):
         blank=True,
         null=True,
         related_name="issues",
-        verbose_name="Failure Mode",
+        verbose_name=_("Failure Mode"),
     )
     description = models.TextField()
     status = models.CharField(
@@ -253,7 +260,7 @@ class MaintenanceIssue(models.Model):
     is_archived = models.BooleanField(default=False, db_index=True)
     is_emergency = models.BooleanField(
         default=False, db_index=True,
-        help_text=(
+        help_text=_(
             "P3.3: operator can flag an issue as emergency on creation, "
             "or a supervisor/manager can escalate during validation. "
             "When True, priority auto-sets to CRITICAL and any WO "
@@ -264,7 +271,7 @@ class MaintenanceIssue(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL, null=True, blank=True,
         related_name="escalated_issues",
-        help_text="P3.3: user who escalated this issue to emergency status.",
+        help_text=_("P3.3: user who escalated this issue to emergency status."),
     )
     escalated_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
@@ -294,34 +301,34 @@ class MaintenanceIssue(models.Model):
 
 class WorkOrder(models.Model):
     class Category(models.TextChoices):
-        BREAKDOWN = "breakdown", "Breakdown / corrective"
-        PREVENTIVE = "preventive", "Preventive"
-        EMERGENCY = "emergency", "Emergency"
-        REPAIR = "repair", "Repair"
+        BREAKDOWN = "breakdown", _("Breakdown / corrective")
+        PREVENTIVE = "preventive", _("Preventive")
+        EMERGENCY = "emergency", _("Emergency")
+        REPAIR = "repair", _("Repair")
 
     class LifecycleStatus(models.TextChoices):
-        DRAFT          = "draft",          "Draft"
-        ASSIGNED       = "assigned",       "Assigned"
-        IN_PROGRESS    = "in_progress",    "In progress"
-        PENDING_REVIEW = "pending_review", "Pending review"
-        CLOSED         = "closed",         "Closed"
-        CANCELLED      = "cancelled",      "Cancelled"
+        DRAFT          = "draft",          _("Draft")
+        ASSIGNED       = "assigned",       _("Assigned")
+        IN_PROGRESS    = "in_progress",    _("In progress")
+        PENDING_REVIEW = "pending_review", _("Pending review")
+        CLOSED         = "closed",         _("Closed")
+        CANCELLED      = "cancelled",      _("Cancelled")
 
     class OperationalStatus(models.TextChoices):
-        ACTIVE         = "active",         "Active"
-        PENDING_PARTS  = "pending_parts",  "Pending parts"
-        WAITING_VENDOR = "waiting_vendor", "Waiting vendor"
-        PAUSED         = "paused",         "Paused"
+        ACTIVE         = "active",         _("Active")
+        PENDING_PARTS  = "pending_parts",  _("Pending parts")
+        WAITING_VENDOR = "waiting_vendor", _("Waiting vendor")
+        PAUSED         = "paused",         _("Paused")
 
     class Status(models.TextChoices):
-        APPROVED = "approved", "Approved"
-        ASSIGNED = "assigned", "Assigned"
-        IN_PROGRESS = "in_progress", "In progress"
-        PAUSED = "paused", "Paused"
-        WAITING_FOR_VENDOR = "waiting_vendor", "Waiting for vendor"
-        PENDING_PARTS = "pending_parts", "Pending parts"
-        PENDING_REVIEW = "pending_review", "Pending manager review"
-        CLOSED = "closed", "Closed"
+        APPROVED = "approved", _("Approved")
+        ASSIGNED = "assigned", _("Assigned")
+        IN_PROGRESS = "in_progress", _("In progress")
+        PAUSED = "paused", _("Paused")
+        WAITING_FOR_VENDOR = "waiting_vendor", _("Waiting for vendor")
+        PENDING_PARTS = "pending_parts", _("Pending parts")
+        PENDING_REVIEW = "pending_review", _("Pending manager review")
+        CLOSED = "closed", _("Closed")
 
     class PauseReason(models.TextChoices):
         """Categorized reason for pausing a work order.
@@ -331,9 +338,9 @@ class WorkOrder(models.Model):
         transition the WO to WAITING_FOR_PARTS / WAITING_FOR_VENDOR
         (those are statuses with their own dedicated workflow).
         """
-        EMERGENCY = "emergency", "Emergency override (auto-paused)"
-        OPERATIONAL = "operational", "Operational interruption"
-        OTHER = "other", "Other (note required)"
+        EMERGENCY = "emergency", _("Emergency override (auto-paused)")
+        OPERATIONAL = "operational", _("Operational interruption")
+        OTHER = "other", _("Other (note required)")
 
     number = models.PositiveIntegerField(unique=True, editable=False)
     category = models.CharField(
@@ -354,17 +361,17 @@ class WorkOrder(models.Model):
     component = models.ForeignKey(
         Machine, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="component_work_orders",
-        help_text="Level-5 Component this WO targets (optional)",
+        help_text=_("Level-5 Component this WO targets (optional)"),
     )
     lifecycle_status = models.CharField(
         max_length=20, choices=LifecycleStatus.choices,
         default=LifecycleStatus.ASSIGNED, db_index=True,
-        help_text="Explicit, user-driven state."
+        help_text=_("Explicit, user-driven state.")
     )
     operational_status = models.CharField(
         max_length=20, choices=OperationalStatus.choices,
         default=OperationalStatus.PAUSED, db_index=True,
-        help_text="Derived from open blockers + labor state. Always computed; do not write directly."
+        help_text=_("Derived from open blockers + labor state. Always computed; do not write directly.")
     )
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancelled_by = models.ForeignKey(
@@ -394,7 +401,7 @@ class WorkOrder(models.Model):
     archived_at = models.DateTimeField(null=True, blank=True)
     photo_count = models.PositiveSmallIntegerField(
         default=0,
-        help_text="Denormalized count of attached photos — used for fast Complete gating",
+        help_text=_("Denormalized count of attached photos — used for fast Complete gating"),
     )
     archived_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -413,7 +420,7 @@ class WorkOrder(models.Model):
     blocker_system_version = models.PositiveIntegerField(
         default=0,
         db_index=True,
-        help_text=(
+        help_text=_(
             "0 = created under legacy single-status model. "
             "1 = created under the new lifecycle/operational/blocker model. "
             "Auto-bumped to 1 on the first domain event (part request, pause, etc.) "
@@ -481,8 +488,8 @@ class WorkOrderAssignmentHistory(models.Model):
     """
 
     class Action(models.TextChoices):
-        ASSIGNED = "assigned", "Assigned"
-        RELEASED = "released", "Released"
+        ASSIGNED = "assigned", _("Assigned")
+        RELEASED = "released", _("Released")
 
     work_order = models.ForeignKey(
         "WorkOrder", on_delete=models.CASCADE,
@@ -519,10 +526,10 @@ class Downtime(models.Model):
     """
 
     class DowntimeType(models.TextChoices):
-        BREAKDOWN = "breakdown", "Breakdown"
-        EMERGENCY = "emergency", "Emergency"
-        SCHEDULED = "scheduled", "Scheduled"
-        IDLE = "idle", "Idle"
+        BREAKDOWN = "breakdown", _("Breakdown")
+        EMERGENCY = "emergency", _("Emergency")
+        SCHEDULED = "scheduled", _("Scheduled")
+        IDLE = "idle", _("Idle")
 
     work_order = models.ForeignKey(
         "WorkOrder", on_delete=models.PROTECT,
@@ -573,12 +580,12 @@ class PMTemplate(models.Model):
     """Reusable PM procedure — used across many PMSchedules."""
 
     class Priority(models.TextChoices):
-        LOW = "low", "Low"
-        MEDIUM = "medium", "Medium"
-        HIGH = "high", "High"
-        CRITICAL = "critical", "Critical"
+        LOW = "low", _("Low")
+        MEDIUM = "medium", _("Medium")
+        HIGH = "high", _("High")
+        CRITICAL = "critical", _("Critical")
 
-    code = models.SlugField(max_length=64, unique=True, help_text="e.g. PM-HYD-001")
+    code = models.SlugField(max_length=64, unique=True, help_text=_("e.g. PM-HYD-001"))
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     estimated_duration_minutes = models.PositiveIntegerField(default=30)
@@ -588,7 +595,7 @@ class PMTemplate(models.Model):
     requires_manager_review = models.BooleanField(default=True)
     requires_photo_min_count = models.PositiveSmallIntegerField(
         default=0,
-        help_text="Minimum number of photos the technician must attach when completing this PM",
+        help_text=_("Minimum number of photos the technician must attach when completing this PM"),
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -621,10 +628,10 @@ class PMExecution(models.Model):
     """Dedicated compliance record per PM cycle, independent of WorkOrder."""
 
     class Status(models.TextChoices):
-        SUBMITTED = "submitted", "Submitted"
-        APPROVED = "approved", "Approved"
-        REJECTED = "rejected", "Rejected"
-        MISSED = "missed", "Missed"
+        SUBMITTED = "submitted", _("Submitted")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+        MISSED = "missed", _("Missed")
 
     pm_schedule = models.ForeignKey(
         "PMSchedule", on_delete=models.CASCADE, related_name="executions"
@@ -637,14 +644,14 @@ class PMExecution(models.Model):
         related_name="pm_execution",
     )
     scheduled_due_at = models.DateTimeField(
-        help_text="Locks this execution to a specific due occurrence"
+        help_text=_("Locks this execution to a specific due occurrence")
     )
     execution_sequence = models.PositiveIntegerField(
-        default=1, help_text="Cycle counter per PMSchedule"
+        default=1, help_text=_("Cycle counter per PMSchedule")
     )
     template_snapshot_json = models.JSONField(
         default=dict, blank=True,
-        help_text="Immutable snapshot of template state at WO spawn time"
+        help_text=_("Immutable snapshot of template state at WO spawn time")
     )
     completed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -702,29 +709,29 @@ class PMSchedule(models.Model):
     """Assignment of a PMTemplate to an asset."""
 
     class FrequencyType(models.TextChoices):
-        DAILY = "daily", "Daily"
-        WEEKLY = "weekly", "Weekly"
-        MONTHLY = "monthly", "Monthly"
-        YEARLY = "yearly", "Yearly"
+        DAILY = "daily", _("Daily")
+        WEEKLY = "weekly", _("Weekly")
+        MONTHLY = "monthly", _("Monthly")
+        YEARLY = "yearly", _("Yearly")
 
     class TriggerType(models.TextChoices):
-        TIME = "time", "Time-based"
-        METER = "meter", "Meter-based"
+        TIME = "time", _("Time-based")
+        METER = "meter", _("Meter-based")
 
     template = models.ForeignKey(
         PMTemplate, on_delete=models.PROTECT, related_name="schedules",
-        help_text="Reusable procedure applied to this asset",
+        help_text=_("Reusable procedure applied to this asset"),
     )
     machine = models.ForeignKey(Machine, on_delete=models.CASCADE, related_name="pm_schedules")
     component = models.ForeignKey(
         Machine, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="pm_component_schedules",
-        help_text="Level-5 Component this PM targets (optional)",
+        help_text=_("Level-5 Component this PM targets (optional)"),
     )
     frequency_type = models.CharField(
         max_length=16, choices=FrequencyType.choices, default=FrequencyType.MONTHLY,
     )
-    interval = models.PositiveIntegerField(default=1, help_text="e.g. MONTHLY × 3 = every 3 months")
+    interval = models.PositiveIntegerField(default=1, help_text=_("e.g. MONTHLY × 3 = every 3 months"))
     start_date = models.DateField(default=timezone.now)
     next_due_at = models.DateTimeField()
     last_completed_at = models.DateTimeField(null=True, blank=True)
@@ -733,22 +740,22 @@ class PMSchedule(models.Model):
     )
     priority_override = models.CharField(
         max_length=16, choices=PMTemplate.Priority.choices, null=True, blank=True,
-        help_text="If null, fall back to template.priority",
+        help_text=_("If null, fall back to template.priority"),
     )
     estimated_duration_override = models.PositiveIntegerField(
         null=True, blank=True,
-        help_text="If null, fall back to template.estimated_duration_minutes",
+        help_text=_("If null, fall back to template.estimated_duration_minutes"),
     )
     grace_days = models.PositiveIntegerField(default=7)
     reminder_days_before = models.PositiveIntegerField(default=7)
     auto_generate_wo = models.BooleanField(default=False)
     due_time = models.TimeField(
         default="08:00",
-        help_text="Time-of-day for scheduled occurrences (used for grouping Today's Schedule)",
+        help_text=_("Time-of-day for scheduled occurrences (used for grouping Today's Schedule)"),
     )
     ends_at = models.DateField(
         null=True, blank=True,
-        help_text="Schedule stops generating occurrences after this date",
+        help_text=_("Schedule stops generating occurrences after this date"),
     )
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
@@ -781,9 +788,9 @@ class PMSchedule(models.Model):
 
 class Tool(models.Model):
     class Status(models.TextChoices):
-        AVAILABLE = "available", "Available"
-        IN_USE = "in_use", "In use"
-        OUT_OF_SERVICE = "out_of_service", "Out of service"
+        AVAILABLE = "available", _("Available")
+        IN_USE = "in_use", _("In use")
+        OUT_OF_SERVICE = "out_of_service", _("Out of service")
 
     code = models.SlugField(max_length=64, unique=True)
     name = models.CharField(max_length=255)
@@ -804,9 +811,9 @@ class Tool(models.Model):
 
 class ToolAssignment(models.Model):
     class ReturnCondition(models.TextChoices):
-        GOOD = "good", "Good"
-        DAMAGED = "damaged", "Damaged"
-        LOST = "lost", "Lost"
+        GOOD = "good", _("Good")
+        DAMAGED = "damaged", _("Damaged")
+        LOST = "lost", _("Lost")
 
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="assignments")
     user = models.ForeignKey(
@@ -834,16 +841,16 @@ class ToolAssignment(models.Model):
 
     def clean(self):
         if self.returned_at and not self.return_condition:
-            raise ValidationError("Return condition is required when returning a tool.")
+            raise ValidationError(_("Return condition is required when returning a tool."))
 
 
 class Incident(models.Model):
     """Incident report for lost/damaged tools or safety issues."""
 
     class Status(models.TextChoices):
-        OPEN = "open", "Open"
-        INVESTIGATING = "investigating", "Investigating"
-        CLOSED = "closed", "Closed"
+        OPEN = "open", _("Open")
+        INVESTIGATING = "investigating", _("Investigating")
+        CLOSED = "closed", _("Closed")
 
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -886,53 +893,53 @@ class Notification(models.Model):
     """In-app alerts (PDF: low stock, emergency, PM due, pending WO, etc.)."""
 
     class Kind(models.TextChoices):
-        ISSUE_NEW = "issue_new", "New issue"
-        ISSUE_VALIDATED = "issue_validated", "Issue validated"
-        ISSUE_STALE = "issue_stale", "Stale issue (not validated)"
-        WO_CREATED = "wo_created", "Work order created from issue"
-        WO_PENDING_REVIEW = "wo_review", "Work order pending review"
-        WO_ASSIGNED = "wo_assigned", "Work order assigned"
-        WO_STARTED = "wo_started", "Work order started"
-        WO_PAUSED = "wo_paused", "Work order paused / waiting"
-        WO_CLOSED = "wo_closed", "Work order closed"
-        WO_EMERGENCY = "wo_emergency", "Emergency work order"
-        LOW_STOCK = "low_stock", "Low stock"
-        PART_SHORTAGE_REPORTED = "part_shortage", "Part shortage reported"
-        PROCUREMENT = "procurement", "Procurement"
-        PM_OVERDUE = "pm_overdue", "PM overdue"
-        PM_UPCOMING_7D = "pm_upcoming_7d", "PM due in 7 days"
-        PM_UPCOMING_3D = "pm_upcoming_3d", "PM due in 3 days"
-        PM_UPCOMING_1D = "pm_upcoming_1d", "PM due tomorrow"
-        PM_DUE_TODAY = "pm_due_today", "PM due today"
-        REPAIR_RETURNED = "repair_returned", "Repair returned from vendor"
-        REPAIR_REQUESTED = "repair_requested", "External repair requested"
-        REPAIR_DRAFT = "repair_draft", "External repair order created (needs vendor)"
-        REPAIR_SENT = "repair_sent", "External repair sent to vendor"
+        ISSUE_NEW = "issue_new", _("New issue")
+        ISSUE_VALIDATED = "issue_validated", _("Issue validated")
+        ISSUE_STALE = "issue_stale", _("Stale issue (not validated)")
+        WO_CREATED = "wo_created", _("Work order created from issue")
+        WO_PENDING_REVIEW = "wo_review", _("Work order pending review")
+        WO_ASSIGNED = "wo_assigned", _("Work order assigned")
+        WO_STARTED = "wo_started", _("Work order started")
+        WO_PAUSED = "wo_paused", _("Work order paused / waiting")
+        WO_CLOSED = "wo_closed", _("Work order closed")
+        WO_EMERGENCY = "wo_emergency", _("Emergency work order")
+        LOW_STOCK = "low_stock", _("Low stock")
+        PART_SHORTAGE_REPORTED = "part_shortage", _("Part shortage reported")
+        PROCUREMENT = "procurement", _("Procurement")
+        PM_OVERDUE = "pm_overdue", _("PM overdue")
+        PM_UPCOMING_7D = "pm_upcoming_7d", _("PM due in 7 days")
+        PM_UPCOMING_3D = "pm_upcoming_3d", _("PM due in 3 days")
+        PM_UPCOMING_1D = "pm_upcoming_1d", _("PM due tomorrow")
+        PM_DUE_TODAY = "pm_due_today", _("PM due today")
+        REPAIR_RETURNED = "repair_returned", _("Repair returned from vendor")
+        REPAIR_REQUESTED = "repair_requested", _("External repair requested")
+        REPAIR_DRAFT = "repair_draft", _("External repair order created (needs vendor)")
+        REPAIR_SENT = "repair_sent", _("External repair sent to vendor")
         # v4.9 B4: New notification kinds for richer procurement/return visibility
-        PART_RECEIVED = "part_received", "Part received against PO"
-        VENDOR_RETURN = "vendor_return", "Vendor returned spare part"
-        SHORTAGE_FOLLOWUP = "shortage_followup", "Shortage follow-up"
+        PART_RECEIVED = "part_received", _("Part received against PO")
+        VENDOR_RETURN = "vendor_return", _("Vendor returned spare part")
+        SHORTAGE_FOLLOWUP = "shortage_followup", _("Shortage follow-up")
         # v4.9.3: WO flow notifications requested by user
-        WO_PART_RECEIVED = "wo_part_received", "Part received from supplier (linked to WO)"
-        WO_PART_RETURNED = "wo_part_returned", "Part returned from vendor (linked to WO)"
-        WO_PART_REJECTED = "wo_part_rejected", "Part request rejected (linked to WO)"
+        WO_PART_RECEIVED = "wo_part_received", _("Part received from supplier (linked to WO)")
+        WO_PART_RETURNED = "wo_part_returned", _("Part returned from vendor (linked to WO)")
+        WO_PART_REJECTED = "wo_part_rejected", _("Part request rejected (linked to WO)")
         # Phase 2C: WorkOrder Blocker System notifications
-        WO_BLOCKER_OPENED = "wo_blocker_opened", "WO blocker opened"
-        WO_BLOCKER_RESOLVED = "wo_blocker_resolved", "WO blocker resolved"
-        WO_BLOCKER_CANCELLED = "wo_blocker_cancelled", "WO blocker cancelled"
-        EMERGENCY_INTERRUPTED = "emergency_interrupted", "Emergency WO interrupted another WO"
-        LABOR_RESUMED = "labor_resumed", "Labor resumed on WO"
-        PO_RECEIVED_SUMMARY = "po_received_summary", "PO received (summary)"
+        WO_BLOCKER_OPENED = "wo_blocker_opened", _("WO blocker opened")
+        WO_BLOCKER_RESOLVED = "wo_blocker_resolved", _("WO blocker resolved")
+        WO_BLOCKER_CANCELLED = "wo_blocker_cancelled", _("WO blocker cancelled")
+        EMERGENCY_INTERRUPTED = "emergency_interrupted", _("Emergency WO interrupted another WO")
+        LABOR_RESUMED = "labor_resumed", _("Labor resumed on WO")
+        PO_RECEIVED_SUMMARY = "po_received_summary", _("PO received (summary)")
         # Phase 8: PM workflow notifications (workflow-first CMMS)
-        PM_MORNING_SUMMARY = "pm_morning_summary", "PM morning summary (technician)"
-        PM_MANAGER_MORNING = "pm_manager_morning", "PM manager morning summary"
-        PM_NEW_ASSIGNMENT = "pm_new_assignment", "PM assigned to you"
-        PM_RETURNED = "pm_returned", "PM submission returned"
-        PM_OVERDUE_TECH = "pm_overdue_tech", "PM is overdue"
-        PM_OVERDUE_MANAGER = "pm_overdue_manager", "PM overdue (manager alert)"
-        PM_UNASSIGNED = "pm_unassigned", "PM has no technician"
-        PM_WAITING_REVIEW = "pm_waiting_review", "PM awaiting manager review"
-        PM_PLAN_PAUSED = "pm_plan_paused", "PM plan paused"
+        PM_MORNING_SUMMARY = "pm_morning_summary", _("PM morning summary (technician)")
+        PM_MANAGER_MORNING = "pm_manager_morning", _("PM manager morning summary")
+        PM_NEW_ASSIGNMENT = "pm_new_assignment", _("PM assigned to you")
+        PM_RETURNED = "pm_returned", _("PM submission returned")
+        PM_OVERDUE_TECH = "pm_overdue_tech", _("PM is overdue")
+        PM_OVERDUE_MANAGER = "pm_overdue_manager", _("PM overdue (manager alert)")
+        PM_UNASSIGNED = "pm_unassigned", _("PM has no technician")
+        PM_WAITING_REVIEW = "pm_waiting_review", _("PM awaiting manager review")
+        PM_PLAN_PAUSED = "pm_plan_paused", _("PM plan paused")
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -948,7 +955,10 @@ class Notification(models.Model):
     is_critical = models.BooleanField(default=False, db_index=True)
     priority = models.CharField(
         max_length=10,
-        choices=[("low","Low"),("normal","Normal"),("high","High"),("critical","Critical")],
+        choices=[
+            ("low", _("Low")), ("normal", _("Normal")),
+            ("high", _("High")), ("critical", _("Critical")),
+        ],
         default="normal", db_index=True
     )
     dedup_key = models.CharField(max_length=200, blank=True, db_index=True)
@@ -968,11 +978,11 @@ class ExternalRepairOrder(models.Model):
     """Repair work order sent to vendor (UC-19/20)."""
 
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
-        SENT_TO_VENDOR = "sent", "Sent to vendor"
-        RETURNED = "returned", "Returned"
-        CLOSED = "closed", "Closed / accepted"
-        REJECTED = "rejected", "Rejected / re-repair"
+        DRAFT = "draft", _("Draft")
+        SENT_TO_VENDOR = "sent", _("Sent to vendor")
+        RETURNED = "returned", _("Returned")
+        CLOSED = "closed", _("Closed / accepted")
+        REJECTED = "rejected", _("Rejected / re-repair")
 
     work_order = models.ForeignKey(
         WorkOrder,
@@ -1002,14 +1012,14 @@ class ExternalRepairOrder(models.Model):
     estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     actual_cost = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True,
-        help_text=(
+        help_text=_(
             "Final vendor invoice amount. Set by manager on UC-20 acceptance. "
             "Required when status moves to CLOSED."
         ),
     )
     invoice_ref = models.CharField(
         max_length=120, blank=True,
-        help_text="Vendor invoice number. Required on UC-20 acceptance.",
+        help_text=_("Vendor invoice number. Required on UC-20 acceptance."),
     )
     status = models.CharField(
         max_length=20,
@@ -1064,9 +1074,9 @@ class ExternalRepairRequest(models.Model):
     """
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending manager review"
-        APPROVED = "approved", "Approved (ERO created)"
-        REJECTED = "rejected", "Rejected"
+        PENDING = "pending", _("Pending manager review")
+        APPROVED = "approved", _("Approved (ERO created)")
+        REJECTED = "rejected", _("Rejected")
 
     work_order = models.ForeignKey(
         WorkOrder,
@@ -1086,10 +1096,10 @@ class ExternalRepairRequest(models.Model):
         related_name="external_repair_requests_reviewed",
     )
     diagnosis_note = models.TextField(
-        help_text="Technician's diagnosis: what's wrong with the part"
+        help_text=_("Technician's diagnosis: what's wrong with the part")
     )
     part_description = models.TextField(
-        help_text="Description of the part being sent out (name, part#, qty)"
+        help_text=_("Description of the part being sent out (name, part#, qty)")
     )
     part = models.ForeignKey(
         "inventory.SparePart", on_delete=models.SET_NULL,
@@ -1098,12 +1108,12 @@ class ExternalRepairRequest(models.Model):
     asset = models.ForeignKey(
         "maintenance.Machine", on_delete=models.SET_NULL,
         null=True, blank=True, related_name="external_repair_requests",
-        help_text="The level-3 machine whose part is being sent for repair"
+        help_text=_("The level-3 machine whose part is being sent for repair")
     )
     component = models.ForeignKey(
         "maintenance.Machine", on_delete=models.SET_NULL,
         null=True, blank=True, related_name="component_external_repair_requests",
-        help_text="The level-5 component where the part is located"
+        help_text=_("The level-5 component where the part is located")
     )
     status = models.CharField(
         max_length=20,
@@ -1113,7 +1123,7 @@ class ExternalRepairRequest(models.Model):
     )
     manager_note = models.TextField(
         blank=True,
-        help_text="Manager's reason on approve/reject",
+        help_text=_("Manager's reason on approve/reject"),
     )
     repair_order = models.OneToOneField(
         "ExternalRepairOrder",
@@ -1121,7 +1131,7 @@ class ExternalRepairRequest(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="origin_request",
-        help_text="Set when manager approves — links to the created ERO",
+        help_text=_("Set when manager approves — links to the created ERO"),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -1144,11 +1154,11 @@ class WorkOrderCost(models.Model):
     )
     material_cost = models.DecimalField(
         max_digits=14, decimal_places=2, default=0,
-        help_text="Sum of StockMovement.unit_cost × qty for ISSUE_TO_WO movements on this WO. Renamed from parts_cost."
+        help_text=_("Sum of StockMovement.unit_cost × qty for ISSUE_TO_WO movements on this WO. Renamed from parts_cost.")
     )
     committed_material_cost = models.DecimalField(
         max_digits=14, decimal_places=2, default=Decimal("0"),
-        help_text=(
+        help_text=_(
             "Sum of (PartIssueLine.approved_qty × unit_cost) for approved / "
             "allocated / issued lines. Set at approval time. Distinct from "
             "material_cost (which is the actual cost posted to the ledger at "
@@ -1159,7 +1169,7 @@ class WorkOrderCost(models.Model):
     )
     vendor_repair_cost = models.DecimalField(
         max_digits=14, decimal_places=2, default=0,
-        help_text="Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this WO. Renamed from vendor_cost."
+        help_text=_("Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this WO. Renamed from vendor_cost.")
     )
     consumables_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     additional_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -1167,13 +1177,12 @@ class WorkOrderCost(models.Model):
     last_reconciled_at = models.DateTimeField(auto_now=True)
     ledger_transaction_count = models.PositiveIntegerField(
         default=0,
-        help_text="Cached count of CostTransaction rows for this WO. "
-                  "Updated by WorkOrderCost.recalculate_from_ledger().",
+        help_text=_("Cached count of CostTransaction rows for this WO. Updated by WorkOrderCost.recalculate_from_ledger()."),
     )
 
     class Meta:
-        verbose_name = "Work Order Cost"
-        verbose_name_plural = "Work Order Costs"
+        verbose_name = _("Work Order Cost")
+        verbose_name_plural = _("Work Order Costs")
 
     def __str__(self) -> str:
         return f"Cost for WO-{self.work_order.number}: {self.total_cost}"
@@ -1304,13 +1313,13 @@ class CostCategory(models.TextChoices):
 # Source types for CostTransaction. Plain CharField with choices.
 # New source types are added to this list as the system grows.
 COST_SOURCE_TYPE_CHOICES = [
-    ("part_issue_line",       "Part Issue Line"),
-    ("external_repair_order", "External Repair Order"),
-    ("stock_movement",        "Stock Movement"),
-    ("cost_adjustment",       "Cost Adjustment"),
-    ("calibration",           "Calibration"),
-    ("fuel",                  "Fuel"),
-    ("tool_issue",            "Tool Issue"),
+    ("part_issue_line",       _("Part Issue Line")),
+    ("external_repair_order", _("External Repair Order")),
+    ("stock_movement",        _("Stock Movement")),
+    ("cost_adjustment",       _("Cost Adjustment")),
+    ("calibration",           _("Calibration")),
+    ("fuel",                  _("Fuel")),
+    ("tool_issue",            _("Tool Issue")),
 ]
 
 
@@ -1325,7 +1334,7 @@ class CostTransaction(models.Model):
     category = models.CharField(max_length=20, choices=CostCategory.choices, db_index=True)
     currency = models.CharField(
         max_length=3, default="SAR", db_index=True,
-        help_text="ISO 4217 currency code. SAR default for this deployment.",
+        help_text=_("ISO 4217 currency code. SAR default for this deployment."),
     )
 
     # Material-only snapshot (null for other categories)
@@ -1357,12 +1366,14 @@ class CostTransaction(models.Model):
     # Reversal support
     is_reversal = models.BooleanField(
         default=False, db_index=True,
-        help_text="True if this transaction reverses a previous one. Net amount for "
-                 "(source_type, source_id) = SUM(amount) over ALL rows including reversals.",
+        help_text=_(
+            "True if this transaction reverses a previous one. Net amount for "
+            "(source_type, source_id) = SUM(amount) over ALL rows including reversals."
+        ),
     )
     supersedes = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.PROTECT, related_name="superseded_by",
-        help_text="If is_reversal=True, points to the row being reversed. Audit trail.",
+        help_text=_("If is_reversal=True, points to the row being reversed. Audit trail."),
     )
 
     # Audit
@@ -1414,11 +1425,11 @@ class CostAdjustment(models.Model):
     )
     amount     = models.DecimalField(
         max_digits=12, decimal_places=2,
-        help_text="Signed: positive adds, negative reduces.",
+        help_text=_("Signed: positive adds, negative reduces."),
     )
     memo       = models.CharField(
         max_length=300,
-        help_text="Required. Min 10 chars. Explains why this adjustment exists.",
+        help_text=_("Required. Min 10 chars. Explains why this adjustment exists."),
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cost_adjustments_created"
@@ -1441,7 +1452,7 @@ class CostAdjustment(models.Model):
         super().clean()
         if self.memo and len(self.memo.strip()) < 10:
             from django.core.exceptions import ValidationError
-            raise ValidationError({"memo": "Memo must be at least 10 characters."})
+            raise ValidationError({"memo": _("Memo must be at least 10 characters.")})
 
     def save(self, *args, **kwargs):
         if self.pk is not None:
@@ -1509,28 +1520,28 @@ class Attachment(models.Model):
     thumbnail = models.ImageField(
         upload_to=attachment_thumbnail_path,
         blank=True,
-        help_text="Auto-generated 300px thumbnail"
+        help_text=_("Auto-generated 300px thumbnail")
     )
-    width = models.PositiveIntegerField(default=0, help_text="Original image width in px")
-    height = models.PositiveIntegerField(default=0, help_text="Original image height in px")
-    is_primary = models.BooleanField(default=False, help_text="Primary/default image for this entity")
+    width = models.PositiveIntegerField(default=0, help_text=_("Original image width in px"))
+    height = models.PositiveIntegerField(default=0, help_text=_("Original image height in px"))
+    is_primary = models.BooleanField(default=False, help_text=_("Primary/default image for this entity"))
     category = models.CharField(
         max_length=20,
         choices=[
-            ("PRODUCT", "Product"),
-            ("LABEL", "Label"),
-            ("PACKAGING", "Packaging"),
-            ("INSTALLED", "Installed"),
-            ("DOCUMENT", "Document"),
+            ("PRODUCT", _("Product")),
+            ("LABEL", _("Label")),
+            ("PACKAGING", _("Packaging")),
+            ("INSTALLED", _("Installed")),
+            ("DOCUMENT", _("Document")),
         ],
         default="PRODUCT",
-        help_text="Category of attachment image",
+        help_text=_("Category of attachment image"),
     )
     is_video = models.BooleanField(default=False, db_index=True)
     compressed_path = models.CharField(max_length=500, blank=True,
-        help_text="Path to the compressed video file (mp4) — populated by VideoCompressionService")
+        help_text=_("Path to the compressed video file (mp4) — populated by VideoCompressionService"))
     thumbnail_path = models.CharField(max_length=500, blank=True,
-        help_text="Path to a 1-second thumbnail of the video")
+        help_text=_("Path to a 1-second thumbnail of the video"))
 
     class Meta:
         ordering = ["-uploaded_at"]
@@ -1588,15 +1599,15 @@ class Attachment(models.Model):
 
 class WorkOrderBlocker(models.Model):
     class Kind(models.TextChoices):
-        PART          = "part",           "Awaiting Spare Part"
-        SHORTAGE      = "shortage",       "Awaiting Procurement"
-        VENDOR_REPAIR = "vendor_repair",  "Awaiting Vendor Repair"
-        OPERATIONAL   = "operational",    "Operational Pause"
+        PART          = "part",           _("Awaiting Spare Part")
+        SHORTAGE      = "shortage",       _("Awaiting Procurement")
+        VENDOR_REPAIR = "vendor_repair",  _("Awaiting Vendor Repair")
+        OPERATIONAL   = "operational",    _("Operational Pause")
 
     class Status(models.TextChoices):
-        OPEN      = "open",      "Open"
-        RESOLVED  = "resolved",  "Resolved"
-        CANCELLED = "cancelled", "Cancelled"
+        OPEN      = "open",      _("Open")
+        RESOLVED  = "resolved",  _("Resolved")
+        CANCELLED = "cancelled", _("Cancelled")
 
     work_order       = models.ForeignKey("WorkOrder", on_delete=models.CASCADE, related_name="blockers")
     kind             = models.CharField(max_length=20, choices=Kind.choices, db_index=True)
@@ -1605,14 +1616,14 @@ class WorkOrderBlocker(models.Model):
     object_id        = models.PositiveIntegerField(null=True, blank=True)
     external_ref     = GenericForeignKey("content_type", "object_id")
     external_label   = models.CharField(max_length=300, blank=True,
-        help_text="Cached human-readable summary, e.g. 'BRG-6006 × 2' or 'Servo S7-300'")
+        help_text=_("Cached human-readable summary, e.g. 'BRG-6006 × 2' or 'Servo S7-300'"))
     related_ero      = models.ForeignKey("maintenance.ExternalRepairOrder", on_delete=models.SET_NULL,
                                          null=True, blank=True, related_name="blockers")
     source_work_order = models.ForeignKey("maintenance.WorkOrder", on_delete=models.SET_NULL,
                                           null=True, blank=True, related_name="interruptions_caused")
     note             = models.TextField(blank=True)
     pause_reason     = models.CharField(max_length=20, blank=True,
-        help_text="'operational' | 'other' | 'emergency' (system-set)")
+        help_text=_("'operational' | 'other' | 'emergency' (system-set)"))
     opened_at        = models.DateTimeField(auto_now_add=True)
     opened_by        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                          null=True, related_name="blockers_opened")
@@ -1681,7 +1692,7 @@ class MaintenanceSettings(models.Model):
     morning_summary_sent_date = models.DateField(null=True, blank=True)
 
     class Meta:
-        verbose_name_plural = "Maintenance settings"
+        verbose_name_plural = _("Maintenance settings")
 
     def save(self, *args, **kwargs):
         self.pk = 1  # singleton
@@ -1693,5 +1704,5 @@ class MaintenanceSettings(models.Model):
         return obj
 
     def __str__(self):
-        return 'Maintenance settings'
+        return _('Maintenance settings')
 

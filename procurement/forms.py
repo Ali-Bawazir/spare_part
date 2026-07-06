@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 from maintenance.models import Machine, WorkOrder
 
@@ -121,7 +122,7 @@ class PurchaseOrderItemForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["negotiated_unit_price"].label = "Unit price"
+        self.fields["negotiated_unit_price"].label = _("Unit price")
 
     def clean(self):
         cleaned = super().clean()
@@ -172,9 +173,9 @@ class SupplierForm(forms.ModelForm):
     def clean_code(self):
         code = (self.cleaned_data.get("code") or "").strip().upper()
         if not code:
-            raise forms.ValidationError("Supplier code is required.")
+            raise forms.ValidationError(_("Supplier code is required."))
         if Supplier.objects.filter(code=code).exclude(pk=self.instance.pk if self.instance.pk else None).exists():
-            raise forms.ValidationError(f"Supplier code '{code}' is already in use.")
+            raise forms.ValidationError(_("Supplier code '%(code)s' is already in use.") % {"code": code})
         return code
 
 

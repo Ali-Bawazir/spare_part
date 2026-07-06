@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.utils.translation import gettext_lazy as _
 
 from accounts.models import User
 
@@ -22,10 +23,10 @@ class UserAdmin(DjangoUserAdmin):
     ordering = ("username",)
 
     fieldsets = DjangoUserAdmin.fieldsets + (
-        ("MMS role", {"fields": ("role",)}),
+        (_("MMS role"), {"fields": ("role",)}),
     )
     add_fieldsets = DjangoUserAdmin.add_fieldsets + (
-        ("MMS role", {"fields": ("role",)}),
+        (_("MMS role"), {"fields": ("role",)}),
     )
 
     def has_module_permission(self, request):

@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 from datetime import timedelta
 from datetime import timedelta as td
@@ -488,14 +489,14 @@ def qr_scan(request):
         label = (request.POST.get("label") or label).strip() or "code"
         upload = request.FILES.get("qr_image")
         if not upload:
-            messages.error(request, "Choose a QR image to upload, or use manual entry.")
+            messages.error(request, _("Choose a QR image to upload, or use manual entry."))
         else:
             decoded_value = _decode_uploaded_qr(upload)
             if decoded_value:
                 return redirect(_append_query_value(next_path, param, decoded_value))
             messages.error(
                 request,
-                f"We could not read a QR code from that image. Try a clearer {label} photo or enter the code manually.",
+                _(f"We could not read a QR code from that image. Try a clearer {label} photo or enter the code manually."),
             )
     return render(
         request,
@@ -572,7 +573,7 @@ def machine_create(request):
     # Read pre-fill hints from GET params (when first loading the form)
     initial = {}
     preselected_parent = None
-    page_title = "Add machine"
+    page_title = _("Add machine")
 
     if request.method == "GET":
         parent_id = request.GET.get("parent")
@@ -595,15 +596,15 @@ def machine_create(request):
                     else:
                         initial["asset_level"] = 3  # default to Machine
                 # Set page title based on context
-                level_label = {1: "Area", 2: "Production Line", 3: "Machine", 4: "Subassembly", 5: "Component"}.get(initial["asset_level"], "Asset")
-                page_title = f"Add {level_label.lower()} under {preselected_parent.name}"
+                level_label = {1: _("Area"), 2: _("Production Line"), 3: _("Machine"), 4: _("Subassembly"), 5: _("Component")}.get(initial["asset_level"], _("Asset"))
+                page_title = _(f"Add {level_label.lower()} under {preselected_parent.name}")
             except (Machine.DoesNotExist, ValueError):
                 pass
         elif asset_level:
             try:
                 initial["asset_level"] = int(asset_level)
-                level_label = {1: "Area", 2: "Production Line", 3: "Machine", 4: "Subassembly", 5: "Component"}.get(initial["asset_level"], "Asset")
-                page_title = f"Add {level_label.lower()}"
+                level_label = {1: _("Area"), 2: _("Production Line"), 3: _("Machine"), 4: _("Subassembly"), 5: _("Component")}.get(initial["asset_level"], _("Asset"))
+                page_title = _(f"Add {level_label.lower()}")
             except (ValueError, TypeError):
                 pass
 
@@ -612,7 +613,7 @@ def machine_create(request):
         if form.is_valid():
             machine = form.save()
             log_audit(actor=request.user, action="machine_created", entity="Machine", object_id=machine.pk)
-            messages.success(request, f"{machine.name} saved.")
+            messages.success(request, _(f"{machine.name} saved."))
             return redirect("machine_detail", pk=machine.pk)
     else:
         form = MachineForm(initial=initial)
@@ -633,11 +634,11 @@ def machine_edit(request, pk):
         if form.is_valid():
             machine = form.save()
             log_audit(actor=request.user, action="machine_updated", entity="Machine", object_id=machine.pk)
-            messages.success(request, "Machine updated.")
+            messages.success(request, _("Machine updated."))
             return redirect("machine_list")
     else:
         form = MachineForm(instance=machine)
-    return render(request, "maintenance/machine_form.html", {"form": form, "page_title": "Edit machine", "machine": machine})
+    return render(request, "maintenance/machine_form.html", {"form": form, "page_title": _("Edit machine"), "machine": machine})
 
 
 @login_required
@@ -934,10 +935,10 @@ def issue_create(request):
                     pass
                 messages.warning(
                     request,
-                    "Emergency issue reported. Manager has been paged.",
+                    _("Emergency issue reported. Manager has been paged."),
                 )
             else:
-                messages.success(request, "Issue reported.")
+                messages.success(request, _("Issue reported."))
 
             files = request.FILES.getlist("issue_photos")
             if files:
@@ -1057,13 +1058,13 @@ def issue_create(request):
 def issue_validate(request, pk):
     issue = get_object_or_404(MaintenanceIssue, pk=pk)
     if issue.status != MaintenanceIssue.Status.NEW:
-        messages.warning(request, "Issue is not in NEW state.")
+        messages.warning(request, _("Issue is not in NEW state."))
         return redirect("issue_list")
     if request.method == "POST":
         form = ValidateIssueForm(request.POST)
         if form.is_valid():
             validate_issue(issue, actor=request.user, priority=form.cleaned_data["priority"])
-            messages.success(request, "Issue validated.")
+            messages.success(request, _("Issue validated."))
             return redirect("issue_list")
     else:
         form = ValidateIssueForm()
@@ -1079,13 +1080,12 @@ def issue_escalate(request, pk):
     """
     issue = get_object_or_404(MaintenanceIssue, pk=pk)
     if issue.is_emergency:
-        messages.info(request, "Issue is already flagged as emergency.")
+        messages.info(request, _("Issue is already flagged as emergency."))
         return redirect("issue_detail", pk=issue.pk)
     escalate_issue_to_emergency(issue, actor=request.user)
     messages.warning(
         request,
-        f"Issue escalated to EMERGENCY (priority CRITICAL). "
-        f"Manager has been paged.",
+        _("Issue escalated to EMERGENCY (priority CRITICAL). Manager has been paged."),
     )
     return redirect("issue_detail", pk=issue.pk)
 
@@ -1596,10 +1596,10 @@ def work_order_create_from_issue(request, issue_pk):
         pk=issue_pk,
     )
     if issue.status != MaintenanceIssue.Status.VALIDATED:
-        messages.error(request, "Issue must be validated first.")
+        messages.error(request, _("Issue must be validated first."))
         return redirect("issue_list")
     if hasattr(issue, "work_order") and issue.work_order_id:
-        messages.info(request, "Work order already exists for this issue.")
+        messages.info(request, _("Work order already exists for this issue."))
         return redirect("work_order_detail", pk=issue.work_order_id)
     if request.method != "POST":
         return render(request, "maintenance/workorder_create_confirm.html", {"issue": issue})
@@ -1631,12 +1631,12 @@ def work_order_create_from_issue(request, issue_pk):
         wo,
         WorkOrder.LifecycleStatus.ASSIGNED,
         actor=request.user,
-        note=f"Created from validated issue #{issue.pk}",
+        note=_(f"Created from validated issue #{issue.pk}"),
     )
     log_audit(actor=request.user, action="wo_created", entity="WorkOrder", object_id=wo.pk)
     from .notifications import notify_wo_created
     notify_wo_created(wo)
-    messages.success(request, f"Work order WO-{wo.number} created.")
+    messages.success(request, _(f"Work order WO-{wo.number} created."))
     return redirect("work_order_detail", pk=wo.pk)
 
 
@@ -1648,24 +1648,24 @@ def work_order_assign(request, pk):
     if wo.lifecycle_status not in (
         WorkOrder.LifecycleStatus.ASSIGNED,
     ) and wo.operational_status != WorkOrder.OperationalStatus.PAUSED:
-        messages.error(request, "Work order cannot be assigned in current state.")
+        messages.error(request, _("Work order cannot be assigned in current state."))
         return redirect("work_order_detail", pk=pk)
     if request.method != "POST":
         return redirect("work_order_detail", pk=pk)
     form = AssignTechnicianForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Invalid assignment.")
+        messages.error(request, _("Invalid assignment."))
         return redirect("work_order_detail", pk=pk)
     new_technician = form.cleaned_data["technician"]
     wo.assigned_technician = new_technician
     wo.save(update_fields=["assigned_technician", "updated_at"])
-    transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="Technician assigned")
+    transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note=_("Technician assigned"))
     WorkOrderAssignmentHistory.objects.create(
         work_order=wo,
         technician=new_technician,
         action=WorkOrderAssignmentHistory.Action.ASSIGNED,
         assigned_by=request.user,
-        reason=f"Assigned by {request.user.get_full_name() or request.user.username}",
+        reason=_(f"Assigned by {request.user.get_full_name() or request.user.username}"),
     )
     if previous_technician_id and previous_technician_id != new_technician.id:
         old_technician = User.objects.get(pk=previous_technician_id)
@@ -1674,12 +1674,12 @@ def work_order_assign(request, pk):
         ).first()
         if prev:
             prev.unassigned_at = timezone.now()
-            prev.reason = f"Reassigned to {new_technician.get_full_name() or new_technician.username}"
+            prev.reason = _(f"Reassigned to {new_technician.get_full_name() or new_technician.username}")
             prev.save()
     from .notifications import notify_wo_assigned
 
     notify_wo_assigned(wo)
-    messages.success(request, "Technician assigned.")
+    messages.success(request, _("Technician assigned."))
     return redirect("work_order_detail", pk=pk)
 
 
@@ -1689,7 +1689,7 @@ def work_order_assign(request, pk):
 def work_order_start(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.assigned_technician != request.user:
-        messages.error(request, "You can only start work orders assigned to you.")
+        messages.error(request, _("You can only start work orders assigned to you."))
         return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
@@ -1701,7 +1701,7 @@ def work_order_start(request, pk):
         WorkOrder.OperationalStatus.PENDING_PARTS,
         WorkOrder.OperationalStatus.WAITING_VENDOR,
     ):
-        messages.error(request, "Cannot start work in this state.")
+        messages.error(request, _("Cannot start work in this state."))
         return redirect("work_order_detail", pk=pk)
     # Emergency precedence check (SRS UC-06 step 2D).
     # A non-emergency WO cannot be transitioned to IN_PROGRESS while
@@ -1710,7 +1710,7 @@ def work_order_start(request, pk):
     if not wo.is_emergency and has_active_emergency(request.user, except_pk=wo.pk):
         messages.error(
             request,
-            "You have an active emergency work order. Finish it before starting another task.",
+            _("You have an active emergency work order. Finish it before starting another task."),
         )
         return redirect("work_order_detail", pk=wo.pk)
     conflicting_wo = get_other_active_work_order(request.user, except_pk=wo.pk)
@@ -1721,7 +1721,7 @@ def work_order_start(request, pk):
             {"wo": wo, "conflicting_wo": conflicting_wo},
         )
     technician_start_work(wo, request.user)
-    messages.success(request, "Work started.")
+    messages.success(request, _("Work started."))
     return redirect("work_order_detail", pk=pk)
 
 
@@ -1733,10 +1733,10 @@ def work_order_pause(request, pk):
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     if wo.assigned_technician != request.user:
-        messages.error(request, "You can only pause work orders assigned to you.")
+        messages.error(request, _("You can only pause work orders assigned to you."))
         return redirect("work_order_detail", pk=wo.pk)
     if wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
-        messages.error(request, "Not in progress.")
+        messages.error(request, _("Not in progress."))
         return redirect("work_order_detail", pk=wo.pk)
     form = WorkOrderPauseForm(request.POST)
     if not form.is_valid():
@@ -1752,7 +1752,7 @@ def work_order_pause(request, pk):
         pause_note=(form.cleaned_data.get("pause_note") or "").strip(),
         actor=request.user,
     )
-    messages.info(request, "Paused.")
+    messages.info(request, _("Paused."))
     return redirect("work_order_detail", pk=wo.pk)
 
 
@@ -1762,7 +1762,7 @@ def work_order_pause(request, pk):
 def work_order_submit(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.assigned_technician != request.user:
-        messages.error(request, "You can only submit work orders assigned to you.")
+        messages.error(request, _("You can only submit work orders assigned to you."))
         return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
@@ -1773,18 +1773,18 @@ def work_order_submit(request, pk):
     # Non-PM WOs still require explicit Start work first.
     is_pm = wo.category == WorkOrder.Category.PREVENTIVE
     if not is_pm and wo.lifecycle_status != WorkOrder.LifecycleStatus.IN_PROGRESS:
-        messages.error(request, "Submit for review is only available while work is in progress.")
+        messages.error(request, _("Submit for review is only available while work is in progress."))
         return redirect("work_order_detail", pk=pk)
     if is_pm and wo.lifecycle_status not in (
         WorkOrder.LifecycleStatus.ASSIGNED,
         WorkOrder.LifecycleStatus.IN_PROGRESS,
     ):
-        messages.error(request, "Submit for review is not available in this state.")
+        messages.error(request, _("Submit for review is not available in this state."))
         return redirect("work_order_detail", pk=pk)
 
     form = WorkOrderCompleteForm(request.POST, instance=wo)
     if not form.is_valid():
-        messages.error(request, "Check completion fields.")
+        messages.error(request, _("Check completion fields."))
         return redirect("work_order_detail", pk=pk)
 
     # Auto-start labor for PM WOs that are still in `assigned` state.
@@ -1823,7 +1823,7 @@ def work_order_submit(request, pk):
             ])
 
     technician_submit_for_review(wo, request.user)
-    messages.success(request, "Submitted for manager review.")
+    messages.success(request, _("Submitted for manager review."))
     return redirect("work_order_detail", pk=pk)
 
 
@@ -1832,21 +1832,21 @@ def work_order_submit(request, pk):
 def work_order_close(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.lifecycle_status != WorkOrder.LifecycleStatus.PENDING_REVIEW:
-        messages.error(request, "Work order is not pending review.")
+        messages.error(request, _("Work order is not pending review."))
         return redirect("work_order_detail", pk=pk)
     if request.method != "POST":
         return redirect("work_order_detail", pk=pk)
     action = request.POST.get("action")
     rejection_reason = request.POST.get("rejection_reason", "").strip()
     if action != "approve" and not rejection_reason:
-        messages.error(request, "Rejection reason is required when returning to technician.")
+        messages.error(request, _("Rejection reason is required when returning to technician."))
         return redirect("work_order_detail", pk=pk)
     try:
         manager_close_work_order(wo, request.user, approve=(action == "approve"), rejection_reason=rejection_reason)
         if action == "approve":
-            messages.success(request, "Work order closed.")
+            messages.success(request, _("Work order closed."))
         else:
-            messages.info(request, "Work order returned to technician.")
+            messages.info(request, _("Work order returned to technician."))
     except ValueError as e:
         messages.error(request, str(e))
         return redirect("work_order_detail", pk=pk)
@@ -1861,7 +1861,7 @@ def work_order_issue_part(request, pk):
         return redirect("work_order_detail", pk=pk)
     form = IssuePartForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Invalid part issue.")
+        messages.error(request, _("Invalid part issue."))
         return redirect("work_order_detail", pk=pk)
     ok, msg = issue_part_to_work_order(
         wo=wo,
@@ -1893,10 +1893,10 @@ def work_order_request_part(request, pk):
     """
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
-        messages.error(request, "You can only request parts on work orders assigned to you.")
+        messages.error(request, _("You can only request parts on work orders assigned to you."))
         return redirect("work_order_detail", pk=wo.pk)
     if wo.lifecycle_status == WorkOrder.LifecycleStatus.CLOSED:
-        messages.error(request, "Cannot request parts on a closed work order.")
+        messages.error(request, _("Cannot request parts on a closed work order."))
         return redirect("work_order_detail", pk=wo.pk)
 
     form = PartRequestForm(request.POST)
@@ -1922,15 +1922,15 @@ def work_order_request_part(request, pk):
     if line.status == PartIssueLine.Status.PENDING:
         messages.success(
             request,
-            f"Part request submitted ({form.cleaned_data['quantity']} × "
-            f"{form.cleaned_data['part'].name}). Awaiting manager approval.",
+            _(f"Part request submitted ({form.cleaned_data['quantity']} × "
+              f"{form.cleaned_data['part'].name}). Awaiting manager approval."),
         )
     else:
         messages.success(
             request,
-            f"Emergency auto-approval: {form.cleaned_data['quantity']} × "
-            f"{form.cleaned_data['part'].name} deducted from stock immediately. "
-            f"Manager will review.",
+            _(f"Emergency auto-approval: {form.cleaned_data['quantity']} × "
+              f"{form.cleaned_data['part'].name} deducted from stock immediately. "
+              f"Manager will review."),
         )
     # Sprint 1 (Step 6): stash a JSON-serializable summary so the redirect-target
     # can render an alert block (and the "📦 Raise Shortage Request" button when
@@ -1960,9 +1960,9 @@ def work_order_request_part_re_review(request, line_pk):
     """
     line = get_object_or_404(PartIssueLine, pk=line_pk)
     if line.requested_by_id != request.user.id:
-        return HttpResponseForbidden("You can only re-review your own requests.")
+        return HttpResponseForbidden(_("You can only re-review your own requests."))
     if line.status != PartIssueLine.Status.REJECTED:
-        messages.error(request, "Only rejected lines can be re-reviewed.")
+        messages.error(request, _("Only rejected lines can be re-reviewed."))
         return redirect("work_order_detail", pk=line.work_order_id)
 
     # Load active parts for the picker (same as part request form)
@@ -2031,8 +2031,8 @@ def work_order_request_part_re_review(request, line_pk):
         # a shortage and raise a shortage report.
         if on_hand > 0:
             stock_error = (
-                f"Only {usable:g} in stock for {new_part.sku}. "
-                f"Edit qty to {usable:g}, switch to a different part, or use the shortage flow."
+                _(f"Only {usable:g} in stock for {new_part.sku}. "
+                  f"Edit qty to {usable:g}, switch to a different part, or use the shortage flow.")
             )
             messages.error(request, stock_error)
             return render(
@@ -2059,9 +2059,9 @@ def work_order_request_part_re_review(request, line_pk):
         requested_by=request.user,
         status=PartIssueLine.Status.PENDING,
         manager_note=(
-            f"Re-review of #{line.pk}"
-            + ("" if unchanged else f" — edited: {line.part.sku} qty {line.quantity} → {new_part.sku} qty {new_qty}")
-            + (f". Tech note: {new_note}" if new_note else "")
+            _(f"Re-review of #{line.pk}")
+            + ("" if unchanged else _(f" — edited: {line.part.sku} qty {line.quantity} → {new_part.sku} qty {new_qty}"))
+            + (_(f". Tech note: {new_note}") if new_note else "")
         ),
         previous_attempt=line,
         unit_cost=new_part.last_purchase_cost or new_part.avg_cost or 0,
@@ -2071,8 +2071,8 @@ def work_order_request_part_re_review(request, line_pk):
     notify_part_request_re_review(new_line, line)
     messages.success(
         request,
-        f"Re-review submitted: {new_qty:g}× {new_part.name}. "
-        f"{'Same as before' if unchanged else 'Edits sent to manager'}.",
+        _(f"Re-review submitted: {new_qty:g}× {new_part.name}. "
+          f"{'Same as before' if unchanged else _('Edits sent to manager')}."),
     )
     return redirect("work_order_detail", pk=line.work_order_id)
 
@@ -2092,7 +2092,7 @@ def work_order_add_voice(request, pk):
     pending_voice_id = request.POST.get("voice_attachment_id", "").strip()
     note = request.POST.get("note", "").strip()
     if not (pending_voice_id and pending_voice_id.isdigit()):
-        messages.error(request, "Please record a voice note before submitting.")
+        messages.error(request, _("Please record a voice note before submitting."))
         return redirect("work_order_detail", pk=pk)
     try:
         from .models import Attachment
@@ -2109,9 +2109,9 @@ def work_order_add_voice(request, pk):
         else:
             att.save(update_fields=['entity_type', 'entity_id'])
     except Attachment.DoesNotExist:
-        messages.error(request, "Voice attachment not found or not owned by you.")
+        messages.error(request, _("Voice attachment not found or not owned by you."))
         return redirect("work_order_detail", pk=pk)
-    messages.success(request, f"Voice note added to WO-{wo.number}.")
+    messages.success(request, _(f"Voice note added to WO-{wo.number}."))
     return redirect("work_order_detail", pk=pk)
 
 
@@ -2127,13 +2127,13 @@ def work_order_approve_part(request, pk, line_id):
     wo = get_object_or_404(WorkOrder, pk=pk)
     line = get_object_or_404(PartIssueLine, pk=line_id, work_order=wo)
     if line.status != PartIssueLine.Status.PENDING:
-        messages.error(request, "Only PENDING requests can be approved.")
+        messages.error(request, _("Only PENDING requests can be approved."))
         return redirect("work_order_detail", pk=wo.pk)
     try:
         approve_part_request(line=line, manager=request.user)
         messages.success(
             request,
-            f"Approved {line.quantity} × {line.part.name} — stock deducted.",
+            _(f"Approved {line.quantity} × {line.part.name} — stock deducted."),
         )
     except ValueError as e:
         messages.error(request, str(e))
@@ -2152,7 +2152,7 @@ def work_order_decide_part(request, pk, line_id):
     wo = get_object_or_404(WorkOrder, pk=pk)
     line = get_object_or_404(PartIssueLine, pk=line_id, work_order=wo)
     if line.status != PartIssueLine.Status.PENDING:
-        messages.error(request, "Only PENDING requests can be decided.")
+        messages.error(request, _("Only PENDING requests can be decided."))
         return redirect("work_order_detail", pk=wo.pk)
 
     form = PartRequestDecisionForm(request.POST)
@@ -2168,7 +2168,7 @@ def work_order_decide_part(request, pk, line_id):
             approve_part_request(line=line, manager=request.user)
             messages.success(
                 request,
-                f"Approved {line.quantity} × {line.part.name} — stock deducted.",
+                _(f"Approved {line.quantity} × {line.part.name} — stock deducted."),
             )
         elif action == "reject":
             reason = form.cleaned_data["rejection_reason"]
@@ -2183,7 +2183,7 @@ def work_order_decide_part(request, pk, line_id):
             notify_wo_part_rejected(line, reason, request.user)
             messages.info(
                 request,
-                f"Rejected {line.part.name} request. Tech has been notified.",
+                _(f"Rejected {line.part.name} request. Tech has been notified."),
             )
         elif action == "edit":
             edit_part_request_qty(
@@ -2193,7 +2193,7 @@ def work_order_decide_part(request, pk, line_id):
             )
             messages.success(
                 request,
-                f"Updated qty to {form.cleaned_data['new_qty']} for {line.part.name}.",
+                _(f"Updated qty to {form.cleaned_data['new_qty']} for {line.part.name}."),
             )
     except ValueError as e:
         messages.error(request, str(e))
@@ -2242,7 +2242,7 @@ def work_order_request_external_repair(request, pk):
         pass
     messages.success(
         request,
-        "External repair request submitted. Manager has been notified.",
+        _("External repair request submitted. Manager has been notified."),
     )
     return redirect("work_order_detail", pk=wo.pk)
 
@@ -2255,7 +2255,7 @@ def work_order_decide_external_repair(request, pk, err_id):
     wo = get_object_or_404(WorkOrder, pk=pk)
     err = get_object_or_404(ExternalRepairRequest, pk=err_id, work_order=wo)
     if err.status != ExternalRepairRequest.Status.PENDING:
-        messages.error(request, "Only PENDING requests can be decided.")
+        messages.error(request, _("Only PENDING requests can be decided."))
         return redirect("work_order_detail", pk=wo.pk)
 
     form = ExternalRepairRequestDecisionForm(request.POST)
@@ -2274,14 +2274,14 @@ def work_order_decide_external_repair(request, pk, err_id):
             )
             messages.success(
                 request,
-                f"External Repair Order #{ero.pk} created. The supply officer "
-                "can now send the part to the vendor.",
+                _(f"External Repair Order #{ero.pk} created. The supply officer "
+                  "can now send the part to the vendor."),
             )
         else:
             reject_external_repair_request(
                 err=err, manager=request.user, manager_note=note
             )
-            messages.info(request, "External repair request rejected.")
+            messages.info(request, _("External repair request rejected."))
     except ValueError as e:
         messages.error(request, str(e))
     return redirect("work_order_detail", pk=wo.pk)
@@ -2302,12 +2302,12 @@ def emergency_work_order_create(request):
                 created_by=request.user,
                 notes=f"{form.cleaned_data['title']}\n\n{form.cleaned_data['detail']}",
             )
-            transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="Emergency WO created")
+            transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note=_("Emergency WO created"))
             log_audit(actor=request.user, action="emergency_wo", entity="WorkOrder", object_id=wo.pk)
             from .notifications import notify_emergency_work_order
 
             notify_emergency_work_order(wo)
-            messages.success(request, f"Emergency work order WO-{wo.number} created.")
+            messages.success(request, _(f"Emergency work order WO-{wo.number} created."))
             return redirect("work_order_detail", pk=wo.pk)
     else:
         # Pre-fill from URL params so the asset tree can deep-link here.
@@ -2390,17 +2390,17 @@ def emergency_work_order_create(request):
 def work_order_mark_parts(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.assigned_technician != request.user:
-        messages.error(request, "You can only mark parts for work orders assigned to you.")
+        messages.error(request, _("You can only mark parts for work orders assigned to you."))
         return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     form = TechVendorNoteForm(request.POST, prefix="parts")
     if not form.is_valid():
-        messages.error(request, "Invalid form.")
+        messages.error(request, _("Invalid form."))
         return redirect("work_order_detail", pk=pk)
     try:
         technician_mark_pending_parts(wo, request.user, note=form.cleaned_data.get("note") or "")
-        messages.warning(request, "Work order set to waiting for parts (labor timer stopped).")
+        messages.warning(request, _("Work order set to waiting for parts (labor timer stopped)."))
     except ValueError as e:
         messages.error(request, str(e))
     return redirect("work_order_detail", pk=pk)
@@ -2412,17 +2412,17 @@ def work_order_mark_parts(request, pk):
 def work_order_mark_vendor(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.assigned_technician != request.user:
-        messages.error(request, "You can only mark vendor status for work orders assigned to you.")
+        messages.error(request, _("You can only mark vendor status for work orders assigned to you."))
         return redirect("work_order_detail", pk=wo.pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
         raise Http404()
     form = TechVendorNoteForm(request.POST, prefix="vendor")
     if not form.is_valid():
-        messages.error(request, "Invalid form.")
+        messages.error(request, _("Invalid form."))
         return redirect("work_order_detail", pk=pk)
     try:
         technician_mark_waiting_vendor(wo, request.user, note=form.cleaned_data.get("note") or "")
-        messages.warning(request, "Work order set to waiting for vendor (labor timer stopped).")
+        messages.warning(request, _("Work order set to waiting for vendor (labor timer stopped)."))
     except ValueError as e:
         messages.error(request, str(e))
     return redirect("work_order_detail", pk=pk)
@@ -2549,7 +2549,7 @@ def stock_in_view(request):
                 invoice_ref=form.cleaned_data["invoice_ref"],
                 note=form.cleaned_data.get("note") or "",
             )
-            messages.success(request, "Stock-in recorded.")
+            messages.success(request, _("Stock-in recorded."))
             uploaded_file = request.FILES.get("invoice_attachment")
             if uploaded_file:
                 from maintenance.models import Attachment
@@ -2606,7 +2606,7 @@ def consumables_view(request):
                 (messages.success if ok else messages.error)(request, msg)
                 return redirect("consumables")
         else:
-            messages.error(request, "You do not have permission to perform this action.")
+            messages.error(request, _("You do not have permission to perform this action."))
             return redirect("consumables")
     from inventory.models import ConsumableAssignment
     from django.db.models import Sum
@@ -2699,7 +2699,7 @@ def supplier_create(request):
         form = SupplierForm(request.POST)
         if form.is_valid():
             supplier = form.save()
-            messages.success(request, f"Supplier '{supplier.name}' created with code {supplier.code}.")
+            messages.success(request, _(f"Supplier '{supplier.name}' created with code {supplier.code}."))
             return redirect("supplier_detail", pk=supplier.pk)
     else:
         form = SupplierForm()
@@ -2719,7 +2719,7 @@ def supplier_edit(request, pk):
         form = SupplierForm(request.POST, instance=supplier)
         if form.is_valid():
             supplier = form.save()
-            messages.success(request, f"Supplier '{supplier.name}' updated.")
+            messages.success(request, _(f"Supplier '{supplier.name}' updated."))
             return redirect("supplier_detail", pk=supplier.pk)
     else:
         form = SupplierForm(instance=supplier)
@@ -2819,7 +2819,7 @@ def spare_part_create(request):
                     )
                 part.quantity_on_hand = opening_qty
                 part.save(update_fields=["quantity_on_hand"])
-            messages.success(request, f"Part '{part.name}' created. SKU: {part.sku}")
+            messages.success(request, _(f"Part '{part.name}' created. SKU: {part.sku}"))
             return redirect("spare_part_detail", pk=part.pk)
     else:
         form = SparePartCreateForm()
@@ -2915,7 +2915,7 @@ def pm_create(request):
             if request.user.is_authenticated:
                 schedule.created_by = request.user
             schedule.save()
-            messages.success(request, "PM schedule saved.")
+            messages.success(request, _("PM schedule saved."))
             return redirect("pm_list")
     else:
         # Pre-fill from URL params. If component is a level-5 Component, walk
@@ -3023,7 +3023,7 @@ def pm_spawn_wo(request, pk):
         pk=pk,
     )
     if not sched.is_active:
-        messages.error(request, "Cannot spawn a WO from an inactive PM schedule.")
+        messages.error(request, _("Cannot spawn a WO from an inactive PM schedule."))
         return redirect("pm_list")
     existing = PMExecution.objects.filter(
         pm_schedule=sched,
@@ -3033,7 +3033,7 @@ def pm_spawn_wo(request, pk):
     if existing:
         messages.warning(
             request,
-            "A PM work order for this schedule's current due date is already in progress.",
+            _("A PM work order for this schedule's current due date is already in progress."),
         )
         return redirect("work_order_detail", pk=existing.work_order_id)
     has_children = sched.machine.children.filter(is_active=True).exists()
@@ -3046,7 +3046,7 @@ def pm_spawn_wo(request, pk):
             created_by=request.user,
             notes=f"PM: {sched.template.title}",
         )
-        transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note="PM work order")
+        transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user, note=_("PM work order"))
         create_pm_execution_for_wo(sched, wo, actor=request.user)
         child_count = 0
         if propagate and has_children:
@@ -3060,12 +3060,12 @@ def pm_spawn_wo(request, pk):
                 )
                 transition_work_order(
                     child_wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=request.user,
-                    note=f"PM for {child_machine.name} (child of {sched.machine.name})",
+                    note=_(f"PM for {child_machine.name} (child of {sched.machine.name})"),
                 )
                 child_count += 1
         if child_count:
-            messages.success(request, f"Created {child_count} child PM work orders.")
-        messages.success(request, f"PM work order WO-{wo.number} created.")
+            messages.success(request, _(f"Created {child_count} child PM work orders."))
+        messages.success(request, _(f"PM work order WO-{wo.number} created."))
         return redirect("work_order_detail", pk=wo.pk)
     return render(request, "maintenance/pm_spawn_wo.html", {"schedule": sched, "has_children": has_children})
 
@@ -3226,7 +3226,7 @@ def pm_wo_detail(request, pk):
         pk=pk,
     )
     if wo.category != WorkOrder.Category.PREVENTIVE:
-        messages.error(request, "This is not a preventive maintenance work order.")
+        messages.error(request, _("This is not a preventive maintenance work order."))
         return redirect("work_order_detail", pk=pk)
 
     u = request.user
@@ -3246,7 +3246,7 @@ def pm_wo_detail(request, pk):
 
     if request.method == "POST":
         if not can_execute:
-            messages.error(request, "You can't execute this PM.")
+            messages.error(request, _("You can't execute this PM."))
             return redirect("pm_wo_detail", pk=pk)
         checklist_items = ctx["checklist_items"]
         checklist_results = []
@@ -3285,7 +3285,7 @@ def pm_wo_detail(request, pk):
             ])
 
         technician_submit_for_review(wo, request.user)
-        messages.success(request, "PM submitted for manager review.")
+        messages.success(request, _("PM submitted for manager review."))
         return redirect("work_order_detail", pk=pk)
 
     ctx["form"] = WorkOrderCompleteForm(instance=wo)
@@ -3313,12 +3313,12 @@ def pm_review(request, pk):
         pk=pk,
     )
     if wo.category != WorkOrder.Category.PREVENTIVE:
-        messages.error(request, "This is not a preventive maintenance work order.")
+        messages.error(request, _("This is not a preventive maintenance work order."))
         return redirect("work_order_detail", pk=pk)
 
     pm_execution = getattr(wo, "pm_execution", None)
     if pm_execution is None:
-        messages.error(request, "No PM execution record found for this work order.")
+        messages.error(request, _("No PM execution record found for this work order."))
         return redirect("work_order_detail", pk=pk)
 
     if request.method == "POST":
@@ -3330,14 +3330,14 @@ def pm_review(request, pk):
                 manager_approve_pm_execution(pm_execution, manager=request.user)
                 schedule = pm_execution.pm_schedule
                 schedule.refresh_from_db()
-                messages.success(request, f"PM approved. Schedule advanced to {schedule.next_due_at:%Y-%m-%d %H:%M}.")
+                messages.success(request, _(f"PM approved. Schedule advanced to {schedule.next_due_at:%Y-%m-%d %H:%M}."))
                 return redirect("work_order_detail", pk=pk)
             elif action == "reject":
                 manager_reject_pm_execution(pm_execution, manager=request.user, reason=reason)
-                messages.warning(request, "PM rejected. Returned to technician.")
+                messages.warning(request, _("PM rejected. Returned to technician."))
                 return redirect("work_order_detail", pk=pk)
             else:
-                messages.error(request, "Invalid action.")
+                messages.error(request, _("Invalid action."))
         except ValueError as e:
             messages.error(request, str(e))
             return redirect("pm_review", pk=pk)
@@ -3418,11 +3418,11 @@ def tool_create(request):
         if form.is_valid():
             tool = form.save()
             log_audit(actor=request.user, action="tool_created", entity="Tool", object_id=tool.pk)
-            messages.success(request, "Tool saved.")
+            messages.success(request, _("Tool saved."))
             return redirect("tool_list")
     else:
         form = ToolForm(initial={"status": Tool.Status.AVAILABLE})
-    return render(request, "maintenance/tool_form.html", {"form": form, "page_title": "Add tool"})
+    return render(request, "maintenance/tool_form.html", {"form": form, "page_title": _("Add tool")})
 
 
 @login_required
@@ -3434,11 +3434,11 @@ def tool_edit(request, pk):
         if form.is_valid():
             tool = form.save()
             log_audit(actor=request.user, action="tool_updated", entity="Tool", object_id=tool.pk)
-            messages.success(request, "Tool updated.")
+            messages.success(request, _("Tool updated."))
             return redirect("tool_list")
     else:
         form = ToolForm(instance=tool)
-    return render(request, "maintenance/tool_form.html", {"form": form, "page_title": "Edit tool", "tool": tool})
+    return render(request, "maintenance/tool_form.html", {"form": form, "page_title": _("Edit tool"), "tool": tool})
 
 
 @login_required
@@ -3448,18 +3448,18 @@ def tool_assign(request):
         return redirect("tool_list")
     form = ToolAssignForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Invalid tool assignment.")
+        messages.error(request, _("Invalid tool assignment."))
         return redirect("tool_list")
     tool = form.cleaned_data["tool"]
     assignee = form.cleaned_data["assignee"]
     if tool.status != Tool.Status.AVAILABLE:
-        messages.error(request, "Tool not available.")
+        messages.error(request, _("Tool not available."))
         return redirect("tool_list")
     tool.status = Tool.Status.IN_USE
     tool.save(update_fields=["status"])
     ToolAssignment.objects.create(tool=tool, user=assignee, assigned_by=request.user)
     log_audit(actor=request.user, action="tool_assigned", entity="Tool", object_id=tool.pk, payload={"to": assignee.username})
-    messages.success(request, "Tool assigned.")
+    messages.success(request, _("Tool assigned."))
     return redirect("tool_list")
 
 
@@ -3471,7 +3471,7 @@ def tool_return(request, assignment_pk):
         if request.user.role != User.Role.MANAGER:
             raise Http404()
     if ta.returned_at:
-        messages.info(request, "Already returned.")
+        messages.info(request, _("Already returned."))
         return redirect("tool_list")
     if request.method == "POST":
         form = ToolReturnForm(request.POST)
@@ -3485,7 +3485,7 @@ def tool_return(request, assignment_pk):
                 ta.tool.status = Tool.Status.AVAILABLE
                 ta.tool.save(update_fields=["status"])
                 log_audit(actor=request.user, action="tool_returned", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond})
-                messages.success(request, "Return recorded — tool is available.")
+                messages.success(request, _("Return recorded — tool is available."))
 
             elif cond == ToolAssignment.ReturnCondition.DAMAGED:
                 ta.tool.status = Tool.Status.OUT_OF_SERVICE
@@ -3499,7 +3499,7 @@ def tool_return(request, assignment_pk):
                 )
                 wo.save()
                 log_audit(actor=request.user, action="tool_returned_damaged", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond, "wo_pk": wo.pk})
-                messages.success(request, f"Return recorded. Damaged tool flagged — repair work order WO-{wo.number} created for manager review.")
+                messages.success(request, _(f"Return recorded. Damaged tool flagged — repair work order WO-{wo.number} created for manager review."))
 
             else:  # LOST
                 ta.tool.status = Tool.Status.OUT_OF_SERVICE
@@ -3512,7 +3512,7 @@ def tool_return(request, assignment_pk):
                     status=Incident.Status.OPEN,
                 )
                 log_audit(actor=request.user, action="tool_returned_lost", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond})
-                messages.warning(request, "Return recorded. Lost tool incident created — investigating.")
+                messages.warning(request, _("Return recorded. Lost tool incident created — investigating."))
 
             return redirect("tool_list")
     else:
@@ -3529,7 +3529,7 @@ def repair_create(request):
             r = form.save(commit=False)
             r.created_by = request.user
             r.save()
-            messages.success(request, "Repair request created.")
+            messages.success(request, _("Repair request created."))
             return redirect("repair_officer", pk=r.pk)
         locked_asset = None
     else:
@@ -3697,7 +3697,7 @@ def repair_officer(request, pk):
                         f"Failed to resolve VENDOR_REPAIR blocker on ERO RETURNED: {_e}"
                     )
 
-            messages.success(request, "Repair order updated.")
+            messages.success(request, _("Repair order updated."))
             return redirect("repair_list")
     else:
         form = ExternalRepairOfficerForm(instance=rwo)
@@ -3765,35 +3765,35 @@ def repair_order_pdf(request, pk):
 
     elements.append(_header_table())
     elements.append(Spacer(1, 4 * mm))
-    elements.append(Paragraph(f"<b>EXTERNAL REPAIR ORDER</b>", styles["Normal"]))
+    elements.append(Paragraph(_("<b>EXTERNAL REPAIR ORDER</b>"), styles["Normal"]))
 
-    elements += _section("Repair Order")
+    elements += _section(_("Repair Order"))
     elements.append(_field_table([
-        ("ERO Number", f"#{rwo.pk}"),
-        ("WO Number", f"WO-{rwo.work_order.number}" if rwo.work_order else "—"),
-        ("Asset / Machine", rwo.work_order.machine.name if rwo.work_order and rwo.work_order.machine else "—"),
-        ("Serial Number", getattr(rwo.work_order.machine, "serial_number", "—") if rwo.work_order and rwo.work_order.machine else "—"),
-        ("Description", rwo.description or "—"),
+        (_("ERO Number"), f"#{rwo.pk}"),
+        (_("WO Number"), f"WO-{rwo.work_order.number}" if rwo.work_order else "—"),
+        (_("Asset / Machine"), rwo.work_order.machine.name if rwo.work_order and rwo.work_order.machine else "—"),
+        (_("Serial Number"), getattr(rwo.work_order.machine, "serial_number", "—") if rwo.work_order and rwo.work_order.machine else "—"),
+        (_("Description"), rwo.description or "—"),
     ]))
 
-    elements += _section("Vendor")
+    elements += _section(_("Vendor"))
     elements.append(_field_table([
-        ("Vendor", rwo.vendor_name or "—"),
+        (_("Vendor"), rwo.vendor_name or "—"),
     ]))
 
-    elements += _section("Timeline")
+    elements += _section(_("Timeline"))
     elements.append(_field_table([
-        ("Sent Date", rwo.sent_at.strftime("%Y-%m-%d %H:%M") if rwo.sent_at else "—"),
+        (_("Sent Date"), rwo.sent_at.strftime("%Y-%m-%d %H:%M") if rwo.sent_at else "—"),
     ]))
 
-    elements += _section("Cost")
+    elements += _section(_("Cost"))
     elements.append(_field_table([
-        ("Estimated Cost", str(rwo.estimated_cost or "—")),
-        ("Actual Cost", str(rwo.actual_cost or "—")),
+        (_("Estimated Cost"), str(rwo.estimated_cost or "—")),
+        (_("Actual Cost"), str(rwo.actual_cost or "—")),
     ]))
 
-    elements += _section("Approval")
-    elements.append(Paragraph("Authorised by Maintenance Manager:", styles["Normal"]))
+    elements += _section(_("Approval"))
+    elements.append(Paragraph(_("Authorised by Maintenance Manager:"), styles["Normal"]))
     elements.append(Spacer(1, 6 * mm))
     from maintenance.pdf_utils import signature_block
     elements.append(signature_block())
@@ -3815,7 +3815,7 @@ def quick_log(request):
             log = form.save(commit=False)
             log.author = request.user
             log.save()
-            messages.success(request, "Quick log saved.")
+            messages.success(request, _("Quick log saved."))
             return redirect("dashboard")
     else:
         form = QuickLogForm()

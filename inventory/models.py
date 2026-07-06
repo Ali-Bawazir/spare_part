@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 
 class Inventory(models.Model):
@@ -14,10 +15,10 @@ class Inventory(models.Model):
     site = models.ForeignKey("maintenance.Site", on_delete=models.PROTECT, related_name="inventory_items")
     quantity_available = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     quantity_quarantine = models.DecimalField(max_digits=14, decimal_places=3, default=0,
-        help_text="Damaged units received from suppliers. Not visible to maintenance. "
-                  "Distinct from quantity_available (usable) and quantity_rejected (audit only).")
+        help_text=_("Damaged units received from suppliers. Not visible to maintenance. "
+                  "Distinct from quantity_available (usable) and quantity_rejected (audit only)."))
     quantity_rejected   = models.DecimalField(max_digits=14, decimal_places=3, default=0,
-        help_text="Units rejected at inspection. Not in inventory; tracked for audit only.")
+        help_text=_("Units rejected at inspection. Not in inventory; tracked for audit only."))
     rack_location = models.CharField(max_length=64, blank=True)
     last_counted_at = models.DateTimeField(null=True, blank=True)
     last_counted_by = models.ForeignKey(
@@ -30,7 +31,7 @@ class Inventory(models.Model):
 
     class Meta:
         unique_together = ["part", "site"]
-        verbose_name_plural = "inventories"
+        verbose_name_plural = _("inventories")
 
     def __str__(self) -> str:
         return f"{self.part.name} @ {self.site.code} ({self.quantity_available})"
@@ -56,7 +57,7 @@ class SparePart(models.Model):
     qr_code = models.CharField(
         max_length=128,
         blank=True,
-        help_text="Auto-generated from SKU. Used in PART QR format.",
+        help_text=_("Auto-generated from SKU. Used in PART QR format."),
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -66,7 +67,7 @@ class SparePart(models.Model):
     allow_operator_consumption = models.BooleanField(
         default=False,
         db_index=True,
-        help_text="When True, operators can self-log this item via /consumables/",
+        help_text=_("When True, operators can self-log this item via /consumables/"),
     )
     quantity_on_hand = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     min_stock_level = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
@@ -85,14 +86,14 @@ class SparePart(models.Model):
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Most recent unit purchase price.",
+        help_text=_("Most recent unit purchase price."),
     )
     status = models.CharField(
         max_length=20,
         choices=[
-            ("active", "Active"),
-            ("obsolete", "Obsolete"),
-            ("discontinued", "Discontinued"),
+            ("active", _("Active")),
+            ("obsolete", _("Obsolete")),
+            ("discontinued", _("Discontinued")),
         ],
         default="active",
         db_index=True,
@@ -177,11 +178,11 @@ class SparePart(models.Model):
 
 class StockMovement(models.Model):
     class MovementType(models.TextChoices):
-        STOCK_IN = "stock_in", "Stock in"
-        STOCK_OUT = "stock_out", "Stock out"
-        ISSUE_TO_WO = "issue_wo", "Issue to work order"
-        CONSUMABLE_USE = "consumable", "Consumable use"
-        ADJUSTMENT = "adjustment", "Adjustment"
+        STOCK_IN = "stock_in", _("Stock in")
+        STOCK_OUT = "stock_out", _("Stock out")
+        ISSUE_TO_WO = "issue_wo", _("Issue to work order")
+        CONSUMABLE_USE = "consumable", _("Consumable use")
+        ADJUSTMENT = "adjustment", _("Adjustment")
 
     part = models.ForeignKey(SparePart, on_delete=models.PROTECT, related_name="movements")
     movement_type = models.CharField(max_length=20, choices=MovementType.choices, db_index=True)
@@ -247,11 +248,11 @@ class PartIssueLine(models.Model):
     """
 
     class Status(models.TextChoices):
-        PENDING   = "pending",   "Pending"
-        APPROVED  = "approved",  "Approved"
-        ALLOCATED = "allocated", "Allocated"
-        ISSUED    = "issued",    "Issued"
-        REJECTED  = "rejected",  "Rejected"
+        PENDING   = "pending",   _("Pending")
+        APPROVED  = "approved",  _("Approved")
+        ALLOCATED = "allocated", _("Allocated")
+        ISSUED    = "issued",    _("Issued")
+        REJECTED  = "rejected",  _("Rejected")
 
     work_order = models.ForeignKey(
         "maintenance.WorkOrder",
@@ -274,13 +275,13 @@ class PartIssueLine(models.Model):
         on_delete=models.PROTECT,
         null=True, blank=True,
         related_name="part_issues_requested",
-        help_text="Technician who added the request (null when created by manager).",
+        help_text=_("Technician who added the request (null when created by manager)."),
     )
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="part_issues_issued",
-        help_text=(
+        help_text=_(
             "The actor who caused the stock deduction. For manager direct-issue, "
             "this is the manager. For technician emergency auto-approve, this is the "
             "technician. Set at approval time for non-emergency approvals."
@@ -296,14 +297,14 @@ class PartIssueLine(models.Model):
     rejection_reason = models.TextField(blank=True)
     manager_note = models.TextField(
         blank=True,
-        help_text="Manager's free-text comment attached to this part line.",
+        help_text=_("Manager's free-text comment attached to this part line."),
     )
     related_shortage_report = models.ForeignKey(
         "PartShortageReport",
         null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name="issue_lines",
-        help_text=(
+        help_text=_(
             "Set when this line is the execution record for a shortage report. "
             "Set atomically in request_part_on_wo. Used by execute_warehouse_issue "
             "to find the report via explicit FK link, not by (wo, part) lookup."
@@ -311,40 +312,40 @@ class PartIssueLine(models.Model):
     )
     is_emergency_auto_approved = models.BooleanField(
         default=False,
-        help_text=(
+        help_text=_(
             "True when the line was auto-approved due to the parent WO being an "
             "emergency. Manager should review the cost and edit the qty if needed."
         ),
     )
     requested_qty = models.DecimalField(
         max_digits=14, decimal_places=3, default=0,
-        help_text=(
+        help_text=_(
             "What the technician originally requested. Mirrors `quantity` at "
             "request time. Preserved through edits so audit trail is intact."
         ),
     )
     allocated_qty = models.DecimalField(
         max_digits=14, decimal_places=3, default=0,
-        help_text="Stage 3: units reserved in inventory. Set by approve_part_request. "
-                  "PART WO Blocker resolves when issued_qty == approved_qty (not at allocation)."
+        help_text=_("Stage 3: units reserved in inventory. Set by approve_part_request. "
+                  "PART WO Blocker resolves when issued_qty == approved_qty (not at allocation)."),
     )
     approved_qty = models.DecimalField(
         max_digits=14, decimal_places=3, default=0,
-        help_text=(
+        help_text=_(
             "Quantity the manager approved (may differ from requested_qty). "
             "Set on approval. 0 while PENDING."
         ),
     )
     issued_qty = models.DecimalField(
         max_digits=14, decimal_places=3, default=0,
-        help_text=(
+        help_text=_(
             "Quantity actually deducted from stock on approval. May be less "
             "than approved_qty if stock ran out between request and approval."
         ),
     )
     shortage_qty = models.DecimalField(
         max_digits=14, decimal_places=3, default=0,
-        help_text=(
+        help_text=_(
             "Quantity covered by an auto-created PurchaseRequest. Computed as "
             "max(0, requested_qty - approved_qty). Independent of whether the "
             "manager edits approved_qty — PR is a separate procurement doc."
@@ -357,7 +358,7 @@ class PartIssueLine(models.Model):
         null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name="re_reviews",
-        help_text=(
+        help_text=_(
             "v4.9 A5: If this line is a re-review request, points to the refused "
             "line it replaces. Preserves the audit trail of the original decision."
         ),
@@ -368,18 +369,18 @@ class PartIssueLine(models.Model):
 
     def clean(self):
         if self.quantity <= 0:
-            raise ValidationError("Quantity must be positive.")
+            raise ValidationError(_("Quantity must be positive."))
         if self.status == self.Status.REJECTED and not self.rejection_reason.strip():
-            raise ValidationError("Rejection reason is required when status is REJECTED.")
+            raise ValidationError(_("Rejection reason is required when status is REJECTED."))
 
 
 class ConsumableAssignment(models.Model):
     """Business accountability record when an operator self-logs an approved consumable."""
 
     class Source(models.TextChoices):
-        SELF_SERVICE = "SELF_SERVICE", "Self Service"
-        SUPERVISOR_ISSUE = "SUPERVISOR_ISSUE", "Supervisor Issue"
-        WO_CONSUMPTION = "WO_CONSUMPTION", "Work Order Consumption"
+        SELF_SERVICE = "SELF_SERVICE", _("Self Service")
+        SUPERVISOR_ISSUE = "SUPERVISOR_ISSUE", _("Supervisor Issue")
+        WO_CONSUMPTION = "WO_CONSUMPTION", _("Work Order Consumption")
 
     part = models.ForeignKey(
         "SparePart",
@@ -426,8 +427,8 @@ class ConsumableAssignment(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        verbose_name = "Consumable Assignment"
-        verbose_name_plural = "Consumable Assignments"
+        verbose_name = _("Consumable Assignment")
+        verbose_name_plural = _("Consumable Assignments")
 
     def __str__(self) -> str:
         return f"{self.consumed_by.username} consumed {self.quantity} x {self.part.name}"
@@ -448,13 +449,13 @@ class PartShortageReport(models.Model):
     """
 
     class Status(models.TextChoices):
-        PENDING_REVIEW = "pending",         "Pending manager decision"
-        APPROVED       = "approved",        "Manager decision recorded (editable, no execution yet)"
-        IN_FULFILLMENT = "in_fulfillment",  "Execution started (warehouse issue or PR in progress)"
-        FULFILLED      = "fulfilled",       "All committed units issued and/or procured (manager-verified)"
-        BLOCKED        = "blocked",         "Operational problem (PR cancelled, reservation conflict, etc.)"
-        CLOSED         = "closed",          "Manager-verified closure (terminal)"
-        REJECTED       = "rejected",        "Manager rejected (terminal)"
+        PENDING_REVIEW = "pending",         _("Pending manager decision")
+        APPROVED       = "approved",        _("Manager decision recorded (editable, no execution yet)")
+        IN_FULFILLMENT = "in_fulfillment",  _("Execution started (warehouse issue or PR in progress)")
+        FULFILLED      = "fulfilled",       _("All committed units issued and/or procured (manager-verified)")
+        BLOCKED        = "blocked",         _("Operational problem (PR cancelled, reservation conflict, etc.)")
+        CLOSED         = "closed",          _("Manager-verified closure (terminal)")
+        REJECTED       = "rejected",        _("Manager rejected (terminal)")
 
     status = models.CharField(
         max_length=16,
@@ -474,7 +475,7 @@ class PartShortageReport(models.Model):
     work_order = models.ForeignKey(
         "maintenance.WorkOrder", on_delete=models.PROTECT,
         null=True, blank=True, related_name="shortage_reports",
-        help_text="Set when source is a WO. Null for other sources.",
+        help_text=_("Set when source is a WO. Null for other sources."),
     )
     part = models.ForeignKey(SparePart, on_delete=models.PROTECT, related_name="shortage_reports")
     qty_requested = models.DecimalField(max_digits=14, decimal_places=3)
@@ -487,18 +488,18 @@ class PartShortageReport(models.Model):
 
     # Operational context snapshots
     machine_criticality_snapshot = models.CharField(max_length=20, blank=True,
-        help_text="Snapshot of the source machine's criticality at report time.")
+        help_text=_("Snapshot of the source machine's criticality at report time."))
     part_criticality_snapshot     = models.CharField(max_length=20, blank=True,
-        help_text="Snapshot of the part's criticality. Empty until part-criticality is added in Sprint 4+.")
+        help_text=_("Snapshot of the part's criticality. Empty until part-criticality is added in Sprint 4+."))
     wo_priority_snapshot          = models.CharField(max_length=20, blank=True,
-        help_text="Snapshot of the source WO's priority at report time. Managers approve based on urgency.")
+        help_text=_("Snapshot of the source WO's priority at report time. Managers approve based on urgency."))
 
     shortage_qty              = models.DecimalField(max_digits=14, decimal_places=3)
     expected_availability_date = models.DateField(
         null=True, blank=True,
-        help_text="Manager's estimate of when the part will be back. Visible to the technician as '📦 Awaiting Procurement'.",
+        help_text=_("Manager's estimate of when the part will be back. Visible to the technician as '📦 Awaiting Procurement'."),
     )
-    reason       = models.TextField(blank=True, help_text="Tech's note when raising the report.")
+    reason       = models.TextField(blank=True, help_text=_("Tech's note when raising the report."))
     reported_by  = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                      related_name="shortage_reports_made")
     reviewed_by  = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
@@ -507,11 +508,11 @@ class PartShortageReport(models.Model):
     reviewed_at  = models.DateTimeField(null=True, blank=True)
     rejection_reason = models.TextField(
         blank=True,
-        help_text="Manager's reason for rejection. Required when status=REJECTED. Shown to the technician.",
+        help_text=_("Manager's reason for rejection. Required when status=REJECTED. Shown to the technician."),
     )
     decision_note = models.TextField(
         blank=True,
-        help_text="Manager's free-text decision note (used for both approve and reject).",
+        help_text=_("Manager's free-text decision note (used for both approve and reject)."),
     )
     is_emergency = models.BooleanField(default=False)
     created_at   = models.DateTimeField(auto_now_add=True)
@@ -568,8 +569,8 @@ class PartShortageDecision(models.Model):
     """
 
     class DecisionType(models.TextChoices):
-        APPROVE = "approve", "Approve (issue and/or procure committed)"
-        REJECT  = "reject",  "Reject (nothing committed, full qty rejected)"
+        APPROVE = "approve", _("Approve (issue and/or procure committed)")
+        REJECT  = "reject",  _("Reject (nothing committed, full qty rejected)")
 
     report = models.OneToOneField(
         PartShortageReport, on_delete=models.PROTECT, related_name="decision",
@@ -600,28 +601,37 @@ class PartShortageDecision(models.Model):
 
     def clean(self):
         if any(v < 0 for v in (self.approved_issue_qty, self.approved_procurement_qty, self.rejected_qty)):
-            raise ValidationError("Quantities cannot be negative.")
+            raise ValidationError(_("Quantities cannot be negative."))
         total = self.approved_issue_qty + self.approved_procurement_qty + self.rejected_qty
         if total != self.report.qty_requested:
             raise ValidationError(
-                f"Books must balance: issue({self.approved_issue_qty}) + "
-                f"procure({self.approved_procurement_qty}) + "
-                f"reject({self.rejected_qty}) = {total} "
-                f"!= requested({self.report.qty_requested})."
+                _("Books must balance: issue(%(issue)s) + "
+                "procure(%(procure)s) + "
+                "reject(%(reject)s) = %(total)s "
+                "!= requested(%(requested)s).") % {
+                    "issue": self.approved_issue_qty,
+                    "procure": self.approved_procurement_qty,
+                    "reject": self.rejected_qty,
+                    "total": total,
+                    "requested": self.report.qty_requested,
+                }
             )
         if self.decision_type == self.DecisionType.APPROVE:
             if self.approved_issue_qty == 0 and self.approved_procurement_qty == 0:
                 raise ValidationError(
-                    "Approve decision must commit at least one unit to issue or procure. "
-                    "Use REJECT instead."
+                    _("Approve decision must commit at least one unit to issue or procure. "
+                    "Use REJECT instead.")
                 )
         elif self.decision_type == self.DecisionType.REJECT:
             if self.approved_issue_qty != 0 or self.approved_procurement_qty != 0:
-                raise ValidationError("Reject decision must have issue_qty=0 and procurement_qty=0.")
+                raise ValidationError(_("Reject decision must have issue_qty=0 and procurement_qty=0."))
             if self.rejected_qty != self.report.qty_requested:
                 raise ValidationError(
-                    f"Reject decision must reject all requested units "
-                    f"({self.rejected_qty} != {self.report.qty_requested})."
+                    _("Reject decision must reject all requested units "
+                    "(%(rejected)s != %(requested)s).") % {
+                        "rejected": self.rejected_qty,
+                        "requested": self.report.qty_requested,
+                    }
                 )
 
     def __str__(self) -> str:
@@ -630,24 +640,24 @@ class PartShortageDecision(models.Model):
 
 class InventoryReservation(models.Model):
     class Status(models.TextChoices):
-        ACTIVE    = "active",    "Active"
-        RELEASED  = "released",  "Released"
-        CANCELLED = "cancelled", "Cancelled"
+        ACTIVE    = "active",    _("Active")
+        RELEASED  = "released",  _("Released")
+        CANCELLED = "cancelled", _("Cancelled")
 
     part        = models.ForeignKey("SparePart", on_delete=models.PROTECT, related_name="reservations")
     work_order  = models.ForeignKey("maintenance.WorkOrder", on_delete=models.CASCADE,
                                     null=True, blank=True, related_name="reservations",
-                                    help_text="Nullable for legacy/synthetic reservations")
+                                    help_text=_("Nullable for legacy/synthetic reservations"))
     quantity    = models.DecimalField(max_digits=14, decimal_places=3)
     status      = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE, db_index=True)
     source_line = models.ForeignKey("PartIssueLine", on_delete=models.SET_NULL,
                                     null=True, blank=True, related_name="reservations",
-                                    help_text="The PartIssueLine that created this reservation")
+                                    help_text=_("The PartIssueLine that created this reservation"))
     created_at  = models.DateTimeField(auto_now_add=True, db_index=True)
     released_at = models.DateTimeField(null=True, blank=True)
     release_reason = models.CharField(max_length=200, blank=True)
     priority_at_creation = models.PositiveIntegerField(default=0,
-        help_text="Snapshot of WO priority rank when the reservation was created")
+        help_text=_("Snapshot of WO priority rank when the reservation was created"))
 
     class Meta:
         indexes = [

@@ -21,6 +21,7 @@ from typing import Optional, Any
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -167,8 +168,8 @@ class WorkOrderBlockerService:
             source_work_order=source_work_order,
             opened_by=opened_by,
             external_label=(
-                f"Operational pause: {pause_reason}" if pause_reason
-                else "Operational pause"
+                _(f"Operational pause: {pause_reason}") if pause_reason
+                else _("Operational pause")
             ),
         )
 
@@ -206,8 +207,10 @@ class WorkOrderBlockerService:
             return blocker
         if blocker.status == WorkOrderBlocker.Status.CANCELLED:
             raise ValueError(
-                f"Blocker #{blocker.pk} is CANCELLED; cannot resolve. "
-                f"Open a new blocker for a new wait episode."
+                _(
+                    f"Blocker #{blocker.pk} is CANCELLED; cannot resolve. "
+                    f"Open a new blocker for a new wait episode."
+                )
             )
 
         now = timezone.now()
@@ -248,7 +251,7 @@ class WorkOrderBlockerService:
             return blocker
         if blocker.status == WorkOrderBlocker.Status.RESOLVED:
             raise ValueError(
-                f"Blocker #{blocker.pk} is RESOLVED; cannot cancel."
+                _(f"Blocker #{blocker.pk} is RESOLVED; cannot cancel.")
             )
 
         now = timezone.now()
@@ -343,7 +346,7 @@ class WorkOrderBlockerService:
                     and (external_obj.approved_qty or 0) > 0:
                 return cls.resolve_blocker(
                     blocker=open_blocker,
-                    resolution_note=payload.get("note", "Part fully issued"),
+                    resolution_note=payload.get("note", _("Part fully issued")),
                     resolved_by=actor,
                 )
             return None
@@ -351,21 +354,21 @@ class WorkOrderBlockerService:
         if event_type == "PART_REJECTED":
             return cls.cancel_blocker(
                 blocker=open_blocker,
-                cancel_reason=payload.get("reason", "Part request rejected"),
+                cancel_reason=payload.get("reason", _("Part request rejected")),
                 cancelled_by=actor,
             )
 
         if event_type == "SHORTAGE_FULFILLED":
             return cls.resolve_blocker(
                 blocker=open_blocker,
-                resolution_note=payload.get("note", "Shortage fulfilled"),
+                resolution_note=payload.get("note", _("Shortage fulfilled")),
                 resolved_by=actor,
             )
 
         if event_type == "ERO_ACCEPTED":
             return cls.resolve_blocker(
                 blocker=open_blocker,
-                resolution_note=payload.get("note", "Vendor repair accepted"),
+                resolution_note=payload.get("note", _("Vendor repair accepted")),
                 resolved_by=actor,
             )
 
@@ -378,7 +381,7 @@ class WorkOrderBlockerService:
         if event_type == "ERO_RETURNED":
             return cls.resolve_blocker(
                 blocker=open_blocker,
-                resolution_note=payload.get("note", "Vendor returned part"),
+                resolution_note=payload.get("note", _("Vendor returned part")),
                 resolved_by=actor,
             )
 

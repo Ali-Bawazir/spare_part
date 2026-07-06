@@ -8,6 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from maintenance.services import log_audit
 
@@ -36,11 +37,15 @@ def auto_create_pr_for_shortage(*, report, decision, actor) -> PurchaseRequest |
         part=report.part,
         work_order=report.work_order,
         quantity=decision.approved_procurement_qty,
-        notes=(
-            f"Auto-created from shortage decision #{decision.pk} "
-            f"(qty requested: {report.qty_requested:g}, "
-            f"procurement qty: {decision.approved_procurement_qty:g})"
-        ),
+        notes=_(
+            "Auto-created from shortage decision #%(decision_pk)s "
+            "(qty requested: %(qty_requested)s, "
+            "procurement qty: %(approved_qty)s)"
+        ) % {
+            "decision_pk": decision.pk,
+            "qty_requested": f"{report.qty_requested:g}",
+            "approved_qty": f"{decision.approved_procurement_qty:g}",
+        },
         status=PurchaseRequest.Status.PENDING,
         created_by=actor,
         source_shortage_report=report,

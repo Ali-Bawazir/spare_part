@@ -6,15 +6,17 @@ across templates, the admin, and notifications.
 
 from __future__ import annotations
 
+from django.utils.translation import gettext as _
+
 # Friendly display names.  The DB-level `User.Role.PROCUREMENT` value is
 # kept for migration safety — see CONTEXT.md (Phase 1 caveat).
 ROLE_DISPLAY_NAMES = {
-    "operator": "Operator",
-    "supervisor": "Supervisor",
-    "technician": "Technician",
-    "manager": "Maintenance Manager",
-    "procurement": "Maintenance Supply Officer",
-    "super_admin": "Super Admin",
+    "operator": _("Operator"),
+    "supervisor": _("Supervisor"),
+    "technician": _("Technician"),
+    "manager": _("Maintenance Manager"),
+    "procurement": _("Maintenance Supply Officer"),
+    "super_admin": _("Super Admin"),
 }
 
 

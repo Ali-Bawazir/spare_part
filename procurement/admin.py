@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
 
 from mms.admin_mixins import MMSAdminPermission
 
@@ -23,19 +24,19 @@ class SupplierAdmin(MMSAdminPermission, admin.ModelAdmin):
     readonly_fields = ("created_at", "qr_code_preview")
     ordering = ("name",)
     fieldsets = (
-        ("Identification", {
+        (_("Identification"), {
             "fields": ("code", "name", "is_active"),
         }),
-        ("Contact", {
+        (_("Contact"), {
             "fields": ("contact_person", "phone", "email", "address"),
         }),
-        ("Vendor type", {
+        (_("Vendor type"), {
             "fields": ("is_repair_vendor",),
         }),
-        ("Notes", {
+        (_("Notes"), {
             "fields": ("notes",),
         }),
-        ("Audit", {
+        (_("Audit"), {
             "fields": ("created_at",),
             "classes": ("collapse",),
         }),
@@ -47,7 +48,7 @@ class SupplierAdmin(MMSAdminPermission, admin.ModelAdmin):
             url = get_supplier_qr_url(obj.code)
             return mark_safe(f'<img src="{url}" width="120" height="120" style="border:1px solid #ccc;border-radius:8px"/>')
         return "-"
-    qr_code_preview.short_description = "QR Code"
+    qr_code_preview.short_description = _("QR Code")
 
 
 @admin.register(PurchaseRequest)
@@ -80,7 +81,7 @@ class PurchaseRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
 
     fieldsets = (
         (
-            "Request",
+            _("Request"),
             {
                 "fields": (
                     "part",
@@ -91,6 +92,6 @@ class PurchaseRequestAdmin(MMSAdminPermission, admin.ModelAdmin):
                 )
             },
         ),
-        ("Procurement", {"fields": ("supplier", "unit_price", "handled_by")}),
-        ("Audit", {"fields": ("created_by", "created_at", "updated_at")}),
+        (_("Procurement"), {"fields": ("supplier", "unit_price", "handled_by")}),
+        (_("Audit"), {"fields": ("created_by", "created_at", "updated_at")}),
     )

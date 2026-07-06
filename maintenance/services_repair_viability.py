@@ -36,6 +36,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
 from django.db.models import Avg
+from django.utils.translation import gettext as _
 
 if TYPE_CHECKING:
     from inventory.models import SparePart
@@ -126,7 +127,7 @@ class RepairViabilityService:
                 replacement_cost=replacement_cost,
                 historical_count=0,
                 asset_mtbf_hours=None,
-                reason="No historical external repairs for this part — defaulting to REPAIR.",
+                reason=_("No historical external repairs for this part — defaulting to REPAIR."),
             )
 
         # Average repair cost across historical EROs.
@@ -150,7 +151,7 @@ class RepairViabilityService:
         # Apply the decision rules.
         if repair_ratio < _REPAIR_BELOW:
             recommendation = "REPAIR"
-            reason = (
+            reason = _(
                 f"Repair cost is {repair_ratio:.0f}% of replacement — "
                 f"well below threshold; REPAIR is cheaper."
             )
@@ -159,9 +160,9 @@ class RepairViabilityService:
             and (asset_mtbf is None or asset_mtbf < _MTBF_REPLACE_BORDER)
         ):
             recommendation = "REPLACE"
-            reason = (
+            reason = _(
                 f"Repair cost is {repair_ratio:.0f}% of replacement AND "
-                f"asset MTBF is {asset_mtbf or 'unknown'}; REPLACE is justified."
+                f"asset MTBF is {asset_mtbf or _('unknown')}; REPLACE is justified."
             )
         elif (
             repair_ratio > _REPLACE_REPAIR_OVER
@@ -169,20 +170,20 @@ class RepairViabilityService:
             and (asset_mtbf is None or asset_mtbf < _MTBF_REPLACE_HIGH_COUNT)
         ):
             recommendation = "REPLACE"
-            reason = (
+            reason = _(
                 f"Repair cost is {repair_ratio:.0f}% of replacement, "
                 f"{historical_count} historical failures, and asset MTBF is "
-                f"{asset_mtbf or 'unknown'}; REPLACE to break the cycle."
+                f"{asset_mtbf or _('unknown')}; REPLACE to break the cycle."
             )
         elif _REPLACE_REPAIR_OVER <= repair_ratio <= _BORDERLINE_BELOW:
             recommendation = "BORDERLINE"
-            reason = (
+            reason = _(
                 f"Repair cost is {repair_ratio:.0f}% of replacement — "
                 f"in the borderline band; manager judgment required."
             )
         else:
             recommendation = "REPAIR"
-            reason = (
+            reason = _(
                 f"Repair cost is {repair_ratio:.0f}% of replacement with "
                 f"acceptable MTBF; REPAIR is recommended."
             )

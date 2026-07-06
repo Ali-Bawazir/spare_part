@@ -7,6 +7,7 @@ from django.db import models, transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from accounts.models import User
 from accounts.permissions import role_required
@@ -51,7 +52,7 @@ def purchase_request_create(request):
                 except Attachment.DoesNotExist:
                     pass
 
-            messages.success(request, "Purchase request sent to procurement.")
+            messages.success(request, _("Purchase request sent to procurement."))
             return redirect("purchase_list")
         # If form is invalid, fall through to render the form with errors.
         locked_asset = None
@@ -166,7 +167,7 @@ def purchase_officer(request, pk):
                     att.save(update_fields=['entity_type', 'entity_id'])
                 except Attachment.DoesNotExist:
                     pass
-            messages.success(request, "Purchase request updated.")
+            messages.success(request, _("Purchase request updated."))
             return redirect("purchase_list")
     else:
         form = PurchaseOfficerForm(instance=pr)
@@ -246,7 +247,7 @@ def purchase_request_add_voice(request, pk):
     pending_voice_id = request.POST.get("voice_attachment_id", "").strip()
     note = request.POST.get("note", "").strip()
     if not (pending_voice_id and pending_voice_id.isdigit()):
-        messages.error(request, "Please record a voice note before submitting.")
+        messages.error(request, _("Please record a voice note before submitting."))
         return redirect("pr_detail", pk=pk)
     try:
         from maintenance.models import Attachment
@@ -263,9 +264,9 @@ def purchase_request_add_voice(request, pk):
         else:
             att.save(update_fields=['entity_type', 'entity_id'])
     except Attachment.DoesNotExist:
-        messages.error(request, "Voice attachment not found or not owned by you.")
+        messages.error(request, _("Voice attachment not found or not owned by you."))
         return redirect("pr_detail", pk=pk)
-    messages.success(request, f"Voice note added to PR #{pr.pk}.")
+    messages.success(request, _("Voice note added to PR #%(pk)d.") % {"pk": pr.pk})
     return redirect("pr_detail", pk=pk)
 
 
@@ -472,7 +473,7 @@ def purchase_order_create(request):
                     pr.status = PurchaseRequest.Status.CONVERTED_TO_PO
                     pr.save(update_fields=["purchase_order", "status"])
 
-            messages.success(request, f"Purchase order {po.po_number} created.")
+            messages.success(request, _("Purchase order %(po)s created.") % {"po": po.po_number})
             return redirect("purchase_order_detail", pk=po.pk)
     else:
         initial = {}
@@ -490,7 +491,7 @@ def purchase_order_create(request):
         "form": form,
         "formset": formset,
         "po": None,
-        "page_heading": "New purchase order",
+        "page_heading": _("New purchase order"),
         "pending_prs": pending_prs,
     })
 
@@ -516,14 +517,14 @@ def purchase_order_create_from_pr(request, pr_pk):
             pr.purchase_order = po
             pr.status = PurchaseRequest.Status.CONVERTED_TO_PO
             pr.save(update_fields=["purchase_order", "status"])
-            messages.success(request, f"PO {po.po_number} created from PR #{pr.pk}.")
+            messages.success(request, _("PO %(po)s created from PR #%(pk)d.") % {"po": po.po_number, "pk": pr.pk})
             return redirect("purchase_order_detail", pk=po.pk)
     else:
         form = PurchaseOrderForm()
     return render(request, "procurement/po_form.html", {
         "form": form,
         "po": None,
-        "page_heading": f"New PO from PR #{pr.pk}",
+        "page_heading": _("New PO from PR #%(pk)d") % {"pk": pr.pk},
         "pr": pr,
         "pending_prs": [],
     })
@@ -550,12 +551,12 @@ def purchase_order_detail(request, pk):
 
     if request.method == "POST":
         if po.is_locked:
-            messages.error(request, "This PO is locked and cannot be edited.")
+            messages.error(request, _("This PO is locked and cannot be edited."))
             return redirect("purchase_order_detail", pk=pk)
         form = PurchaseOrderForm(request.POST, instance=po)
         if form.is_valid():
             form.save()
-            messages.success(request, "Purchase order updated.")
+            messages.success(request, _("Purchase order updated."))
             return redirect("purchase_order_detail", pk=pk)
     else:
         form = PurchaseOrderForm(instance=po)
@@ -592,7 +593,7 @@ def purchase_order_receive(request, pk):
         pk=pk,
     )
     if po.status in {PurchaseOrder.Status.RECEIVED, PurchaseOrder.Status.CLOSED_SHORT, PurchaseOrder.Status.CANCELLED}:
-        messages.warning(request, f"PO is {po.get_status_display().lower()} — cannot receive.")
+        messages.warning(request, _("PO is %(status)s — cannot receive.") % {"status": po.get_status_display().lower()})
         return redirect("purchase_order_detail", pk=pk)
 
     if request.method != "POST":
@@ -601,7 +602,7 @@ def purchase_order_receive(request, pk):
     # Pre-flight: validate totals
     site = Site.objects.filter(is_default=True).first()
     if not site:
-        messages.error(request, "No default site configured.")
+        messages.error(request, _("No default site configured."))
         return redirect("purchase_order_detail", pk=pk)
 
     supplier_invoice_ref = (request.POST.get("supplier_invoice_ref") or "").strip()
@@ -630,7 +631,9 @@ def purchase_order_receive(request, pk):
             if arrived > remaining and remaining > 0:
                 messages.warning(
                     request,
-                    f"{item.part.sku}: receiving {arrived} exceeds remaining {remaining} — capped.",
+                    _("%(sku)s: receiving %(arrived)s exceeds remaining %(remaining)s — capped.") % {
+                        "sku": item.part.sku, "arrived": arrived, "remaining": remaining,
+                    },
                 )
                 # proportionally scale (or just cap the good portion)
                 ratio = remaining / arrived
@@ -760,9 +763,9 @@ def purchase_order_receive(request, pk):
             f"{c['sku']} ({c['good']}g/{c['damaged']}d/{c['rejected']}r)"
             for c in line_changes
         )
-        messages.success(request, f"Received: {items_str}")
+        messages.success(request, _("Received: %(items)s") % {"items": items_str})
         if supplier_invoice_ref:
-            messages.info(request, f"Supplier invoice ref: {supplier_invoice_ref}")
+            messages.info(request, _("Supplier invoice ref: %(ref)s") % {"ref": supplier_invoice_ref})
         # Show auto-fulfill summary if any actions ran
         auto_actions = auto_fulfill_summary.get("actions", []) if auto_fulfill_summary else []
         issued = [a for a in auto_actions if a.get("type") == "auto_issued"]
@@ -773,7 +776,7 @@ def purchase_order_receive(request, pk):
             )
             messages.info(
                 request,
-                f"Auto-issued to WOs: {issue_str}",
+                _("Auto-issued to WOs: %(items)s") % {"items": issue_str},
             )
 
     return redirect("purchase_order_detail", pk=pk)
@@ -898,7 +901,7 @@ def supplier_quick_create(request):
             supplier = form.save()
             return JsonResponse({"id": supplier.pk, "name": supplier.name, "code": supplier.code})
         return JsonResponse({"error": form.errors.as_json()}, status=400)
-    return JsonResponse({"error": "POST required"}, status=405)
+    return JsonResponse({"error": _("POST required")}, status=405)
 
 
 @login_required
@@ -907,7 +910,7 @@ def purchase_order_close_short(request, pk):
     """Close a PO as short (cancel remaining quantities)."""
     po = get_object_or_404(PurchaseOrder, pk=pk)
     if po.status not in (PurchaseOrder.Status.PARTIAL_RECEIVED, PurchaseOrder.Status.SENT):
-        messages.error(request, "PO cannot be closed short in current status.")
+        messages.error(request, _("PO cannot be closed short in current status."))
         return redirect("purchase_order_detail", pk=pk)
     if request.method == "POST":
         po.status = PurchaseOrder.Status.CLOSED_SHORT
@@ -916,7 +919,7 @@ def purchase_order_close_short(request, pk):
             if pr.status not in (PurchaseRequest.Status.FULFILLED,):
                 pr.status = PurchaseRequest.Status.PARTIALLY_FULFILLED
                 pr.save(update_fields=["status"])
-        messages.success(request, f"PO {po.po_number} closed short.")
+        messages.success(request, _("PO %(po)s closed short.") % {"po": po.po_number})
         return redirect("purchase_order_detail", pk=pk)
     return render(request, "procurement/po_close_short.html", {"po": po})
 
