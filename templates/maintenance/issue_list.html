@@ -2,7 +2,7 @@
 {% load i18n %}
 {% load mms_extras %}
 {% block title %}Issues{% endblock %}
-{% block page_heading %}Maintenance issues{% endblock %}
+{% block page_heading %}{% trans "Maintenance issues" %}{% endblock %}
 {% block content %}
 <style>
 tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
@@ -42,7 +42,7 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>ID</th><th>{% trans "Machine" %}</th><th>Failure Category / Mode</th><th>{% trans "Status" %}</th><th>{% trans "Priority" %}</th><th>{% trans "Reporter" %}</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>{% trans "Machine" %}</th><th>{% trans "Failure Category / Mode" %}</th><th>{% trans "Status" %}</th><th>{% trans "Priority" %}</th><th>{% trans "Reporter" %}</th><th></th></tr></thead>
       <tbody>
       {% for i in issues %}
       <tr class="{% if i.is_archived %}mms-row--archived{% endif %} mms-row--clickable" onclick="window.location='{% url 'issue_detail' i.pk %}'" style="cursor:pointer">
@@ -63,7 +63,7 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
           {% endif %}
           {% if i.status == 'validated' %}
             {% if perm_create_work_order %}
-              <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_create' i.pk %}">Review / Create WO</a>
+              <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_create' i.pk %}">{% trans "Review / Create WO" %}</a>
             {% endif %}
           {% endif %}
           {% if perm_issue_archive and i.status != 'converted' and not i.is_archived %}

@@ -43,7 +43,7 @@
           <option value="LABEL" {% if default_category == "LABEL" %}selected{% endif %}>{% trans "Manufacturer label" %}</option>
           <option value="PACKAGING" {% if default_category == "PACKAGING" %}selected{% endif %}>{% trans "Packaging" %}</option>
           <option value="INSTALLED" {% if default_category == "INSTALLED" %}selected{% endif %}>{% trans "Installed in machine" %}</option>
-          <option value="DOCUMENT" {% if default_category == "DOCUMENT" %}selected{% endif %}>Document / datasheet</option>
+          <option value="DOCUMENT" {% if default_category == "DOCUMENT" %}selected{% endif %}>{% trans "Document / datasheet" %}</option>
         </select>
         <input type="text"
                id="attachment-note-{{ entity_type }}-{{ entity_id }}"
@@ -141,11 +141,11 @@
                   </a>`;
     } else {
       const ext = (att.filename || '').split('.').pop().toUpperCase();
-      mediaHtml = `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:4px;flex-shrink:0;font-size:0.8em;color:#666">${escapeHtml(ext)}</div>`;
+      mediaHtml = `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:4px;flex-shrink:0;font-size:0.8em;color:#666">{% trans "${escapeHtml(ext)}" %}</div>`;
     }
 
     const primaryBadge = att.is_primary
-      ? `<span style="display:inline-block;background:#fef9c3;color:#854d0e;font-size:0.75em;padding:0.1rem 0.4rem;border-radius:4px;margin-right:0.4rem;">★ primary</span>`
+      ? `<span style="display:inline-block;background:#fef9c3;color:#854d0e;font-size:0.75em;padding:0.1rem 0.4rem;border-radius:4px;margin-right:0.4rem;">{% trans "★ primary" %}</span>`
       : '';
 
     let actionsHtml = '';
@@ -173,11 +173,11 @@
            style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.5rem;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:0.5rem;${att.is_primary ? 'background:#fef9c3;' : ''}">
         ${mediaHtml}
         <div style="flex:1;min-width:0">
-          <div style="font-weight:600;word-break:break-all">${filename}</div>
+          <div style="font-weight:600;word-break:break-all">{% trans "${filename}" %}</div>
           <div style="font-size:0.8em;color:#6b7280;margin-top:0.15rem">
             ${primaryBadge}${category} · ${size}${uploader ? ' · ' + uploader : ''}${uploadedAt ? ' · ' + escapeHtml(uploadedAt) : ''}
           </div>
-          ${note ? `<div style="font-size:0.85em;color:#6b7280;margin-top:0.25rem">${note}</div>` : ''}
+          ${note ? `<div style="font-size:0.85em;color:#6b7280;margin-top:0.25rem">{% trans "${note}" %}</div>` : ''}
           ${actionsHtml}
         </div>
       </div>`;
@@ -186,7 +186,7 @@
   async function loadAttachments() {
     const container = document.getElementById(LIST_ID);
     if (!container) return;
-    container.innerHTML = '<span class="text-muted">Loading attachments…</span>';
+    container.innerHTML = '<span class="text-muted">{% trans "Loading attachments…" %}</span>';
     try {
       const response = await fetch('/attachments/' + ENTITY_TYPE + '/' + ENTITY_ID + '/', {
         credentials: 'same-origin',
@@ -195,11 +195,11 @@
       if (data.attachments && data.attachments.length > 0) {
         container.innerHTML = data.attachments.map(renderAttachment).join('');
       } else {
-        container.innerHTML = '<p class="text-muted mb-0" style="color:#6b7280">No attachments yet.</p>';
+        container.innerHTML = '<p class="text-muted mb-0" style="color:#6b7280">{% trans "No attachments yet." %}</p>';
       }
     } catch (e) {
       console.error('Failed to load attachments:', e);
-      container.innerHTML = '<p class="text-muted" style="color:#dc2626">Failed to load attachments.</p>';
+      container.innerHTML = '<p class="text-muted" style="color:#dc2626">{% trans "Failed to load attachments." %}</p>';
     }
   }
 

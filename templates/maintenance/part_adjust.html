@@ -55,7 +55,7 @@
         <option value="audit_correction">{% trans "Audit correction" %}</option>
         <option value="damaged_goods">{% trans "Damaged goods" %}</option>
         <option value="expired">{% trans "Expired material" %}</option>
-        <option value="theft">Suspected theft/loss</option>
+        <option value="theft">{% trans "Suspected theft/loss" %}</option>
         <option value="cycle_count">{% trans "Cycle count" %}</option>
         <option value="other">{% trans "Other" %}</option>
       </select>
@@ -131,11 +131,11 @@ async function loadAttachments(entityType, entityId, containerId) {
                         ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}"
                              style="max-width:200px; max-height:150px; object-fit:cover;"
                              class="mb-2">`
-                        : `<div class="file-icon mb-2"><i class="bi bi-file-earmark"></i> ${att.filename}</div>`
+                        : `<div class="file-icon mb-2"><i class="bi bi-file-earmark"></i>{% trans "${att.filename}" %}</div>`
                     }
-                    <div class="small text-muted">${att.filename} (${formatFileSize(att.size)})</div>
-                    <div class="small text-muted">${att.uploaded_by} - ${att.uploaded_at}</div>
-                    ${att.note ? `<div class="small">${att.note}</div>` : ''}
+                    <div class="small text-muted">{% trans "${att.filename} (${formatFileSize(att.size)})" %}</div>
+                    <div class="small text-muted">{% trans "${att.uploaded_by} - ${att.uploaded_at}" %}</div>
+                    ${att.note ? `<div class="small">{% trans "${att.note}" %}</div>` : ''}
                     <button type="button" class="btn btn-sm btn-outline-danger mt-1"
                             onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">
                         Delete
@@ -143,7 +143,7 @@ async function loadAttachments(entityType, entityId, containerId) {
                 </div>
             `).join('');
         } else {
-            container.innerHTML = '<p class="text-muted mb-0">No attachments yet.</p>';
+            container.innerHTML = '<p class="text-muted mb-0">{% trans "No attachments yet." %}</p>';
         }
     } catch (e) {
         console.error('Failed to load attachments:', e);

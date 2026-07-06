@@ -58,7 +58,7 @@
         {% elif health_card.priority == 'low' %}
           <span class="mms-badge mms-badge--muted">{{ health_card.priority|title }}</span>
         {% else %}
-          <span class="mms-badge mms-badge--muted">n/a</span>
+          <span class="mms-badge mms-badge--muted">{% trans "n/a" %}</span>
         {% endif %}
       </span>
       <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Open blockers:" %}</span>

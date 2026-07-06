@@ -25,7 +25,7 @@
         <td><a href="{% url 'work_order_detail' w.pk %}">{{ w.machine.name }}</a></td>
         <td>{% if w.component %}{{ w.component.name }}{% else %}—{% endif %}</td>
         <td><span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span></td>
-        <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">n/a</span>{% endif %}</td>
+        <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">{% trans "n/a" %}</span>{% endif %}</td>
 <td>{{ w.get_category_display }}</td>
         <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
         <td>{% if not w.is_archived %}<a href="{% url 'work_order_archive' w.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation();return confirm('Archive this work order?')">{% trans "Archive" %}</a>{% else %}<span class="mms-badge mms-badge--archived">{% trans "Archived" %}</span>{% endif %}</td>

@@ -57,7 +57,7 @@
                     <th>{% trans "Ordered Qty" %}</th>
                     <th>{% trans "Received Qty" %}</th>
                     <th>{% trans "Remaining" %}</th>
-                    <th>{% trans "Unit Price" %}<br><small class="text-muted" style="font-weight:400;font-size:0.7rem">(actual / negotiated)</small></th>
+                    <th>{% trans "Unit Price" %}<br><small class="text-muted" style="font-weight:400;font-size:0.7rem">{% trans "(actual / negotiated)" %}</small></th>
                     <th>{% trans "Total" %}</th>
                 </tr>
             </thead>
@@ -135,16 +135,16 @@ async function loadAttachments(entityType, entityId, containerId) {
                 <div class="attachment-item mb-2 p-2 border rounded">
                     ${att.mime_type && att.mime_type.startsWith('image/') 
                         ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}" style="max-width:200px; max-height:150px; object-fit:cover;" class="mb-2">` 
-                        : `<div class="mb-2"><i class="bi bi-file-earmark"></i> ${att.filename}</div>`
+                        : `<div class="mb-2"><i class="bi bi-file-earmark"></i>{% trans "${att.filename}" %}</div>`
                     }
-                    <div class="small text-muted">${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by}</div>
+                    <div class="small text-muted">{% trans "${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by}" %}</div>
                     {% if perms.maintenance.delete_attachment %}
-                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">Delete</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">{% trans "Delete" %}</button>
                     {% endif %}
                 </div>
             `).join('');
         } else {
-            container.innerHTML = '<p class="text-muted mb-0">No attachments yet.</p>';
+            container.innerHTML = '<p class="text-muted mb-0">{% trans "No attachments yet." %}</p>';
         }
     } catch (e) { console.error('Failed to load attachments:', e); }
 }

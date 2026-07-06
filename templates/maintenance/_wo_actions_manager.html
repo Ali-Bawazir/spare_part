@@ -9,7 +9,7 @@
     <form method="post" action="{% url 'work_order_assign' wo.pk %}" class="mms-stack">
       {% csrf_token %}
       <div class="mms-form-row">{{ assign_form.technician.label_tag }}{{ assign_form.technician }}</div>
-      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Assign / reassign technician</button>
+      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">{% trans "Assign / reassign technician" %}</button>
     </form>
     <div class="mms-divider"></div>
       {% endif %}
@@ -72,7 +72,7 @@
                       <div class="mms-form-row">
                         <label>{% trans "Decision type" %}</label>
                         <select name="decision_type" class="form-select">
-                          <option value="approve" selected>✅ Approve (issue and/or procure)</option>
+                          <option value="approve" selected>{% trans "✅ Approve (issue and/or procure)" %}</option>
                           <option value="reject">{% trans "❌ Reject" %}</option>
                         </select>
                       </div>

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Dashboard{% endblock %}
-{% block page_heading %}Dashboard{% endblock %}
+{% block page_heading %}{% trans "Dashboard" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">{% trans "Role:" %}<strong>{{ role }}</strong>{% trans "— quick access based on your permissions." %} {% trans "Reach your most-used pages instantly." %}</p>
+<p class="mms-page-lead"><strong>{{ role }}</strong>{% trans "— quick access based on your permissions." %}</p>
 
 <div class="mms-grid mms-grid--kpis">
   {% if open_issues is not None %}

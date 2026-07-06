@@ -62,7 +62,7 @@
             {% if w.issue and w.issue.priority %}
               <span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>
             {% else %}
-              <span class="mms-badge mms-badge--muted">n/a</span>
+              <span class="mms-badge mms-badge--muted">{% trans "n/a" %}</span>
             {% endif %}
           </td>
           <td>{{ w.get_category_display }}</td>

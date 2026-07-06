@@ -73,7 +73,7 @@ Required globals (set by calling template):
         qtyInput.parentNode.appendChild(warn);
       }
       warn.innerHTML =
-        '⚠️ Requested <strong>' + qty + '</strong> but only <strong>' +
+        '⚠️ Requested <strong>{% trans "' + qty + '" %}</strong>{% trans "but only" %}<strong>' +
         currentUsable + '</strong> in stock (short ' + needed + '). ' +
         'Lower the qty, switch parts, or use the shortage flow on the WO page.';
     } else if (warn) {
@@ -93,9 +93,9 @@ Required globals (set by calling template):
         if (d.stock_state === 'low') color = '#fd7e14';
         if (d.stock_state === 'out') color = '#dc3545';
         const refreshedTag = lastFetchedAt
-          ? ' <span style="font-size:.7em;color:#9ca3af;margin-left:.5rem">↻ live</span>'
+          ? ' <span style="font-size:.7em;color:#9ca3af;margin-left:.5rem">{% trans "↻ live" %}</span>'
           : '';
-        stockState.innerHTML = '<span style="color:' + color + '">' + d.stock_label + '</span> — ' + d.stock_count + refreshedTag;
+        stockState.innerHTML = '<span style="color:' + color + '">{% trans "' + d.stock_label + '" %}</span> — ' + d.stock_count + refreshedTag;
         let detailText = d.min_label + (d.site ? ' · ' + d.site : '');
         if (parseFloat(d.reserved) > 0) detailText += ' · Reserved: ' + d.reserved;
         if (parseFloat(d.pending_total) > 0 && d.pending_breakdown && d.pending_breakdown.length > 0) {
@@ -107,9 +107,9 @@ Required globals (set by calling template):
         }
         stockDetail.textContent = detailText;
         let hist = '';
-        if (d.used_on_asset > 0) hist += 'Used on this asset: <strong>' + d.used_on_asset + ' times</strong>';
+        if (d.used_on_asset >{% trans "0) hist += 'Used on this asset:" %}<strong>{% trans "' + d.used_on_asset + ' times" %}</strong>';
         else hist += 'No prior usage on this asset';
-        if (d.last_replaced_days >= 0) hist += ' · Last replaced: <strong>' + d.last_replaced_days + ' days ago</strong>';
+        if (d.last_replaced_days >{% trans "= 0) hist += ' · Last replaced:" %}<strong>{% trans "' + d.last_replaced_days + ' days ago" %}</strong>';
         historyLine.innerHTML = hist;
         lastFetchedAt = new Date();
         currentUsable = parseFloat(d.usable);

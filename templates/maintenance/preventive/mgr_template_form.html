@@ -50,7 +50,7 @@ function addChecklistRow() {
     row.className = "mms-form-row checklist-row";
     row.style = "display:flex;gap:0.5rem;margin-bottom:0.5rem";
     row.innerHTML = '<input type="text" name="checklist_text" class="form-control" placeholder="Checklist item text">' +
-                     '<button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="this.parentNode.remove()">Remove</button>';
+                     '<button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="this.parentNode.remove()">{% trans "Remove" %}</button>';
     container.appendChild(row);
 }
 </script>

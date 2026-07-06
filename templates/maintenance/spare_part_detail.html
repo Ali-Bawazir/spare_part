@@ -228,7 +228,7 @@
           <option value="LABEL">{% trans "Manufacturer label" %}</option>
           <option value="PACKAGING">{% trans "Packaging" %}</option>
           <option value="INSTALLED">{% trans "Installed in machine" %}</option>
-          <option value="DOCUMENT">Document / datasheet</option>
+          <option value="DOCUMENT">{% trans "Document / datasheet" %}</option>
         </select>
         <input type="text" id="attachment-note-spare_part-{{ part.pk }}" placeholder={% trans "Note (optional)" %} class="form-control" style="width:200px">
         <button type="button" class="mms-btn mms-btn--primary"
@@ -268,35 +268,35 @@ async function loadPartAttachments(partId) {
                                <img src="${att.thumbnail_url || att.url}" alt="${att.filename}"
                                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
                              </a>`
-                        : `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:4px;flex-shrink:0;font-size:0.8em;color:#666">${att.filename.split('.').pop().toUpperCase()}</div>`
+                        : `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:4px;flex-shrink:0;font-size:0.8em;color:#666">{% trans "${att.filename.split('.').pop().toUpperCase()}" %}</div>`
                     }
                     <div style="flex:1;min-width:0">
-                        <div style="font-weight:600;word-break:break-all">${att.filename}</div>
+                        <div style="font-weight:600;word-break:break-all">{% trans "${att.filename}" %}</div>
                         <div style="font-size:0.8em;color:#6b7280">
                             ${att.category || 'PRODUCT'} ·
                             ${(att.size / 1024).toFixed(1)} KB ·
                             ${att.uploaded_by} ·
                             ${new Date(att.uploaded_at).toLocaleString()}
                         </div>
-                        ${att.note ? `<div style="font-size:0.85em;color:#6b7280;margin-top:0.25rem">${att.note}</div>` : ''}
+                        ${att.note ? `<div style="font-size:0.85em;color:#6b7280;margin-top:0.25rem">{% trans "${att.note}" %}</div>` : ''}
                         <div style="margin-top:0.4rem;display:flex;gap:0.4rem;flex-wrap:wrap">
                             ${att.is_primary
-                                ? `<span class="mms-badge mms-badge--success">★ Primary</span>`
+                                ? `<span class="mms-badge mms-badge--success">{% trans "★ Primary" %}</span>`
                                 : `<button type="button" class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.2rem 0.5rem"
-                                         onclick="setPartPrimary(${att.id}, ${partId})">Set as Primary</button>`
+                                         onclick="setPartPrimary(${att.id}, ${partId})">{% trans "Set as Primary" %}</button>`
                             }
                             <button type="button" class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.2rem 0.5rem;color:#dc2626"
-                                    onclick="deletePartAttachment(${att.id}, ${partId})">Delete</button>
+                                    onclick="deletePartAttachment(${att.id}, ${partId})">{% trans "Delete" %}</button>
                         </div>
                     </div>
                 </div>
             `).join('');
         } else {
-            container.innerHTML = '<p class="text-muted mb-0" style="color:#6b7280">No attachments yet. Upload an image to set as the primary part photo.</p>';
+            container.innerHTML = '<p class="text-muted mb-0" style="color:#6b7280">{% trans "No attachments yet. Upload an image to set as the primary part photo." %}</p>';
         }
     } catch (e) {
         console.error('Failed to load attachments:', e);
-        container.innerHTML = '<p class="text-muted" style="color:#dc2626">Failed to load attachments.</p>';
+        container.innerHTML = '<p class="text-muted" style="color:#dc2626">{% trans "Failed to load attachments." %}</p>';
     }
 }
 

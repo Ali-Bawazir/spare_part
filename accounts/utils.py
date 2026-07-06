@@ -6,6 +6,7 @@ across templates, the admin, and notifications.
 
 from __future__ import annotations
 
+from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext as _
 
 # Friendly display names.  The DB-level `User.Role.PROCUREMENT` value is

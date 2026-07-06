@@ -71,7 +71,7 @@
         </div>
       </div>
       {% endif %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Reporter / validator</span><br>{{ wo.issue.reported_by.username }}{% if wo.issue.validated_by %} / {{ wo.issue.validated_by.username }}{% endif %}</div>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Reporter / validator" %}</span><br>{{ wo.issue.reported_by.username }}{% if wo.issue.validated_by %} / {{ wo.issue.validated_by.username }}{% endif %}</div>
       <div class="mms-divider"></div>
       {% endif %}
       {% if wo.component %}
@@ -119,10 +119,10 @@
 </div>
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Parts issued / requested</div>
+  <div class="mms-card-header">{% trans "Parts issued / requested" %}</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th><th>{% trans "Requested by" %}</th><th>Issued / Approved by</th><th>{% trans "Committed" %}</th><th>{% trans "Issued" %}</th><th>{% trans "Notes" %}</th></tr></thead>
+      <thead><tr><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th><th>{% trans "Requested by" %}</th><th>{% trans "Issued / Approved by" %}</th><th>{% trans "Committed" %}</th><th>{% trans "Issued" %}</th><th>{% trans "Notes" %}</th></tr></thead>
       <tbody>
       {% for item in parts_display %}
       <tr>
@@ -642,7 +642,7 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(r => r.json())
     .then(data => {
       if (!data.attachments.length) {
-        listEl.innerHTML = '<p class="mms-empty">No attachments yet.</p>';
+        listEl.innerHTML = '<p class="mms-empty">{% trans "No attachments yet." %}</p>';
         return;
       }
       listEl.innerHTML = data.attachments.map(a => {
@@ -653,9 +653,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return `
         <div class="mms-attachment-item" style="flex-direction:column;align-items:flex-start;gap:4px">
           <div class="mms-attachment-info" style="width:100%">
-            <a href="${a.url}" target="_blank">${a.filename}</a>
-            <span class="mms-meta">${(a.size/1024).toFixed(1)} KB</span>
-            <span class="mms-meta">${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}</span>
+            <a href="${a.url}" target="_blank">{% trans "${a.filename}" %}</a>
+            <span class="mms-meta">{% trans "${(a.size/1024).toFixed(1)} KB" %}</span>
+            <span class="mms-meta">{% trans "${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}" %}</span>
           </div>
           ${player}
           ${listEl.dataset.permUpload === 'true' ? `<button class="btn btn-sm btn-danger" onclick="deleteAtt(${a.id})">×</button>` : ''}

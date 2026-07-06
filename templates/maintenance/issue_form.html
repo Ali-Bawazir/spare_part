@@ -61,7 +61,7 @@
       <div class="mms-form-row" id="component-row">
         <label for="id_component">{% trans "Component:" %}</label>
         {{ form.component }}
-        <small class="form-text text-muted" style="color:#6b7280">Optional. Pick a specific sub-assembly / component inside the selected machine.</small>
+        <small class="form-text text-muted" style="color:#6b7280">{% trans "Optional. Pick a specific sub-assembly / component inside the selected machine." %}</small>
         {% if form.component.errors %}<div class="mms-field-error">{{ form.component.errors }}</div>{% endif %}
       </div>
       {% endif %}
@@ -70,7 +70,7 @@
         <input type="file" name="issue_photos" id="id_issue_photos"
                accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/quicktime" multiple
                class="form-control">
-        <small class="form-text text-muted">Max 10 files. Images/PDF: 5MB each. Videos: 30MB each. JPG, PNG, WEBP, PDF, MP4, MOV.</small>
+        <small class="form-text text-muted">{% trans "Max 10 files. Images/PDF: 5MB each. Videos: 30MB each. JPG, PNG, WEBP, PDF, MP4, MOV." %}</small>
         <div id="photo-preview" class="photo-preview-grid" style="display:none;"></div>
       </div>
       {% include "maintenance/_voice_recorder.html" %}
@@ -158,10 +158,10 @@
                             div.className = 'photo-preview-item';
                             if (file.type.startsWith('video/')) {
                                 div.innerHTML = '<video src="' + e.target.result + '" controls style="width:100%;height:100%;object-fit:cover"></video>' +
-                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="Remove">&times;</button>';
+                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="Remove">{% trans "&times;" %}</button>';
                             } else {
                                 div.innerHTML = '<img src="' + e.target.result + '" alt="Preview">' +
-                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="Remove">&times;</button>';
+                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="Remove">{% trans "&times;" %}</button>';
                             }
                             previewContainer.appendChild(div);
                         };

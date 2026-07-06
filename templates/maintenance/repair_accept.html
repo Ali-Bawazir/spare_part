@@ -15,7 +15,7 @@
     <form method="post" class="mms-stack">
       {% csrf_token %}
       <div class="mms-alert mms-alert--info">
-        <strong>UC-20:</strong> every accepted repair must record the vendor invoice number and the actual cost.
+        <strong>{% trans "UC-20:" %}</strong> every accepted repair must record the vendor invoice number and the actual cost.
         These flow into the work order's cost rollup and the machine cost report.
       </div>
       <div class="mms-form-row">

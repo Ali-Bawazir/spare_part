@@ -22,7 +22,7 @@
       {{ formset.management_form }}
       {% if formset.non_form_errors %}<div class="mms-field-error">{{ formset.non_form_errors }}</div>{% endif %}
       <table class="mms-table" id="checklist-table" style="margin-bottom:0.5rem">
-        <thead><tr><th style="width:80px">{% trans "Order" %}</th><th>{% trans "Text" %}</th><th style="width:120px">Required?</th><th style="width:80px">{% trans "Delete" %}</th></tr></thead>
+        <thead><tr><th style="width:80px">{% trans "Order" %}</th><th>{% trans "Text" %}</th><th style="width:120px">{% trans "Required?" %}</th><th style="width:80px">{% trans "Delete" %}</th></tr></thead>
         <tbody>
         {% for f in formset %}
         <tr class="checklist-row">

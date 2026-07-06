@@ -10,7 +10,7 @@
   <div class="mms-kpi"><div class="mms-kpi-value">{% if mttw_hours is not None %}{{ mttw_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "MTTW" %}</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{% if mtbf_hours is not None %}{{ mtbf_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "MTBF" %}</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{% if pm_compliance_pct is not None %}{{ pm_compliance_pct }}%{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "PM compliance" %}</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if avg_downtime_hours is not None %}{{ avg_downtime_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">Avg. downtime / closed WO</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if avg_downtime_hours is not None %}{{ avg_downtime_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "Avg. downtime / closed WO" %}</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{{ open_emergency_wos }}</div><div class="mms-kpi-label">{% trans "Open emergency WO" %}</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_closed_90d }}</div><div class="mms-kpi-label">{% trans "PM work orders closed (90d)" %}</div></div>
   <div class="mms-kpi"><div class="mms-kpi-value">{{ tool_lost_count }}</div><div class="mms-kpi-label">{% trans "Lost tools" %}</div></div>
@@ -18,7 +18,7 @@
   <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_due_count }}</div><div class="mms-kpi-label">{% trans "PM due now" %}</div></div>
   {% if can_see_cost %}
   <div class="mms-kpi"><div class="mms-kpi-value">{{ failures_90d }}</div><div class="mms-kpi-label">{% trans "Failures (90d)" %}</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if cost_per_failure is not None %}{{ cost_per_failure|floatformat:2 }} SAR{% else %}-{% endif %}</div><div class="mms-kpi-label">Cost / failure</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if cost_per_failure is not None %}{{ cost_per_failure|floatformat:2 }} SAR{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "Cost / failure" %}</div></div>
   {% endif %}
   {# Phase 6 — 30-day supply counters. Visible to roles that manage or #}
   {# oversee procurement (manager / supervisor / procurement / super). #}
