@@ -1,8 +1,9 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Create user{% endblock %}
 {% block page_heading %}Create MMS user{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Set username, password, and MMS role. Use <strong>Staff</strong> only for people who should use Django <code>/admin/</code>.</p>
+<p class="mms-page-lead">{% trans "Set username, password, and MMS role. Use" %}<strong>{% trans "Staff" %}</strong>{% trans "only for people who should use Django" %}<code>/admin/</code>.</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
@@ -19,8 +20,8 @@
       <div class="mms-form-nonfield">{{ form.non_field_errors }}</div>
       {% endif %}
       <div class="mms-form-actions">
-        <button type="submit" class="mms-btn mms-btn--primary">Create user</button>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_list' %}">Cancel</a>
+        <button type="submit" class="mms-btn mms-btn--primary">{% trans "Create user" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_list' %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>

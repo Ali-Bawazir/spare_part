@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Daily consumables{% endblock %}
 {% block page_heading %}Daily consumables{% endblock %}
@@ -19,14 +20,14 @@
 {# operators and supervisors see their own usage at a glance. #}
 <div class="mms-card" style="margin-bottom:1rem;padding:.7rem .9rem">
   <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;font-size:.875rem">
-    <span style="color:var(--mms-muted);font-weight:600">Your consumption</span>
-    <span title="Items logged since midnight" class="mms-badge mms-badge--muted">
+    <span style="color:var(--mms-muted);font-weight:600">{% trans "Your consumption" %}</span>
+    <span title={% trans "Items logged since midnight" %} class="mms-badge mms-badge--muted">
       Today: <strong>{{ my_today_count }}</strong> log{{ my_today_count|pluralize }} ({{ my_today_qty|floatformat:2 }} unit{{ my_today_qty|pluralize }})
     </span>
-    <a href="?period=7" class="mms-badge mms-badge--muted" title="Items logged in the last 7 days">
+    <a href="?period=7" class="mms-badge mms-badge--muted" title={% trans "Items logged in the last 7 days" %}>
       7d: <strong>{{ my_7d_count }}</strong> ({{ my_7d_qty|floatformat:2 }} unit{{ my_7d_qty|pluralize }})
     </a>
-    <a href="?period=30" class="mms-badge mms-badge--muted" title="Items logged in the last 30 days">
+    <a href="?period=30" class="mms-badge mms-badge--muted" title={% trans "Items logged in the last 30 days" %}>
       30d: <strong>{{ my_30d_count }}</strong> ({{ my_30d_qty|floatformat:2 }} unit{{ my_30d_qty|pluralize }})
     </a>
     {% if top_part_30d %}
@@ -41,18 +42,18 @@
 <div class="mms-grid mms-grid--2" style="margin-top:0">
 {% if perm_consume_consumables %}
 <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header">Self-consumption</div>
+    <div class="mms-card-header">{% trans "Self-consumption" %}</div>
     <div class="mms-card-body">
         <form method="post" class="mms-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="consume">
             <div class="mms-form-row">
-                <label for="id_part">Part</label>
+                <label for="id_part">{% trans "Part" %}</label>
                 {{ consume_form.part }}
                 {% if consume_form.part.errors %}<div class="mms-field-error">{{ consume_form.part.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-row">
-                <label for="id_quantity">Quantity <span id="unit-hint" style="font-weight:normal;color:var(--mms-text-muted)"></span></label>
+                <label for="id_quantity">{% trans "Quantity" %}<span id="unit-hint" style="font-weight:normal;color:var(--mms-text-muted)"></span></label>
                 {{ consume_form.quantity }}
                 {% if consume_form.quantity.errors %}<div class="mms-field-error">{{ consume_form.quantity.errors }}</div>{% endif %}
             </div>
@@ -60,7 +61,7 @@
                 {{ consume_form.machine_id }}
             </div>
             <div class="mms-form-actions">
-                <button class="mms-btn mms-btn--primary" type="submit">Log usage</button>
+                <button class="mms-btn mms-btn--primary" type="submit">{% trans "Log usage" %}</button>
             </div>
         </form>
     </div>
@@ -69,23 +70,23 @@
 
 {% if issue_form %}
 <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header">Issue to operator</div>
+    <div class="mms-card-header">{% trans "Issue to operator" %}</div>
     <div class="mms-card-body">
         <form method="post" class="mms-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="issue">
             <div class="mms-form-row">
-                <label for="{{ issue_form.consumed_by.id_for_label }}">Operator</label>
+                <label for="{{ issue_form.consumed_by.id_for_label }}">{% trans "Operator" %}</label>
                 {{ issue_form.consumed_by }}
                 {% if issue_form.consumed_by.errors %}<div class="mms-field-error">{{ issue_form.consumed_by.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-row">
-                <label for="{{ issue_form.part.id_for_label }}">Part</label>
+                <label for="{{ issue_form.part.id_for_label }}">{% trans "Part" %}</label>
                 {{ issue_form.part }}
                 {% if issue_form.part.errors %}<div class="mms-field-error">{{ issue_form.part.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-row">
-                <label for="{{ issue_form.quantity.id_for_label }}">Quantity</label>
+                <label for="{{ issue_form.quantity.id_for_label }}">{% trans "Quantity" %}</label>
                 {{ issue_form.quantity }}
                 {% if issue_form.quantity.errors %}<div class="mms-field-error">{{ issue_form.quantity.errors }}</div>{% endif %}
             </div>
@@ -93,12 +94,12 @@
                 {{ issue_form.machine_id }}
             </div>
             <div class="mms-form-row">
-                <label for="{{ issue_form.note.id_for_label }}">Note</label>
+                <label for="{{ issue_form.note.id_for_label }}">{% trans "Note" %}</label>
                 {{ issue_form.note }}
                 {% if issue_form.note.errors %}<div class="mms-field-error">{{ issue_form.note.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-actions">
-                <button class="mms-btn mms-btn--primary" type="submit">Issue</button>
+                <button class="mms-btn mms-btn--primary" type="submit">{% trans "Issue" %}</button>
             </div>
         </form>
     </div>
@@ -109,9 +110,9 @@
 {% if assignments %}
 <div class="mms-card">
     <div class="mms-card-header" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-        <h5 style="margin:0">My recent consumptions</h5>
+        <h5 style="margin:0">{% trans "My recent consumptions" %}</h5>
         <span style="margin-left:auto;display:flex;gap:.35rem;font-size:.75rem">
-          <a href="?" class="mms-badge {% if not period_days %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">All</a>
+          <a href="?" class="mms-badge {% if not period_days %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">{% trans "All" %}</a>
           <a href="?period=7" class="mms-badge {% if period_days == 7 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">7d</a>
           <a href="?period=30" class="mms-badge {% if period_days == 30 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">30d</a>
           <a href="?period=90" class="mms-badge {% if period_days == 90 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">90d</a>
@@ -121,11 +122,11 @@
         <table class="mms-table">
             <thead>
                 <tr>
-                    <th>Part</th>
-                    <th>Qty</th>
-                    <th>Machine</th>
-                    <th>Source</th>
-                    <th>Time</th>
+                    <th>{% trans "Part" %}</th>
+                    <th>{% trans "Qty" %}</th>
+                    <th>{% trans "Machine" %}</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Time" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -147,17 +148,17 @@
 {% if issued_assignments %}
 <div class="mms-card" style="margin-top:1rem">
     <div class="mms-card-header">
-        <h5>Items I issued</h5>
+        <h5>{% trans "Items I issued" %}</h5>
     </div>
     <div class="mms-card-body" style="padding:0">
         <table class="mms-table">
             <thead>
                 <tr>
-                    <th>Part</th>
-                    <th>Qty</th>
-                    <th>Operator</th>
-                    <th>Machine</th>
-                    <th>Time</th>
+                    <th>{% trans "Part" %}</th>
+                    <th>{% trans "Qty" %}</th>
+                    <th>{% trans "Operator" %}</th>
+                    <th>{% trans "Machine" %}</th>
+                    <th>{% trans "Time" %}</th>
                 </tr>
             </thead>
             <tbody>

@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Machine Cost Report{% endblock %}
 {% block page_heading %}Machine Cost Report{% endblock %}
@@ -6,7 +7,7 @@
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-body" style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap">
         <form method="get" style="display:flex; gap:0.5rem; align-items:center">
-            <label>Period:</label>
+            <label>{% trans "Period:" %}</label>
             <select name="period" class="form-control" style="width:auto" onchange="this.form.submit()">
                 {% for p in period_choices %}
                 <option value="{{ p }}" {% if period_days == p %}selected{% endif %}>{{ p }} days</option>
@@ -19,7 +20,7 @@
 
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-header">
-        <h5 style="margin:0">Current Inventory Value</h5>
+        <h5 style="margin:0">{% trans "Current Inventory Value" %}</h5>
     </div>
     <div class="mms-card-body">
         <p class="text-muted" style="margin:0 0 1rem 0; font-size:0.85rem">
@@ -27,19 +28,19 @@
         </p>
         <div style="display:flex; gap:2rem; flex-wrap:wrap; align-items:flex-end">
             <div>
-                <div class="text-muted" style="font-size:0.85rem">Total Quantity on Hand</div>
+                <div class="text-muted" style="font-size:0.85rem">{% trans "Total Quantity on Hand" %}</div>
                 <div style="font-size:1.75rem; font-weight:600">
                     {{ stock_summary.total_qty|floatformat:0 }}
                 </div>
             </div>
             <div>
-                <div class="text-muted" style="font-size:0.85rem">Total Inventory Value</div>
+                <div class="text-muted" style="font-size:0.85rem">{% trans "Total Inventory Value" %}</div>
                 <div style="font-size:1.75rem; font-weight:600">
                     ${{ stock_summary.total_value|floatformat:2 }}
                 </div>
             </div>
             <div>
-                <div class="text-muted" style="font-size:0.85rem">Site</div>
+                <div class="text-muted" style="font-size:0.85rem">{% trans "Site" %}</div>
                 <div style="font-size:1.25rem; font-weight:500">
                     {{ site_label }}
                 </div>
@@ -50,9 +51,9 @@
             <table class="mms-table">
                 <thead>
                     <tr>
-                        <th>Site</th>
-                        <th class="text-right">Quantity</th>
-                        <th class="text-right">Value</th>
+                        <th>{% trans "Site" %}</th>
+                        <th class="text-right">{% trans "Quantity" %}</th>
+                        <th class="text-right">{% trans "Value" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,14 +80,14 @@
             <thead>
                 <tr>
                     <th style="width:3rem">#</th>
-                    <th>Asset</th>
-                    <th>Level</th>
-                    <th class="text-right">WOs</th>
-                    <th class="text-right">Parts</th>
-                    <th class="text-right">Vendor</th>
-                    <th class="text-right">Consumables</th>
-                    <th class="text-right">Additional</th>
-                    <th class="text-right">Total</th>
+                    <th>{% trans "Asset" %}</th>
+                    <th>{% trans "Level" %}</th>
+                    <th class="text-right">{% trans "WOs" %}</th>
+                    <th class="text-right">{% trans "Parts" %}</th>
+                    <th class="text-right">{% trans "Vendor" %}</th>
+                    <th class="text-right">{% trans "Consumables" %}</th>
+                    <th class="text-right">{% trans "Additional" %}</th>
+                    <th class="text-right">{% trans "Total" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -117,7 +118,7 @@
             </tbody>
             <tfoot style="background:#f8f9fa; font-weight:bold">
                 <tr>
-                    <td colspan="3" class="text-right">GRAND TOTAL</td>
+                    <td colspan="3" class="text-right">{% trans "GRAND TOTAL" %}</td>
                     <td class="text-right">{{ grand_wo_count }}</td>
                     <td class="text-right">${{ grand_parts|floatformat:2 }}</td>
                     <td class="text-right">${{ grand_vendor|floatformat:2 }}</td>

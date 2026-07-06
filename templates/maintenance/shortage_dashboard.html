@@ -1,23 +1,24 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Shortage Dashboard{% endblock %}
 {% block page_heading %}📊 Shortage Dashboard{% endblock %}
 {% block content %}
 
-<p class="mms-page-lead">Shortage lifecycle overview — every shortage moves from <em>pending</em> → <em>approved</em> → <em>in fulfillment</em> → <em>fulfilled</em> → <em>closed</em>.</p>
+<p class="mms-page-lead">{% trans "Shortage lifecycle overview — every shortage moves from" %}<em>{% trans "pending" %}</em> → <em>{% trans "approved" %}</em> → <em>{% trans "in fulfillment" %}</em> → <em>{% trans "fulfilled" %}</em> → <em>{% trans "closed" %}</em>.</p>
 
 {# === ACTION REQUIRED BANNER (only if shortages need attention) === #}
 {% with pending=counts|dict_get:"pending" in_ful=counts|dict_get:"in_fulfillment" blocked=counts|dict_get:"blocked" %}
   {% if pending %}
   <div class="mms-alert mms-alert--error">
     <strong>📦 {{ pending }} shortage{{ pending|pluralize }} awaiting your decision.</strong>
-    &nbsp;<a href="#pending-section" class="mms-alert-link">Review oldest pending →</a>
+    &nbsp;<a href="#pending-section" class="mms-alert-link">{% trans "Review oldest pending →" %}</a>
   </div>
   {% endif %}
   {% if blocked %}
   <div class="mms-alert mms-alert--warn" style="margin-top:.5rem">
     <strong>⚠ {{ blocked }} shortage{{ blocked|pluralize }} blocked</strong> — operational problem flagged.
-    &nbsp;<a href="#in-fulfillment-section" class="mms-alert-link">Review in-fulfillment list →</a>
+    &nbsp;<a href="#in-fulfillment-section" class="mms-alert-link">{% trans "Review in-fulfillment list →" %}</a>
   </div>
   {% endif %}
 {% endwith %}
@@ -28,43 +29,43 @@
     <div class="mms-kpi-value" style="color:{% if counts|dict_get:'pending' %}#dc3545{% else %}#16a34a{% endif %}">
       {{ counts|dict_get:"pending"|default:0 }}
     </div>
-    <div class="mms-kpi-label">⏳ Awaiting decision</div>
+    <div class="mms-kpi-label">{% trans "⏳ Awaiting decision" %}</div>
   </a>
   <a class="mms-kpi mms-kpi--link" href="#approved-section" style="text-decoration:none;color:inherit">
     <div class="mms-kpi-value" style="color:{% if counts|dict_get:'approved' %}#0d6efd{% else %}#16a34a{% endif %}">
       {{ counts|dict_get:"approved"|default:0 }}
     </div>
-    <div class="mms-kpi-label">✅ Approved (editable)</div>
+    <div class="mms-kpi-label">{% trans "✅ Approved (editable)" %}</div>
   </a>
   <a class="mms-kpi mms-kpi--link" href="#in-fulfillment-section" style="text-decoration:none;color:inherit">
     <div class="mms-kpi-value" style="color:{% if counts|dict_get:'in_fulfillment' %}#0d6efd{% else %}#16a34a{% endif %}">
       {{ counts|dict_get:"in_fulfillment"|default:0 }}
     </div>
-    <div class="mms-kpi-label">🔄 In fulfillment</div>
+    <div class="mms-kpi-label">{% trans "🔄 In fulfillment" %}</div>
   </a>
   <a class="mms-kpi mms-kpi--link" href="#fulfilled-section" style="text-decoration:none;color:inherit">
     <div class="mms-kpi-value" style="color:{% if counts|dict_get:'fulfilled' %}#16a34a{% else %}#6b7280{% endif %}">
       {{ counts|dict_get:"fulfilled"|default:0 }}
     </div>
-    <div class="mms-kpi-label">✓ Fulfilled (awaiting close)</div>
+    <div class="mms-kpi-label">{% trans "✓ Fulfilled (awaiting close)" %}</div>
   </a>
   <a class="mms-kpi mms-kpi--link" href="#closed-section" style="text-decoration:none;color:inherit">
     <div class="mms-kpi-value" style="color:#6b7280">
       {{ counts|dict_get:"closed"|default:0 }}
     </div>
-    <div class="mms-kpi-label">🗙 Closed (terminal)</div>
+    <div class="mms-kpi-label">{% trans "🗙 Closed (terminal)" %}</div>
   </a>
   <a class="mms-kpi mms-kpi--link" href="#rejected-section" style="text-decoration:none;color:inherit">
     <div class="mms-kpi-value" style="color:#6b7280">
       {{ counts|dict_get:"rejected"|default:0 }}
     </div>
-    <div class="mms-kpi-label">❌ Rejected (terminal)</div>
+    <div class="mms-kpi-label">{% trans "❌ Rejected (terminal)" %}</div>
   </a>
   <a class="mms-kpi mms-kpi--link" href="#blocked-section" style="text-decoration:none;color:inherit">
     <div class="mms-kpi-value" style="color:{% if counts|dict_get:'blocked' %}#b45309{% else %}#16a34a{% endif %}">
       {{ counts|dict_get:"blocked"|default:0 }}
     </div>
-    <div class="mms-kpi-label">⚠ Blocked (operational)</div>
+    <div class="mms-kpi-label">{% trans "⚠ Blocked (operational)" %}</div>
   </a>
 </div>
 
@@ -80,11 +81,11 @@
         <table class="mms-table">
           <thead><tr>
             <th>WO</th>
-            <th>Part</th>
-            <th>Requested</th>
-            <th>Reported by</th>
-            <th>Age</th>
-            <th>Action</th>
+            <th>{% trans "Part" %}</th>
+            <th>{% trans "Requested" %}</th>
+            <th>{% trans "Reported by" %}</th>
+            <th>{% trans "Age" %}</th>
+            <th>{% trans "Action" %}</th>
           </tr></thead>
           <tbody>
             {% for r in oldest_pending %}
@@ -104,7 +105,7 @@
           </tbody>
         </table>
       {% else %}
-        <p style="color:#16a34a;font-weight:600">✅ No pending decisions. All caught up!</p>
+        <p style="color:#16a34a;font-weight:600">{% trans "✅ No pending decisions. All caught up!" %}</p>
       {% endif %}
     </div>
   </div>
@@ -120,11 +121,11 @@
         <table class="mms-table">
           <thead><tr>
             <th>WO</th>
-            <th>Part</th>
-            <th>Progress</th>
-            <th>Status</th>
-            <th>Started</th>
-            <th>Action</th>
+            <th>{% trans "Part" %}</th>
+            <th>{% trans "Progress" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Started" %}</th>
+            <th>{% trans "Action" %}</th>
           </tr></thead>
           <tbody>
             {% for r in in_fulfillment_list %}
@@ -140,21 +141,21 @@
                 </td>
                 <td>
                   {% if r.qty_issued >= r.qty_requested %}
-                    <span class="mms-badge mms-badge--success">Ready to fulfill</span>
+                    <span class="mms-badge mms-badge--success">{% trans "Ready to fulfill" %}</span>
                   {% else %}
-                    <span class="mms-badge mms-badge--info">In progress</span>
+                    <span class="mms-badge mms-badge--info">{% trans "In progress" %}</span>
                   {% endif %}
                 </td>
                 <td><small>{{ r.reviewed_at|timesince }} ago</small></td>
                 <td>
-                  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_detail' r.work_order.pk %}">Open WO</a>
+                  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_detail' r.work_order.pk %}">{% trans "Open WO" %}</a>
                 </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       {% else %}
-        <p style="color:#6b7280">No active fulfillment right now.</p>
+        <p style="color:#6b7280">{% trans "No active fulfillment right now." %}</p>
       {% endif %}
     </div>
   </div>
@@ -162,11 +163,11 @@
 
 {# === TOP PARTS === #}
 <div class="mms-card" style="margin-top:1rem" id="top-parts-section">
-  <div class="mms-card-header">🔝 Top parts with active shortages (pending + approved + in_fulfillment)</div>
+  <div class="mms-card-header">{% trans "🔝 Top parts with active shortages (pending + approved + in_fulfillment)" %}</div>
   <div class="mms-card-body">
     {% if top_parts %}
       <table class="mms-table">
-        <thead><tr><th>Part</th><th>Active reports</th><th>Action</th></tr></thead>
+        <thead><tr><th>{% trans "Part" %}</th><th>{% trans "Active reports" %}</th><th>{% trans "Action" %}</th></tr></thead>
         <tbody>
           {% for p in top_parts %}
             <tr>
@@ -175,28 +176,28 @@
               </td>
               <td><span class="mms-badge mms-badge--info">{{ p.active }}</span></td>
               <td>
-                <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'stock_dashboard' %}?q={{ p.part__sku }}">View part</a>
+                <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'stock_dashboard' %}?q={{ p.part__sku }}">{% trans "View part" %}</a>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p style="color:#6b7280">No active shortages. 🎉</p>
+      <p style="color:#6b7280">{% trans "No active shortages. 🎉" %}</p>
     {% endif %}
   </div>
 </div>
 
 {# === ALL STATES BREAKDOWN (compact reference) === #}
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">📋 All states breakdown</div>
+  <div class="mms-card-header">{% trans "📋 All states breakdown" %}</div>
   <div class="mms-card-body">
     <table class="mms-table mms-table--compact">
       <thead><tr>
-        <th>State</th>
-        <th style="text-align:right">Count</th>
-        <th>Meaning</th>
-        <th>Next action</th>
+        <th>{% trans "State" %}</th>
+        <th style="text-align:right">{% trans "Count" %}</th>
+        <th>{% trans "Meaning" %}</th>
+        <th>{% trans "Next action" %}</th>
       </tr></thead>
       <tbody>
         {% for value, label in STATUS_CHOICES %}
@@ -208,13 +209,13 @@
               <span class="mms-badge mms-badge--info">{{ counts|dict_get:value|default:0 }}</span>
             </td>
             <td>
-              {% if value == 'pending' %}<small>Tech raised a shortage. Manager decision needed.</small>
-              {% elif value == 'approved' %}<small>Manager approved. Awaiting warehouse issue.</small>
-              {% elif value == 'in_fulfillment' %}<small>Warehouse or procurement in progress.</small>
-              {% elif value == 'fulfilled' %}<small>All units delivered. Manager should close.</small>
-              {% elif value == 'blocked' %}<small>Operational problem flagged. Investigate.</small>
-              {% elif value == 'closed' %}<small>Terminal. Reservation released, PRs cancelled.</small>
-              {% elif value == 'rejected' %}<small>Terminal. Line stays PENDING for tech to act on.</small>
+              {% if value == 'pending' %}<small>{% trans "Tech raised a shortage. Manager decision needed." %}</small>
+              {% elif value == 'approved' %}<small>{% trans "Manager approved. Awaiting warehouse issue." %}</small>
+              {% elif value == 'in_fulfillment' %}<small>{% trans "Warehouse or procurement in progress." %}</small>
+              {% elif value == 'fulfilled' %}<small>{% trans "All units delivered. Manager should close." %}</small>
+              {% elif value == 'blocked' %}<small>{% trans "Operational problem flagged. Investigate." %}</small>
+              {% elif value == 'closed' %}<small>{% trans "Terminal. Reservation released, PRs cancelled." %}</small>
+              {% elif value == 'rejected' %}<small>{% trans "Terminal. Line stays PENDING for tech to act on." %}</small>
               {% endif %}
             </td>
             <td>
@@ -230,7 +231,7 @@
 </div>
 
 <div style="margin-top:1.5rem">
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'dashboard' %}">← Back to dashboard</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'dashboard' %}">{% trans "← Back to dashboard" %}</a>
   <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?has_pending_shortage=1" style="margin-left:.5rem">
     📋 WOs with any shortage
   </a>

@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}{{ machine.name }} — {{ machine.get_asset_level_display }}{% endblock %}
@@ -16,19 +17,19 @@
 <div class="mms-stats-strip">
   <div class="mms-stat">
     <span class="mms-stat-num">{{ hero_stats.total_wo_count }}</span>
-    <span class="mms-stat-lbl">Work Orders</span>
+    <span class="mms-stat-lbl">{% trans "Work Orders" %}</span>
   </div>
   <div class="mms-stat">
     <span class="mms-stat-num">{{ hero_stats.cost_90d_total|floatformat:0 }}</span>
-    <span class="mms-stat-lbl">SAR · last 90 days</span>
+    <span class="mms-stat-lbl">{% trans "SAR · last 90 days" %}</span>
   </div>
   <div class="mms-stat">
     <span class="mms-stat-num">{{ hero_stats.failure_count_90d }}</span>
-    <span class="mms-stat-lbl">Failures · 90d</span>
+    <span class="mms-stat-lbl">{% trans "Failures · 90d" %}</span>
   </div>
   <div class="mms-stat">
     <span class="mms-stat-num">{{ hero_stats.last_activity_days }}</span>
-    <span class="mms-stat-lbl">Days since last activity</span>
+    <span class="mms-stat-lbl">{% trans "Days since last activity" %}</span>
   </div>
 </div>
 
@@ -41,52 +42,52 @@
   </div>
   <div class="mms-card-body">
     <dl class="mms-dl">
-      <dt>QR Code</dt><dd><code>{{ machine.qr_code }}</code></dd>
-      <dt>Asset Code</dt><dd>{% if machine.asset_code %}<code>{{ machine.asset_code }}</code>{% else %}—{% endif %}</dd>
-      <dt>Level</dt><dd>{{ machine.get_asset_level_display }}</dd>
-      <dt>Site</dt><dd>{{ machine.site.name|default:"—" }}</dd>
-      <dt>Location</dt><dd>{{ machine.location|default:"—" }}</dd>
-      <dt>Status</dt><dd>{% if machine.is_active %}<span class="mms-badge mms-badge--success">Active</span>{% else %}<span class="mms-badge mms-badge--muted">Inactive</span>{% endif %}</dd>
+      <dt>{% trans "QR Code" %}</dt><dd><code>{{ machine.qr_code }}</code></dd>
+      <dt>{% trans "Asset Code" %}</dt><dd>{% if machine.asset_code %}<code>{{ machine.asset_code }}</code>{% else %}—{% endif %}</dd>
+      <dt>{% trans "Level" %}</dt><dd>{{ machine.get_asset_level_display }}</dd>
+      <dt>{% trans "Site" %}</dt><dd>{{ machine.site.name|default:"—" }}</dd>
+      <dt>{% trans "Location" %}</dt><dd>{{ machine.location|default:"—" }}</dd>
+      <dt>{% trans "Status" %}</dt><dd>{% if machine.is_active %}<span class="mms-badge mms-badge--success">{% trans "Active" %}</span>{% else %}<span class="mms-badge mms-badge--muted">{% trans "Inactive" %}</span>{% endif %}</dd>
     </dl>
     {% if is_component_level %}
-      <h4 style="margin:1rem 0 0.5rem 0;font-size:0.9rem">Specifications</h4>
+      <h4 style="margin:1rem 0 0.5rem 0;font-size:0.9rem">{% trans "Specifications" %}</h4>
       <dl class="mms-dl">
-        <dt>Serial</dt><dd>{{ machine.serial_number|default:"—" }}</dd>
-        <dt>Manufacturer</dt><dd>{{ machine.manufacturer|default:"—" }}</dd>
-        <dt>Model</dt><dd>{{ machine.model_number|default:"—" }}</dd>
-        <dt>Criticality</dt><dd>{{ machine.get_criticality_display|default:"—" }}</dd>
+        <dt>{% trans "Serial" %}</dt><dd>{{ machine.serial_number|default:"—" }}</dd>
+        <dt>{% trans "Manufacturer" %}</dt><dd>{{ machine.manufacturer|default:"—" }}</dd>
+        <dt>{% trans "Model" %}</dt><dd>{{ machine.model_number|default:"—" }}</dd>
+        <dt>{% trans "Criticality" %}</dt><dd>{{ machine.get_criticality_display|default:"—" }}</dd>
       </dl>
     {% endif %}
   </div>
   <div class="mms-card-footer">
-    <a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">Edit</a>
-    <a href="{% url 'machine_list' %}" class="mms-btn mms-btn--ghost">← Back to machines</a>
+    <a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">{% trans "Edit" %}</a>
+    <a href="{% url 'machine_list' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to machines" %}</a>
   </div>
 </div>
 
 <!-- QUICK ACTIONS -->
 <div class="mms-card">
-  <div class="mms-card-header">⚡ Quick Actions</div>
+  <div class="mms-card-header">{% trans "⚡ Quick Actions" %}</div>
   <div class="mms-card-body">
-    <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">🚨 Report Issue</a>
-    <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">🔧 Create Work Order</a>
-    <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">🛡️ Create PM</a>
-    <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">🔩 Create ERO</a>
-    <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">📦 Create PR</a>
+    <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🚨 Report Issue" %}</a>
+    <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🔧 Create Work Order" %}</a>
+    <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🛡️ Create PM" %}</a>
+    <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "🔩 Create ERO" %}</a>
+    <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "📦 Create PR" %}</a>
   </div>
 </div>
 
 <!-- ASSET PHOTOS (unchanged) -->
 <div class="mms-card">
-  <div class="mms-card-header">📷 Asset Photos</div>
+  <div class="mms-card-header">{% trans "📷 Asset Photos" %}</div>
   <div class="mms-card-body">
-    {% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title="Asset Photos" %}
+    {% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title={% trans "Asset Photos" %} %}
   </div>
 </div>
 
 <!-- RELATED RECORDS WITH TABS -->
 <div class="mms-card">
-  <div class="mms-card-header">🔗 Related Records</div>
+  <div class="mms-card-header">{% trans "🔗 Related Records" %}</div>
   <div class="mms-card-body">
     <div class="mms-tabs" role="tablist">
       <button class="mms-tab mms-tab--active" data-tab="tab-wos">
@@ -113,12 +114,12 @@
         <thead>
           <tr>
             <th>WO#</th>
-            <th>Status</th>
-            <th>Component</th>
-            <th>Opened</th>
-            <th>Technician</th>
-            <th class="mms-cost-cell">Cost</th>
-            <th>Days open</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Component" %}</th>
+            <th>{% trans "Opened" %}</th>
+            <th>{% trans "Technician" %}</th>
+            <th class="mms-cost-cell">{% trans "Cost" %}</th>
+            <th>{% trans "Days open" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -126,9 +127,9 @@
             <tr>
               <td><a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a></td>
               <td>
-                {% if wo.lifecycle_status == 'closed' %}<span class="mms-badge mms-badge--success">Closed</span>
-                {% elif wo.lifecycle_status == 'in_progress' %}<span class="mms-badge mms-badge--info">In progress</span>
-                {% elif wo.lifecycle_status == 'pending_review' %}<span class="mms-badge mms-badge--warning">Pending review</span>
+                {% if wo.lifecycle_status == 'closed' %}<span class="mms-badge mms-badge--success">{% trans "Closed" %}</span>
+                {% elif wo.lifecycle_status == 'in_progress' %}<span class="mms-badge mms-badge--info">{% trans "In progress" %}</span>
+                {% elif wo.lifecycle_status == 'pending_review' %}<span class="mms-badge mms-badge--warning">{% trans "Pending review" %}</span>
                 {% else %}<span class="mms-badge mms-badge--muted">{{ wo.get_lifecycle_status_display }}</span>{% endif %}
               </td>
               <td>{% if wo.component %}{{ wo.component.name }}{% else %}—{% endif %}</td>
@@ -140,12 +141,12 @@
               <td>{% if wo.lifecycle_status == 'closed' %}—{% else %}{{ wo.created_at|timesince }}{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="7" class="mms-empty">No work orders yet.</td></tr>
+            <tr><td colspan="7" class="mms-empty">{% trans "No work orders yet." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
       {% else %}
-        <div class="mms-empty">No work orders yet.</div>
+        <div class="mms-empty">{% trans "No work orders yet." %}</div>
       {% endif %}
     </div>
 
@@ -154,27 +155,27 @@
       {% if related_issues %}
       <table class="mms-table">
         <thead>
-          <tr><th>#</th><th>Priority</th><th>Status</th><th>Reporter</th><th>Description</th><th>Date</th></tr>
+          <tr><th>#</th><th>{% trans "Priority" %}</th><th>{% trans "Status" %}</th><th>{% trans "Reporter" %}</th><th>{% trans "Description" %}</th><th>{% trans "Date" %}</th></tr>
         </thead>
         <tbody>
           {% for iss in related_issues %}
             <tr>
               <td><a href="{% url 'issue_detail' iss.pk %}">#{{ iss.pk }}</a></td>
-              <td>{% if iss.priority == 'critical' %}<span class="mms-badge mms-badge--danger">Critical</span>
-                  {% elif iss.priority == 'high' %}<span class="mms-badge mms-badge--warning">High</span>
-                  {% elif iss.priority == 'medium' %}<span class="mms-badge mms-badge--info">Medium</span>
-                  {% else %}<span class="mms-badge mms-badge--muted">Low</span>{% endif %}</td>
+              <td>{% if iss.priority == 'critical' %}<span class="mms-badge mms-badge--danger">{% trans "Critical" %}</span>
+                  {% elif iss.priority == 'high' %}<span class="mms-badge mms-badge--warning">{% trans "High" %}</span>
+                  {% elif iss.priority == 'medium' %}<span class="mms-badge mms-badge--info">{% trans "Medium" %}</span>
+                  {% else %}<span class="mms-badge mms-badge--muted">{% trans "Low" %}</span>{% endif %}</td>
               <td>{{ iss.get_status_display }}</td>
               <td>{% if iss.reported_by %}{{ iss.reported_by.username }}{% else %}—{% endif %}</td>
               <td>{{ iss.description|truncatechars:60 }}</td>
               <td><span class="mms-text-muted">{{ iss.created_at|date:"Y-m-d" }}</span></td>
             </tr>
           {% empty %}
-            <tr><td colspan="6" class="mms-empty">No issues yet.</td></tr>
+            <tr><td colspan="6" class="mms-empty">{% trans "No issues yet." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
-      {% else %}<div class="mms-empty">No issues yet.</div>{% endif %}
+      {% else %}<div class="mms-empty">{% trans "No issues yet." %}</div>{% endif %}
     </div>
 
     <!-- PM Schedules tab -->
@@ -182,21 +183,21 @@
       <div class="mms-stats-strip" style="margin-bottom:1rem">
         <div class="mms-stat">
           <span class="mms-stat-num">{{ pm_stats.active_count }}</span>
-          <span class="mms-stat-lbl">Active PMs</span>
+          <span class="mms-stat-lbl">{% trans "Active PMs" %}</span>
         </div>
         <div class="mms-stat">
           <span class="mms-stat-num">{{ pm_stats.due_this_week_count }}</span>
-          <span class="mms-stat-lbl">Due This Week</span>
+          <span class="mms-stat-lbl">{% trans "Due This Week" %}</span>
         </div>
         <div class="mms-stat">
           <span class="mms-stat-num" style="{% if pm_stats.overdue_count > 0 %}color:#dc2626{% endif %}">{{ pm_stats.overdue_count }}</span>
-          <span class="mms-stat-lbl">Overdue</span>
+          <span class="mms-stat-lbl">{% trans "Overdue" %}</span>
         </div>
         <div class="mms-stat">
           <span class="mms-stat-num">
             {% if pm_stats.compliance_pct is not None %}{{ pm_stats.compliance_pct }}%{% else %}—{% endif %}
           </span>
-          <span class="mms-stat-lbl">Compliance (90d)</span>
+          <span class="mms-stat-lbl">{% trans "Compliance (90d)" %}</span>
         </div>
       </div>
 
@@ -204,12 +205,12 @@
       <table class="mms-table">
         <thead>
           <tr>
-            <th>Template</th>
-            <th>Frequency</th>
-            <th>Next due</th>
-            <th>Priority</th>
-            <th>Last execution</th>
-            <th>Status</th>
+            <th>{% trans "Template" %}</th>
+            <th>{% trans "Frequency" %}</th>
+            <th>{% trans "Next due" %}</th>
+            <th>{% trans "Priority" %}</th>
+            <th>{% trans "Last execution" %}</th>
+            <th>{% trans "Status" %}</th>
             <th></th>
           </tr>
         </thead>
@@ -226,14 +227,14 @@
                 <span style="{% if pm.next_due_at < now %}color:#dc2626;font-weight:600{% endif %}">
                   {{ pm.next_due_at|date:"Y-m-d H:i" }}
                 </span>
-                {% if pm.next_due_at < now %}<br><small class="mms-badge mms-badge--danger">OVERDUE</small>{% endif %}
+                {% if pm.next_due_at < now %}<br><small class="mms-badge mms-badge--danger">{% trans "OVERDUE" %}</small>{% endif %}
               </td>
               <td>
                 {% with eff=pm.effective_priority %}
-                  {% if eff == 'critical' %}<span class="mms-badge mms-badge--danger">Critical</span>
-                  {% elif eff == 'high' %}<span class="mms-badge mms-badge--warning">High</span>
-                  {% elif eff == 'medium' %}<span class="mms-badge mms-badge--info">Medium</span>
-                  {% else %}<span class="mms-badge mms-badge--muted">Low</span>{% endif %}
+                  {% if eff == 'critical' %}<span class="mms-badge mms-badge--danger">{% trans "Critical" %}</span>
+                  {% elif eff == 'high' %}<span class="mms-badge mms-badge--warning">{% trans "High" %}</span>
+                  {% elif eff == 'medium' %}<span class="mms-badge mms-badge--info">{% trans "Medium" %}</span>
+                  {% else %}<span class="mms-badge mms-badge--muted">{% trans "Low" %}</span>{% endif %}
                 {% endwith %}
               </td>
               <td>
@@ -244,20 +245,20 @@
                   </small>
                 {% else %}<span class="mms-text-muted">—</span>{% endif %}
               </td>
-              <td>{% if pm.is_active %}<span class="mms-badge mms-badge--success">Active</span>{% else %}<span class="mms-badge mms-badge--muted">Inactive</span>{% endif %}</td>
+              <td>{% if pm.is_active %}<span class="mms-badge mms-badge--success">{% trans "Active" %}</span>{% else %}<span class="mms-badge mms-badge--muted">{% trans "Inactive" %}</span>{% endif %}</td>
               <td>
                 {% if perm_pm_schedule_manage %}
-                  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' pm.pk %}">Create PM WO</a>
+                  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' pm.pk %}">{% trans "Create PM WO" %}</a>
                 {% endif %}
               </td>
             </tr>
             {% endwith %}
           {% empty %}
-            <tr><td colspan="7" class="mms-empty">No PM schedules yet.</td></tr>
+            <tr><td colspan="7" class="mms-empty">{% trans "No PM schedules yet." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
-      {% else %}<div class="mms-empty">No PM schedules yet.</div>{% endif %}
+      {% else %}<div class="mms-empty">{% trans "No PM schedules yet." %}</div>{% endif %}
     </div>
 
     <!-- External Repairs tab -->
@@ -265,7 +266,7 @@
       {% if related_eros %}
       <table class="mms-table">
         <thead>
-          <tr><th>Title</th><th>Status</th><th>Vendor</th><th>Cost</th><th>Sent</th></tr>
+          <tr><th>{% trans "Title" %}</th><th>{% trans "Status" %}</th><th>{% trans "Vendor" %}</th><th>{% trans "Cost" %}</th><th>{% trans "Sent" %}</th></tr>
         </thead>
         <tbody>
           {% for ero in related_eros %}
@@ -277,11 +278,11 @@
               <td><span class="mms-text-muted">{{ ero.sent_at|date:"Y-m-d"|default:"—" }}</span></td>
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="mms-empty">No external repairs yet.</td></tr>
+            <tr><td colspan="5" class="mms-empty">{% trans "No external repairs yet." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
-      {% else %}<div class="mms-empty">No external repairs yet.</div>{% endif %}
+      {% else %}<div class="mms-empty">{% trans "No external repairs yet." %}</div>{% endif %}
     </div>
 
     <!-- Purchase Requests tab -->
@@ -289,7 +290,7 @@
       {% if related_prs %}
       <table class="mms-table">
         <thead>
-          <tr><th>#</th><th>Part</th><th>Qty</th><th>Status</th><th>Supplier</th></tr>
+          <tr><th>#</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th><th>{% trans "Supplier" %}</th></tr>
         </thead>
         <tbody>
           {% for pr in related_prs %}
@@ -301,11 +302,11 @@
               <td>{% if pr.supplier %}{{ pr.supplier.name }}{% else %}—{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="mms-empty">No purchase requests yet.</td></tr>
+            <tr><td colspan="5" class="mms-empty">{% trans "No purchase requests yet." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
-      {% else %}<div class="mms-empty">No purchase requests yet.</div>{% endif %}
+      {% else %}<div class="mms-empty">{% trans "No purchase requests yet." %}</div>{% endif %}
     </div>
   </div>
 </div>

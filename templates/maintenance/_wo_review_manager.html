@@ -1,25 +1,26 @@
+{% load i18n %}
 {# Phase 3B: Manager review block (extracted from workorder_detail.html). #}
 {# Self-gated: only managers with a WO in pending_review see this. #}
 {% if perm_close_or_review_wo and wo.lifecycle_status == 'pending_review' %}
 <div class="mms-divider"></div>
-<h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Manager review (pending your decision)</h3>
-<div class="mms-alert mms-alert--info">Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure.</div>
+<h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">{% trans "Manager review (pending your decision)" %}</h3>
+<div class="mms-alert mms-alert--info">{% trans "Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure." %}</div>
 {% if wo.rejected_at %}
 <div class="alert alert-info">
-    <strong>Previously rejected:</strong> {{ wo.rejection_reason }}
+    <strong>{% trans "Previously rejected:" %}</strong> {{ wo.rejection_reason }}
     <br><small>Rejected by {{ wo.rejected_by }} on {{ wo.rejected_at|date:"Y-m-d H:i" }} ({{ wo.rejection_count }} rejection{{ wo.rejection_count|pluralize:"s" }})</small>
 </div>
 {% endif %}
 <form method="post" action="{% url 'work_order_close' wo.pk %}">
   {% csrf_token %}
   <div class="mb-3">
-      <label for="rejection_reason" class="form-label">Rejection Reason (required if returning to technician)</label>
+      <label for="rejection_reason" class="form-label">{% trans "Rejection Reason (required if returning to technician)" %}</label>
       <textarea name="rejection_reason" id="rejection_reason" class="form-control" rows="2"
-                placeholder="Enter reason if returning to technician..."></textarea>
+                placeholder={% trans "Enter reason if returning to technician..." %}></textarea>
   </div>
   <div class="mms-actions">
-    <button class="mms-btn mms-btn--success mms-btn--sm" name="action" value="approve" type="submit">Approve & Close</button>
-    <button class="mms-btn mms-btn--danger mms-btn--sm" name="action" value="reject" type="submit">Return to Technician</button>
+    <button class="mms-btn mms-btn--success mms-btn--sm" name="action" value="approve" type="submit">{% trans "Approve & Close" %}</button>
+    <button class="mms-btn mms-btn--danger mms-btn--sm" name="action" value="reject" type="submit">{% trans "Return to Technician" %}</button>
   </div>
 </form>
 {% endif %}

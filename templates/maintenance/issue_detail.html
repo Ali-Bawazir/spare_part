@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Issue #{{ issue.pk }}{% endblock %}
 {% block page_heading %}Issue #{{ issue.pk }}{% endblock %}
@@ -6,12 +7,12 @@
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-body">
         <dl style="margin:0; display:grid; grid-template-columns: 150px 1fr; gap:0.5rem">
-            <dt>Machine</dt>
+            <dt>{% trans "Machine" %}</dt>
             <dd>
                 {{ issue.machine.name }}
                 {% if issue.machine.qr_code %}<br><small class="text-muted">{{ issue.machine.qr_code }}</small>{% endif %}
             </dd>
-            <dt>Component</dt>
+            <dt>{% trans "Component" %}</dt>
             <dd>
                 {% if issue.component %}
                     {{ issue.component.name }}
@@ -20,35 +21,35 @@
                     <span class="text-muted">—</span>
                 {% endif %}
             </dd>
-            <dt>Failure Category</dt>
+            <dt>{% trans "Failure Category" %}</dt>
             <dd>{% if issue.issue_type %}{{ issue.issue_type.name }}{% else %}—{% endif %}</dd>
-            <dt>Failure Mode</dt>
+            <dt>{% trans "Failure Mode" %}</dt>
             <dd>{% if issue.failure_mode %}{{ issue.failure_mode.code }} — {{ issue.failure_mode.name }}{% else %}—{% endif %}</dd>
-            <dt>Status</dt>
+            <dt>{% trans "Status" %}</dt>
             <dd>
-                {% if issue.status == 'new' %}<span class="status-badge status-new">New</span>
-                {% elif issue.status == 'validated' %}<span class="status-badge status-validated">Validated</span>
-                {% elif issue.status == 'converted' %}<span class="status-badge status-converted">Converted</span>
+                {% if issue.status == 'new' %}<span class="status-badge status-new">{% trans "New" %}</span>
+                {% elif issue.status == 'validated' %}<span class="status-badge status-validated">{% trans "Validated" %}</span>
+                {% elif issue.status == 'converted' %}<span class="status-badge status-converted">{% trans "Converted" %}</span>
                 {% endif %}
             </dd>
-            <dt>Priority</dt>
+            <dt>{% trans "Priority" %}</dt>
             <dd>
                 {{ issue.priority|upper }}
                 {% if issue.is_emergency %}
-                    <span class="status-badge" style="background:#dc3545;color:#fff;margin-left:.5rem">EMERGENCY</span>
+                    <span class="status-badge" style="background:#dc3545;color:#fff;margin-left:.5rem">{% trans "EMERGENCY" %}</span>
                     {% if issue.escalated_by %}
                         <br><small class="text-muted">Escalated by {{ issue.escalated_by.username }} at {{ issue.escalated_at|date:"Y-m-d H:i" }}</small>
                     {% endif %}
                 {% endif %}
             </dd>
-            <dt>Description</dt><dd>{{ issue.description|linebreaks }}</dd>
-            <dt>Reported By</dt><dd>{{ issue.reported_by.get_full_name|default:issue.reported_by.username }}</dd>
-            <dt>Reported At</dt><dd>{{ issue.created_at|date:"Y-m-d H:i" }}</dd>
+            <dt>{% trans "Description" %}</dt><dd>{{ issue.description|linebreaks }}</dd>
+            <dt>{% trans "Reported By" %}</dt><dd>{{ issue.reported_by.get_full_name|default:issue.reported_by.username }}</dd>
+            <dt>{% trans "Reported At" %}</dt><dd>{{ issue.created_at|date:"Y-m-d H:i" }}</dd>
             {% if issue.validated_by %}
-            <dt>Validated By</dt><dd>{{ issue.validated_by.get_full_name|default:issue.validated_by.username }}</dd>
-            <dt>Validated At</dt><dd>{{ issue.validated_at|date:"Y-m-d H:i" }}</dd>
+            <dt>{% trans "Validated By" %}</dt><dd>{{ issue.validated_by.get_full_name|default:issue.validated_by.username }}</dd>
+            <dt>{% trans "Validated At" %}</dt><dd>{{ issue.validated_at|date:"Y-m-d H:i" }}</dd>
             {% endif %}
-            <dt>Linked WO</dt>
+            <dt>{% trans "Linked WO" %}</dt>
             <dd>
                 {% if issue.work_order %}
                     <a href="{% url 'work_order_detail' issue.work_order.pk %}">WO-{{ issue.work_order.number }}</a>
@@ -61,12 +62,12 @@
 </div>
 
 <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header">Issue Photos</div>
+    <div class="mms-card-header">{% trans "Issue Photos" %}</div>
     <div class="mms-card-body">
         <div id="issue-photo-list"
              data-entity="maintenance_issue"
              data-id="{{ issue.pk }}">
-            <div class="mms-loading">Loading...</div>
+            <div class="mms-loading">{% trans "Loading..." %}</div>
         </div>
     </div>
 </div>
@@ -77,7 +78,7 @@
         Escalate to emergency
     </button>
     {% endif %}
-    <a href="{% url 'issue_list' %}" class="mms-btn mms-btn--ghost">← Back to My Issues</a>
+    <a href="{% url 'issue_list' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to My Issues" %}</a>
 </div>
 
 {% if not issue.is_archived and not issue.is_emergency and request.user.role in 'supervisor,manager,super_admin' %}
@@ -86,18 +87,18 @@
         Confirm emergency escalation
     </div>
     <div class="mms-card-body">
-        <p><strong>This action will:</strong></p>
+        <p><strong>{% trans "This action will:" %}</strong></p>
         <ul>
-            <li>Set priority to <strong>CRITICAL</strong> and tag the issue as <strong>EMERGENCY</strong></li>
-            <li>Page the on-call technician and the maintenance manager</li>
-            <li>Auto-prioritise this issue at the top of the work-order queue</li>
-            <li>If a work order is later created from this issue, it will be created with <code>is_emergency=True</code></li>
+            <li>{% trans "Set priority to" %}<strong>{% trans "CRITICAL" %}</strong>{% trans "and tag the issue as" %}<strong>{% trans "EMERGENCY" %}</strong></li>
+            <li>{% trans "Page the on-call technician and the maintenance manager" %}</li>
+            <li>{% trans "Auto-prioritise this issue at the top of the work-order queue" %}</li>
+            <li>{% trans "If a work order is later created from this issue, it will be created with" %}<code>is_emergency=True</code></li>
         </ul>
-        <p class="text-muted">This action is logged in the audit trail. It cannot be undone from this page.</p>
+        <p class="text-muted">{% trans "This action is logged in the audit trail. It cannot be undone from this page." %}</p>
         <form method="post" action="{% url 'issue_escalate' issue.pk %}" style="display:flex;gap:.5rem;margin-top:1rem">
             {% csrf_token %}
-            <button type="submit" class="mms-btn mms-btn--danger">Yes, escalate to emergency</button>
-            <button type="button" class="mms-btn mms-btn--ghost" id="escalate-cancel">Cancel</button>
+            <button type="submit" class="mms-btn mms-btn--danger">{% trans "Yes, escalate to emergency" %}</button>
+            <button type="button" class="mms-btn mms-btn--ghost" id="escalate-cancel">{% trans "Cancel" %}</button>
         </form>
     </div>
 </div>

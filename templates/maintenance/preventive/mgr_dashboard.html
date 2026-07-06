@@ -1,41 +1,42 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Preventive Maintenance Dashboard — Bawazir MMS{% endblock %}
 {% block page_heading %}Preventive Maintenance{% endblock %}
 {% block content %}
 
 <div class="mms-banner" style="margin-bottom:1rem">
-    <strong>Today</strong> is {{ today|date:"l · j F Y" }}
+    <strong>{% trans "Today" %}</strong> is {{ today|date:"l · j F Y" }}
 </div>
 
 {# ──── 5 counts ──── #}
 <div class="mms-grid mms-grid--5" style="margin-bottom:1.5rem">
     <a href="{% url 'preventive:mgr_today' %}" class="mms-card" style="text-decoration:none">
         <div class="mms-card-body">
-            <span class="text-muted" style="font-size:.85rem">Due Today</span>
+            <span class="text-muted" style="font-size:.85rem">{% trans "Due Today" %}</span>
             <div style="font-size:2rem;font-weight:700">{{ due_today }}</div>
         </div>
     </a>
     <div class="mms-card" style="border-left:4px solid #dc3545">
         <div class="mms-card-body">
-            <span class="text-muted" style="font-size:.85rem">Overdue</span>
+            <span class="text-muted" style="font-size:.85rem">{% trans "Overdue" %}</span>
             <div style="font-size:2rem;font-weight:700">{{ overdue }}</div>
         </div>
     </div>
     <a href="{% url 'preventive:mgr_reviews' %}" class="mms-card" style="text-decoration:none;border-left:4px solid #f0ad4e">
         <div class="mms-card-body">
-            <span class="text-muted" style="font-size:.85rem">Waiting Review</span>
+            <span class="text-muted" style="font-size:.85rem">{% trans "Waiting Review" %}</span>
             <div style="font-size:2rem;font-weight:700">{{ waiting_review }}</div>
         </div>
     </a>
     <a href="{% url 'preventive:mgr_today' %}" class="mms-card" style="text-decoration:none;border-left:4px solid #6c757d">
         <div class="mms-card-body">
-            <span class="text-muted" style="font-size:.85rem">Unassigned</span>
+            <span class="text-muted" style="font-size:.85rem">{% trans "Unassigned" %}</span>
             <div style="font-size:2rem;font-weight:700">{{ unassigned }}</div>
         </div>
     </a>
     <div class="mms-card" style="border-left:4px solid #28a745">
         <div class="mms-card-body">
-            <span class="text-muted" style="font-size:.85rem">Completed Today</span>
+            <span class="text-muted" style="font-size:.85rem">{% trans "Completed Today" %}</span>
             <div style="font-size:2rem;font-weight:700">{{ completed_today }}</div>
         </div>
     </div>

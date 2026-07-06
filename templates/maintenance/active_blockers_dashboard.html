@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Active WorkOrder Blockers{% endblock %}
@@ -10,7 +11,7 @@
 
 {% if total_open == 0 %}
 <div class="mms-alert mms-alert--success" style="margin-bottom:1rem">
-  <strong>No active blockers. All clear!</strong>
+  <strong>{% trans "No active blockers. All clear!" %}</strong>
 </div>
 {% else %}
 <div class="mms-grid mms-grid--kpis" style="margin-bottom:1rem">
@@ -22,30 +23,30 @@
 
 <form method="GET" class="mms-form mms-form--inline" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">
   <div>
-    <label class="mms-label" for="id_kind">Blocker Kind</label>
+    <label class="mms-label" for="id_kind">{% trans "Blocker Kind" %}</label>
     <select name="kind" id="id_kind" class="mms-input">
-      <option value="">All</option>
+      <option value="">{% trans "All" %}</option>
       {% for value, label in kind_choices %}
       <option value="{{ value }}" {% if filters.kind == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
   </div>
   <div>
-    <label class="mms-label" for="id_q">Search</label>
-    <input type="text" name="q" id="id_q" class="mms-input" placeholder="WO number or machine name" value="{{ filters.q|default:'' }}">
+    <label class="mms-label" for="id_q">{% trans "Search" %}</label>
+    <input type="text" name="q" id="id_q" class="mms-input" placeholder={% trans "WO number or machine name" %} value="{{ filters.q|default:'' }}">
   </div>
   <div>
-    <label class="mms-label" for="id_impact_level">Impact Level</label>
+    <label class="mms-label" for="id_impact_level">{% trans "Impact Level" %}</label>
     <select name="impact_level" id="id_impact_level" class="mms-input">
-      <option value="">All</option>
+      <option value="">{% trans "All" %}</option>
       {% for value, label in impact_level_choices %}
       <option value="{{ value }}" {% if filters.impact_level == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
   </div>
   <div style="display:flex;gap:.5rem">
-    <button type="submit" class="mms-btn mms-btn--primary">Apply</button>
-    <a href="{% url 'active_blockers_dashboard' %}" class="mms-btn mms-btn--ghost">Clear</a>
+    <button type="submit" class="mms-btn mms-btn--primary">{% trans "Apply" %}</button>
+    <a href="{% url 'active_blockers_dashboard' %}" class="mms-btn mms-btn--ghost">{% trans "Clear" %}</a>
   </div>
 </form>
 
@@ -53,14 +54,14 @@
   <table class="mms-table">
     <thead>
       <tr>
-        <th>Blocker Kind</th>
-        <th>Work Order</th>
-        <th>Machine</th>
-        <th>External Reference</th>
-        <th>Impact Score</th>
-        <th>Age</th>
-        <th>Opened By</th>
-        <th>Note</th>
+        <th>{% trans "Blocker Kind" %}</th>
+        <th>{% trans "Work Order" %}</th>
+        <th>{% trans "Machine" %}</th>
+        <th>{% trans "External Reference" %}</th>
+        <th>{% trans "Impact Score" %}</th>
+        <th>{% trans "Age" %}</th>
+        <th>{% trans "Opened By" %}</th>
+        <th>{% trans "Note" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -94,7 +95,7 @@
       {% endwith %}
       {% empty %}
       <tr>
-        <td colspan="8" style="text-align:center;color:var(--mms-muted)">No blockers match the current filters.</td>
+        <td colspan="8" style="text-align:center;color:var(--mms-muted)">{% trans "No blockers match the current filters." %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -104,18 +105,18 @@
 {% if blockers.paginator.num_pages > 1 %}
 <div class="mms-pagination" style="margin-top:1rem;display:flex;gap:.5rem;justify-content:center">
   {% if blockers.has_previous %}
-  <a href="?page={{ blockers.previous_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">&laquo; Previous</a>
+  <a href="?page={{ blockers.previous_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "&laquo; Previous" %}</a>
   {% endif %}
   <span style="padding:.25rem .5rem">Page {{ blockers.number }} of {{ blockers.paginator.num_pages }}</span>
   {% if blockers.has_next %}
-  <a href="?page={{ blockers.next_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">Next &raquo;</a>
+  <a href="?page={{ blockers.next_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "Next &raquo;" %}</a>
   {% endif %}
 </div>
 {% endif %}
 {% endif %}
 
 <div style="margin-top:1.5rem">
-  <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">← Back to dashboard</a>
+  <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Back to dashboard" %}</a>
 </div>
 
 {% endblock %}

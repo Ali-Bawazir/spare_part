@@ -1,12 +1,13 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Machines by Issue Count{% endblock %}
 {% block page_heading %}Machines by Issue Count{% endblock %}
 {% block content %}
-<p class="mms-page-lead">All machines ranked by total reported issues. Machines with the most issues may need root-cause analysis or PM schedule review.</p>
+<p class="mms-page-lead">{% trans "All machines ranked by total reported issues. Machines with the most issues may need root-cause analysis or PM schedule review." %}</p>
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>#</th><th>Machine</th><th>Code</th><th>Issues</th><th>Open WOs</th></tr></thead>
+      <thead><tr><th>#</th><th>{% trans "Machine" %}</th><th>{% trans "Code" %}</th><th>{% trans "Issues" %}</th><th>{% trans "Open WOs" %}</th></tr></thead>
       <tbody>
       {% for mc in page_obj %}
       <tr>
@@ -16,17 +17,17 @@
         <td>{{ mc.ic }}</td>
         <td>{{ mc.open_wos }}</td>
       </tr>
-      {% empty %}<tr><td colspan="5" class="mms-empty">No machines found.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="5" class="mms-empty">{% trans "No machines found." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 {% if page_obj.paginator.num_pages > 1 %}
 <nav style="margin-top:1rem;display:flex;gap:.5rem;align-items:center">
-  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">← Previous</a>{% endif %}
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Previous" %}</a>{% endif %}
   <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} total)</span>
-  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">Next →</a>{% endif %}
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Next →" %}</a>{% endif %}
 </nav>
 {% endif %}
-<a href="{% url 'reports' %}" class="mms-btn mms-btn--ghost" style="margin-top:1rem">← Back to Reports</a>
+<a href="{% url 'reports' %}" class="mms-btn mms-btn--ghost" style="margin-top:1rem">{% trans "← Back to Reports" %}</a>
 {% endblock %}

@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
        Cost ledger table — shared between work_order_cost_ledger.html
        (a single WO) and any future cross-WO view. Renders a list of
@@ -110,14 +111,14 @@
     <table class="mms-cost-ledger-table">
       <thead>
         <tr>
-          <th class="is-when">When</th>
-          <th>Category</th>
-          <th>Source</th>
-          <th class="is-num">Amount</th>
-          <th class="is-num">Quantity</th>
-          <th class="is-num">Unit cost</th>
-          <th>Memo</th>
-          <th>Actor</th>
+          <th class="is-when">{% trans "When" %}</th>
+          <th>{% trans "Category" %}</th>
+          <th>{% trans "Source" %}</th>
+          <th class="is-num">{% trans "Amount" %}</th>
+          <th class="is-num">{% trans "Quantity" %}</th>
+          <th class="is-num">{% trans "Unit cost" %}</th>
+          <th>{% trans "Memo" %}</th>
+          <th>{% trans "Actor" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -126,7 +127,7 @@
           <td class="is-when">
             {{ t.occurred_at|date:"Y-m-d H:i" }}
             {% if t.is_reversal %}
-              <br><span class="mms-cost-ledger-table__reversal-tag">REVERSAL</span>
+              <br><span class="mms-cost-ledger-table__reversal-tag">{% trans "REVERSAL" %}</span>
             {% endif %}
           </td>
           <td>

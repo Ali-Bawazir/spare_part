@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}WO-{{ wo.number }}{% endblock %}
@@ -5,7 +6,7 @@
 {% block content %}
 {% if perm_view_work_orders %}
 <p class="mms-actions" style="margin:0 0 0.75rem">
-  <a href="{% url 'work_order_list' %}" class="mms-btn mms-btn--ghost mms-btn--sm">Back to work orders</a>
+  <a href="{% url 'work_order_list' %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Back to work orders" %}</a>
 </p>
 {% endif %}
 <p class="mms-page-lead">
@@ -15,7 +16,7 @@
   {% endif %}
   <span class="{{ wo.lifecycle_status|wo_status_badge_class }}">{{ wo.get_lifecycle_status_display }}</span>
   <span class="mms-badge mms-badge--muted">{{ wo.get_category_display }}</span>
-  {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">Emergency</span>{% endif %}
+  {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">{% trans "Emergency" %}</span>{% endif %}
   {% if wo.issue %}<span class="mms-badge mms-badge--info">Issue #{{ wo.issue.id }}</span>{% endif %}
   {% if wo.issue and wo.issue.priority %}<span class="{{ wo.issue.priority|priority_badge_class }}">{{ wo.issue.get_priority_display }}</span>{% endif %}
   {% if wo.pm_execution %}<span class="mms-badge mms-badge--muted">PM: {{ wo.pm_execution.get_status_display }}</span>{% endif %}
@@ -30,15 +31,15 @@
   {% if wo.lifecycle_status == 'pending_review' %}
     {% if user.role == 'manager' or user.role == 'super_admin' %}
       <p style="margin-top:0.5rem">
-        <a class="mms-btn mms-btn--primary" href="{% url 'pm_review' wo.pk %}">⚖️ Review PM</a>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'pm_wo_detail' wo.pk %}">📋 View PM Work Order</a>
+        <a class="mms-btn mms-btn--primary" href="{% url 'pm_review' wo.pk %}">{% trans "⚖️ Review PM" %}</a>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'pm_wo_detail' wo.pk %}">{% trans "📋 View PM Work Order" %}</a>
       </p>
     {% endif %}
   {% else %}
     {% if wo.lifecycle_status == 'assigned' or wo.lifecycle_status == 'in_progress' %}
       {% if user.role == 'technician' or user.role == 'manager' or user.role == 'super_admin' or user.role == 'supervisor' %}
         <p style="margin-top:0.5rem">
-          <a class="mms-btn mms-btn--primary" href="{% url 'pm_wo_detail' wo.pk %}">▶ Execute PM (with checklist)</a>
+          <a class="mms-btn mms-btn--primary" href="{% url 'pm_wo_detail' wo.pk %}">{% trans "▶ Execute PM (with checklist)" %}</a>
         </p>
       {% endif %}
     {% endif %}
@@ -47,18 +48,18 @@
 
 <div class="mms-grid mms-grid--2">
   <div class="mms-card">
-    <div class="mms-card-header">Work details</div>
+    <div class="mms-card-header">{% trans "Work details" %}</div>
     <div class="mms-card-body mms-stack">
       {% if wo.issue %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Issue description</span><br>{{ wo.issue.description|linebreaksbr }}</div>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Issue description" %}</span><br>{{ wo.issue.description|linebreaksbr }}</div>
       {% if issue_attachments %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Issue photos</span><br>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Issue photos" %}</span><br>
         <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem">
           {% for att in issue_attachments %}
             {% if att.mime_type|slice:":5" == "audio" %}
               <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:80px;height:80px;background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:4px">
                 <span style="font-size:1.2rem">🎤</span>
-                <span style="font-size:0.6rem;color:#166534;font-weight:600">AUDIO</span>
+                <span style="font-size:0.6rem;color:#166534;font-weight:600">{% trans "AUDIO" %}</span>
                 <audio src="{{ att.file.url }}" controls style="height:24px;width:70px;margin-top:2px"></audio>
               </div>
             {% else %}
@@ -74,25 +75,25 @@
       <div class="mms-divider"></div>
       {% endif %}
       {% if wo.component %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Component</span><br>{{ wo.component.name }} ({{ wo.component.asset_code }})</div>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Component" %}</span><br>{{ wo.component.name }} ({{ wo.component.asset_code }})</div>
       {% endif %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Technician</span><br>{{ wo.assigned_technician|default:"-" }}</div>
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Labor</span><br>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Technician" %}</span><br>{{ wo.assigned_technician|default:"-" }}</div>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Labor" %}</span><br>
         Started: {{ wo.labor_started_at|default:"-" }}<br>
         Stopped: {{ wo.labor_stopped_at|default:"-" }}
       </div>
       {% if wo.operational_status == 'paused' %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Pause reason</span><br>
-        <span class="mms-badge mms-badge--warning">Paused</span>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Pause reason" %}</span><br>
+        <span class="mms-badge mms-badge--warning">{% trans "Paused" %}</span>
       </div>
       {% endif %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Downtime window</span><br>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Downtime window" %}</span><br>
         {{ wo.downtime_started_at|default:"-" }} -> {{ wo.downtime_ended_at|default:"-" }}
       </div>
       <div class="mms-divider"></div>
-      <div><strong>Root cause</strong><br>{{ wo.root_cause|default:"-"|linebreaksbr }}</div>
-      <div><strong>Action taken</strong><br>{{ wo.action_taken|default:"-"|linebreaksbr }}</div>
-      <div><strong>Notes</strong><br>{{ wo.notes|default:"-"|linebreaksbr }}</div>
+      <div><strong>{% trans "Root cause" %}</strong><br>{{ wo.root_cause|default:"-"|linebreaksbr }}</div>
+      <div><strong>{% trans "Action taken" %}</strong><br>{{ wo.action_taken|default:"-"|linebreaksbr }}</div>
+      <div><strong>{% trans "Notes" %}</strong><br>{{ wo.notes|default:"-"|linebreaksbr }}</div>
     </div>
   </div>
 
@@ -104,10 +105,10 @@
   {% if can_see_cost %}{% include "maintenance/_wo_costs.html" %}{% endif %}
 
   <div class="mms-card">
-    <div class="mms-card-header">Actions</div>
+    <div class="mms-card-header">{% trans "Actions" %}</div>
     <div class="mms-card-body mms-stack">
       {% if active_conflict %}
-      <div class="mms-form-tip">You already have an active work order: <a href="{% url 'work_order_detail' active_conflict.pk %}">WO-{{ active_conflict.number }}</a>. Starting this one will pause that task to keep only one active technician job.</div>
+      <div class="mms-form-tip">{% trans "You already have an active work order:" %}<a href="{% url 'work_order_detail' active_conflict.pk %}">WO-{{ active_conflict.number }}</a>{% trans ". Starting this one will pause that task to keep only one active technician job." %}</div>
       {% endif %}
 
       {% include "maintenance/_wo_actions_manager.html" %}
@@ -121,14 +122,14 @@
   <div class="mms-card-header">Parts issued / requested</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Part</th><th>Qty</th><th>Status</th><th>Requested by</th><th>Issued / Approved by</th><th>Committed</th><th>Issued</th><th>Notes</th></tr></thead>
+      <thead><tr><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th><th>{% trans "Requested by" %}</th><th>Issued / Approved by</th><th>{% trans "Committed" %}</th><th>{% trans "Issued" %}</th><th>{% trans "Notes" %}</th></tr></thead>
       <tbody>
       {% for item in parts_display %}
       <tr>
         <td>
           {% part_primary_image item.line.part as img %}
           {% if img %}
-            <a href="{{ item.line.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+            <a href="{{ item.line.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
               <img src="{{ img }}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;">
             </a>
           {% endif %}
@@ -137,7 +138,7 @@
         <td>{{ item.line.quantity }}</td>
         <td>
           <span class="{{ item.line.status|part_status_badge_class }}">{{ item.line.get_status_display }}</span>
-          {% if item.line.status == 'approved' and item.line.is_emergency_auto_approved %}<span class="mms-badge mms-badge--danger" title="Auto-approved due to emergency">EMRG</span>{% endif %}
+          {% if item.line.status == 'approved' and item.line.is_emergency_auto_approved %}<span class="mms-badge mms-badge--danger" title={% trans "Auto-approved due to emergency" %}>{% trans "EMRG" %}</span>{% endif %}
           {% if item.line.shortage_qty and item.line.shortage_qty > 0 and item.has_pending_shortage %}
             <a href="#shortage-{{ item.line.id }}"
                class="mms-badge mms-badge--warning"
@@ -165,7 +166,7 @@
           {% if item.line.status == 'rejected' %}<span style="color:var(--mms-muted);font-size:.75rem">{{ item.line.rejection_reason|truncatechars:50 }}</span>{% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="8" class="mms-empty">No parts issued or requested.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="8" class="mms-empty">{% trans "No parts issued or requested." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -176,7 +177,7 @@
   <div class="mms-card-header" style="background:#fff8e1">
     Pending part requests ({{ pending_part_requests.count }})
     {% if not perm_approve_part_request %}
-    <span style="font-size:.75rem;color:#6b7280;font-weight:normal;margin-left:.5rem">read-only</span>
+    <span style="font-size:.75rem;color:#6b7280;font-weight:normal;margin-left:.5rem">{% trans "read-only" %}</span>
     {% endif %}
   </div>
   <div class="mms-card-body mms-stack">
@@ -186,7 +187,7 @@
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
           {% part_primary_image req.part as img %}
           {% if img %}
-            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
               <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
             </a>
           {% endif %}
@@ -198,23 +199,23 @@
         <form method="post" action="{% url 'work_order_decide_part' wo.pk req.pk %}">
           {% csrf_token %}
           <div class="mms-form-row">
-            <label>Action</label>
+            <label>{% trans "Action" %}</label>
             <select name="action" class="form-select" required>
-              <option value="approve">Approve (deduct stock)</option>
-              <option value="edit">Edit quantity</option>
-              <option value="reject">Reject</option>
+              <option value="approve">{% trans "Approve (deduct stock)" %}</option>
+              <option value="edit">{% trans "Edit quantity" %}</option>
+              <option value="reject">{% trans "Reject" %}</option>
             </select>
           </div>
           <div class="mms-form-row">
-            <label>New qty (when editing)</label>
+            <label>{% trans "New qty (when editing)" %}</label>
             <input type="number" name="new_qty" min="0.001" step="0.001" class="form-control" value="{{ req.quantity }}">
           </div>
           <div class="mms-form-row">
-            <label>Rejection reason (required when rejecting)</label>
+            <label>{% trans "Rejection reason (required when rejecting)" %}</label>
             <textarea name="rejection_reason" rows="2" class="form-control" maxlength="1000"></textarea>
           </div>
           <div class="mms-actions">
-            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit decision</button>
+            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "Submit decision" %}</button>
           </div>
         </form>
         {% endif %}
@@ -237,22 +238,22 @@
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
           {% part_primary_image req.part as img %}
           {% if img %}
-            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
               <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
             </a>
           {% endif %}
           <strong>{{ req.part.name }}</strong>
           <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
-          <span class="mms-badge mms-badge--danger">Refused</span>
+          <span class="mms-badge mms-badge--danger">{% trans "Refused" %}</span>
           <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|date:"Y-m-d H:i" }}</span>
         </div>
         {% if req.rejection_reason %}
         <div style="font-size:.85rem;color:#7f1d1d">
-          <strong>Reason:</strong> {{ req.rejection_reason }}
+          <strong>{% trans "Reason:" %}</strong> {{ req.rejection_reason }}
         </div>
         {% endif %}
         {% if request.user == req.requested_by %}
-        <a href="{% url 'work_order_request_part_re_review' req.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">✏️ Edit & re-submit</a>
+        <a href="{% url 'work_order_request_part_re_review' req.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "✏️ Edit & re-submit" %}</a>
         {% endif %}
       </div>
     </div>
@@ -268,7 +269,7 @@
 {# ------------------------------------------------------------------ #}
 {% if wo.assigned_technician_id == request.user.id and wo.lifecycle_status != 'closed' %}
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header" style="background:#e3f2fd">Request external repair (vendor)</div>
+  <div class="mms-card-header" style="background:#e3f2fd">{% trans "Request external repair (vendor)" %}</div>
   <div class="mms-card-body">
     <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">
       The Maintenance Manager will review your request and create the
@@ -293,7 +294,7 @@
           {% endif %}
         </div>
         <div>
-          <button class="mms-btn mms-btn-primary" type="submit">Submit request</button>
+          <button class="mms-btn mms-btn-primary" type="submit">{% trans "Submit request" %}</button>
         </div>
       </div>
     </form>
@@ -310,11 +311,11 @@
   <div class="mms-table-wrap">
     <table class="mms-table">
       <thead><tr>
-        <th>Requested</th>
-        <th>Technician</th>
-        <th>Diagnosis</th>
-        <th>Part</th>
-        <th>Action</th>
+        <th>{% trans "Requested" %}</th>
+        <th>{% trans "Technician" %}</th>
+        <th>{% trans "Diagnosis" %}</th>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "Action" %}</th>
       </tr></thead>
       <tbody>
       {% for err in pending_external_repair_requests %}
@@ -327,11 +328,11 @@
             <form method="post" action="{% url 'work_order_decide_external_repair' wo.pk err.pk %}" style="display:flex;flex-direction:column;gap:.35rem;min-width:220px">
               {% csrf_token %}
               <select name="action" class="form-select form-select-sm">
-                <option value="approve">Approve (create ERO)</option>
-                <option value="reject">Reject</option>
+                <option value="approve">{% trans "Approve (create ERO)" %}</option>
+                <option value="reject">{% trans "Reject" %}</option>
               </select>
-              <textarea name="manager_note" class="form-control form-control-sm" rows="2" placeholder="Reason (required on reject)"></textarea>
-              <button class="mms-btn mms-btn-sm mms-btn-primary" type="submit">Submit</button>
+              <textarea name="manager_note" class="form-control form-control-sm" rows="2" placeholder={% trans "Reason (required on reject)" %}></textarea>
+              <button class="mms-btn mms-btn-sm mms-btn-primary" type="submit">{% trans "Submit" %}</button>
             </form>
           </td>
         </tr>
@@ -345,15 +346,15 @@
 
 {% if external_repair_requests %}
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">External-repair history</div>
+  <div class="mms-card-header">{% trans "External-repair history" %}</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
       <thead><tr>
-        <th>Submitted</th>
-        <th>Technician</th>
-        <th>Part</th>
-        <th>Request</th>
-        <th>ERO</th>
+        <th>{% trans "Submitted" %}</th>
+        <th>{% trans "Technician" %}</th>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "Request" %}</th>
+        <th>{% trans "ERO" %}</th>
       </tr></thead>
       <tbody>
       {% for err in external_repair_requests %}
@@ -362,9 +363,9 @@
           <td>{{ err.requested_by.get_full_name|default:err.requested_by.username }}</td>
           <td style="max-width:200px;white-space:normal">{{ err.part_description|truncatechars:60 }}</td>
           <td>
-            {% if err.status == 'pending' %}<span class="mms-badge mms-badge--warning">Pending</span>
-            {% elif err.status == 'approved' %}<span class="mms-badge mms-badge--success">Approved</span>
-            {% else %}<span class="mms-badge mms-badge--muted">Rejected</span>{% endif %}
+            {% if err.status == 'pending' %}<span class="mms-badge mms-badge--warning">{% trans "Pending" %}</span>
+            {% elif err.status == 'approved' %}<span class="mms-badge mms-badge--success">{% trans "Approved" %}</span>
+            {% else %}<span class="mms-badge mms-badge--muted">{% trans "Rejected" %}</span>{% endif %}
             {% if err.manager_note %}<div class="text-muted" style="font-size:.7rem">"{{ err.manager_note|truncatechars:80 }}"</div>{% endif %}
           </td>
           <td>{% if err.repair_order %}<a href="{% url 'repair_list' %}?rwo={{ err.repair_order.pk }}">ERO #{{ err.repair_order.pk }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
@@ -378,15 +379,15 @@
 
 {% if linked_prs %}
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Linked procurement requests</div>
+  <div class="mms-card-header">{% trans "Linked procurement requests" %}</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>PR</th><th>Part</th><th>Qty</th><th>Status</th></tr></thead>
+      <thead><tr><th>PR</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th></tr></thead>
       <tbody>
       {% for pr in linked_prs %}<tr><td>#{{ pr.id }}</td><td>
         {% part_primary_image pr.part as img %}
         {% if img %}
-          <a href="{{ pr.part.image_url|default:img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+          <a href="{{ pr.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
             <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
           </a>
         {% endif %}
@@ -399,7 +400,7 @@
 {% endif %}
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">State log</div>
+  <div class="mms-card-header">{% trans "State log" %}</div>
   <div class="mms-card-body mms-stack">
     {% for l in logs %}
     <div style="font-size:.8125rem;border-left:3px solid var(--mms-accent);padding-left:.75rem">
@@ -407,7 +408,7 @@
       {{ l.from_status|default:"-" }} -> <strong>{{ l.to_status }}</strong>
       - {{ l.actor|default:"-" }}{% if l.note %} <span class="text-muted">({{ l.note }})</span>{% endif %}
     </div>
-    {% empty %}<div class="mms-empty">No transitions yet.</div>{% endfor %}
+    {% empty %}<div class="mms-empty">{% trans "No transitions yet." %}</div>{% endfor %}
   </div>
 </div>
 
@@ -419,16 +420,16 @@
 
 {% if wo.assignment_history.exists %}
 <section class="mms-section mms-assignment-history">
-  <h3>Assignment History</h3>
+  <h3>{% trans "Assignment History" %}</h3>
   <table class="mms-table">
     <thead>
       <tr>
-        <th>Technician</th>
-        <th>Action</th>
-        <th>Assigned At</th>
-        <th>Released At</th>
-        <th>Duration</th>
-        <th>Reason</th>
+        <th>{% trans "Technician" %}</th>
+        <th>{% trans "Action" %}</th>
+        <th>{% trans "Assigned At" %}</th>
+        <th>{% trans "Released At" %}</th>
+        <th>{% trans "Duration" %}</th>
+        <th>{% trans "Reason" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -437,7 +438,7 @@
         <td>{{ record.technician.get_full_name|default:record.technician.username }}</td>
         <td>{{ record.get_action_display }}</td>
         <td>{{ record.assigned_at|date:"Y-m-d H:i" }}</td>
-        <td>{% if record.unassigned_at %}{{ record.unassigned_at|date:"Y-m-d H:i" }}{% else %}<em>Active</em>{% endif %}</td>
+        <td>{% if record.unassigned_at %}{{ record.unassigned_at|date:"Y-m-d H:i" }}{% else %}<em>{% trans "Active" %}</em>{% endif %}</td>
         <td>
           {% if record.unassigned_at %}
             {{ record.unassigned_at|timesince:record.assigned_at }}
@@ -453,15 +454,15 @@
 
 {% if wo.downtime_records.exists %}
 <section class="mms-section mms-downtime">
-  <h3>Downtime History</h3>
+  <h3>{% trans "Downtime History" %}</h3>
   <table class="mms-table">
     <thead>
       <tr>
-        <th>Type</th>
-        <th>Start</th>
-        <th>End</th>
-        <th>Duration</th>
-        <th>Reason</th>
+        <th>{% trans "Type" %}</th>
+        <th>{% trans "Start" %}</th>
+        <th>{% trans "End" %}</th>
+        <th>{% trans "Duration" %}</th>
+        <th>{% trans "Reason" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -469,7 +470,7 @@
       <tr class="{% if dt.is_open %}mms-row-warn{% endif %}">
         <td>{{ dt.get_downtime_type_display }}</td>
         <td>{{ dt.start_time|date:"Y-m-d H:i" }}</td>
-        <td>{% if dt.end_time %}{{ dt.end_time|date:"Y-m-d H:i" }}{% else %}<em>Still down</em>{% endif %}</td>
+        <td>{% if dt.end_time %}{{ dt.end_time|date:"Y-m-d H:i" }}{% else %}<em>{% trans "Still down" %}</em>{% endif %}</td>
         <td>{% if dt.total_minutes %}{{ dt.total_minutes }} min{% else %}—{% endif %}</td>
         <td>{{ dt.reason|default:"—" }}</td>
       </tr>
@@ -477,7 +478,7 @@
     </tbody>
     <tfoot>
       <tr class="mms-total-row">
-        <td colspan="3"><strong>Total Downtime</strong></td>
+        <td colspan="3"><strong>{% trans "Total Downtime" %}</strong></td>
         <td><strong>{{ wo.total_downtime_minutes }} min</strong></td>
         <td></td>
       </tr>
@@ -488,7 +489,7 @@
 
 {% if perm_request_part_on_wo or perm_close_or_review_wo or perm_approve_part_request or perm_decide_part_shortage_report %}
 <div class="mms-card" style="margin-top:1rem;border-left:4px solid #16a34a">
-  <div class="mms-card-header" style="background:#f0fdf4">🎤 Add voice note</div>
+  <div class="mms-card-header" style="background:#f0fdf4">{% trans "🎤 Add voice note" %}</div>
   <div class="mms-card-body">
     <p class="text-muted" style="margin:0 0 .75rem 0;font-size:.85rem">
       Record a verbal note (e.g. supplier update, vendor callback, work log) and save it as an attachment to this WO.
@@ -497,13 +498,13 @@
     <form method="post" action="{% url 'work_order_add_voice' wo.pk %}">
       {% csrf_token %}
       <div class="mms-form-row" style="margin-bottom:.5rem">
-        <label for="wo-voice-note-input" style="font-size:.85rem">Note (optional, shown alongside the recording)</label>
+        <label for="wo-voice-note-input" style="font-size:.85rem">{% trans "Note (optional, shown alongside the recording)" %}</label>
         <input type="text" name="note" id="wo-voice-note-input" maxlength="500"
-               class="form-control" placeholder="e.g. 'Called supplier ABC, they will deliver Friday'">
+               class="form-control" placeholder={% trans "e.g. 'Called supplier ABC, they will deliver Friday'" %}>
       </div>
       {% include "maintenance/_voice_recorder.html" %}
       <div class="mms-form-actions" style="margin-top:.5rem">
-        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">📤 Save voice note</button>
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "📤 Save voice note" %}</button>
       </div>
     </form>
   </div>
@@ -511,12 +512,12 @@
 {% endif %}
 
 <section class="mms-section mms-attachments">
-  <h3>Attachments</h3>
+  <h3>{% trans "Attachments" %}</h3>
   <div id="attachment-list"
        data-entity="work_order"
        data-id="{{ wo.pk }}"
        data-perm-upload="{% if perm_issue_parts_to_wo %}true{% else %}false{% endif %}">
-    <div class="mms-loading">Loading...</div>
+    <div class="mms-loading">{% trans "Loading..." %}</div>
   </div>
 
   {% if perm_issue_parts_to_wo %}
@@ -527,8 +528,8 @@
     <input type="hidden" name="entity_id" value="{{ wo.pk }}">
     <div class="mms-form-row">
       <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" required>
-      <input type="text" name="note" placeholder="Optional note" maxlength="500">
-      <button type="submit" class="btn btn-sm btn-primary">Upload</button>
+      <input type="text" name="note" placeholder={% trans "Optional note" %} maxlength="500">
+      <button type="submit" class="btn btn-sm btn-primary">{% trans "Upload" %}</button>
     </div>
   </form>
   {% endif %}

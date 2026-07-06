@@ -1,10 +1,11 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Failing assets report{% endblock %}
 {% block page_heading %}Failing assets report{% endblock %}
 {% block content %}
 
 <p class="mms-link-back">
-  <a href="{% url 'kpi_dashboard' %}">← Back to KPIs</a>
+  <a href="{% url 'kpi_dashboard' %}">{% trans "← Back to KPIs" %}</a>
 </p>
 <p class="mms-page-lead">
   All assets with closed corrective work orders in the last {{ period_days }} days, ranked by failure count.
@@ -17,12 +18,12 @@
       <table class="mms-table">
         <thead>
           <tr>
-            <th>Asset</th>
-            <th>Code</th>
-            <th class="text-right">Failures</th>
-            <th class="text-right">Total cost</th>
+            <th>{% trans "Asset" %}</th>
+            <th>{% trans "Code" %}</th>
+            <th class="text-right">{% trans "Failures" %}</th>
+            <th class="text-right">{% trans "Total cost" %}</th>
             <th class="text-right">Cost / failure</th>
-            <th>Last failure</th>
+            <th>{% trans "Last failure" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -57,7 +58,7 @@
         </tbody>
         <tfoot style="background:#f8f9fa;font-weight:600">
           <tr>
-            <td colspan="2" class="text-right">Total</td>
+            <td colspan="2" class="text-right">{% trans "Total" %}</td>
             <td class="text-right">{{ total_failures }}</td>
             <td class="text-right">{{ total_cost|floatformat:2 }} SAR</td>
             <td colspan="2"></td>

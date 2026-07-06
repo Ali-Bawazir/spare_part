@@ -1,15 +1,16 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Accept repair{% endblock %}
 {% block page_heading %}Manager acceptance (UC-20){% endblock %}
 {% block content %}
-<p class="mms-page-lead">Verify the asset returned from vendor, record the vendor invoice, and close the repair record.</p>
+<p class="mms-page-lead">{% trans "Verify the asset returned from vendor, record the vendor invoice, and close the repair record." %}</p>
 <div class="mms-card">
   <div class="mms-card-header">{{ rwo.title }}</div>
   <div class="mms-card-body mms-stack">
-    <p><strong>Status:</strong> {{ rwo.get_status_display }}</p>
-    {% if rwo.vendor_name %}<p><strong>Vendor:</strong> {{ rwo.vendor_name }}</p>{% endif %}
-    {% if rwo.work_order %}<p><strong>Linked WO:</strong> <a href="{% url 'work_order_detail' rwo.work_order.pk %}">WO-{{ rwo.work_order.number }}</a></p>{% endif %}
-    {% if rwo.estimated_cost %}<p><strong>Estimated cost:</strong> {{ rwo.estimated_cost }}</p>{% endif %}
+    <p><strong>{% trans "Status:" %}</strong> {{ rwo.get_status_display }}</p>
+    {% if rwo.vendor_name %}<p><strong>{% trans "Vendor:" %}</strong> {{ rwo.vendor_name }}</p>{% endif %}
+    {% if rwo.work_order %}<p><strong>{% trans "Linked WO:" %}</strong> <a href="{% url 'work_order_detail' rwo.work_order.pk %}">WO-{{ rwo.work_order.number }}</a></p>{% endif %}
+    {% if rwo.estimated_cost %}<p><strong>{% trans "Estimated cost:" %}</strong> {{ rwo.estimated_cost }}</p>{% endif %}
     <p style="white-space:pre-wrap">{{ rwo.description }}</p>
     <form method="post" class="mms-stack">
       {% csrf_token %}
@@ -34,8 +35,8 @@
         {{ form.note }}
       </div>
       <div class="mms-form-row">
-        <button type="submit" class="mms-btn mms-btn--primary">Verify and close</button>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'repair_list' %}">Cancel</a>
+        <button type="submit" class="mms-btn mms-btn--primary">{% trans "Verify and close" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'repair_list' %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>

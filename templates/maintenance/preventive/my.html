@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}My Maintenance — Bawazir MMS{% endblock %}
@@ -5,7 +6,7 @@
 {% block content %}
 
 <div class="mms-banner mms-banner--info" style="margin-bottom:1rem">
-    <strong>Today</strong> is {{ today|date:"l · j F Y" }}
+    <strong>{% trans "Today" %}</strong> is {{ today|date:"l · j F Y" }}
 </div>
 
 {% if returned %}
@@ -14,7 +15,7 @@
         <strong>⚠ Returned: {{ returned.pm_schedule.template.title }}</strong><br>
         <span class="text-muted">"{{ returned.rejection_reason }}" — by {{ returned.rejected_by.username|default_if_none:"Manager" }}</span>
         <div style="margin-top:0.5rem">
-            <a class="mms-btn mms-btn--primary" href="{% url 'preventive:execute' returned.pk %}">Resume</a>
+            <a class="mms-btn mms-btn--primary" href="{% url 'preventive:execute' returned.pk %}">{% trans "Resume" %}</a>
         </div>
     </div>
 </div>
@@ -30,10 +31,10 @@
 </div>
 
 {# ──── TODAY — split into Mine vs Pool ──── #}
-<h2 id="today" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">TODAY</h2>
+<h2 id="today" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">{% trans "TODAY" %}</h2>
 
 {% if today_mine %}
-<h3 style="font-size:.85rem;font-weight:600;color:var(--mms-muted);margin:.5rem 0 .25rem 0;letter-spacing:.04em">YOUR TASKS</h3>
+<h3 style="font-size:.85rem;font-weight:600;color:var(--mms-muted);margin:.5rem 0 .25rem 0;letter-spacing:.04em">{% trans "YOUR TASKS" %}</h3>
     {% for occ in today_mine %}
     <div class="mms-card" style="margin-bottom:0.75rem;border-left:4px solid #28a745">
         <div class="mms-card-body">
@@ -48,7 +49,7 @@
                     </div>
                 </div>
                 <a class="mms-btn mms-btn--primary mms-btn--sm"
-                   href="{% url 'preventive:execute' occ.pk %}">Start</a>
+                   href="{% url 'preventive:execute' occ.pk %}">{% trans "Start" %}</a>
             </div>
         </div>
     </div>
@@ -56,7 +57,7 @@
 {% endif %}
 
 {% if today_pool %}
-<h3 style="font-size:.85rem;font-weight:600;color:var(--mms-muted);margin:1rem 0 .25rem 0;letter-spacing:.04em">UNASSIGNED — PICK UP</h3>
+<h3 style="font-size:.85rem;font-weight:600;color:var(--mms-muted);margin:1rem 0 .25rem 0;letter-spacing:.04em">{% trans "UNASSIGNED — PICK UP" %}</h3>
     {% for occ in today_pool %}
     <div class="mms-card" style="margin-bottom:0.5rem;border-left:4px solid #f0ad4e;opacity:.92">
         <div class="mms-card-body" style="padding:.75rem">
@@ -66,12 +67,12 @@
                     <div class="text-muted" style="font-size:.8rem">
                         {{ occ.pm_schedule.machine.name }}
                         · {{ occ.pm_schedule.effective_duration_minutes }} min
-                        · <span style="color:#f0ad4e">Unassigned</span>
+                        · <span style="color:#f0ad4e">{% trans "Unassigned" %}</span>
                     </div>
                 </div>
                 <form method="post" action="{% url 'preventive:start' occ.pk %}" style="display:inline">
                     {% csrf_token %}
-                    <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Pick up</button>
+                    <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Pick up" %}</button>
                 </form>
             </div>
         </div>
@@ -89,7 +90,7 @@
 {% endif %}
 
 {# ──── UPCOMING (calendar style) ──── #}
-<h2 id="upcoming" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">UPCOMING</h2>
+<h2 id="upcoming" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">{% trans "UPCOMING" %}</h2>
 
 {% if upcoming_by_day %}
     {% for day in upcoming_by_day %}
@@ -112,12 +113,12 @@
     {% endfor %}
 {% else %}
 <div class="mms-card" style="margin-bottom:0.5rem">
-    <div class="mms-card-body text-muted">Nothing upcoming.</div>
+    <div class="mms-card-body text-muted">{% trans "Nothing upcoming." %}</div>
 </div>
 {% endif %}
 
 {# ──── COMPLETED (includes Waiting for approval) ──── #}
-<h2 id="completed" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">COMPLETED</h2>
+<h2 id="completed" style="font-size:1.1rem;font-weight:700;margin:1.5rem 0 .75rem 0">{% trans "COMPLETED" %}</h2>
 
 {% if completed_today %}
     {% for occ in completed_today %}
@@ -128,7 +129,7 @@
                 {% if occ.status == 'approved' %}
                     Approved
                 {% elif occ.work_order.lifecycle_status == 'pending_review' %}
-                    <strong style="color:#f0ad4e">Waiting for approval</strong>
+                    <strong style="color:#f0ad4e">{% trans "Waiting for approval" %}</strong>
                 {% endif %}
             </span>
             <span class="text-muted" style="margin-left:0.5rem">
@@ -141,7 +142,7 @@
     {% endfor %}
 {% else %}
 <div class="mms-card" style="margin-bottom:0.5rem">
-    <div class="mms-card-body text-muted">No completed maintenance today.</div>
+    <div class="mms-card-body text-muted">{% trans "No completed maintenance today." %}</div>
 </div>
 {% endif %}
 

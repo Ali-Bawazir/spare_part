@@ -1,12 +1,13 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Audit log{% endblock %}
 {% block page_heading %}Audit log{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Immutable record of key actions (who did what, and when).</p>
+<p class="mms-page-lead">{% trans "Immutable record of key actions (who did what, and when)." %}</p>
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>ID</th></tr></thead>
+      <thead><tr><th>{% trans "When" %}</th><th>{% trans "Actor" %}</th><th>{% trans "Action" %}</th><th>{% trans "Entity" %}</th><th>ID</th></tr></thead>
       <tbody>
       {% for e in page_obj %}
       <tr>
@@ -16,16 +17,16 @@
         <td>{{ e.entity|default:"—" }}</td>
         <td>{{ e.object_id|default:"—" }}</td>
       </tr>
-      {% empty %}<tr><td colspan="5" class="mms-empty">No entries.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="5" class="mms-empty">{% trans "No entries." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 {% if page_obj.has_other_pages %}
 <div class="mms-actions" style="margin-top:1rem">
-  {% if page_obj.has_previous %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+  {% if page_obj.has_previous %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="?page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>{% endif %}
   <span style="font-size:.85rem;opacity:.85">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-  {% if page_obj.has_next %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  {% if page_obj.has_next %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="?page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

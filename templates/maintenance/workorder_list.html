@@ -1,13 +1,14 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Work orders{% endblock %}
 {% block page_heading %}Work orders{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Queue is ordered to surface active work first, then emergency and higher-priority jobs.</p>
+<p class="mms-page-lead">{% trans "Queue is ordered to surface active work first, then emergency and higher-priority jobs." %}</p>
 <form method="get" class="mms-actions" style="margin-bottom:1rem;align-items:center">
-  <label class="text-muted" style="font-size:.8rem;font-weight:600">Status</label>
+  <label class="text-muted" style="font-size:.8rem;font-weight:600">{% trans "Status" %}</label>
   <select name="status" onchange="this.form.submit()" style="max-width:14rem">
-    <option value="">All</option>
+    <option value="">{% trans "All" %}</option>
     {% for val,label in status_choices %}
     <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
     {% endfor %}
@@ -16,20 +17,20 @@
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>WO</th><th>Machine</th><th>Component</th><th>Status</th><th>Priority</th><th>Category</th><th>Tech</th><th></th></tr></thead>
+      <thead><tr><th>WO</th><th>{% trans "Machine" %}</th><th>{% trans "Component" %}</th><th>{% trans "Status" %}</th><th>{% trans "Priority" %}</th><th>{% trans "Category" %}</th><th>{% trans "Tech" %}</th><th></th></tr></thead>
       <tbody>
       {% for w in work_orders %}
       <tr class="mms-row--clickable" onclick="window.location='{% url 'work_order_detail' w.pk %}'" style="cursor:pointer">
-        <td><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>{% if w.is_emergency %} <span class="mms-badge mms-badge--danger">EMRG</span>{% endif %}{% if w.rejection_count > 0 %} <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">↩ {{ w.rejection_count }}</span>{% endif %}</td>
+        <td><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>{% if w.is_emergency %} <span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}{% if w.rejection_count > 0 %} <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">↩ {{ w.rejection_count }}</span>{% endif %}</td>
         <td><a href="{% url 'work_order_detail' w.pk %}">{{ w.machine.name }}</a></td>
         <td>{% if w.component %}{{ w.component.name }}{% else %}—{% endif %}</td>
         <td><span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span></td>
         <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">n/a</span>{% endif %}</td>
 <td>{{ w.get_category_display }}</td>
         <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
-        <td>{% if not w.is_archived %}<a href="{% url 'work_order_archive' w.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation();return confirm('Archive this work order?')">Archive</a>{% else %}<span class="mms-badge mms-badge--archived">Archived</span>{% endif %}</td>
+        <td>{% if not w.is_archived %}<a href="{% url 'work_order_archive' w.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation();return confirm('Archive this work order?')">{% trans "Archive" %}</a>{% else %}<span class="mms-badge mms-badge--archived">{% trans "Archived" %}</span>{% endif %}</td>
       </tr>
-      {% empty %}<tr><td colspan="8" class="mms-empty">No work orders.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="8" class="mms-empty">{% trans "No work orders." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

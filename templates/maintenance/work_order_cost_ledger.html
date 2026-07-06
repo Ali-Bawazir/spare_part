@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Cost ledger — WO-{{ wo.number }}{% endblock %}
 {% block page_heading %}Cost ledger — WO-{{ wo.number }}{% endblock %}
@@ -131,14 +132,14 @@
 </p>
 
 <div class="mms-card mms-wo-ledger-dashboard">
-  <div class="mms-card-header">Cost ledger summary</div>
+  <div class="mms-card-header">{% trans "Cost ledger summary" %}</div>
   <div class="mms-card-body">
 
     <div class="mms-wo-ledger-dashboard__hero">
-      <div class="mms-wo-ledger-dashboard__hero-label">Grand total &middot; all time</div>
+      <div class="mms-wo-ledger-dashboard__hero-label">{% trans "Grand total &middot; all time" %}</div>
       <div class="mms-wo-ledger-dashboard__hero-amount">
         <span class="mms-wo-ledger-dashboard__hero-value">{{ grand_total|floatformat:2 }}</span>
-        <span class="mms-wo-ledger-dashboard__hero-currency">SAR</span>
+        <span class="mms-wo-ledger-dashboard__hero-currency">{% trans "SAR" %}</span>
       </div>
       <div class="mms-wo-ledger-dashboard__hero-meta">
         <span class="mms-wo-ledger-dashboard__hero-pill">
@@ -165,7 +166,7 @@
           Material
         </span>
         <span class="mms-wo-ledger-kpi__amount">
-          {{ category_totals.material|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">SAR</span>
+          {{ category_totals.material|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
         </span>
       </div>
       <div class="mms-wo-ledger-kpi">
@@ -174,7 +175,7 @@
           Vendor repair
         </span>
         <span class="mms-wo-ledger-kpi__amount">
-          {{ category_totals.vendor_repair|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">SAR</span>
+          {{ category_totals.vendor_repair|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
         </span>
       </div>
       <div class="mms-wo-ledger-kpi">
@@ -183,7 +184,7 @@
           Consumable
         </span>
         <span class="mms-wo-ledger-kpi__amount">
-          {{ category_totals.consumable|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">SAR</span>
+          {{ category_totals.consumable|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
         </span>
       </div>
       <div class="mms-wo-ledger-kpi">
@@ -192,7 +193,7 @@
           Adjustment
         </span>
         <span class="mms-wo-ledger-kpi__amount">
-          {{ category_totals.adjustment|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">SAR</span>
+          {{ category_totals.adjustment|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
         </span>
       </div>
     </div>

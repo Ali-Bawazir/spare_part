@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}{% if schedule %}Edit{% else %}New{% endif %} Plan{% endblock %}
 {% block page_heading %}{% if schedule %}Edit Plan{% else %}New Maintenance Plan{% endif %}{% endblock %}
@@ -20,8 +21,8 @@
     </div>
 
     <div class="mms-form-actions">
-        <button type="submit" class="mms-btn mms-btn--primary">Save</button>
-        <a href="{% if schedule %}{% url 'preventive:mgr_plan_detail' schedule.pk %}{% else %}{% url 'preventive:mgr_plans' %}{% endif %}" class="mms-btn mms-btn--ghost">Cancel</a>
+        <button type="submit" class="mms-btn mms-btn--primary">{% trans "Save" %}</button>
+        <a href="{% if schedule %}{% url 'preventive:mgr_plan_detail' schedule.pk %}{% else %}{% url 'preventive:mgr_plans' %}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
     </div>
 </form>
 

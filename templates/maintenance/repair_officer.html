@@ -1,26 +1,27 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Repair officer{% endblock %}
 {% block page_heading %}Repair: {{ rwo.title }}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Update vendor status, costs, and return workflow.</p>
+<p class="mms-page-lead">{% trans "Update vendor status, costs, and return workflow." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
       {{ form.as_p }}
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Save</button>
-        <a href="{% url 'repair_order_pdf' rwo.pk %}" class="mms-btn mms-btn--ghost" target="_blank">📄 Download PDF</a>
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
+        <a href="{% url 'repair_order_pdf' rwo.pk %}" class="mms-btn mms-btn--ghost" target="_blank">{% trans "📄 Download PDF" %}</a>
       </div>
     </form>
   </div>
 </div>
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Before Repair Photos</div>
+  <div class="mms-card-header">{% trans "Before Repair Photos" %}</div>
   <div class="mms-card-body">
     <div id="attachment-list-repair_order-before-{{ rwo.pk }}">
-      <span class="text-muted">Loading...</span>
+      <span class="text-muted">{% trans "Loading..." %}</span>
     </div>
     <div class="mt-2">
       <input type="file" id="attachment-file-input-repair_order-before-{{ rwo.pk }}"
@@ -36,10 +37,10 @@
 </div>
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">After Repair Photos</div>
+  <div class="mms-card-header">{% trans "After Repair Photos" %}</div>
   <div class="mms-card-body">
     <div id="attachment-list-repair_order-after-{{ rwo.pk }}">
-      <span class="text-muted">Loading...</span>
+      <span class="text-muted">{% trans "Loading..." %}</span>
     </div>
     <div class="mt-2">
       <input type="file" id="attachment-file-input-repair_order-after-{{ rwo.pk }}"

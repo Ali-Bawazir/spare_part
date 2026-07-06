@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}{{ page_heading }}{% endblock %}
@@ -23,7 +24,7 @@
             <div class="mms-form-row">
                 {{ form.supplier.label_tag }}
                 {{ form.supplier }}
-                <button type="button" onclick="document.getElementById('addSupplierModal').style.display='block'">+ Add New Supplier</button>
+                <button type="button" onclick="document.getElementById('addSupplierModal').style.display='block'">{% trans "+ Add New Supplier" %}</button>
                 {% if form.supplier.errors %}<div class="mms-field-error">{{ form.supplier.errors }}</div>{% endif %}
             </div>
 
@@ -61,7 +62,7 @@
             </div>
             {% endif %}
 
-            <h3>Line Items</h3>
+            <h3>{% trans "Line Items" %}</h3>
             {{ formset.management_form }}
             <div id="items-formset">
                 {% for item_form in formset.forms %}
@@ -76,9 +77,9 @@
             </div>
 
             {% if pending_prs %}
-            <h3>Merge from Purchase Requests</h3>
+            <h3>{% trans "Merge from Purchase Requests" %}</h3>
             <table class="mms-table">
-                <thead><tr><th>Select</th><th>PR#</th><th>Part</th><th>Qty</th><th>WO</th><th>Status</th></tr></thead>
+                <thead><tr><th>{% trans "Select" %}</th><th>PR#</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>WO</th><th>{% trans "Status" %}</th></tr></thead>
                 <tbody>
                 {% for pr in pending_prs %}
                 <tr>
@@ -95,8 +96,8 @@
             {% endif %}
 
             <div class="mms-form-actions" style="margin-top:1rem">
-                <button class="mms-btn mms-btn--primary" type="submit">Save Purchase Order</button>
-                <a href="{% url 'purchase_order_list' %}" class="mms-btn mms-btn--ghost">Cancel</a>
+                <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save Purchase Order" %}</button>
+                <a href="{% url 'purchase_order_list' %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
             </div>
         </form>
     </div>
@@ -105,15 +106,15 @@
 <!-- Add Supplier Modal -->
 <div id="addSupplierModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
   <div style="background:white; margin:10% auto; padding:20px; max-width:400px; border-radius:8px;">
-    <h3>Add New Supplier</h3>
+    <h3>{% trans "Add New Supplier" %}</h3>
     <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
       {% csrf_token %}
-      <p><input type="text" name="code" placeholder="SUP-001 or مورد-001" required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="code" placeholder={% trans "SUP-001 or مورد-001" %} required style="width:100%" dir="auto"></p>
       <p><input type="text" name="name" placeholder="Supplier name / اسم المورد" required style="width:100%" dir="auto"></p>
-      <p><input type="text" name="phone" placeholder="Phone" style="width:100%" dir="auto"></p>
-      <p><input type="email" name="email" placeholder="Email" style="width:100%" dir="auto"></p>
-      <button type="submit">Save Supplier</button>
-      <button type="button" onclick="document.getElementById('addSupplierModal').style.display='none'">Cancel</button>
+      <p><input type="text" name="phone" placeholder={% trans "Phone" %} style="width:100%" dir="auto"></p>
+      <p><input type="email" name="email" placeholder={% trans "Email" %} style="width:100%" dir="auto"></p>
+      <button type="submit">{% trans "Save Supplier" %}</button>
+      <button type="button" onclick="document.getElementById('addSupplierModal').style.display='none'">{% trans "Cancel" %}</button>
     </form>
   </div>
 </div>

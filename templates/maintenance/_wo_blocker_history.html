@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
       Phase 3A — Blocker History panel.
       Renders one row per non-OPEN WorkOrderBlocker (RESOLVED / CANCELLED),
@@ -32,9 +33,9 @@
           {% endif %}
 
           {% if blocker.status == 'resolved' %}
-            <span class="mms-badge mms-badge--success">RESOLVED</span>
+            <span class="mms-badge mms-badge--success">{% trans "RESOLVED" %}</span>
           {% elif blocker.status == 'cancelled' %}
-            <span class="mms-badge mms-badge--muted">CANCELLED</span>
+            <span class="mms-badge mms-badge--muted">{% trans "CANCELLED" %}</span>
           {% else %}
             <span class="mms-badge mms-badge--muted">{{ blocker.get_status_display|default:blocker.status }}</span>
           {% endif %}
@@ -42,20 +43,20 @@
 
         <div style="font-size:.8rem;line-height:1.5">
           <div>
-            <span class="text-muted">Opened:</span>
+            <span class="text-muted">{% trans "Opened:" %}</span>
             {{ blocker.opened_at|date:"Y-m-d H:i" }}
             {% if blocker.opened_by %}by {{ blocker.opened_by.get_full_name|default:blocker.opened_by.username }}{% else %}by system{% endif %}
           </div>
           {% if blocker.resolved_at %}
           <div>
-            <span class="text-muted">Resolved:</span>
+            <span class="text-muted">{% trans "Resolved:" %}</span>
             {{ blocker.resolved_at|date:"Y-m-d H:i" }}
             {% if blocker.resolved_by %}by {{ blocker.resolved_by.get_full_name|default:blocker.resolved_by.username }}{% else %}by system{% endif %}
           </div>
           {% endif %}
           {% if blocker.cancelled_at %}
           <div>
-            <span class="text-muted">Cancelled:</span>
+            <span class="text-muted">{% trans "Cancelled:" %}</span>
             {{ blocker.cancelled_at|date:"Y-m-d H:i" }}
             {% if blocker.cancelled_by %}by {{ blocker.cancelled_by.get_full_name|default:blocker.cancelled_by.username }}{% else %}by system{% endif %}
           </div>
@@ -64,19 +65,19 @@
 
         {% if blocker.resolution_note %}
         <div style="font-size:.8rem;margin-top:.35rem">
-          <span class="text-muted">Resolution:</span> {{ blocker.resolution_note }}
+          <span class="text-muted">{% trans "Resolution:" %}</span> {{ blocker.resolution_note }}
         </div>
         {% endif %}
         {% if blocker.cancel_reason %}
         <div style="font-size:.8rem;margin-top:.35rem">
-          <span class="text-muted">Cancel reason:</span> {{ blocker.cancel_reason }}
+          <span class="text-muted">{% trans "Cancel reason:" %}</span> {{ blocker.cancel_reason }}
         </div>
         {% endif %}
 
         {% with events=blocker.events.all %}
           {% if events %}
           <div style="font-size:.75rem;margin-top:.5rem;border-top:1px dashed #e5e7eb;padding-top:.35rem">
-            <span class="text-muted" style="font-weight:600">Events:</span>
+            <span class="text-muted" style="font-weight:600">{% trans "Events:" %}</span>
             <ul style="margin:.25rem 0 0 0;padding-left:1.1rem">
               {% for event in events|slice:":5" %}
                 <li>
@@ -96,7 +97,7 @@
       </div>
       {% endfor %}
     {% else %}
-      <div class="mms-empty">No past blockers — this WO has no blocker history yet.</div>
+      <div class="mms-empty">{% trans "No past blockers — this WO has no blocker history yet." %}</div>
     {% endif %}
 
   </div>

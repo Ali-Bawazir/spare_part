@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Close Short PO {{ po.po_number }}{% endblock %}
@@ -6,13 +7,13 @@
 
 <div class="mms-card">
     <div class="mms-card-body">
-        <p>You are about to <strong>close short</strong> PO {{ po.po_number }}.</p>
-        <p>Current status: <span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></p>
-        <p>This will cancel all remaining undelivered quantities for this PO.</p>
+        <p>{% trans "You are about to" %}<strong>{% trans "close short" %}</strong> PO {{ po.po_number }}.</p>
+        <p>{% trans "Current status:" %}<span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></p>
+        <p>{% trans "This will cancel all remaining undelivered quantities for this PO." %}</p>
         
         <table class="mms-table" style="margin:1rem 0">
             <thead>
-                <tr><th>Part</th><th>Ordered</th><th>Received</th><th>Remaining</th></tr>
+                <tr><th>{% trans "Part" %}</th><th>{% trans "Ordered" %}</th><th>{% trans "Received" %}</th><th>{% trans "Remaining" %}</th></tr>
             </thead>
             <tbody>
             {% for item in po.items.all %}
@@ -29,8 +30,8 @@
         <form method="post">
             {% csrf_token %}
             <div class="mms-form-actions">
-                <button class="mms-btn mms-btn--danger" type="submit">Confirm Close Short</button>
-                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+                <button class="mms-btn mms-btn--danger" type="submit">{% trans "Confirm Close Short" %}</button>
+                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
             </div>
         </form>
     </div>

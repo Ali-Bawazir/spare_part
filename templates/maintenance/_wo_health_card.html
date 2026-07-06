@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
       Phase 3A — Work Order Health Card (1-glance summary).
       Renders a compact `mms-card` showing lifecycle/operational/priority
@@ -32,7 +33,7 @@
     {% if pending_returned_ero %}
       <span class="mms-badge mms-badge--warning"
             style="margin-left:.5rem;font-size:.7rem;background:#fef3c7;color:#92400e"
-            title="The vendor returned the part. Manager still needs to accept the ERO before the cost posts to the ledger.">
+            title={% trans "The vendor returned the part. Manager still needs to accept the ERO before the cost posts to the ledger." %}>
         🟡 Vendor returned, awaiting acceptance
       </span>
     {% endif %}
@@ -41,13 +42,13 @@
 
     {# --- Row 1: lifecycle, operational, priority, open blockers ---------- #}
     <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center">
-      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Lifecycle:</span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Lifecycle:" %}</span>
         <span class="mms-badge mms-badge--info">{{ wo.get_lifecycle_status_display|default:health_card.lifecycle_status|default:"-" }}</span>
       </span>
-      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Operational:</span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Operational:" %}</span>
         <span class="mms-badge mms-badge--info">{{ wo.get_operational_status_display|default:health_card.operational_status|default:"-" }}</span>
       </span>
-      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Priority:</span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Priority:" %}</span>
         {% if health_card.priority == 'critical' %}
           <span class="mms-badge mms-badge--danger">{{ health_card.priority|title }}</span>
         {% elif health_card.priority == 'high' %}
@@ -60,7 +61,7 @@
           <span class="mms-badge mms-badge--muted">n/a</span>
         {% endif %}
       </span>
-      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Open blockers:</span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Open blockers:" %}</span>
         <span class="mms-badge {% if health_card.open_blockers_count >= 3 %}mms-badge--danger{% elif health_card.open_blockers_count >= 1 %}mms-badge--warning{% else %}mms-badge--success{% endif %}">
           {{ health_card.open_blockers_count }}
         </span>
@@ -69,17 +70,17 @@
 
     {# --- Row 2: waiting, total cost, is_emergency ----------------------- #}
     <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.85rem">
-      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Waiting:</span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Waiting:" %}</span>
         <strong>{{ health_card.waiting_days }}</strong> day{{ health_card.waiting_days|pluralize }}
       </span>
       {% if can_see_cost %}
-      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Total cost:</span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Total cost:" %}</span>
         <strong>{{ health_card.total_cost|floatformat:2 }} SAR</strong>
       </span>
       {% endif %}
-      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">Is emergency:</span>
+      <span><span class="text-muted" style="font-size:.7rem;font-weight:600">{% trans "Is emergency:" %}</span>
         {% if health_card.is_emergency %}
-          <span class="mms-badge mms-badge--danger">Yes</span>
+          <span class="mms-badge mms-badge--danger">{% trans "Yes" %}</span>
         {% else %}
           <span class="mms-badge mms-badge--muted">No</span>
         {% endif %}

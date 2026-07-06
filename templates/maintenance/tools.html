@@ -1,43 +1,44 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Tools{% endblock %}
 {% block page_heading %}Reusable tools{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Assign calibrated or shared tools to technicians; return with condition.</p>
+<p class="mms-page-lead">{% trans "Assign calibrated or shared tools to technicians; return with condition." %}</p>
 <div class="mms-actions" style="margin-bottom:1rem">
   {% if perm_tool_assign %}
-  <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'tool_create' %}">Add tool</a>
+  <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'tool_create' %}">{% trans "Add tool" %}</a>
   {% endif %}
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'tool_list' %}&param=tool&label=tool+QR+or+ID">Scan tool code</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'tool_list' %}&param=tool&label=tool+QR+or+ID">{% trans "Scan tool code" %}</a>
 </div>
 
 {% if scanned_code %}
 <div class="mms-card" style="margin-bottom:1rem">
   <div class="mms-card-body">
-    <strong>Scanned tool code:</strong> <code>{{ scanned_code }}</code><br>
+    <strong>{% trans "Scanned tool code:" %}</strong> <code>{{ scanned_code }}</code><br>
     {% if matched_tool %}
     Matched tool: <strong>{{ matched_tool.name }}</strong> <span class="mms-badge mms-badge--muted">{{ matched_tool.get_status_display }}</span>
     {% if matched_tool.status != 'available' %}
-    <div class="mms-form-tip" style="margin-top:.5rem">This tool cannot be assigned right now because it is not in <strong>Available</strong> status.</div>
+    <div class="mms-form-tip" style="margin-top:.5rem">{% trans "This tool cannot be assigned right now because it is not in" %}<strong>{% trans "Available" %}</strong>{% trans "status." %}</div>
     {% endif %}
     {% if matched_assignment %}
     <div style="margin-top:.75rem">
       Current holder: {{ matched_assignment.user }}
-      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_return' matched_assignment.pk %}">Open return form</a>
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_return' matched_assignment.pk %}">{% trans "Open return form" %}</a>
     </div>
     {% endif %}
     {% else %}
-    <span class="mms-field-error">No tool matched that code.</span>
+    <span class="mms-field-error">{% trans "No tool matched that code." %}</span>
     {% endif %}
   </div>
 </div>
 {% endif %}
 
-<h2 class="mms-subheading">Assign tool</h2>
+<h2 class="mms-subheading">{% trans "Assign tool" %}</h2>
 {% if perm_tool_assign %}
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     {% if not available_tools_count %}
-    <div class="mms-field-error" style="margin-bottom:1rem">No tools are currently in Available status. Add a tool or edit an existing tool and set its status to Available.</div>
+    <div class="mms-field-error" style="margin-bottom:1rem">{% trans "No tools are currently in Available status. Add a tool or edit an existing tool and set its status to Available." %}</div>
     {% endif %}
     <form method="post" action="{% url 'tool_assign' %}" class="mms-form">
       {% csrf_token %}
@@ -50,37 +51,37 @@
       </div>
       {% endfor %}
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Assign</button>
+        <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">{% trans "Assign" %}</button>
       </div>
     </form>
   </div>
 </div>
 {% endif %}
 
-<h2 class="mms-subheading">Open assignments</h2>
+<h2 class="mms-subheading">{% trans "Open assignments" %}</h2>
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Tool</th><th>User</th><th>Since</th><th></th></tr></thead>
+      <thead><tr><th>{% trans "Tool" %}</th><th>{% trans "User" %}</th><th>{% trans "Since" %}</th><th></th></tr></thead>
       <tbody>
       {% for a in open_assignments %}
       <tr>
         <td>{{ a.tool }}</td>
         <td>{{ a.user }}</td>
         <td>{{ a.assigned_at|date:"Y-m-d H:i" }}</td>
-        <td>{% if perm_tool_return and a.user_id == user.id or perm_tool_assign %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_return' a.pk %}">Return</a>{% else %}â€”{% endif %}</td>
+        <td>{% if perm_tool_return and a.user_id == user.id or perm_tool_assign %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_return' a.pk %}">{% trans "Return" %}</a>{% else %}â€”{% endif %}</td>
       </tr>
-      {% empty %}<tr><td colspan="4" class="mms-empty">None.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="4" class="mms-empty">{% trans "None." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-<h2 class="mms-subheading">All tools</h2>
+<h2 class="mms-subheading">{% trans "All tools" %}</h2>
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Code</th><th>Name</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>{% trans "Code" %}</th><th>{% trans "Name" %}</th><th>{% trans "Status" %}</th><th></th></tr></thead>
       <tbody>
       {% for t in tools %}
       <tr>
@@ -88,13 +89,13 @@
         <td>{{ t.name }}</td>
         <td>{{ t.get_status_display }}</td>
         <td class="mms-actions">
-          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_list' %}?tool={{ t.code }}">Use code</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_list' %}?tool={{ t.code }}">{% trans "Use code" %}</a>
           {% if perm_tool_assign %}
-          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_edit' t.pk %}">Edit</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_edit' t.pk %}">{% trans "Edit" %}</a>
           {% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="4" class="mms-empty">No tools.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="4" class="mms-empty">{% trans "No tools." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

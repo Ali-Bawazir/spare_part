@@ -1,3 +1,4 @@
+{% load i18n %}
 <style>
 .mms-tree-link { display:inline-block; padding:0.2rem 0.5rem; border-radius:4px; color:#0f766e; text-decoration:none; font-weight:500; transition:background 0.15s; }
 .mms-tree-link:hover { background:#f0fdfa; text-decoration:underline; }
@@ -15,10 +16,10 @@
         {% if node.asset_code %}<span style="color:#666;font-weight:normal;font-size:0.85em">({{ node.asset_code }})</span>{% endif %}
       </a>
       <span style="color:#666;font-size:0.75em;font-weight:normal">[L{{ node.asset_level }}]</span>
-      <span class="here-badge">📍 here</span>
+      <span class="here-badge">{% trans "📍 here" %}</span>
     </span>
   {% else %}
-    <a href="{% url 'machine_detail' node.pk %}" class="mms-tree-link" title="Click to view this asset">
+    <a href="{% url 'machine_detail' node.pk %}" class="mms-tree-link" title={% trans "Click to view this asset" %}>
       {% if node.children.all %}<span style="color:#999">▶</span> {% endif %}
       {{ node.name }}
       {% if node.asset_code %}<span style="color:#6b7280;font-size:0.85em">({{ node.asset_code }})</span>{% endif %}

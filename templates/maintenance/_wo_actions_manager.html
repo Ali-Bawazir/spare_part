@@ -1,8 +1,9 @@
+{% load i18n %}
 {# Phase 3B: Manager actions block (extracted from workorder_detail.html). #}
 {# Self-gated to managers (capability-gated, same as the original inline block). #}
 {% if perm_assign_technician or perm_issue_parts_to_wo or perm_create_purchase_request %}
   {% if wo.lifecycle_status != 'closed' %}
-    <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">Manager actions</h3>
+    <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">{% trans "Manager actions" %}</h3>
     {% if perm_assign_technician %}
       {% if wo.lifecycle_status == 'assigned' or wo.lifecycle_status == 'in_progress' %}
     <form method="post" action="{% url 'work_order_assign' wo.pk %}" class="mms-stack">
@@ -16,13 +17,13 @@
     {% if perm_issue_parts_to_wo %}
     <form method="post" action="{% url 'work_order_issue_part' wo.pk %}" class="mms-stack">
       {% csrf_token %}
-      <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Direct issue (manager override — bypasses technician request flow)</p>
+      <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">{% trans "Direct issue (manager override — bypasses technician request flow)" %}</p>
       {% for field in issue_part_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
-      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Issue to WO</button>
+      <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">{% trans "Issue to WO" %}</button>
     </form>
     {% endif %}
     {% if perm_create_purchase_request %}
-    <p style="font-size:.8rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_create' %}?wo={{ wo.pk }}">New purchase request for this WO</a></p>
+    <p style="font-size:.8rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_create' %}?wo={{ wo.pk }}">{% trans "New purchase request for this WO" %}</a></p>
     {% endif %}
 
     {# ============ Manager: Pending shortage reports (Sprint 1 / Step 6 + v4.8) ============ #}
@@ -32,10 +33,10 @@
         <div class="mms-card-body">
           <table class="mms-table mms-shortage-table">
             <thead><tr>
-              <th>Part</th>
-              <th>Need</th>
-              <th>Stock</th>
-              <th>Reported</th>
+              <th>{% trans "Part" %}</th>
+              <th>{% trans "Need" %}</th>
+              <th>{% trans "Stock" %}</th>
+              <th>{% trans "Reported" %}</th>
             </tr></thead>
             <tbody>
               {% for r in pending_shortage_reports %}
@@ -69,14 +70,14 @@
                     <form method="post" action="{% url 'work_order_decide_shortage' wo.pk r.pk %}" class="mms-shortage-decision-form" style="padding:.75rem; background:#fafafa; border-top:1px solid #eee">
                       {% csrf_token %}
                       <div class="mms-form-row">
-                        <label>Decision type</label>
+                        <label>{% trans "Decision type" %}</label>
                         <select name="decision_type" class="form-select">
                           <option value="approve" selected>✅ Approve (issue and/or procure)</option>
-                          <option value="reject">❌ Reject</option>
+                          <option value="reject">{% trans "❌ Reject" %}</option>
                         </select>
                       </div>
                       <div class="mms-form-row">
-                        <label>Issue from stock</label>
+                        <label>{% trans "Issue from stock" %}</label>
                         <input type="number" name="approved_issue_qty"
                                value="{{ r.suggested_issue_qty }}"
                                min="0" max="{{ r.usable_qty_snapshot|default:0 }}"
@@ -87,7 +88,7 @@
                         <small style="color:#6b7280">{{ r.form_default_hint }}</small>
                       </div>
                       <div class="mms-form-row">
-                        <label>Procure (via PR)</label>
+                        <label>{% trans "Procure (via PR)" %}</label>
                         <input type="number" name="approved_procurement_qty"
                                value="{{ r.suggested_procure_qty }}"
                                min="0" step="0.001"
@@ -96,7 +97,7 @@
                                data-qty-requested="{{ r.qty_requested }}">
                       </div>
                       <div class="mms-form-row">
-                        <label>Reject (not needed)</label>
+                        <label>{% trans "Reject (not needed)" %}</label>
                         <input type="number" name="rejected_qty"
                                value="{{ r.suggested_reject_qty }}"
                                min="0" step="0.001"
@@ -112,18 +113,18 @@
                         (currently: <span class="shortage-current-sum">0</span>)
                       </div>
                       <div class="mms-form-row">
-                        <label>Expected availability (procure ETA)</label>
+                        <label>{% trans "Expected availability (procure ETA)" %}</label>
                         <input type="date" name="expected_availability_date" class="form-control">
                       </div>
                       <div class="mms-form-row">
-                        <label>Rejection reason (reject only, min 15 chars)</label>
+                        <label>{% trans "Rejection reason (reject only, min 15 chars)" %}</label>
                         <textarea name="rejection_reason" minlength="15" rows="2" class="form-control"></textarea>
                       </div>
                       <div class="mms-form-row">
-                        <label>Decision note (optional)</label>
+                        <label>{% trans "Decision note (optional)" %}</label>
                         <textarea name="decision_note" rows="2" class="form-control"></textarea>
                       </div>
-                      <button class="mms-btn mms-btn--primary mms-btn--sm mms-shortage-submit" type="submit">Submit Decision</button>
+                      <button class="mms-btn mms-btn--primary mms-btn--sm mms-shortage-submit" type="submit">{% trans "Submit Decision" %}</button>
                     </form>
                   </details>
                 </td>
@@ -180,8 +181,8 @@
                   <small class="text-muted">({{ item.line.part.sku }})</small>
                   — approved {{ item.line.approved_qty }} / issued {{ item.line.issued_qty }}
                   = <strong>{{ item.remaining }}</strong> remaining
-                  <small style="color:var(--mms-muted)"> · status: <em>{{ item.line.get_status_display }}</em></small>
-                  <small style="color:var(--mms-muted)"> · free stock: <strong>{{ item.free_stock }}</strong></small>
+                  <small style="color:var(--mms-muted)">{% trans "· status:" %}<em>{{ item.line.get_status_display }}</em></small>
+                  <small style="color:var(--mms-muted)">{% trans "· free stock:" %}<strong>{{ item.free_stock }}</strong></small>
                 </div>
                 {% if item.has_stock %}
                 <form method="post" action="{% url 'work_order_warehouse_issue' wo.pk item.line.pk %}" style="display:inline">
@@ -193,13 +194,13 @@
                   </button>
                 </form>
                 {% else %}
-                <span class="mms-badge mms-badge--warning" title="Insufficient stock">
+                <span class="mms-badge mms-badge--warning" title={% trans "Insufficient stock" %}>
                   ⚠ Out of stock
                 </span>
                 {% endif %}
                 <button class="mms-btn mms-btn--ghost mms-btn--sm" type="button"
                         onclick="document.getElementById('cancel-form-{{ item.line.pk }}').style.display='block'; this.style.display='none';"
-                        title="Cancel this part request (release reservation + clear PART blocker)">
+                        title={% trans "Cancel this part request (release reservation + clear PART blocker)" %}>
                   ✗ Cancel
                 </button>
                 <form id="cancel-form-{{ item.line.pk }}" method="post"
@@ -208,7 +209,7 @@
                   {% csrf_token %}
                   <div class="mms-form-row" style="margin:0">
                     <input type="text" name="reason" class="form-control"
-                           placeholder="Cancellation reason (min 15 chars — required for audit)"
+                           placeholder={% trans "Cancellation reason (min 15 chars — required for audit)" %}
                            minlength="15" required
                            style="font-size:.85rem; flex:1; min-width:200px">
                     <button class="mms-btn mms-btn--danger mms-btn--sm" type="submit">
@@ -234,10 +235,10 @@
         <div class="mms-card-body">
           <table class="mms-table">
             <thead><tr>
-              <th>Part</th>
-              <th>Decision</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>{% trans "Part" %}</th>
+              <th>{% trans "Decision" %}</th>
+              <th>{% trans "Status" %}</th>
+              <th>{% trans "Actions" %}</th>
             </tr></thead>
             <tbody>
               {% for r in decided_shortage_reports %}
@@ -249,7 +250,7 @@
                 <td>
                   {% if r.decision %}
                     {% if r.decision.decision_type == "approve" %}
-                      <span class="mms-badge mms-badge--success">✅ Approve</span>
+                      <span class="mms-badge mms-badge--success">{% trans "✅ Approve" %}</span>
                       <br><small>
                         Issue: <strong>{{ r.decision.approved_issue_qty }}</strong> ·
                         Procure: <strong>{{ r.decision.approved_procurement_qty }}</strong> ·
@@ -259,7 +260,7 @@
                         {% endif %}
                       </small>
                     {% else %}
-                      <span class="mms-badge mms-badge--danger">❌ Reject</span>
+                      <span class="mms-badge mms-badge--danger">{% trans "❌ Reject" %}</span>
                       {% if r.decision.rejection_reason %}
                         <br><small>{{ r.decision.rejection_reason|truncatechars:60 }}</small>
                       {% endif %}
@@ -268,7 +269,7 @@
                       <br><small style="color:#6b7280">📝 {{ r.decision.decision_note|truncatechars:60 }}</small>
                     {% endif %}
                   {% else %}
-                    <em style="color:#6b7280">Legacy (no decision row)</em>
+                    <em style="color:#6b7280">{% trans "Legacy (no decision row)" %}</em>
                   {% endif %}
                 </td>
                 <td>
@@ -278,39 +279,39 @@
                 <td>
                   {% if r.status == "approved" and r.decision and r.decision.decision_type == "approve" %}
                     <details style="margin-bottom:.25rem">
-                      <summary style="cursor:pointer; color:#0d6efd; font-size:.85em">✎ Edit decision</summary>
+                      <summary style="cursor:pointer; color:#0d6efd; font-size:.85em">{% trans "✎ Edit decision" %}</summary>
                       <form method="post" action="{% url 'work_order_edit_shortage' wo.pk r.pk %}" style="padding:.5rem; margin-top:.25rem; background:#fafafa; border-radius:4px">
                         {% csrf_token %}
                         <div class="mms-form-row">
-                          <label>Issue from stock</label>
+                          <label>{% trans "Issue from stock" %}</label>
                           <input type="number" name="approved_issue_qty" min="0" step="0.001" value="{{ r.decision.approved_issue_qty }}" class="form-control">
                         </div>
                         <div class="mms-form-row">
-                          <label>Procure (via PR)</label>
+                          <label>{% trans "Procure (via PR)" %}</label>
                           <input type="number" name="approved_procurement_qty" min="0" step="0.001" value="{{ r.decision.approved_procurement_qty }}" class="form-control">
                           {% if r.purchase_requests.first %}
                             <small style="color:#b45309">⚠ PR #{{ r.purchase_requests.first.pk }} already created. Procurement qty cannot be changed.</small>
                           {% endif %}
                         </div>
                         <div class="mms-form-row">
-                          <label>Reject (not needed)</label>
+                          <label>{% trans "Reject (not needed)" %}</label>
                           <input type="number" name="rejected_qty" min="0" step="0.001" value="{{ r.decision.rejected_qty }}" class="form-control">
                         </div>
                         <div class="mms-form-row">
-                          <label>Decision note</label>
+                          <label>{% trans "Decision note" %}</label>
                           <textarea name="decision_note" rows="2" class="form-control">{{ r.decision.decision_note }}</textarea>
                         </div>
-                        <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Save Edit</button>
+                        <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">{% trans "Save Edit" %}</button>
                       </form>
                     </details>
                   {% elif r.is_decision_locked %}
-                    <small style="color:#6b7280">🔒 Decision locked</small>
+                    <small style="color:#6b7280">{% trans "🔒 Decision locked" %}</small>
                   {% endif %}
 
                   {% if r.status == "in_fulfillment" and r.decision and r.decision.decision_type == "approve" and r.qty_issued >= r.decision.approved_issue_qty %}
                     <form method="post" action="{% url 'work_order_mark_fulfilled' wo.pk r.pk %}" style="display:inline">
                       {% csrf_token %}
-                      <button class="mms-btn mms-btn--success mms-btn--sm" type="submit">✓ Mark as Fulfilled</button>
+                      <button class="mms-btn mms-btn--success mms-btn--sm" type="submit">{% trans "✓ Mark as Fulfilled" %}</button>
                     </form>
                     {% if r.decision.approved_procurement_qty > 0 %}
                       <div class="mms-warning" style="margin-top:.25rem; font-size:.8em; color:#b45309; background:#fef3c7; padding:.25rem .5rem; border-left:3px solid #f59e0b">
@@ -322,14 +323,14 @@
                   {% if r.status in "approved,in_fulfillment" %}
                     <form method="post" action="{% url 'work_order_block_shortage' wo.pk r.pk %}" style="display:inline; margin-left:.25rem">
                       {% csrf_token %}
-                      <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title="Mark as blocked (operational problem)">⚠ Block</button>
+                      <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title={% trans "Mark as blocked (operational problem)" %}>{% trans "⚠ Block" %}</button>
                     </form>
                   {% endif %}
 
                   {% if r.status in "approved,in_fulfillment,blocked,fulfilled" %}
                     <form method="post" action="{% url 'work_order_close_shortage' wo.pk r.pk %}" style="display:inline; margin-left:.25rem">
                       {% csrf_token %}
-                      <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title="Close this shortage report (releases reservation, cancels PRs)">🗙 Close</button>
+                      <button class="mms-btn mms-btn--ghost mms-btn--sm" type="submit" title={% trans "Close this shortage report (releases reservation, cancels PRs)" %}>{% trans "🗙 Close" %}</button>
                     </form>
                   {% endif %}
                 </td>
@@ -345,7 +346,7 @@
     {% if approved_shortage_reports %}
       <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
         <div class="mms-card-body">
-          <strong>📦 Awaiting Procurement</strong>
+          <strong>{% trans "📦 Awaiting Procurement" %}</strong>
           <ul style="margin:.25rem 0 0 1rem; padding:0">
             {% for r in approved_shortage_reports %}
               {% if r.decision and r.decision.decision_type == "approve" and r.decision.approved_procurement_qty > 0 %}

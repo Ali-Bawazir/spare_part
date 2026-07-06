@@ -1,44 +1,45 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}PM schedules{% endblock %}
 {% block page_heading %}Preventive maintenance{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Schedules drive PM work orders. Spawn a WO when due.</p>
+<p class="mms-page-lead">{% trans "Schedules drive PM work orders. Spawn a WO when due." %}</p>
 
 <p class="mms-actions">
-  <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'pm_create' %}">New schedule</a>
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_template_list' %}">Manage templates</a>
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_dashboard' %}">Compliance dashboard</a>
+  <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'pm_create' %}">{% trans "New schedule" %}</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_template_list' %}">{% trans "Manage templates" %}</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_dashboard' %}">{% trans "Compliance dashboard" %}</a>
 </p>
 
 <form method="get" class="mms-form" style="display:flex; gap:0.5rem; align-items:flex-end; margin-bottom:1rem; flex-wrap:wrap">
   <div>
-    <label for="id_active" style="font-size:0.85em; color:#6b7280">Active</label>
+    <label for="id_active" style="font-size:0.85em; color:#6b7280">{% trans "Active" %}</label>
     <select name="active" id="id_active" class="form-select form-select-sm">
-      <option value="active" {% if active_filter == 'active' %}selected{% endif %}>Active only</option>
-      <option value="inactive" {% if active_filter == 'inactive' %}selected{% endif %}>Inactive only</option>
-      <option value="all" {% if active_filter == 'all' %}selected{% endif %}>All</option>
+      <option value="active" {% if active_filter == 'active' %}selected{% endif %}>{% trans "Active only" %}</option>
+      <option value="inactive" {% if active_filter == 'inactive' %}selected{% endif %}>{% trans "Inactive only" %}</option>
+      <option value="all" {% if active_filter == 'all' %}selected{% endif %}>{% trans "All" %}</option>
     </select>
   </div>
   <div>
-    <label for="id_status" style="font-size:0.85em; color:#6b7280">Status</label>
+    <label for="id_status" style="font-size:0.85em; color:#6b7280">{% trans "Status" %}</label>
     <select name="status" id="id_status" class="form-select form-select-sm">
-      <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
-      <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Overdue</option>
-      <option value="due_soon" {% if status_filter == 'due_soon' %}selected{% endif %}>Due this week</option>
-      <option value="future" {% if status_filter == 'future' %}selected{% endif %}>Future</option>
+      <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{% trans "All" %}</option>
+      <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>{% trans "Overdue" %}</option>
+      <option value="due_soon" {% if status_filter == 'due_soon' %}selected{% endif %}>{% trans "Due this week" %}</option>
+      <option value="future" {% if status_filter == 'future' %}selected{% endif %}>{% trans "Future" %}</option>
     </select>
   </div>
   <div>
-    <label for="id_machine" style="font-size:0.85em; color:#6b7280">Machine</label>
+    <label for="id_machine" style="font-size:0.85em; color:#6b7280">{% trans "Machine" %}</label>
     <select name="machine" id="id_machine" class="form-select form-select-sm">
-      <option value="">All machines</option>
+      <option value="">{% trans "All machines" %}</option>
       {% for m in machines %}
         <option value="{{ m.pk }}" {% if machine_filter|stringformat:"s" == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>
       {% endfor %}
     </select>
   </div>
-  <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Filter</button>
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_list' %}">Reset</a>
+  <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">{% trans "Filter" %}</button>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_list' %}">{% trans "Reset" %}</a>
 </form>
 
 <form method="post" action="{% url 'pm_batch_spawn_wo' %}">
@@ -50,14 +51,14 @@
         <thead>
           <tr>
             <th style="width:40px">
-              <input type="checkbox" id="select-all" title="Select all overdue">
+              <input type="checkbox" id="select-all" title={% trans "Select all overdue" %}>
             </th>
-            <th>Template</th>
-            <th>Machine</th>
-            <th>Frequency</th>
-            <th>Next due</th>
-            <th>Days until due</th>
-            <th>Priority</th>
+            <th>{% trans "Template" %}</th>
+            <th>{% trans "Machine" %}</th>
+            <th>{% trans "Frequency" %}</th>
+            <th>{% trans "Next due" %}</th>
+            <th>{% trans "Days until due" %}</th>
+            <th>{% trans "Priority" %}</th>
             <th></th>
           </tr>
         </thead>
@@ -78,18 +79,18 @@
             </td>
             <td>
               {% with eff=row.schedule.effective_priority %}
-                {% if eff == 'critical' %}<span class="mms-badge mms-badge--danger">Critical</span>
-                {% elif eff == 'high' %}<span class="mms-badge mms-badge--warning">High</span>
-                {% elif eff == 'medium' %}<span class="mms-badge mms-badge--info">Medium</span>
-                {% else %}<span class="mms-badge mms-badge--muted">Low</span>{% endif %}
+                {% if eff == 'critical' %}<span class="mms-badge mms-badge--danger">{% trans "Critical" %}</span>
+                {% elif eff == 'high' %}<span class="mms-badge mms-badge--warning">{% trans "High" %}</span>
+                {% elif eff == 'medium' %}<span class="mms-badge mms-badge--info">{% trans "Medium" %}</span>
+                {% else %}<span class="mms-badge mms-badge--muted">{% trans "Low" %}</span>{% endif %}
               {% endwith %}
             </td>
             <td>
-              <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' row.schedule.pk %}">Create PM WO</a>
+              <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' row.schedule.pk %}">{% trans "Create PM WO" %}</a>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="8" class="mms-empty">No PM schedules match the filter.</td></tr>
+          <tr><td colspan="8" class="mms-empty">{% trans "No PM schedules match the filter." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -98,8 +99,8 @@
 
   {% if schedule_data %}
   <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center">
-    <button class="mms-btn mms-btn--primary" type="submit" onclick="return confirm('Create PM work orders for all selected schedules?')">Spawn WOs for selected</button>
-    <small class="mms-text-muted">Tip: only overdue schedules are checkable for batch spawn.</small>
+    <button class="mms-btn mms-btn--primary" type="submit" onclick="return confirm('Create PM work orders for all selected schedules?')">{% trans "Spawn WOs for selected" %}</button>
+    <small class="mms-text-muted">{% trans "Tip: only overdue schedules are checkable for batch spawn." %}</small>
   </div>
   {% endif %}
 </form>

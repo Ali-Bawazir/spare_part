@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}{{ part.name }} ({% if part.sku %}{{ part.sku }}{% endif %}) — Stock{% endblock %}
@@ -7,7 +8,7 @@
 {# Site selector #}
 <div style="margin-bottom:1rem">
   <form method="get" style="display:flex;align-items:center;gap:0.5rem">
-    <label class="text-muted small">Site:</label>
+    <label class="text-muted small">{% trans "Site:" %}</label>
     <select name="site" class="form-select" style="width:auto" onchange="this.form.submit()">
       {% for s in sites %}
         <option value="{{ s.pk }}" {% if s.pk == selected_site.pk %}selected{% endif %}>{{ s.name }}</option>
@@ -18,7 +19,7 @@
 
 {% if part.image_status == "MISSING" %}
 <div class="mms-alert mms-alert--warning" style="margin-bottom:1rem">
-  <strong>⚠ This part has no primary image.</strong>
+  <strong>{% trans "⚠ This part has no primary image." %}</strong>
   Upload one below to improve identification during PR/PO/issue reporting.
   Inventory photos help the supply officer purchase the correct part.
 </div>
@@ -30,20 +31,20 @@
     <div>
       {% part_primary_image part as primary_img %}
       {% if primary_img %}
-        <a href="{{ primary_img }}" target="_blank" rel="noopener" title="Click to view full size in new tab"
+        <a href="{{ primary_img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %}
            style="float:right;margin-left:1rem;display:inline-block;">
           <img src="{{ primary_img }}" alt="{{ part.name }}" class="part-primary-image" 
                style="max-width:150px;max-height:150px;border-radius:8px;object-fit:cover;cursor:zoom-in;display:block;">
         </a>
       {% endif %}
-      <div class="mms-subheading">SKU: <code>{{ part.sku }}</code></div>
+      <div class="mms-subheading">{% trans "SKU:" %}<code>{{ part.sku }}</code></div>
       <div class="text-muted small">
         Category: {{ part.category|default:"—" }} |
         Unit: {{ part.unit|default:"—" }} |
         Status:
-        {% if part.status == 'active' %}<span class="mms-badge mms-badge--success">Active</span>
-        {% elif part.status == 'obsolete' %}<span class="mms-badge mms-badge--warning">Obsolete</span>
-        {% else %}<span class="mms-badge mms-badge--muted">Discontinued</span>{% endif %}
+        {% if part.status == 'active' %}<span class="mms-badge mms-badge--success">{% trans "Active" %}</span>
+        {% elif part.status == 'obsolete' %}<span class="mms-badge mms-badge--warning">{% trans "Obsolete" %}</span>
+        {% else %}<span class="mms-badge mms-badge--muted">{% trans "Discontinued" %}</span>{% endif %}
         |
         Consumable: {{ part.is_consumable|yesno:"Yes,No" }}
       </div>
@@ -64,11 +65,11 @@
       {% if part.qr_code %}
       <div style="text-align:center">
         <img src="/media/qr/parts/PART_{{ part.sku }}.png" width="100" height="100" style="border:1px solid #e2e8f0;border-radius:8px">
-        <div class="small text-muted">QR code</div>
+        <div class="small text-muted">{% trans "QR code" %}</div>
       </div>
       {% endif %}
       <div>
-        <a class="mms-btn mms-btn--ghost" href="/media/qr/parts/PART_{{ part.sku }}.png" target="_blank">📋 Print QR</a>
+        <a class="mms-btn mms-btn--ghost" href="/media/qr/parts/PART_{{ part.sku }}.png" target="_blank">{% trans "📋 Print QR" %}</a>
       </div>
     </div>
   </div>
@@ -83,7 +84,7 @@
     {% if inv %}
     <table style="width:100%;border-collapse:collapse">
       <tr>
-        <td class="text-muted small" style="width:120px">Available</td>
+        <td class="text-muted small" style="width:120px">{% trans "Available" %}</td>
         <td>
           {% if inv.quantity_available <= part.min_stock_level and part.min_stock_level > 0 %}
             <span class="mms-badge mms-badge--danger">{{ inv.quantity_available }}</span>
@@ -93,15 +94,15 @@
         </td>
       </tr>
       <tr>
-        <td class="text-muted small">Reserved</td>
+        <td class="text-muted small">{% trans "Reserved" %}</td>
         <td>{{ inv.quantity_reserved }}</td>
       </tr>
       <tr>
-        <td class="text-muted small">Rack</td>
+        <td class="text-muted small">{% trans "Rack" %}</td>
         <td>{{ inv.rack_location|default:"—" }}</td>
       </tr>
       <tr>
-        <td class="text-muted small">Last counted</td>
+        <td class="text-muted small">{% trans "Last counted" %}</td>
         <td>
           {% if inv.last_counted_at %}
             {{ inv.last_counted_at|date:"Y-m-d H:i" }} by {{ inv.last_counted_by.username }}
@@ -112,16 +113,16 @@
       </tr>
     </table>
     {% else %}
-    <p class="mms-empty">No inventory record at this site.</p>
+    <p class="mms-empty">{% trans "No inventory record at this site." %}</p>
     {% endif %}
 
     {# Quick actions #}
     <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
-      <a class="mms-btn mms-btn--primary" href="{% url 'part_stock_in' part.pk %}?site={{ selected_site.pk }}">+ Stock-in</a>
+      <a class="mms-btn mms-btn--primary" href="{% url 'part_stock_in' part.pk %}?site={{ selected_site.pk }}">{% trans "+ Stock-in" %}</a>
       {% if perm_issue_part %}
-      <a class="mms-btn mms-btn--ghost" href="{% url 'work_order_issue_part' %}?part={{ part.pk }}">Issue to WO</a>
+      <a class="mms-btn mms-btn--ghost" href="{% url 'work_order_issue_part' %}?part={{ part.pk }}">{% trans "Issue to WO" %}</a>
       {% endif %}
-      <a class="mms-btn mms-btn--ghost" href="{% url 'part_adjust' part.pk %}?site={{ selected_site.pk }}">Adjust qty</a>
+      <a class="mms-btn mms-btn--ghost" href="{% url 'part_adjust' part.pk %}?site={{ selected_site.pk }}">{% trans "Adjust qty" %}</a>
     </div>
   </div>
 </div>
@@ -150,7 +151,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="mms-empty">No movements recorded.</p>
+    <p class="mms-empty">{% trans "No movements recorded." %}</p>
     {% endif %}
   </div>
 </div>
@@ -158,11 +159,11 @@
 {# Recent work orders #}
 {% if recent_wos %}
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">Recent work orders using this part</div>
+  <div class="mms-card-header">{% trans "Recent work orders using this part" %}</div>
   <div class="mms-card-body">
     <div class="mms-table-wrap">
       <table class="mms-table">
-        <thead><tr><th>WO</th><th>Machine</th><th>Status</th><th>Created</th></tr></thead>
+        <thead><tr><th>WO</th><th>{% trans "Machine" %}</th><th>{% trans "Status" %}</th><th>{% trans "Created" %}</th></tr></thead>
         <tbody>
         {% for wo in recent_wos %}
         <tr>
@@ -182,11 +183,11 @@
 {# Recent purchase requests #}
 {% if recent_prs %}
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">Pending purchase requests</div>
+  <div class="mms-card-header">{% trans "Pending purchase requests" %}</div>
   <div class="mms-card-body">
     <div class="mms-table-wrap">
       <table class="mms-table">
-        <thead><tr><th>PR</th><th>Qty</th><th>Supplier</th><th>Status</th><th>Created</th></tr></thead>
+        <thead><tr><th>PR</th><th>{% trans "Qty" %}</th><th>{% trans "Supplier" %}</th><th>{% trans "Status" %}</th><th>{% trans "Created" %}</th></tr></thead>
         <tbody>
         {% for pr in recent_prs %}
         <tr>
@@ -206,10 +207,10 @@
 
 {# Attachments section #}
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">Documents & Attachments</div>
+  <div class="mms-card-header">{% trans "Documents & Attachments" %}</div>
   <div class="mms-card-body">
     <div id="attachment-list-spare_part-{{ part.pk }}">
-      <span class="text-muted">Loading attachments…</span>
+      <span class="text-muted">{% trans "Loading attachments…" %}</span>
     </div>
     <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem;border-top:1px solid #e5e7eb;padding-top:0.75rem">
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
@@ -220,18 +221,18 @@
       <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
         <label style="display:flex;align-items:center;gap:0.4rem;margin:0">
           <input type="checkbox" id="attachment-is-primary-spare_part-{{ part.pk }}" checked>
-          <span>Mark as primary image</span>
+          <span>{% trans "Mark as primary image" %}</span>
         </label>
         <select id="attachment-category-spare_part-{{ part.pk }}" class="form-select" style="width:auto">
-          <option value="PRODUCT" selected>Product shot</option>
-          <option value="LABEL">Manufacturer label</option>
-          <option value="PACKAGING">Packaging</option>
-          <option value="INSTALLED">Installed in machine</option>
+          <option value="PRODUCT" selected>{% trans "Product shot" %}</option>
+          <option value="LABEL">{% trans "Manufacturer label" %}</option>
+          <option value="PACKAGING">{% trans "Packaging" %}</option>
+          <option value="INSTALLED">{% trans "Installed in machine" %}</option>
           <option value="DOCUMENT">Document / datasheet</option>
         </select>
-        <input type="text" id="attachment-note-spare_part-{{ part.pk }}" placeholder="Note (optional)" class="form-control" style="width:200px">
+        <input type="text" id="attachment-note-spare_part-{{ part.pk }}" placeholder={% trans "Note (optional)" %} class="form-control" style="width:200px">
         <button type="button" class="mms-btn mms-btn--primary"
-                onclick="uploadPartAttachment({{ part.pk }})">Upload</button>
+                onclick="uploadPartAttachment({{ part.pk }})">{% trans "Upload" %}</button>
       </div>
     </div>
   </div>
@@ -391,14 +392,14 @@ loadPartAttachments({{ part.pk }});
 
 {% if part.description %}
 <div class="mms-card">
-  <div class="mms-card-header">Description</div>
+  <div class="mms-card-header">{% trans "Description" %}</div>
   <div class="mms-card-body">{{ part.description|linebreaks }}</div>
 </div>
 {% endif %}
 
 {# Back link #}
 <div style="margin-top:1rem">
-  <a href="{% url 'stock_dashboard' %}?site={{ selected_site.pk }}">← Back to stock</a>
+  <a href="{% url 'stock_dashboard' %}?site={{ selected_site.pk }}">{% trans "← Back to stock" %}</a>
 </div>
 
 {% endblock %}

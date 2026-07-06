@@ -1,22 +1,23 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Report issue{% endblock %}
 {% block page_heading %}Report machine issue{% endblock %}
 {% block content %}
 <div class="mms-actions" style="margin-bottom:1rem">
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">Scan machine QR</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">{% trans "Scan machine QR" %}</a>
   {% if perm_machine_manage %}
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">View machines</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">{% trans "View machines" %}</a>
   {% endif %}
 </div>
 
 {% if qr_value %}
 <div class="mms-card" style="margin-bottom:1rem">
   <div class="mms-card-body">
-    <strong>Scanned code:</strong> <code>{{ qr_value }}</code><br>
+    <strong>{% trans "Scanned code:" %}</strong> <code>{{ qr_value }}</code><br>
     {% if matched_machine %}
     Matched machine: <strong>{{ matched_machine.name }}</strong>{% if matched_machine.location %} ({{ matched_machine.location }}){% endif %}
     {% else %}
-    <span class="mms-field-error">No machine matched this QR code yet. Add it in Machines, then retry.</span>
+    <span class="mms-field-error">{% trans "No machine matched this QR code yet. Add it in Machines, then retry." %}</span>
     {% endif %}
   </div>
 </div>
@@ -29,10 +30,10 @@
 {% if locked_asset %}
 <div class="mms-alert" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#dbeafe;border-left:3px solid #2563eb;border-radius:4px;color:#1e3a8a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
   <div style="flex:1;min-width:200px">
-    <strong>🔒 Asset locked:</strong>
+    <strong>{% trans "🔒 Asset locked:" %}</strong>
     This record will be attached to:
     <strong style="color:#1e40af">{{ locked_asset.breadcrumb }}</strong>
-    <div style="font-size:0.85em;color:#475569;margin-top:0.25rem">The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there.</div>
+    <div style="font-size:0.85em;color:#475569;margin-top:0.25rem">{% trans "The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there." %}</div>
   </div>
   <a href="{% if locked_asset.machine_pk %}{% url 'machine_detail' locked_asset.machine_pk %}{% endif %}" class="mms-btn mms-btn--ghost" style="font-size:0.85em;flex-shrink:0">
     ← Change asset
@@ -58,14 +59,14 @@
       {% if not locked_asset %}
       {# Component field — JS populates this dropdown with components belonging to the selected machine. Initially empty. #}
       <div class="mms-form-row" id="component-row">
-        <label for="id_component">Component:</label>
+        <label for="id_component">{% trans "Component:" %}</label>
         {{ form.component }}
         <small class="form-text text-muted" style="color:#6b7280">Optional. Pick a specific sub-assembly / component inside the selected machine.</small>
         {% if form.component.errors %}<div class="mms-field-error">{{ form.component.errors }}</div>{% endif %}
       </div>
       {% endif %}
       <div class="form-group" id="photo-upload-section">
-        <label for="id_issue_photos">Photos &amp; Videos (optional)</label>
+        <label for="id_issue_photos">{% trans "Photos &amp; Videos (optional)" %}</label>
         <input type="file" name="issue_photos" id="id_issue_photos"
                accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/quicktime" multiple
                class="form-control">
@@ -74,12 +75,12 @@
       </div>
       {% include "maintenance/_voice_recorder.html" %}
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit" id="submit-btn">Submit</button>
+        <button class="mms-btn mms-btn--primary" type="submit" id="submit-btn">{% trans "Submit" %}</button>
       </div>
     </form>
   </div>
 </div>
-<p class="mms-form-tip">Tip: QR deep link <code>?qr=PRESS-01</code> pre-selects the machine, and the scanner page can fill it for you.</p>
+<p class="mms-form-tip">{% trans "Tip: QR deep link" %}<code>?qr=PRESS-01</code>{% trans "pre-selects the machine, and the scanner page can fill it for you." %}</p>
 <style>
 .photo-preview-grid {
     display: flex;

@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Receive PO {{ po.po_number }}{% endblock %}
@@ -7,8 +8,8 @@
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-body">
         <dl style="margin:0">
-            <dt>Supplier</dt><dd>{{ po.supplier.name|default:"—" }}</dd>
-            <dt>Current Status</dt><dd><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></dd>
+            <dt>{% trans "Supplier" %}</dt><dd>{{ po.supplier.name|default:"—" }}</dd>
+            <dt>{% trans "Current Status" %}</dt><dd><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></dd>
         </dl>
     </div>
 </div>
@@ -17,18 +18,18 @@
     {% csrf_token %}
     <div class="mms-card" style="margin-bottom:1rem">
         <div class="mms-card-header">
-            <h5>Supplier Invoice</h5>
+            <h5>{% trans "Supplier Invoice" %}</h5>
         </div>
         <div class="mms-card-body">
             <div class="mms-form-row" style="max-width:480px">
-                <label for="supplier_invoice_ref" class="mms-form-label">Supplier invoice reference</label>
+                <label for="supplier_invoice_ref" class="mms-form-label">{% trans "Supplier invoice reference" %}</label>
                 <input type="text"
                        id="supplier_invoice_ref"
                        name="supplier_invoice_ref"
                        class="form-control"
                        maxlength="120"
                        value="{{ po.supplier_invoice_number|default:'' }}"
-                       placeholder="e.g. INV-2026-0042">
+                       placeholder={% trans "e.g. INV-2026-0042" %}>
                 <small class="text-muted">
                     Vendor invoice number from the shipment. Stored on the PO and copied to each stock movement.
                 </small>
@@ -38,22 +39,22 @@
 
     <div class="mms-card">
         <div class="mms-card-header">
-            <h5>Receive Line Items</h5>
+            <h5>{% trans "Receive Line Items" %}</h5>
         </div>
         <div class="mms-card-body">
             <table class="mms-table">
                 <thead>
                     <tr>
-                        <th>Part</th>
-                        <th>SKU</th>
-                        <th>Ordered</th>
-                        <th>Already Received</th>
-                        <th>Remaining</th>
-                        <th>Good</th>
-                        <th>Damaged</th>
-                        <th>Rejected</th>
-                        <th>Actual Unit Price</th>
-                        <th>Negotiated</th>
+                        <th>{% trans "Part" %}</th>
+                        <th>{% trans "SKU" %}</th>
+                        <th>{% trans "Ordered" %}</th>
+                        <th>{% trans "Already Received" %}</th>
+                        <th>{% trans "Remaining" %}</th>
+                        <th>{% trans "Good" %}</th>
+                        <th>{% trans "Damaged" %}</th>
+                        <th>{% trans "Rejected" %}</th>
+                        <th>{% trans "Actual Unit Price" %}</th>
+                        <th>{% trans "Negotiated" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,18 +109,18 @@
                 </tbody>
             </table>
             <div class="mms-form-actions" style="margin-top:1rem">
-                <button class="mms-btn mms-btn--primary" type="submit">Confirm Receipt</button>
-                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+                <button class="mms-btn mms-btn--primary" type="submit">{% trans "Confirm Receipt" %}</button>
+                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
             </div>
         </div>
     </div>
 
     <p class="text-muted" style="margin-top:0.75rem">
         <em>
-            Enter received quantities in the three buckets: <strong>Good</strong> (added to usable stock),
-            <strong>Damaged</strong> (routed to quarantine for return-to-supplier or write-off),
-            <strong>Rejected</strong> (counted at inspection but not received; no inventory change).
-            <strong>Actual Unit Price</strong> captures what the supplier invoiced; leave blank to keep the negotiated price.
+            Enter received quantities in the three buckets: <strong>{% trans "Good" %}</strong> (added to usable stock),
+            <strong>{% trans "Damaged" %}</strong> (routed to quarantine for return-to-supplier or write-off),
+            <strong>{% trans "Rejected" %}</strong> (counted at inspection but not received; no inventory change).
+            <strong>{% trans "Actual Unit Price" %}</strong> captures what the supplier invoiced; leave blank to keep the negotiated price.
         </em>
     </p>
 </form>
@@ -127,7 +128,7 @@
 <!-- Photos & Attachments -->
 <div class="mms-card">
     <div class="mms-card-header">
-        <h5>Photos & Attachments</h5>
+        <h5>{% trans "Photos & Attachments" %}</h5>
     </div>
     <div class="mms-card-body">
         <div class="attachment-list" id="attachment-list-purchase_order-{{ po.pk }}"></div>

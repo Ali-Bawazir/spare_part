@@ -1,3 +1,4 @@
+{% load i18n %}
 {# Phase 7.8: per-WO inventory reservation panel.
 
    Shows the ACTIVE soft-claim reservations for this WO (one row per
@@ -18,15 +19,15 @@
 
   {# ACTIVE reservations table #}
   {% if active_reservations %}
-  <h4 style="margin: 0.5rem 0; font-size: 0.95em;">Active claims</h4>
+  <h4 style="margin: 0.5rem 0; font-size: 0.95em;">{% trans "Active claims" %}</h4>
   <table class="mms-table">
     <thead>
       <tr>
-        <th>Part</th>
-        <th>SKU</th>
-        <th>Qty</th>
-        <th>Created</th>
-        <th>Source line</th>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "SKU" %}</th>
+        <th>{% trans "Qty" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Source line" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -51,7 +52,7 @@
     </tbody>
   </table>
   {% else %}
-    <div class="mms-empty">No active reservations on this WO.</div>
+    <div class="mms-empty">{% trans "No active reservations on this WO." %}</div>
   {% endif %}
 
   {# Historical reservations (collapsed by default to keep the page tidy) #}
@@ -63,12 +64,12 @@
     <table class="mms-table" style="margin-top: 0.5rem;">
       <thead>
         <tr>
-          <th>Part</th>
-          <th>SKU</th>
-          <th>Qty</th>
-          <th>Status</th>
-          <th>Released at</th>
-          <th>Reason</th>
+          <th>{% trans "Part" %}</th>
+          <th>{% trans "SKU" %}</th>
+          <th>{% trans "Qty" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Released at" %}</th>
+          <th>{% trans "Reason" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -79,9 +80,9 @@
           <td>{{ r.quantity|floatformat:3 }}</td>
           <td>
             {% if r.status == "released" %}
-              <span class="mms-badge mms-badge-green">released</span>
+              <span class="mms-badge mms-badge-green">{% trans "released" %}</span>
             {% else %}
-              <span class="mms-badge mms-badge-red">cancelled</span>
+              <span class="mms-badge mms-badge-red">{% trans "cancelled" %}</span>
             {% endif %}
           </td>
           <td>{{ r.released_at|date:"Y-m-d H:i"|default:"-" }}</td>

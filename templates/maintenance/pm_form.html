@@ -1,8 +1,9 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}PM schedule{% endblock %}
 {% block page_heading %}PM schedule{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Define preventive task frequency and next due date for a machine or component.</p>
+<p class="mms-page-lead">{% trans "Define preventive task frequency and next due date for a machine or component." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form" id="pm-schedule-form">
@@ -10,10 +11,10 @@
 {% if locked_asset %}
 <div class="mms-alert" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#dbeafe;border-left:3px solid #2563eb;border-radius:4px;color:#1e3a8a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
   <div style="flex:1;min-width:200px">
-    <strong>🔒 Asset locked:</strong>
+    <strong>{% trans "🔒 Asset locked:" %}</strong>
     This record will be attached to:
     <strong style="color:#1e40af">{{ locked_asset.breadcrumb }}</strong>
-    <div style="font-size:0.85em;color:#475569;margin-top:0.25rem">The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there.</div>
+    <div style="font-size:0.85em;color:#475569;margin-top:0.25rem">{% trans "The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there." %}</div>
   </div>
   <a href="{% if locked_asset.machine_pk %}{% url 'machine_detail' locked_asset.machine_pk %}{% endif %}" class="mms-btn mms-btn--ghost" style="font-size:0.85em;flex-shrink:0">
     ← Change asset
@@ -40,8 +41,8 @@
       {% if not locked_asset %}
       <div class="mms-form-row" id="component-row">
         <label for="id_component" style="display:flex;align-items:center;gap:0.5rem">
-          <span>Component (optional):</span>
-          <small class="mms-text-muted" style="font-size:0.85em">— leave blank to apply the PM to the whole machine</small>
+          <span>{% trans "Component (optional):" %}</span>
+          <small class="mms-text-muted" style="font-size:0.85em">{% trans "— leave blank to apply the PM to the whole machine" %}</small>
         </label>
         {{ form.component }}
         <small class="mms-text-muted" id="component-hint" style="font-size:0.85em;color:#6b7280;margin-top:0.25rem;display:block">
@@ -52,14 +53,14 @@
       {% endif %}
 
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Save</button>
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
       </div>
     </form>
   </div>
 </div>
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Reference Photos</div>
+  <div class="mms-card-header">{% trans "Reference Photos" %}</div>
   <div class="mms-card-body">
     {% if schedule and schedule.pk %}
       {% include "maintenance/_attachment_uploader.html" with entity_type="pm_schedule" entity_id=schedule.pk editable=True %}

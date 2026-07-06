@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
    Reusable attachment uploader partial.
    Usage:
@@ -15,7 +16,7 @@
   <div class="mms-card-header">{{ title|default:"Documents &amp; Attachments" }}</div>
   <div class="mms-card-body">
     <div id="attachment-list-{{ entity_type }}-{{ entity_id }}">
-      <span class="text-muted">Loading attachments…</span>
+      <span class="text-muted">{% trans "Loading attachments…" %}</span>
     </div>
 
     {% if editable|default_if_none:True %}
@@ -33,20 +34,20 @@
           <input type="checkbox"
                  id="attachment-is-primary-{{ entity_type }}-{{ entity_id }}"
                  checked>
-          <span>Set as primary</span>
+          <span>{% trans "Set as primary" %}</span>
         </label>
         <select id="attachment-category-{{ entity_type }}-{{ entity_id }}"
                 class="form-select"
                 style="width:auto">
-          <option value="PRODUCT" {% if default_category|default:"PRODUCT" == "PRODUCT" %}selected{% endif %}>Product shot</option>
-          <option value="LABEL" {% if default_category == "LABEL" %}selected{% endif %}>Manufacturer label</option>
-          <option value="PACKAGING" {% if default_category == "PACKAGING" %}selected{% endif %}>Packaging</option>
-          <option value="INSTALLED" {% if default_category == "INSTALLED" %}selected{% endif %}>Installed in machine</option>
+          <option value="PRODUCT" {% if default_category|default:"PRODUCT" == "PRODUCT" %}selected{% endif %}>{% trans "Product shot" %}</option>
+          <option value="LABEL" {% if default_category == "LABEL" %}selected{% endif %}>{% trans "Manufacturer label" %}</option>
+          <option value="PACKAGING" {% if default_category == "PACKAGING" %}selected{% endif %}>{% trans "Packaging" %}</option>
+          <option value="INSTALLED" {% if default_category == "INSTALLED" %}selected{% endif %}>{% trans "Installed in machine" %}</option>
           <option value="DOCUMENT" {% if default_category == "DOCUMENT" %}selected{% endif %}>Document / datasheet</option>
         </select>
         <input type="text"
                id="attachment-note-{{ entity_type }}-{{ entity_id }}"
-               placeholder="Note (optional)"
+               placeholder={% trans "Note (optional)" %}
                class="form-control"
                style="width:200px">
         <button type="button"

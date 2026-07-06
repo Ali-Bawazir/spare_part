@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}PM Work Order WO-{{ wo.number }} — Bawazir MMS{% endblock %}
@@ -11,7 +12,7 @@
 <div class="mms-banner mms-banner--info" style="margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem">
     <span style="font-size:1.5rem">🔁</span>
     <div style="flex:1">
-        <strong>This is a Preventive Maintenance work order.</strong>
+        <strong>{% trans "This is a Preventive Maintenance work order." %}</strong>
         <div class="text-muted" style="font-size:.85rem">
             Follow the checklist below. When you finish, submit for manager review.
         </div>
@@ -20,16 +21,16 @@
 </div>
 
 <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header">PM Context</div>
+    <div class="mms-card-header">{% trans "PM Context" %}</div>
     <div class="mms-card-body">
         <dl style="margin:0; display:grid; grid-template-columns: 180px 1fr; gap:0.5rem">
-            <dt>Work Order</dt>
+            <dt>{% trans "Work Order" %}</dt>
             <dd>
                 <a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a>
                 — created {{ wo.created_at|date:"Y-m-d H:i" }}
             </dd>
 
-            <dt>Lifecycle status</dt>
+            <dt>{% trans "Lifecycle status" %}</dt>
             <dd>
                 <span class="{{ wo.lifecycle_status|wo_status_badge_class }}">{{ wo.get_lifecycle_status_display }}</span>
                 {% if wo.pm_execution %}
@@ -37,26 +38,26 @@
                 {% endif %}
             </dd>
 
-            <dt>Machine</dt>
+            <dt>{% trans "Machine" %}</dt>
             <dd>{{ wo.machine.name }} <span class="text-muted">({{ wo.machine.qr_code }})</span></dd>
 
             {% if wo.component %}
-            <dt>Component</dt>
+            <dt>{% trans "Component" %}</dt>
             <dd>{{ wo.component.name }} <span class="text-muted">({{ wo.component.asset_code }})</span></dd>
             {% endif %}
 
-            <dt>Priority</dt>
+            <dt>{% trans "Priority" %}</dt>
             <dd>
                 {% if sched %}
                     <span class="{{ sched.effective_priority|priority_badge_class }}">{{ sched.get_effective_priority_display }}</span>
                 {% else %}—{% endif %}
             </dd>
 
-            <dt>Technician</dt>
+            <dt>{% trans "Technician" %}</dt>
             <dd>{{ wo.assigned_technician|default:"Unassigned" }}</dd>
 
             {% if sched %}
-            <dt>PM Schedule</dt>
+            <dt>{% trans "PM Schedule" %}</dt>
             <dd>
                 {{ sched.template.title }}
                 <span class="text-muted">({{ sched.template.code }})</span>
@@ -67,13 +68,13 @@
                 {% endif %}
             </dd>
 
-            <dt>Frequency</dt>
+            <dt>{% trans "Frequency" %}</dt>
             <dd>Every {{ sched.interval }} {{ sched.get_frequency_type_display|lower }}{% if sched.interval != 1 %}s{% endif %}</dd>
 
-            <dt>Estimated duration</dt>
+            <dt>{% trans "Estimated duration" %}</dt>
             <dd>{{ sched.effective_duration_minutes }} minutes</dd>
 
-            <dt>Schedule info</dt>
+            <dt>{% trans "Schedule info" %}</dt>
             <dd>
                 Last completed: <strong>{{ sched.last_completed_at|date:"Y-m-d"|default:"Never" }}</strong><br>
                 Next due: <strong>{{ sched.next_due_at|date:"Y-m-d" }}</strong>
@@ -81,7 +82,7 @@
             {% endif %}
 
             {% if pm_execution %}
-            <dt>PM Execution</dt>
+            <dt>{% trans "PM Execution" %}</dt>
             <dd>
                 #{{ pm_execution.execution_sequence }} ·
                 scheduled for {{ pm_execution.scheduled_due_at|date:"Y-m-d" }}<br>
@@ -99,7 +100,7 @@
 
 {% if schedule_attachments %}
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">Reference Photos (read-only)</div>
+  <div class="mms-card-header">{% trans "Reference Photos (read-only)" %}</div>
   <div class="mms-card-body" style="display:flex;gap:0.5rem;flex-wrap:wrap">
     {% for att in schedule_attachments %}
       {% if att.mime_type and 'image' in att.mime_type %}
@@ -137,7 +138,7 @@
                                 <input type="text"
                                        name="note_{{ forloop.counter0 }}"
                                        class="form-control form-control-sm"
-                                       placeholder="Add note (optional)"
+                                       placeholder={% trans "Add note (optional)" %}
                                        style="max-width:400px">
                             </div>
                         </div>
@@ -146,28 +147,28 @@
                 {% endfor %}
 
                 <div style="margin-top:1.5rem">
-                    <h6>Completion Notes</h6>
+                    <h6>{% trans "Completion Notes" %}</h6>
                     {{ form.as_p }}
                 </div>
 
                 <div class="mms-form-actions">
-                    <button class="mms-btn mms-btn--primary" type="submit">✓ Submit for Review</button>
-                    <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+                    <button class="mms-btn mms-btn--primary" type="submit">{% trans "✓ Submit for Review" %}</button>
+                    <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
                 </div>
             </form>
         </div>
     </div>
     {% else %}
     <div class="mms-card">
-        <div class="mms-card-header"><h5 style="margin:0">PM Execution</h5></div>
+        <div class="mms-card-header"><h5 style="margin:0">{% trans "PM Execution" %}</h5></div>
         <div class="mms-card-body">
-            <p class="text-muted">No checklist defined for this PM template. You can still submit for review with notes.</p>
+            <p class="text-muted">{% trans "No checklist defined for this PM template. You can still submit for review with notes." %}</p>
             <form method="post">
                 {% csrf_token %}
                 {{ form.as_p }}
                 <div class="mms-form-actions">
-                    <button class="mms-btn mms-btn--primary" type="submit">✓ Submit for Review</button>
-                    <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">Cancel</a>
+                    <button class="mms-btn mms-btn--primary" type="submit">{% trans "✓ Submit for Review" %}</button>
+                    <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
                 </div>
             </form>
         </div>
@@ -175,7 +176,7 @@
     {% endif %}
 {% else %}
     <div class="mms-card">
-        <div class="mms-card-header"><h5 style="margin:0">Inspection Checklist (read-only)</h5></div>
+        <div class="mms-card-header"><h5 style="margin:0">{% trans "Inspection Checklist (read-only)" %}</h5></div>
         <div class="mms-card-body">
             {% if checklist_items %}
                 {% for item in checklist_items %}
@@ -184,20 +185,20 @@
                 </div>
                 {% endfor %}
             {% else %}
-                <p class="text-muted">No checklist defined.</p>
+                <p class="text-muted">{% trans "No checklist defined." %}</p>
             {% endif %}
 
             {% if wo.action_taken %}
             <div style="margin-top:1.5rem">
-                <h6>Last submission</h6>
+                <h6>{% trans "Last submission" %}</h6>
                 <pre style="background:#f8f9fa; padding:0.75rem; border-radius:4px; white-space:pre-wrap; font-size:.85rem">{{ wo.action_taken }}</pre>
             </div>
             {% endif %}
 
             <p style="margin-top:1.5rem">
-                <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">← Back to WO</a>
+                <a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--ghost">{% trans "← Back to WO" %}</a>
                 {% if wo.lifecycle_status == 'pending_review' and user.role == 'manager' or user.role == 'super_admin' %}
-                    <a href="{% url 'pm_review' wo.pk %}" class="mms-btn mms-btn--primary">⚖️ Review PM</a>
+                    <a href="{% url 'pm_review' wo.pk %}" class="mms-btn mms-btn--primary">{% trans "⚖️ Review PM" %}</a>
                 {% endif %}
             </p>
         </div>

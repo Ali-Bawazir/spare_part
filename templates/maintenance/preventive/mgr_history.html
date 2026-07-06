@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}History — Bawazir MMS{% endblock %}
 {% block page_heading %}History{% endblock %}
@@ -7,42 +8,42 @@
     <div class="mms-card-body">
         <form method="get" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;align-items:end">
             <div>
-                <label for="f-machine">Machine</label>
+                <label for="f-machine">{% trans "Machine" %}</label>
                 <select name="machine" id="f-machine" class="form-select">
-                    <option value="">Any</option>
+                    <option value="">{% trans "Any" %}</option>
                     {% for m in machines %}
                     <option value="{{ m.pk }}" {% if selected_machine == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label for="f-tech">Technician</label>
+                <label for="f-tech">{% trans "Technician" %}</label>
                 <select name="technician" id="f-tech" class="form-select">
-                    <option value="">Any</option>
+                    <option value="">{% trans "Any" %}</option>
                     {% for t in technicians %}
                     <option value="{{ t.pk }}" {% if selected_technician == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.username }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label for="f-days">Date range</label>
+                <label for="f-days">{% trans "Date range" %}</label>
                 <select name="days" id="f-days" class="form-select">
-                    <option value="7" {% if selected_days == 7 %}selected{% endif %}>Last 7 days</option>
-                    <option value="30" {% if selected_days == 30 %}selected{% endif %}>Last 30 days</option>
-                    <option value="90" {% if selected_days == 90 %}selected{% endif %}>Last 90 days</option>
-                    <option value="365" {% if selected_days == 365 %}selected{% endif %}>Last year</option>
+                    <option value="7" {% if selected_days == 7 %}selected{% endif %}>{% trans "Last 7 days" %}</option>
+                    <option value="30" {% if selected_days == 30 %}selected{% endif %}>{% trans "Last 30 days" %}</option>
+                    <option value="90" {% if selected_days == 90 %}selected{% endif %}>{% trans "Last 90 days" %}</option>
+                    <option value="365" {% if selected_days == 365 %}selected{% endif %}>{% trans "Last year" %}</option>
                 </select>
             </div>
             <div>
-                <label for="f-status">Status</label>
+                <label for="f-status">{% trans "Status" %}</label>
                 <select name="status" id="f-status" class="form-select">
-                    <option value="">Any</option>
-                    <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
-                    <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Returned</option>
+                    <option value="">{% trans "Any" %}</option>
+                    <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>{% trans "Approved" %}</option>
+                    <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>{% trans "Returned" %}</option>
                 </select>
             </div>
             <div style="grid-column:1/-1">
-                <button type="submit" class="mms-btn mms-btn--primary">Apply</button>
+                <button type="submit" class="mms-btn mms-btn--primary">{% trans "Apply" %}</button>
             </div>
         </form>
     </div>
@@ -54,12 +55,12 @@
         <table class="mms-table" style="width:100%">
             <thead>
                 <tr>
-                    <th>Date</th>
-                    <th>Machine</th>
-                    <th>Maintenance</th>
-                    <th>Technician</th>
-                    <th>Actual vs Expected</th>
-                    <th>Status</th>
+                    <th>{% trans "Date" %}</th>
+                    <th>{% trans "Machine" %}</th>
+                    <th>{% trans "Maintenance" %}</th>
+                    <th>{% trans "Technician" %}</th>
+                    <th>{% trans "Actual vs Expected" %}</th>
+                    <th>{% trans "Status" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -79,9 +80,9 @@
                     </td>
                     <td>
                         {% if occ.status == 'approved' %}
-                            <span style="color:#28a745">✓ Approved</span>
+                            <span style="color:#28a745">{% trans "✓ Approved" %}</span>
                         {% elif occ.status == 'rejected' %}
-                            <span style="color:#dc3545">✗ Returned</span>
+                            <span style="color:#dc3545">{% trans "✗ Returned" %}</span>
                         {% else %}
                             {{ occ.get_status_display }}
                         {% endif %}

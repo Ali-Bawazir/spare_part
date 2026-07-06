@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Plan Details — {{ schedule.template.title }}{% endblock %}
 {% block page_heading %}{{ schedule.template.title }}{% endblock %}
@@ -12,36 +13,36 @@
 
 {# ──── Plan Information ──── #}
 <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header"><strong>Plan Information</strong></div>
+    <div class="mms-card-header"><strong>{% trans "Plan Information" %}</strong></div>
     <div class="mms-card-body">
         <dl style="display:grid;grid-template-columns:200px 1fr;gap:0.5rem;margin:0">
-            <dt>Machine</dt><dd>{{ schedule.machine.name }}</dd>
+            <dt>{% trans "Machine" %}</dt><dd>{{ schedule.machine.name }}</dd>
             {% if schedule.component %}
-            <dt>Component</dt><dd>{{ schedule.component.name }}</dd>
+            <dt>{% trans "Component" %}</dt><dd>{{ schedule.component.name }}</dd>
             {% endif %}
-            <dt>Maintenance</dt><dd>{{ schedule.template.title }}</dd>
-            <dt>Frequency</dt>
+            <dt>{% trans "Maintenance" %}</dt><dd>{{ schedule.template.title }}</dd>
+            <dt>{% trans "Frequency" %}</dt>
             <dd>
                 {{ schedule.get_frequency_type_display }}
                 {% if schedule.interval != 1 %}× {{ schedule.interval }}{% endif %}
                 at {{ schedule.due_time|time:"H:i" }}
             </dd>
-            <dt>Priority</dt><dd>{{ schedule.effective_priority|capfirst }}</dd>
-            <dt>Active</dt><dd>{% if schedule.is_active %}✓{% else %}—{% endif %}</dd>
+            <dt>{% trans "Priority" %}</dt><dd>{{ schedule.effective_priority|capfirst }}</dd>
+            <dt>{% trans "Active" %}</dt><dd>{% if schedule.is_active %}✓{% else %}—{% endif %}</dd>
             {% if schedule.ends_at %}
-            <dt>Ends</dt><dd>{{ schedule.ends_at|date:"Y-m-d" }}</dd>
+            <dt>{% trans "Ends" %}</dt><dd>{{ schedule.ends_at|date:"Y-m-d" }}</dd>
             {% endif %}
-            <dt>Created</dt><dd>{{ schedule.created_at|date:"Y-m-d" }} by {{ schedule.created_by.username|default_if_none:"—" }}</dd>
+            <dt>{% trans "Created" %}</dt><dd>{{ schedule.created_at|date:"Y-m-d" }} by {{ schedule.created_by.username|default_if_none:"—" }}</dd>
         </dl>
     </div>
 </div>
 
 {# ──── Quick Actions ──── #}
 <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header"><strong>Quick Actions</strong></div>
+    <div class="mms-card-header"><strong>{% trans "Quick Actions" %}</strong></div>
     <div class="mms-card-body">
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-            <a href="{% url 'preventive:mgr_plan_edit' schedule.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">Edit</a>
+            <a href="{% url 'preventive:mgr_plan_edit' schedule.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Edit" %}</a>
 
             <form method="post" action="{% url 'preventive:mgr_plan_assign' schedule.pk %}" style="display:inline-flex;gap:0.25rem;align-items:center">
                 {% csrf_token %}
@@ -65,39 +66,39 @@
 
             <form method="post" action="{% url 'preventive:mgr_plan_run_now' schedule.pk %}" style="display:inline">
                 {% csrf_token %}
-                <button type="submit" class="mms-btn mms-btn--warning mms-btn--sm">Run Now</button>
+                <button type="submit" class="mms-btn mms-btn--warning mms-btn--sm">{% trans "Run Now" %}</button>
             </form>
 
             <form method="post" action="{% url 'preventive:mgr_plan_archive' schedule.pk %}" style="display:inline">
                 {% csrf_token %}
                 <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm"
-                        onclick="return confirm('Archive this plan?')">Archive</button>
+                        onclick="return confirm('Archive this plan?')">{% trans "Archive" %}</button>
             </form>
 
-            <a href="{% url 'machine_detail' schedule.machine.pk %}#preventive" class="mms-btn mms-btn--ghost mms-btn--sm">View Machine</a>
+            <a href="{% url 'machine_detail' schedule.machine.pk %}#preventive" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "View Machine" %}</a>
         </div>
     </div>
 </div>
 
 {# ──── Upcoming Schedule ──── #}
 <div class="mms-card" style="margin-bottom:1rem">
-    <div class="mms-card-header"><strong>Upcoming Schedule</strong></div>
+    <div class="mms-card-header"><strong>{% trans "Upcoming Schedule" %}</strong></div>
     <div class="mms-card-body">
         <dl style="display:grid;grid-template-columns:200px 1fr;gap:0.5rem;margin:0">
-            <dt>Next due</dt>
+            <dt>{% trans "Next due" %}</dt>
             <dd>
                 {% if next_occ %}
                     {{ next_occ.scheduled_due_at|date:"Y-m-d H:i" }}
                     {% if next_occ.assigned_technician %}
                         · {{ next_occ.assigned_technician.username|default_if_none:"—" }}
                     {% else %}
-                        · <span style="color:#dc3545">Unassigned</span>
+                        · <span style="color:#dc3545">{% trans "Unassigned" %}</span>
                     {% endif %}
                 {% else %}
                     —
                 {% endif %}
             </dd>
-            <dt>Last completed</dt>
+            <dt>{% trans "Last completed" %}</dt>
             <dd>
                 {% if last_completed %}
                     {{ last_completed.scheduled_due_at|date:"Y-m-d" }}
@@ -118,19 +119,19 @@
 {# ──── Recent Executions ──── #}
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-header">
-        <strong>Recent Executions</strong>
+        <strong>{% trans "Recent Executions" %}</strong>
         <a href="{% url 'preventive:mgr_history' %}?machine=&technician=&days=30&status="
-           style="margin-left:0.5rem;font-size:.85rem">View all history →</a>
+           style="margin-left:0.5rem;font-size:.85rem">{% trans "View all history →" %}</a>
     </div>
     <div class="mms-card-body">
         {% if recent %}
         <table class="mms-table" style="width:100%">
             <thead>
                 <tr>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Actual vs Expected</th>
-                    <th>Technician</th>
+                    <th>{% trans "Date" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Actual vs Expected" %}</th>
+                    <th>{% trans "Technician" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -139,9 +140,9 @@
                     <td>{{ occ.scheduled_due_at|date:"Y-m-d" }}</td>
                     <td>
                         {% if occ.status == 'approved' %}
-                            <span style="color:#28a745">✓ Approved</span>
+                            <span style="color:#28a745">{% trans "✓ Approved" %}</span>
                         {% elif occ.status == 'rejected' %}
-                            <span style="color:#dc3545">✗ Returned</span>
+                            <span style="color:#dc3545">{% trans "✗ Returned" %}</span>
                         {% else %}
                             {{ occ.get_status_display }}
                         {% endif %}
@@ -163,7 +164,7 @@
             </tbody>
         </table>
         {% else %}
-        <p class="text-muted">No executions yet.</p>
+        <p class="text-muted">{% trans "No executions yet." %}</p>
         {% endif %}
     </div>
 </div>

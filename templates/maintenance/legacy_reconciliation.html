@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Legacy Work Order Reconciliation{% endblock %}
@@ -14,21 +15,21 @@
 <div class="mms-grid mms-grid--kpis" style="margin-bottom:1rem">
   <div class="mms-kpi">
     <div class="mms-kpi-value">{{ total }}</div>
-    <div class="mms-kpi-label">Total WOs</div>
+    <div class="mms-kpi-label">{% trans "Total WOs" %}</div>
   </div>
   <div class="mms-kpi">
     <div class="mms-kpi-value">{{ legacy_count }}</div>
-    <div class="mms-kpi-label">Legacy (v0)</div>
+    <div class="mms-kpi-label">{% trans "Legacy (v0)" %}</div>
   </div>
   <div class="mms-kpi">
     <div class="mms-kpi-value">{{ v1_count }}</div>
-    <div class="mms-kpi-label">Blocker system (v1)</div>
+    <div class="mms-kpi-label">{% trans "Blocker system (v1)" %}</div>
   </div>
 </div>
 
 {% if legacy_count == 0 %}
 <div class="mms-alert mms-alert--success" style="margin-bottom:1rem">
-  <strong>All Work Orders are on the blocker system (v1).</strong>
+  <strong>{% trans "All Work Orders are on the blocker system (v1)." %}</strong>
   Nothing to reconcile.
 </div>
 {% else %}
@@ -38,10 +39,10 @@
     <thead>
       <tr>
         <th>WO#</th>
-        <th>Machine</th>
-        <th>Lifecycle</th>
-        <th>Days since created</th>
-        <th>Actions</th>
+        <th>{% trans "Machine" %}</th>
+        <th>{% trans "Lifecycle" %}</th>
+        <th>{% trans "Days since created" %}</th>
+        <th>{% trans "Actions" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -51,11 +52,11 @@
         <td>{% if wo.machine %}{{ wo.machine.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
         <td>{{ wo.get_lifecycle_status_display }}</td>
         <td>{{ wo.created_at|timesince|default:"—" }}</td>
-        <td><a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--sm mms-btn--ghost">Open</a></td>
+        <td><a href="{% url 'work_order_detail' wo.pk %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "Open" %}</a></td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="5" style="text-align:center;color:var(--mms-muted)">No legacy WOs found.</td>
+        <td colspan="5" style="text-align:center;color:var(--mms-muted)">{% trans "No legacy WOs found." %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -64,7 +65,7 @@
 {% endif %}
 
 <div style="margin-top:1.5rem">
-  <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">← Back to dashboard</a>
+  <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Back to dashboard" %}</a>
 </div>
 
 {% endblock %}

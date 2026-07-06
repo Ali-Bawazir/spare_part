@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Legacy WorkOrder Reconciliation{% endblock %}
@@ -10,41 +11,41 @@
 
 {% if total_count == 0 %}
 <div class="mms-alert mms-alert--success" style="margin-bottom:1rem">
-  <strong>All WorkOrders are on the blocker system (version 1+).</strong>
+  <strong>{% trans "All WorkOrders are on the blocker system (version 1+)." %}</strong>
 </div>
 {% else %}
 <div class="mms-grid mms-grid--kpis" style="margin-bottom:1rem">
   <div class="mms-kpi">
     <div class="mms-kpi-value">{{ total_count }}</div>
-    <div class="mms-kpi-label">Legacy WOs</div>
+    <div class="mms-kpi-label">{% trans "Legacy WOs" %}</div>
   </div>
 </div>
 
 <form method="GET" class="mms-form mms-form--inline" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">
   <div>
-    <label class="mms-label" for="id_lifecycle_status">Lifecycle Status</label>
+    <label class="mms-label" for="id_lifecycle_status">{% trans "Lifecycle Status" %}</label>
     <select name="lifecycle_status" id="id_lifecycle_status" class="mms-input">
-      <option value="">All</option>
+      <option value="">{% trans "All" %}</option>
       {% for value, label in status_choices %}
       <option value="{{ value }}" {% if filters.lifecycle_status == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
   </div>
   <div>
-    <label class="mms-label" for="id_q">Search</label>
-    <input type="text" name="q" id="id_q" class="mms-input" placeholder="WO number or machine name" value="{{ filters.q|default:'' }}">
+    <label class="mms-label" for="id_q">{% trans "Search" %}</label>
+    <input type="text" name="q" id="id_q" class="mms-input" placeholder={% trans "WO number or machine name" %} value="{{ filters.q|default:'' }}">
   </div>
   <div>
-    <label class="mms-label" for="id_created_after">Created after</label>
+    <label class="mms-label" for="id_created_after">{% trans "Created after" %}</label>
     <input type="date" name="created_after" id="id_created_after" class="mms-input" value="{{ filters.created_after|default:'' }}">
   </div>
   <div>
-    <label class="mms-label" for="id_created_before">Created before</label>
+    <label class="mms-label" for="id_created_before">{% trans "Created before" %}</label>
     <input type="date" name="created_before" id="id_created_before" class="mms-input" value="{{ filters.created_before|default:'' }}">
   </div>
   <div style="display:flex;gap:.5rem">
-    <button type="submit" class="mms-btn mms-btn--primary">Apply</button>
-    <a href="{% url 'reconciliation_dashboard' %}" class="mms-btn mms-btn--ghost">Clear</a>
+    <button type="submit" class="mms-btn mms-btn--primary">{% trans "Apply" %}</button>
+    <a href="{% url 'reconciliation_dashboard' %}" class="mms-btn mms-btn--ghost">{% trans "Clear" %}</a>
   </div>
 </form>
 
@@ -52,12 +53,12 @@
   <table class="mms-table">
     <thead>
       <tr>
-        <th>WO Number</th>
-        <th>Machine</th>
-        <th>Technician</th>
-        <th>Lifecycle Status</th>
-        <th>Created At</th>
-        <th>Version</th>
+        <th>{% trans "WO Number" %}</th>
+        <th>{% trans "Machine" %}</th>
+        <th>{% trans "Technician" %}</th>
+        <th>{% trans "Lifecycle Status" %}</th>
+        <th>{% trans "Created At" %}</th>
+        <th>{% trans "Version" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -72,7 +73,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="6" style="text-align:center;color:var(--mms-muted)">No legacy WOs found.</td>
+        <td colspan="6" style="text-align:center;color:var(--mms-muted)">{% trans "No legacy WOs found." %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -82,18 +83,18 @@
 {% if legacy_wos.paginator.num_pages > 1 %}
 <div class="mms-pagination" style="margin-top:1rem;display:flex;gap:.5rem;justify-content:center">
   {% if legacy_wos.has_previous %}
-  <a href="?page={{ legacy_wos.previous_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">&laquo; Previous</a>
+  <a href="?page={{ legacy_wos.previous_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "&laquo; Previous" %}</a>
   {% endif %}
   <span style="padding:.25rem .5rem">Page {{ legacy_wos.number }} of {{ legacy_wos.paginator.num_pages }}</span>
   {% if legacy_wos.has_next %}
-  <a href="?page={{ legacy_wos.next_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">Next &raquo;</a>
+  <a href="?page={{ legacy_wos.next_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "Next &raquo;" %}</a>
   {% endif %}
 </div>
 {% endif %}
 {% endif %}
 
 <div style="margin-top:1.5rem">
-  <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">← Back to dashboard</a>
+  <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Back to dashboard" %}</a>
 </div>
 
 {% endblock %}

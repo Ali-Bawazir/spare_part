@@ -1,27 +1,28 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Delete user{% endblock %}
 {% block page_heading %}Delete user{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Delete removes the row permanently (only when nothing in maintenance, inventory, or procurement still points at this user). Deactivate blocks sign-in but keeps all history.</p>
+<p class="mms-page-lead">{% trans "Delete removes the row permanently (only when nothing in maintenance, inventory, or procurement still points at this user). Deactivate blocks sign-in but keeps all history." %}</p>
 <div class="mms-card mms-form-stack mms-form-stack--narrow">
   <div class="mms-card-body">
     <div class="mms-danger-zone">
-      <p class="mms-danger-zone__lead"><strong>{{ target.username }}</strong> — {{ target|user_role }}{% if not target.is_active %} <span class="text-muted">(already inactive)</span>{% endif %}</p>
+      <p class="mms-danger-zone__lead"><strong>{{ target.username }}</strong> — {{ target|user_role }}{% if not target.is_active %} <span class="text-muted">{% trans "(already inactive)" %}</span>{% endif %}</p>
       <form method="post" class="mms-form">
         {% csrf_token %}
-        <button type="submit" class="mms-btn mms-btn--danger">Delete user permanently</button>
+        <button type="submit" class="mms-btn mms-btn--danger">{% trans "Delete user permanently" %}</button>
       </form>
       {% if mms_user_deactivate_block %}
       <p class="mms-form-help">{{ mms_user_deactivate_block }}</p>
       {% else %}
       <form method="post" action="{% url 'mms_user_deactivate' target.pk %}" class="mms-form">
         {% csrf_token %}
-        <button type="submit" class="mms-btn mms-btn--ghost">Deactivate account (keep history)</button>
+        <button type="submit" class="mms-btn mms-btn--ghost">{% trans "Deactivate account (keep history)" %}</button>
       </form>
       {% endif %}
       <div class="mms-btn-row">
-        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_list' %}">Back to users</a>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_edit' target.pk %}">Edit instead</a>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_list' %}">{% trans "Back to users" %}</a>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_edit' target.pk %}">{% trans "Edit instead" %}</a>
       </div>
     </div>
   </div>

@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}{{ template.code }} — {{ template.title }}{% endblock %}
 {% block page_heading %}{{ template.code }} — {{ template.title }}{% endblock %}
@@ -5,13 +6,13 @@
 <p class="mms-page-lead">{{ template.description|default:"No description." }}</p>
 
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">Procedure metadata</div>
+  <div class="mms-card-header">{% trans "Procedure metadata" %}</div>
   <div class="mms-card-body">
     <dl style="margin:0; display:grid; grid-template-columns: 200px 1fr; gap:0.5rem">
-      <dt>Priority</dt><dd>{{ template.get_priority_display }}</dd>
-      <dt>Estimated duration</dt><dd>{{ template.estimated_duration_minutes }} minutes</dd>
-      <dt>Manager review</dt><dd>{% if template.requires_manager_review %}Required{% else %}Not required{% endif %}</dd>
-      <dt>Active</dt><dd>{% if template.is_active %}Yes{% else %}No{% endif %}</dd>
+      <dt>{% trans "Priority" %}</dt><dd>{{ template.get_priority_display }}</dd>
+      <dt>{% trans "Estimated duration" %}</dt><dd>{{ template.estimated_duration_minutes }} minutes</dd>
+      <dt>{% trans "Manager review" %}</dt><dd>{% if template.requires_manager_review %}Required{% else %}Not required{% endif %}</dd>
+      <dt>{% trans "Active" %}</dt><dd>{% if template.is_active %}Yes{% else %}No{% endif %}</dd>
     </dl>
   </div>
 </div>
@@ -23,9 +24,9 @@
       {% for item in template.checklist_items.all %}
       <li style="margin-bottom:0.25rem">
         {{ item.text }}
-        {% if item.is_required %}<span class="mms-tag mms-tag--warning" style="margin-left:0.5rem">required</span>{% endif %}
+        {% if item.is_required %}<span class="mms-tag mms-tag--warning" style="margin-left:0.5rem">{% trans "required" %}</span>{% endif %}
       </li>
-      {% empty %}<li class="text-muted">No checklist items defined.</li>{% endfor %}
+      {% empty %}<li class="text-muted">{% trans "No checklist items defined." %}</li>{% endfor %}
     </ol>
   </div>
 </div>
@@ -34,16 +35,16 @@
   <div class="mms-card-header">Schedules using this template ({{ schedules.count }})</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Machine</th><th>Frequency</th><th>Next due</th><th>Active</th></tr></thead>
+      <thead><tr><th>{% trans "Machine" %}</th><th>{% trans "Frequency" %}</th><th>{% trans "Next due" %}</th><th>{% trans "Active" %}</th></tr></thead>
       <tbody>
       {% for s in schedules %}
       <tr>
         <td>{{ s.machine }}</td>
         <td>{{ s.get_frequency_type_display }}{% if s.interval != 1 %} × {{ s.interval }}{% endif %}</td>
         <td>{{ s.next_due_at|date:"Y-m-d H:i" }}</td>
-        <td>{% if s.is_active %}<span style="color:#16a34a">Yes</span>{% else %}<span style="color:#9ca3af">No</span>{% endif %}</td>
+        <td>{% if s.is_active %}<span style="color:#16a34a">{% trans "Yes" %}</span>{% else %}<span style="color:#9ca3af">No</span>{% endif %}</td>
       </tr>
-      {% empty %}<tr><td colspan="4" class="mms-empty">No schedules using this template yet.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="4" class="mms-empty">{% trans "No schedules using this template yet." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -51,9 +52,9 @@
 
 <div class="mms-form-actions">
   {% if perm_pm_schedule_manage %}
-  <a class="mms-btn mms-btn--primary" href="{% url 'pm_template_edit' template.pk %}">Edit template</a>
-  <a class="mms-btn mms-btn--ghost" href="{% url 'pm_create' %}?template={{ template.pk }}">Assign to machine</a>
+  <a class="mms-btn mms-btn--primary" href="{% url 'pm_template_edit' template.pk %}">{% trans "Edit template" %}</a>
+  <a class="mms-btn mms-btn--ghost" href="{% url 'pm_create' %}?template={{ template.pk }}">{% trans "Assign to machine" %}</a>
   {% endif %}
-  <a class="mms-btn mms-btn--ghost" href="{% url 'pm_template_list' %}">← All templates</a>
+  <a class="mms-btn mms-btn--ghost" href="{% url 'pm_template_list' %}">{% trans "← All templates" %}</a>
 </div>
 {% endblock %}

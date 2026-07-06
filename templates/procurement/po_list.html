@@ -1,22 +1,23 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Purchase Orders{% endblock %}
 {% block page_heading %}Purchase Orders{% endblock %}
 {% block content %}
 
-<div class="mms-page-lead">Track every PO from creation through receiving. Filter by status, jump to detail, or open a new one.</div>
+<div class="mms-page-lead">{% trans "Track every PO from creation through receiving. Filter by status, jump to detail, or open a new one." %}</div>
 
 {% if perms.procurement.add_purchaseorder %}
 <div class="mms-actions" style="margin-bottom:1rem">
-    <a href="{% url 'purchase_order_create' %}" class="mms-btn mms-btn--primary">+ New PO</a>
+    <a href="{% url 'purchase_order_create' %}" class="mms-btn mms-btn--primary">{% trans "+ New PO" %}</a>
 </div>
 {% endif %}
 
 <div class="mms-card" style="margin-bottom:1rem">
   <div class="mms-card-body" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
-    <strong style="font-size:0.85rem;color:#6b7280">Filter by status:</strong>
+    <strong style="font-size:0.85rem;color:#6b7280">{% trans "Filter by status:" %}</strong>
     <a href="{% url 'purchase_order_list' %}{% if period %}?period={{ period }}{% endif %}{% if group_by_supplier %}&group_by=supplier{% endif %}"
-       class="mms-btn {% if not status_filter %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">All</a>
+       class="mms-btn {% if not status_filter %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">{% trans "All" %}</a>
     {% for value, label in status_choices %}
       <a href="{% url 'purchase_order_list' %}?status={{ value }}{% if period %}&period={{ period }}{% endif %}{% if group_by_supplier %}&group_by=supplier{% endif %}"
          class="mms-btn {% if status_filter == value %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">
@@ -24,7 +25,7 @@
       </a>
     {% endfor %}
     <span style="margin-left:1rem"></span>
-    <strong style="font-size:0.85rem;color:#6b7280">Period:</strong>
+    <strong style="font-size:0.85rem;color:#6b7280">{% trans "Period:" %}</strong>
     <input type="month" name="period" value="{{ period }}" form="period-form"
            style="padding:0.3rem 0.5rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem">
     <form id="period-form" method="get" action="{% url 'purchase_order_list' %}" style="display:inline">
@@ -32,14 +33,14 @@
       {% if group_by_supplier %}<input type="hidden" name="group_by" value="supplier">{% endif %}
     </form>
     <select onchange="window.location.href=this.value" class="mms-btn mms-btn--sm mms-btn--ghost" style="font-size:0.85rem">
-      <option value="{% url 'purchase_order_list' %}{% if status_filter %}?status={{ status_filter }}{% if group_by_supplier %}&group_by=supplier{% endif %}{% endif %}" {% if not period %}selected{% endif %}>All time</option>
+      <option value="{% url 'purchase_order_list' %}{% if status_filter %}?status={{ status_filter }}{% if group_by_supplier %}&group_by=supplier{% endif %}{% endif %}" {% if not period %}selected{% endif %}>{% trans "All time" %}</option>
       {% for value, label in period_choices %}
         <option value="{% url 'purchase_order_list' %}?period={{ value }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if group_by_supplier %}&group_by=supplier{% endif %}" {% if period == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
     {% if period %}
       <a href="{% url 'purchase_order_list' %}{% if status_filter %}?status={{ status_filter }}{% if not group_by_supplier %}&period={{ period }}{% endif %}{% endif %}{% if group_by_supplier %}&group_by=supplier{% endif %}"
-         class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:0.75rem">× clear period</a>
+         class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:0.75rem">{% trans "× clear period" %}</a>
     {% endif %}
     <span style="margin-left:auto"></span>
     <a href="{% if group_by_supplier %}{% url 'purchase_order_list' %}{% if period %}?period={{ period }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% else %}{% url 'purchase_order_list' %}?group_by=supplier{% if period %}&period={{ period }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% endif %}"
@@ -53,7 +54,7 @@
 {% if group_by_supplier %}
   {# ---------- GROUPED BY SUPPLIER ---------- #}
   <div class="mms-card-header" style="background:#f8fafc">
-    <strong>Gross spend by supplier</strong>
+    <strong>{% trans "Gross spend by supplier" %}</strong>
     <span style="color:#6b7280;font-size:0.85rem;margin-left:0.5rem">
       {{ supplier_rows|length }} supplier{{ supplier_rows|length|pluralize }} ·
       Grand total <strong>{{ supplier_grand_total|floatformat:2 }} SAR</strong>
@@ -63,11 +64,11 @@
   <table class="mms-table">
     <thead>
       <tr>
-        <th>Supplier</th>
-        <th style="text-align:right">POs</th>
-        <th style="text-align:right">Line items</th>
-        <th style="text-align:right">Total spent (SAR)</th>
-        <th>CSV</th>
+        <th>{% trans "Supplier" %}</th>
+        <th style="text-align:right">{% trans "POs" %}</th>
+        <th style="text-align:right">{% trans "Line items" %}</th>
+        <th style="text-align:right">{% trans "Total spent (SAR)" %}</th>
+        <th>{% trans "CSV" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -82,7 +83,7 @@
           <td style="text-align:right"><strong>{{ s.total|default:0|floatformat:2 }}</strong></td>
           <td>
             <a href="{% url 'purchase_order_supplier_csv' s.supplier__id %}{% if period %}?period={{ period }}{% endif %}"
-               class="mms-btn mms-btn--ghost mms-btn--sm">📥 CSV</a>
+               class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "📥 CSV" %}</a>
           </td>
         </tr>
         {% for po in pos %}
@@ -104,13 +105,13 @@
           {% endif %}
         {% endfor %}
       {% empty %}
-        <tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1.5rem">No purchase orders for this filter.</td></tr>
+        <tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1.5rem">{% trans "No purchase orders for this filter." %}</td></tr>
       {% endfor %}
     </tbody>
     {% if supplier_rows %}
       <tfoot>
         <tr style="background:#e2e8f0;font-weight:700">
-          <td>Grand total</td>
+          <td>{% trans "Grand total" %}</td>
           <td style="text-align:right">{{ supplier_rows|length }}</td>
           <td></td>
           <td style="text-align:right">{{ supplier_grand_total|floatformat:2 }} SAR</td>
@@ -122,7 +123,7 @@
 {% else %}
   {# ---------- FLAT LIST (existing) ---------- #}
   <div class="mms-card-header">
-    <strong>All purchase orders</strong>
+    <strong>{% trans "All purchase orders" %}</strong>
     <span style="color:#6b7280;font-size:0.85rem;margin-left:0.5rem">
       {{ pos|length }} PO{{ pos|length|pluralize }}{% if period %} · period <strong>{{ period }}</strong>{% endif %}
     </span>
@@ -130,14 +131,14 @@
   <table class="mms-table">
     <thead>
         <tr>
-            <th>PO Number</th>
-            <th>Supplier</th>
-            <th>Invoice</th>
-            <th>Status</th>
-            <th>Expected</th>
-            <th>Total Value</th>
-            <th>Created</th>
-            <th>Actions</th>
+            <th>{% trans "PO Number" %}</th>
+            <th>{% trans "Supplier" %}</th>
+            <th>{% trans "Invoice" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Expected" %}</th>
+            <th>{% trans "Total Value" %}</th>
+            <th>{% trans "Created" %}</th>
+            <th>{% trans "Actions" %}</th>
         </tr>
     </thead>
     <tbody>
@@ -151,11 +152,11 @@
             <td>{{ po.total_ordered_value|default:0 }}</td>
             <td>{{ po.created_at|date:"Y-m-d" }}</td>
             <td>
-                <a href="{% url 'purchase_order_detail' po.pk %}">View</a>
+                <a href="{% url 'purchase_order_detail' po.pk %}">{% trans "View" %}</a>
                 {% if po.status == 'draft' or po.status == 'sent' or po.status == 'partial' %}
-                | <a href="{% url 'purchase_order_receive' po.pk %}">Receive</a>
+                | <a href="{% url 'purchase_order_receive' po.pk %}">{% trans "Receive" %}</a>
                 {% endif %}
-                | <a href="{% url 'purchase_order_pdf' po.pk %}" target="_blank">PDF</a>
+                | <a href="{% url 'purchase_order_pdf' po.pk %}" target="_blank">{% trans "PDF" %}</a>
             </td>
         </tr>
     {% empty %}

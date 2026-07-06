@@ -1,15 +1,16 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Quick log{% endblock %}
 {% block page_heading %}Quick maintenance log{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Ad-hoc notes on a machine without opening a full issue or work order.</p>
+<p class="mms-page-lead">{% trans "Ad-hoc notes on a machine without opening a full issue or work order." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
       {{ form.as_p }}
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Save</button>
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
       </div>
     </form>
   </div>

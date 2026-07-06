@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
 Reusable cost dashboard panel for machine_detail and component views.
 
@@ -406,7 +407,7 @@ The shape of `cost_periods` is unchanged:
   }
 </style>
 
-<div class="mms-cost-dashboard" data-default-period="90" role="region" aria-label="Maintenance costs">
+<div class="mms-cost-dashboard" data-default-period="90" role="region" aria-label={% trans "Maintenance costs" %}>
   <div class="mms-cost-dashboard__head">
     <h3 class="mms-cost-dashboard__title">
       <svg class="mms-cost-dashboard__title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -415,7 +416,7 @@ The shape of `cost_periods` is unchanged:
       </svg>
       Maintenance costs
     </h3>
-    <div class="mms-cost-segments" role="tablist" aria-label="Select time period">
+    <div class="mms-cost-segments" role="tablist" aria-label={% trans "Select time period" %}>
       <button type="button" role="tab" data-period="30" aria-selected="false" tabindex="-1">30d</button>
       <button type="button" role="tab" data-period="90" aria-selected="true">90d</button>
       <button type="button" role="tab" data-period="365" aria-selected="false" tabindex="-1">365d</button>
@@ -447,7 +448,7 @@ The shape of `cost_periods` is unchanged:
               </svg>
             </span>
             <div class="mms-cost-empty-state__title">No maintenance cost recorded in the last {{ days }} days</div>
-            <div class="mms-cost-empty-state__sub">Costs will appear here after work orders are closed.</div>
+            <div class="mms-cost-empty-state__sub">{% trans "Costs will appear here after work orders are closed." %}</div>
           </div>
         {% else %}
           {% with total=cost.total %}
@@ -459,16 +460,16 @@ The shape of `cost_periods` is unchanged:
             </div>
             <div class="mms-cost-hero__meta">
               <span class="mms-cost-trend" data-trend aria-live="polite">
-                <span aria-hidden="true">&mdash;</span>
-                <span data-trend-text>no prior comparison</span>
+                <span aria-hidden="true">{% trans "&mdash;" %}</span>
+                <span data-trend-text>{% trans "no prior comparison" %}</span>
               </span>
             </div>
           </div>
 
           <div class="mms-cost-breakdown">
-            <h4 class="mms-cost-breakdown__title">Breakdown by category</h4>
+            <h4 class="mms-cost-breakdown__title">{% trans "Breakdown by category" %}</h4>
 
-            <div class="mms-cost-bar" role="img" aria-label="Cost distribution across categories">
+            <div class="mms-cost-bar" role="img" aria-label={% trans "Cost distribution across categories" %}>
               {% if total %}
                 <div class="mms-cost-bar__seg" data-cat="material"   style="width:{% widthratio cost.material     total 100 %}%" title="Material {{ cost.material|floatformat:2 }} {{ cost.currency }}"></div>
                 <div class="mms-cost-bar__seg" data-cat="vendor"     style="width:{% widthratio cost.vendor_repair total 100 %}%" title="Vendor repair {{ cost.vendor_repair|floatformat:2 }} {{ cost.currency }}"></div>
@@ -533,7 +534,7 @@ The shape of `cost_periods` is unchanged:
               </span>
               <div class="mms-cost-kpi__body">
                 <div class="mms-cost-kpi__value">{{ cost.wo_count }}</div>
-                <div class="mms-cost-kpi__label">Work orders</div>
+                <div class="mms-cost-kpi__label">{% trans "Work orders" %}</div>
               </div>
             </div>
 
@@ -547,7 +548,7 @@ The shape of `cost_periods` is unchanged:
               </span>
               <div class="mms-cost-kpi__body">
                 <div class="mms-cost-kpi__value">{{ cost.failure_count }}</div>
-                <div class="mms-cost-kpi__label">Failures</div>
+                <div class="mms-cost-kpi__label">{% trans "Failures" %}</div>
               </div>
             </div>
 
@@ -562,11 +563,11 @@ The shape of `cost_periods` is unchanged:
                 {% if cost.cost_per_failure is not None %}
                   <div class="mms-cost-kpi__value">{{ cost.cost_per_failure|floatformat:2 }} {{ cost.currency }}</div>
                 {% else %}
-                  <div class="mms-cost-kpi__value">&mdash;</div>
+                  <div class="mms-cost-kpi__value">{% trans "&mdash;" %}</div>
                 {% endif %}
-                <div class="mms-cost-kpi__label">Cost per failure</div>
+                <div class="mms-cost-kpi__label">{% trans "Cost per failure" %}</div>
                 {% if cost.failure_count == 0 %}
-                  <div class="mms-cost-kpi__sub">No failures recorded</div>
+                  <div class="mms-cost-kpi__sub">{% trans "No failures recorded" %}</div>
                 {% endif %}
               </div>
             </div>

@@ -1,10 +1,11 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Templates — Bawazir MMS{% endblock %}
 {% block page_heading %}Templates{% endblock %}
 {% block content %}
 
 <div style="margin-bottom:1rem">
-    <a href="{% url 'preventive:mgr_template_create' %}" class="mms-btn mms-btn--primary">+ New Template</a>
+    <a href="{% url 'preventive:mgr_template_create' %}" class="mms-btn mms-btn--primary">{% trans "+ New Template" %}</a>
 </div>
 
 <div class="mms-card">
@@ -12,13 +13,13 @@
         <table class="mms-table" style="width:100%">
             <thead>
                 <tr>
-                    <th>Code</th>
-                    <th>Title</th>
-                    <th>Duration</th>
-                    <th>Checks</th>
-                    <th>Photos</th>
-                    <th>Active</th>
-                    <th>Actions</th>
+                    <th>{% trans "Code" %}</th>
+                    <th>{% trans "Title" %}</th>
+                    <th>{% trans "Duration" %}</th>
+                    <th>{% trans "Checks" %}</th>
+                    <th>{% trans "Photos" %}</th>
+                    <th>{% trans "Active" %}</th>
+                    <th>{% trans "Actions" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -31,11 +32,11 @@
                     <td>{% if t.requires_photo_min_count > 0 %}{{ t.requires_photo_min_count }} required{% else %}—{% endif %}</td>
                     <td>{% if t.is_active %}✓{% else %}—{% endif %}</td>
                     <td>
-                        <a href="{% url 'preventive:mgr_template_edit' t.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">Edit</a>
+                        <a href="{% url 'preventive:mgr_template_edit' t.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Edit" %}</a>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="7" class="text-muted">No templates yet.</td></tr>
+                <tr><td colspan="7" class="text-muted">{% trans "No templates yet." %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>

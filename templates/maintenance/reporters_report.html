@@ -1,10 +1,11 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Reporters report{% endblock %}
 {% block page_heading %}Reporters report{% endblock %}
 {% block content %}
 
 <p class="mms-link-back">
-  <a href="{% url 'kpi_dashboard' %}">← Back to KPIs</a>
+  <a href="{% url 'kpi_dashboard' %}">{% trans "← Back to KPIs" %}</a>
 </p>
 <p class="mms-page-lead">
   All operators who reported issues in the last {{ period_days }} days, ranked by report count.
@@ -17,12 +18,12 @@
       <table class="mms-table">
         <thead>
           <tr>
-            <th>Operator</th>
-            <th>Role</th>
-            <th class="text-right">Reports</th>
-            <th class="text-right">Converted to WO</th>
-            <th class="text-right">Conversion rate</th>
-            <th>Share</th>
+            <th>{% trans "Operator" %}</th>
+            <th>{% trans "Role" %}</th>
+            <th class="text-right">{% trans "Reports" %}</th>
+            <th class="text-right">{% trans "Converted to WO" %}</th>
+            <th class="text-right">{% trans "Conversion rate" %}</th>
+            <th>{% trans "Share" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -63,7 +64,7 @@
         </tbody>
         <tfoot style="background:#f8f9fa;font-weight:600">
           <tr>
-            <td colspan="2" class="text-right">Total</td>
+            <td colspan="2" class="text-right">{% trans "Total" %}</td>
             <td class="text-right">{{ total_reports }}</td>
             <td class="text-right">{{ total_converted }}</td>
             <td colspan="2"></td>

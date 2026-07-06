@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}PR #{{ pr.pk }}{% endblock %}
@@ -18,9 +19,9 @@
 
 {% if pr_voice_attachments %}
 <div class="mms-card" style="margin-bottom:1rem;border-left:4px solid #7c3aed">
-  <div class="mms-card-header" style="background:#f5f3ff">🎤 Voice notes</div>
+  <div class="mms-card-header" style="background:#f5f3ff">{% trans "🎤 Voice notes" %}</div>
   <div class="mms-card-body">
-    <p class="text-muted" style="margin:0 0 0.5rem 0">All voice recordings attached to this PR (manager's context, officer's voicemail, etc.).</p>
+    <p class="text-muted" style="margin:0 0 0.5rem 0">{% trans "All voice recordings attached to this PR (manager's context, officer's voicemail, etc.)." %}</p>
     {% for att in pr_voice_attachments %}
     <div style="margin-bottom:0.75rem;padding:.5rem;border-bottom:1px dashed #e5e7eb">
       <audio controls style="width:100%;"><source src="{{ att.file.url }}" type="{{ att.mime_type }}"></audio>
@@ -38,7 +39,7 @@
 {# v4.9.4: Add voice comment section (manager, procurement, supervisor) #}
 {% if user.role == 'manager' or user.role == 'procurement' or user.role == 'supervisor' or user.role == 'super_admin' or perms.procurement.change_purchaserequest %}
 <div class="mms-card" style="margin-bottom:1rem;border-left:4px solid #16a34a">
-  <div class="mms-card-header" style="background:#f0fdf4">🎤 Add voice note</div>
+  <div class="mms-card-header" style="background:#f0fdf4">{% trans "🎤 Add voice note" %}</div>
   <div class="mms-card-body">
     <p class="text-muted" style="margin:0 0 .75rem 0;font-size:.85rem">
       Record a voicemail, a supplier quote recap, or any verbal context. The recording is auto-stopped at 60s.
@@ -46,13 +47,13 @@
     <form method="post" action="{% url 'purchase_request_add_voice' pr.pk %}">
       {% csrf_token %}
       <div class="mms-form-row" style="margin-bottom:.5rem">
-        <label for="voice-note-input" style="font-size:.85rem">Note (optional, shown alongside the recording)</label>
+        <label for="voice-note-input" style="font-size:.85rem">{% trans "Note (optional, shown alongside the recording)" %}</label>
         <input type="text" name="note" id="voice-note-input" maxlength="500"
                class="form-control" placeholder="e.g. 'Supplier ABC confirmed 2-day delivery at $15/unit'">
       </div>
       {% include "maintenance/_voice_recorder.html" %}
       <div class="mms-form-actions" style="margin-top:.5rem">
-        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">📤 Save voice note</button>
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "📤 Save voice note" %}</button>
       </div>
     </form>
   </div>
@@ -62,25 +63,25 @@
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-body">
         <dl style="margin:0; display:grid; grid-template-columns: 150px 1fr; gap:0.5rem">
-            <dt>Part</dt>
+            <dt>{% trans "Part" %}</dt>
             <dd>
                 {% part_primary_image pr.part as img %}
                 {% if img %}
-                <a href="{{ img }}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="display:inline-block;">
+                <a href="{{ img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
                     <img src="{{ img }}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;">
                 </a>
                 {% endif %}
                 <a href="{% url 'spare_part_detail' pr.part.pk %}">{{ pr.part.name }}</a> ({{ pr.part.sku }})
             </dd>
-            <dt>Quantity</dt><dd>{{ pr.quantity }} {{ pr.part.unit }}</dd>
+            <dt>{% trans "Quantity" %}</dt><dd>{{ pr.quantity }} {{ pr.part.unit }}</dd>
 
-            <dt>Status</dt>
+            <dt>{% trans "Status" %}</dt>
             <dd><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></dd>
-            <dt>Supplier</dt><dd>{{ pr.supplier.name|default:"—" }}</dd>
-            <dt>Unit Price</dt><dd>{{ pr.unit_price|default:"—" }}</dd>
-            <dt>Created By</dt><dd>{{ pr.created_by.get_full_name|default:pr.created_by.username }}</dd>
-            <dt>Created</dt><dd>{{ pr.created_at|date:"Y-m-d H:i" }}</dd>
-            <dt>Linked Work Order</dt>
+            <dt>{% trans "Supplier" %}</dt><dd>{{ pr.supplier.name|default:"—" }}</dd>
+            <dt>{% trans "Unit Price" %}</dt><dd>{{ pr.unit_price|default:"—" }}</dd>
+            <dt>{% trans "Created By" %}</dt><dd>{{ pr.created_by.get_full_name|default:pr.created_by.username }}</dd>
+            <dt>{% trans "Created" %}</dt><dd>{{ pr.created_at|date:"Y-m-d H:i" }}</dd>
+            <dt>{% trans "Linked Work Order" %}</dt>
             <dd>
                 {% if pr.work_order %}
                     <a href="{% url 'work_order_detail' pr.work_order.pk %}">WO-{{ pr.work_order.number }}</a>
@@ -88,7 +89,7 @@
                     —
                 {% endif %}
             </dd>
-            <dt>Linked PO</dt>
+            <dt>{% trans "Linked PO" %}</dt>
             <dd>
                 {% if pr.purchase_order %}
                     <a href="{% url 'purchase_order_detail' pr.purchase_order.pk %}">{{ pr.purchase_order.po_number }}</a>
@@ -97,22 +98,22 @@
                     —
                 {% endif %}
             </dd>
-            <dt>Notes</dt><dd>{{ pr.notes|default:"—"|linebreaks }}</dd>
+            <dt>{% trans "Notes" %}</dt><dd>{{ pr.notes|default:"—"|linebreaks }}</dd>
         </dl>
     </div>
 </div>
 
 <div class="mms-form-actions">
     {% if pr.status == 'pending' %}
-    <a href="{% url 'purchase_order_create_from_pr' pr.pk %}" class="mms-btn mms-btn--primary">Create PO from this PR</a>
+    <a href="{% url 'purchase_order_create_from_pr' pr.pk %}" class="mms-btn mms-btn--primary">{% trans "Create PO from this PR" %}</a>
     {% endif %}
-    <a href="{% url 'purchase_list' %}" class="mms-btn mms-btn--ghost">← Back to PR List</a>
+    <a href="{% url 'purchase_list' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to PR List" %}</a>
 </div>
 
 <!-- Photos & Attachments -->
 <div class="mms-card">
     <div class="mms-card-header">
-        <h5>Photos & Attachments</h5>
+        <h5>{% trans "Photos & Attachments" %}</h5>
     </div>
     <div class="mms-card-body">
         <div class="attachment-list" id="attachment-list-purchase_request-{{ pr.pk }}"></div>

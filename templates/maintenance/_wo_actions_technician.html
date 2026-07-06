@@ -1,10 +1,11 @@
+{% load i18n %}
 {# Phase 3B: Technician actions block (extracted from workorder_detail.html). #}
 {# Self-gated to the assigned technician (or super-admin). Same gate as the original. #}
 {% if perm_super_full or perm_execute_work_order and wo.assigned_technician_id == user.id %}
-  <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">My actions (technician)</h3>
+  <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">{% trans "My actions (technician)" %}</h3>
   {% if emergency_blocks_resume %}
   <div class="mms-form-tip" style="background:#fff3cd;border-left:3px solid #f0ad4e;padding:.5rem .75rem">
-    <strong>Emergency override:</strong> You have another emergency work order currently IN_PROGRESS.
+    <strong>{% trans "Emergency override:" %}</strong> You have another emergency work order currently IN_PROGRESS.
     Finish it before starting or resuming this one.
   </div>
   {% endif %}
@@ -12,7 +13,7 @@
     {% if wo.lifecycle_status == 'assigned' or wo.operational_status == 'paused' or wo.operational_status == 'pending_parts' or wo.operational_status == 'waiting_vendor' or wo.lifecycle_status == 'in_progress' %}
     <form method="post" action="{% url 'work_order_start' wo.pk %}">
       {% csrf_token %}
-      <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm" {% if emergency_blocks_resume %}disabled aria-disabled="true" title="Finish the active emergency WO first"{% endif %}>
+      <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm" {% if emergency_blocks_resume %}disabled aria-disabled="true" title={% trans "Finish the active emergency WO first" %}{% endif %}>
         {% if wo.lifecycle_status == 'in_progress' and wo.operational_status == 'active' %}
         Resume labor
         {% elif active_conflict %}
@@ -26,21 +27,21 @@
     {% if wo.lifecycle_status == 'in_progress' %}
     <form method="post" action="{% url 'work_order_pause' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed;margin-top:.5rem">
       <div class="mms-card-body">
-        <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Pause work</p>
+        <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">{% trans "Pause work" %}</p>
         {% csrf_token %}
         <div class="mms-form-row">
-          <label for="id_pause_reason">Reason</label>
+          <label for="id_pause_reason">{% trans "Reason" %}</label>
           <select name="pause_reason" id="id_pause_reason" class="form-select" required>
-            <option value="">— Select —</option>
-            <option value="operational">Operational interruption</option>
-            <option value="other">Other (note required)</option>
+            <option value="">{% trans "— Select —" %}</option>
+            <option value="operational">{% trans "Operational interruption" %}</option>
+            <option value="other">{% trans "Other (note required)" %}</option>
           </select>
         </div>
         <div class="mms-form-row">
-          <label for="id_pause_note">Note <span style="font-weight:400;color:var(--mms-muted)">(required for Other)</span></label>
-          <textarea name="pause_note" id="id_pause_note" rows="2" class="form-control" maxlength="500" placeholder="Optional context"></textarea>
+          <label for="id_pause_note">{% trans "Note" %}<span style="font-weight:400;color:var(--mms-muted)">{% trans "(required for Other)" %}</span></label>
+          <textarea name="pause_note" id="id_pause_note" rows="2" class="form-control" maxlength="500" placeholder={% trans "Optional context" %}></textarea>
         </div>
-        <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Confirm pause</button>
+        <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Confirm pause" %}</button>
       </div>
     </form>
     {% endif %}
@@ -58,7 +59,7 @@
   </p>
   <div class="mms-divider"></div>
   {% endif %}
-  <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Execution flow</p>
+  <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">{% trans "Execution flow" %}</p>
   <div class="mms-divider"></div>
   <form method="post" action="{% url 'work_order_submit' wo.pk %}" class="mms-stack">
     {% csrf_token %}
@@ -76,13 +77,13 @@
                name="note_{{ forloop.counter0 }}"
                id="note_inline_{{ forloop.counter0 }}"
                class="form-control form-control-sm"
-               placeholder="Add note (optional)"
+               placeholder={% trans "Add note (optional)" %}
                style="max-width:400px;margin-top:.25rem">
       </div>
       {% endfor %}
       <div class="mms-divider"></div>
     {% endif %}
-    <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Completion submission</p>
+    <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">{% trans "Completion submission" %}</p>
     {% for field in complete_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
     <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">
       {% if wo.category == 'preventive' and wo.lifecycle_status == 'assigned' %}
@@ -92,7 +93,7 @@
       {% endif %}
     </button>
     {% if wo.category == 'preventive' and pm_checklist_items %}
-    <a href="{% url 'pm_wo_detail' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">Open dedicated PM page →</a>
+    <a href="{% url 'pm_wo_detail' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Open dedicated PM page →" %}</a>
     {% endif %}
   </form>
   {% endif %}
@@ -100,14 +101,14 @@
   {# ============ Sprint 1 (Step 6): component-first part-request form ============ #}
   {% if perm_request_part_on_wo and wo.lifecycle_status != 'closed' %}
   <div class="mms-divider"></div>
-  <h4 style="font-size:.8rem;margin:1rem 0 .5rem 0;color:var(--mms-muted)">Request a part (manager will approve)</h4>
+  <h4 style="font-size:.8rem;margin:1rem 0 .5rem 0;color:var(--mms-muted)">{% trans "Request a part (manager will approve)" %}</h4>
   <form method="post" action="{% url 'work_order_request_part' wo.pk %}" class="mms-stack" id="part-request-form">
     {% csrf_token %}
 
     <div class="mms-form-row">
-      <label for="part-select">Part</label>
+      <label for="part-select">{% trans "Part" %}</label>
       <select id="part-select" name="part" class="form-select" required>
-        <option value="">— Select a part —</option>
+        <option value="">{% trans "— Select a part —" %}</option>
         {% for p in active_parts %}
           {% if p.free_stock is not None %}
             {# Phase 7.3: free_stock can be negative when reservations #}
@@ -119,7 +120,7 @@
           {% endif %}
         {% endfor %}
       </select>
-      <small style="color:var(--mms-muted)">All active parts shown</small>
+      <small style="color:var(--mms-muted)">{% trans "All active parts shown" %}</small>
     </div>
 
     <div id="part-availability-card" class="mms-card" style="display:none; margin:.5rem 0; padding:.75rem; background:#f8f9fa">
@@ -134,22 +135,22 @@
     </div>
 
     <div class="mms-form-row">
-      <label for="quantity-input">Quantity</label>
+      <label for="quantity-input">{% trans "Quantity" %}</label>
       <input type="number" name="quantity" id="quantity-input" min="0.001" step="0.001" required class="form-control">
     </div>
 
     <div class="mms-form-row">
-      <label for="note-input">Note (optional, shown to manager)</label>
+      <label for="note-input">{% trans "Note (optional, shown to manager)" %}</label>
       <textarea name="note" id="note-input" rows="2" maxlength="500" class="form-control"></textarea>
     </div>
 
     {% if wo.is_emergency %}
     <div class="mms-form-tip" style="background:#f8d7da;border-left:3px solid #dc3545;padding:.5rem .75rem">
-      <strong>Emergency WO:</strong> Your request will be auto-approved and stock will be deducted immediately. Manager will review the cost afterward.
+      <strong>{% trans "Emergency WO:" %}</strong> Your request will be auto-approved and stock will be deducted immediately. Manager will review the cost afterward.
     </div>
     {% endif %}
 
-    <button class="mms-btn mms-btn--primary" type="submit">Submit part request</button>
+    <button class="mms-btn mms-btn--primary" type="submit">{% trans "Submit part request" %}</button>
   </form>
 
   {# ============ Result message after submit (rendered server-side) ============ #}
@@ -157,13 +158,13 @@
     {% if last_request_result.suggested_action == "fully_issued" or last_request_result.suggested_action == "awaiting_manager_approval" %}
       <div class="mms-alert mms-alert--success" style="margin-top:1rem; padding:.75rem; background:#d1e7dd; border-left:3px solid #198754; border-radius:4px">
         <strong>✅ {{ last_request_result.line_quantity }} × {{ last_request_result.part_name }} requested. Awaiting manager approval.</strong>
-        <div style="font-size:.85em; margin-top:.25rem">Stock is available; the manager will approve and deduct the stock.</div>
+        <div style="font-size:.85em; margin-top:.25rem">{% trans "Stock is available; the manager will approve and deduct the stock." %}</div>
       </div>
     {% elif last_request_result.shortage %}
       <div class="mms-alert mms-alert--warning" style="margin-top:1rem; padding:.75rem; background:#fff3cd; border-left:3px solid #f0ad4e; border-radius:4px">
         <strong>⚠️ Requested {{ last_request_result.line_quantity }}, in stock {{ last_request_result.usable_qty_snapshot }} × {{ last_request_result.part_name }}.</strong>
         <div style="font-size:.85em; margin-top:.25rem">
-          <strong>The manager has NOT been notified yet.</strong> Click below to escalate the shortage.
+          <strong>{% trans "The manager has NOT been notified yet." %}</strong> Click below to escalate the shortage.
         </div>
         <form method="post" action="{% url 'work_order_request_shortage' wo.pk %}" style="margin-top:.5rem; display:inline">
           {% csrf_token %}
@@ -180,7 +181,7 @@
   {% if approved_shortage_reports %}
     <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
       <div class="mms-card-body">
-        <strong>📦 Awaiting Procurement</strong>
+        <strong>{% trans "📦 Awaiting Procurement" %}</strong>
         <ul style="margin: .25rem 0 0 1rem; padding: 0">
           {% for r in approved_shortage_reports %}
             <li>

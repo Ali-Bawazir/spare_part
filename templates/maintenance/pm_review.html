@@ -1,21 +1,22 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}PM Review — WO-{{ wo.number }}{% endblock %}
 {% block page_heading %}PM Review — WO-{{ wo.number }}{% endblock %}
 {% block content %}
 
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">Work Order & Schedule</div>
+  <div class="mms-card-header">{% trans "Work Order & Schedule" %}</div>
   <div class="mms-card-body">
     <dl style="margin:0; display:grid; grid-template-columns: 180px 1fr; gap:0.5rem">
-      <dt>Work Order</dt><dd><a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a></dd>
-      <dt>Status</dt><dd>{{ wo.get_lifecycle_status_display }}</dd>
-      <dt>Machine</dt><dd>{{ wo.machine.name }} ({{ wo.machine.qr_code }})</dd>
-      <dt>Technician</dt><dd>{{ wo.assigned_technician.username|default:"Unassigned" }}</dd>
-      <dt>PM Template</dt><dd><a href="{% url 'pm_template_detail' template.pk %}"><code>{{ template.code }}</code></a> — {{ template.title }}</dd>
-      <dt>Schedule</dt><dd>every {{ schedule.interval }} {{ schedule.get_frequency_type_display|lower }}{% if schedule.interval != 1 %}s{% endif %}</dd>
-      <dt>Scheduled due</dt><dd>{{ pm_execution.scheduled_due_at|date:"Y-m-d H:i" }}</dd>
-      <dt>Execution sequence</dt><dd>#{{ pm_execution.execution_sequence }}</dd>
-      <dt>Completion time</dt><dd>{% if pm_execution.completed_at %}{{ pm_execution.completed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</dd>
+      <dt>{% trans "Work Order" %}</dt><dd><a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a></dd>
+      <dt>{% trans "Status" %}</dt><dd>{{ wo.get_lifecycle_status_display }}</dd>
+      <dt>{% trans "Machine" %}</dt><dd>{{ wo.machine.name }} ({{ wo.machine.qr_code }})</dd>
+      <dt>{% trans "Technician" %}</dt><dd>{{ wo.assigned_technician.username|default:"Unassigned" }}</dd>
+      <dt>{% trans "PM Template" %}</dt><dd><a href="{% url 'pm_template_detail' template.pk %}"><code>{{ template.code }}</code></a> — {{ template.title }}</dd>
+      <dt>{% trans "Schedule" %}</dt><dd>every {{ schedule.interval }} {{ schedule.get_frequency_type_display|lower }}{% if schedule.interval != 1 %}s{% endif %}</dd>
+      <dt>{% trans "Scheduled due" %}</dt><dd>{{ pm_execution.scheduled_due_at|date:"Y-m-d H:i" }}</dd>
+      <dt>{% trans "Execution sequence" %}</dt><dd>#{{ pm_execution.execution_sequence }}</dd>
+      <dt>{% trans "Completion time" %}</dt><dd>{% if pm_execution.completed_at %}{{ pm_execution.completed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</dd>
     </dl>
   </div>
 </div>
@@ -27,18 +28,18 @@
     <table class="mms-table">
       <thead>
         <tr>
-          <th style="width:80px">Status</th>
-          <th>Item</th>
-          <th style="width:80px">Required</th>
-          <th>Technician note</th>
+          <th style="width:80px">{% trans "Status" %}</th>
+          <th>{% trans "Item" %}</th>
+          <th style="width:80px">{% trans "Required" %}</th>
+          <th>{% trans "Technician note" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for item in checklist_results %}
         <tr>
           <td>
-            {% if item.checked == True %}<span class="mms-badge mms-badge--success">✓ Done</span>
-            {% elif item.checked == False %}<span class="mms-badge mms-badge--danger">✗ Not done</span>
+            {% if item.checked == True %}<span class="mms-badge mms-badge--success">{% trans "✓ Done" %}</span>
+            {% elif item.checked == False %}<span class="mms-badge mms-badge--danger">{% trans "✗ Not done" %}</span>
             {% else %}<span class="mms-badge mms-badge--muted">—</span>{% endif %}
           </td>
           <td>{{ item.text }}</td>
@@ -46,26 +47,26 @@
           <td>{{ item.note|default:"—" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="mms-empty">No checklist items.</td></tr>
+        <tr><td colspan="4" class="mms-empty">{% trans "No checklist items." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <p class="mms-empty">No checklist data recorded.</p>
+    <p class="mms-empty">{% trans "No checklist data recorded." %}</p>
     {% endif %}
   </div>
 </div>
 
 {% if snapshot.template_description or snapshot.template_duration_minutes %}
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">📦 Template Snapshot (immutable)</div>
+  <div class="mms-card-header">{% trans "📦 Template Snapshot (immutable)" %}</div>
   <div class="mms-card-body">
     <dl style="margin:0; display:grid; grid-template-columns: 180px 1fr; gap:0.5rem">
-      <dt>Title (at spawn)</dt><dd>{{ snapshot.template_title|default:template.title }}</dd>
-      <dt>Code (at spawn)</dt><dd><code>{{ snapshot.template_code|default:template.code }}</code></dd>
-      <dt>Priority (at spawn)</dt><dd>{{ snapshot.template_priority|default:template.priority }}</dd>
-      <dt>Duration (at spawn)</dt><dd>{{ snapshot.template_duration_minutes|default:template.estimated_duration_minutes }} minutes</dd>
-      <dt>Captured at</dt><dd>{{ snapshot.captured_at|default:"—" }}</dd>
+      <dt>{% trans "Title (at spawn)" %}</dt><dd>{{ snapshot.template_title|default:template.title }}</dd>
+      <dt>{% trans "Code (at spawn)" %}</dt><dd><code>{{ snapshot.template_code|default:template.code }}</code></dd>
+      <dt>{% trans "Priority (at spawn)" %}</dt><dd>{{ snapshot.template_priority|default:template.priority }}</dd>
+      <dt>{% trans "Duration (at spawn)" %}</dt><dd>{{ snapshot.template_duration_minutes|default:template.estimated_duration_minutes }} minutes</dd>
+      <dt>{% trans "Captured at" %}</dt><dd>{{ snapshot.captured_at|default:"—" }}</dd>
     </dl>
   </div>
 </div>
@@ -73,34 +74,34 @@
 
 {% if is_approved %}
 <div class="mms-alert" style="background:#dcfce7;border-left:3px solid #16a34a;padding:1rem;border-radius:4px;margin-bottom:1rem">
-  <strong>✓ Approved</strong> on {{ pm_execution.approved_at|date:"Y-m-d H:i" }} by {{ pm_execution.approved_by.username }}.
+  <strong>{% trans "✓ Approved" %}</strong> on {{ pm_execution.approved_at|date:"Y-m-d H:i" }} by {{ pm_execution.approved_by.username }}.
   Schedule advanced to {{ schedule.next_due_at|date:"Y-m-d H:i" }}.
 </div>
 {% elif is_rejected %}
 <div class="mms-alert" style="background:#fee2e2;border-left:3px solid #dc2626;padding:1rem;border-radius:4px;margin-bottom:1rem">
-  <strong>✗ Rejected</strong> on {{ pm_execution.approved_at|date:"Y-m-d H:i" }} by {{ pm_execution.approved_by.username }}.
+  <strong>{% trans "✗ Rejected" %}</strong> on {{ pm_execution.approved_at|date:"Y-m-d H:i" }} by {{ pm_execution.approved_by.username }}.
   Returned to technician. WO rejection count: {{ wo.rejection_count }}.
 </div>
 {% elif is_submitted %}
 <div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">⚖️ Manager Decision</div>
+  <div class="mms-card-header">{% trans "⚖️ Manager Decision" %}</div>
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
       <div class="mms-form-row">
-        <label for="reason">Rejection reason (required if rejecting)</label>
+        <label for="reason">{% trans "Rejection reason (required if rejecting)" %}</label>
         <textarea name="reason" id="reason" rows="3" class="form-control" placeholder="What needs to be redone?"></textarea>
       </div>
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit" name="action" value="approve" onclick="return confirm('Approve this PM and close the work order?')">✓ Approve & Close WO</button>
-        <button class="mms-btn mms-btn--danger" type="submit" name="action" value="reject" onclick="return confirm('Reject and return to technician?')">✗ Reject & Return</button>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'work_order_detail' wo.pk %}">Cancel</a>
+        <button class="mms-btn mms-btn--primary" type="submit" name="action" value="approve" onclick="return confirm('Approve this PM and close the work order?')">{% trans "✓ Approve & Close WO" %}</button>
+        <button class="mms-btn mms-btn--danger" type="submit" name="action" value="reject" onclick="return confirm('Reject and return to technician?')">{% trans "✗ Reject & Return" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'work_order_detail' wo.pk %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>
 </div>
 {% endif %}
 
-<a class="mms-btn mms-btn--ghost" href="{% url 'work_order_detail' wo.pk %}">← Back to WO</a>
+<a class="mms-btn mms-btn--ghost" href="{% url 'work_order_detail' wo.pk %}">{% trans "← Back to WO" %}</a>
 {% include "maintenance/_asset_tree.html" %}
 {% endblock %}

@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Adjust quantity — {{ part.name }}{% endblock %}
 {% block page_heading %}Adjust inventory — {{ part.name }}{% endblock %}
@@ -8,7 +9,7 @@
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem">
   <div class="mms-card">
-    <div class="mms-card-header">Current quantity</div>
+    <div class="mms-card-header">{% trans "Current quantity" %}</div>
     <div class="mms-card-body">
       <div style="font-size:2rem;font-weight:700">{{ current_qty }}</div>
       <div class="text-muted small">at {{ selected_site.name }}</div>
@@ -24,7 +25,7 @@
   </div>
 
   <div class="mms-card">
-    <div class="mms-card-header">Site</div>
+    <div class="mms-card-header">{% trans "Site" %}</div>
     <div class="mms-card-body">
       <form method="get">
         <select name="site" class="form-select" onchange="this.form.submit()">
@@ -41,65 +42,65 @@
   <form method="post" class="mms-form">
     {% csrf_token %}
     <div class="mms-form-row">
-      <label for="new_quantity">New quantity *</label>
+      <label for="new_quantity">{% trans "New quantity *" %}</label>
       <input type="number" name="new_quantity" id="new_quantity"
              class="form-control"
              step="0.001" min="0"
              value="{{ current_qty }}" required>
     </div>
     <div class="mms-form-row">
-      <label for="reason">Reason *</label>
+      <label for="reason">{% trans "Reason *" %}</label>
       <select name="reason" id="reason" class="form-select" required>
-        <option value="">Select a reason…</option>
-        <option value="audit_correction">Audit correction</option>
-        <option value="damaged_goods">Damaged goods</option>
-        <option value="expired">Expired material</option>
+        <option value="">{% trans "Select a reason…" %}</option>
+        <option value="audit_correction">{% trans "Audit correction" %}</option>
+        <option value="damaged_goods">{% trans "Damaged goods" %}</option>
+        <option value="expired">{% trans "Expired material" %}</option>
         <option value="theft">Suspected theft/loss</option>
-        <option value="cycle_count">Cycle count</option>
-        <option value="other">Other</option>
+        <option value="cycle_count">{% trans "Cycle count" %}</option>
+        <option value="other">{% trans "Other" %}</option>
       </select>
     </div>
     <div class="mms-form-row">
-      <label for="note">Note</label>
+      <label for="note">{% trans "Note" %}</label>
       <textarea name="note" id="note" class="form-control" rows="2"
-                placeholder="Additional details…"></textarea>
+                placeholder={% trans "Additional details…" %}></textarea>
     </div>
     <div class="mms-form-row">
-      <label for="rack_location">Rack location</label>
+      <label for="rack_location">{% trans "Rack location" %}</label>
       <input type="text" name="rack_location" id="rack_location"
              class="form-control" maxlength="64"
              value="{{ inv.rack_location|default:"" }}"
-             placeholder="e.g. A-01-03">
+             placeholder={% trans "e.g. A-01-03" %}>
     </div>
     <div id="reason_other_row" class="mms-form-row" style="display:none">
-      <label for="reason_other">Specify reason</label>
+      <label for="reason_other">{% trans "Specify reason" %}</label>
       <input type="text" name="reason_other" id="reason_other"
              class="form-control" maxlength="128"
-             placeholder="Describe the reason…">
+             placeholder={% trans "Describe the reason…" %}>
     </div>
     <div class="mms-form-row mms-form-row--checkbox">
       <div>
         <input type="checkbox" name="is_cycle_count" id="is_cycle_count" value="on">
-        <label for="is_cycle_count">Planned cycle count (vs emergency correction)</label>
+        <label for="is_cycle_count">{% trans "Planned cycle count (vs emergency correction)" %}</label>
       </div>
     </div>
     <div class="alert alert-warning" style="margin-bottom:1rem">
-      <strong>Note:</strong> Adjustments are logged with <code>approved_by={{ request.user.username }}</code>.
+      <strong>{% trans "Note:" %}</strong>{% trans "Adjustments are logged with" %}<code>approved_by={{ request.user.username }}</code>.
       All adjustments are permanently recorded in the stock movement history.
       Rack location changes are also logged.
     </div>
     <div class="mms-form-actions">
-      <button type="submit" class="mms-btn mms-btn--primary">Record adjustment</button>
-      <a class="mms-btn mms-btn--ghost" href="{% url 'spare_part_detail' part.pk %}?site={{ selected_site.pk }}">Cancel</a>
+      <button type="submit" class="mms-btn mms-btn--primary">{% trans "Record adjustment" %}</button>
+      <a class="mms-btn mms-btn--ghost" href="{% url 'spare_part_detail' part.pk %}?site={{ selected_site.pk }}">{% trans "Cancel" %}</a>
     </div>
   </form>
 </div>
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Evidence Photo</div>
+  <div class="mms-card-header">{% trans "Evidence Photo" %}</div>
   <div class="mms-card-body">
     <div id="attachment-list-spare_part-{{ part.pk }}">
-      <span class="text-muted">Loading...</span>
+      <span class="text-muted">{% trans "Loading..." %}</span>
     </div>
     <div class="mt-2">
       <input type="file" id="attachment-file-input-spare_part-{{ part.pk }}"

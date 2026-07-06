@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Supply — Requests{% endblock %}
@@ -5,13 +6,13 @@
 {% block content %}
 {% if perm_create_purchase_request %}
 <div class="mms-actions" style="margin-bottom:1rem">
-  <a class="mms-btn mms-btn--primary" href="{% url 'purchase_create' %}">New request</a>
+  <a class="mms-btn mms-btn--primary" href="{% url 'purchase_create' %}">{% trans "New request" %}</a>
 </div>
 {% endif %}
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>ID</th><th>WO</th><th>Part</th><th>Qty</th><th>Status</th><th>Linked PO</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>WO</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th><th>{% trans "Linked PO" %}</th><th></th></tr></thead>
       <tbody>
       {% for r in requests %}
       <tr style="cursor:pointer" onclick="window.location='{% url 'pr_detail' r.pk %}'">
@@ -30,16 +31,16 @@
         </td>
         <td onclick="event.stopPropagation()">
           {% if perm_procurement_officer_update %}
-            <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_officer' r.pk %}">Update</a>
+            <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_officer' r.pk %}">{% trans "Update" %}</a>
           {% endif %}
           {% if r.status == 'pending' %}
             {% if perm_create_purchase_order %}
-            <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'purchase_order_create_from_pr' r.pk %}">Create PO</a>
+            <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'purchase_order_create_from_pr' r.pk %}">{% trans "Create PO" %}</a>
             {% endif %}
           {% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="7" class="mms-empty">No requests.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="7" class="mms-empty">{% trans "No requests." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

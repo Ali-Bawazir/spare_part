@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}{% if mode == 'create' %}New PM template{% else %}Edit {{ template.code }}{% endif %}{% endblock %}
 {% block page_heading %}{% if mode == 'create' %}New PM template{% else %}Edit {{ template.code }} — {{ template.title }}{% endif %}{% endblock %}
@@ -6,7 +7,7 @@
   <div class="mms-card-body">
     <form method="post" class="mms-form" id="pm-template-form">
       {% csrf_token %}
-      <h5 style="margin-top:0">Procedure details</h5>
+      <h5 style="margin-top:0">{% trans "Procedure details" %}</h5>
       {% for field in form %}
       <div class="mms-form-row">
         {{ field.label_tag }}
@@ -16,12 +17,12 @@
       </div>
       {% endfor %}
 
-      <h5 style="margin-top:1.5rem">Checklist items</h5>
-      <p class="text-muted" style="color:#6b7280;font-size:0.9em">One line item per inspection step. Mark required items that must be completed. Use the "Add another item" button to add more rows.</p>
+      <h5 style="margin-top:1.5rem">{% trans "Checklist items" %}</h5>
+      <p class="text-muted" style="color:#6b7280;font-size:0.9em">{% trans "One line item per inspection step. Mark required items that must be completed. Use the "Add another item" button to add more rows." %}</p>
       {{ formset.management_form }}
       {% if formset.non_form_errors %}<div class="mms-field-error">{{ formset.non_form_errors }}</div>{% endif %}
       <table class="mms-table" id="checklist-table" style="margin-bottom:0.5rem">
-        <thead><tr><th style="width:80px">Order</th><th>Text</th><th style="width:120px">Required?</th><th style="width:80px">Delete</th></tr></thead>
+        <thead><tr><th style="width:80px">{% trans "Order" %}</th><th>{% trans "Text" %}</th><th style="width:120px">Required?</th><th style="width:80px">{% trans "Delete" %}</th></tr></thead>
         <tbody>
         {% for f in formset %}
         <tr class="checklist-row">
@@ -29,20 +30,20 @@
           <td>{{ f.order }}</td>
           <td>{{ f.text }}</td>
           <td>{{ f.is_required }}</td>
-          <td>{% if f.instance.pk %}{{ f.DELETE }}{% else %}<span class="mms-text-muted" style="font-size:0.85em">new</span>{% endif %}</td>
+          <td>{% if f.instance.pk %}{{ f.DELETE }}{% else %}<span class="mms-text-muted" style="font-size:0.85em">{% trans "new" %}</span>{% endif %}</td>
         </tr>
         {% endfor %}
         </tbody>
       </table>
 
       <p>
-        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="add-row-btn">+ Add another item</button>
-        <span class="mms-text-muted" style="margin-left:0.5rem;font-size:0.85em">(empty rows are ignored on save)</span>
+        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="add-row-btn">{% trans "+ Add another item" %}</button>
+        <span class="mms-text-muted" style="margin-left:0.5rem;font-size:0.85em">{% trans "(empty rows are ignored on save)" %}</span>
       </p>
 
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">{% if mode == 'create' %}Create template{% else %}Save changes{% endif %}</button>
-        <a class="mms-btn mms-btn--ghost" href="{% if mode == 'create' %}{% url 'pm_template_list' %}{% else %}{% url 'pm_template_detail' template.pk %}{% endif %}">Cancel</a>
+        <a class="mms-btn mms-btn--ghost" href="{% if mode == 'create' %}{% url 'pm_template_list' %}{% else %}{% url 'pm_template_detail' template.pk %}{% endif %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>

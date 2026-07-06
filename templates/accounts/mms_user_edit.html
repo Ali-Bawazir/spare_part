@@ -1,8 +1,9 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Edit user{% endblock %}
 {% block page_heading %}Edit user: {{ target.username }}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Update profile, MMS role, sign-in status, optional Django admin access, and permissions bundle. Leave password blank to keep the current password.</p>
+<p class="mms-page-lead">{% trans "Update profile, MMS role, sign-in status, optional Django admin access, and permissions bundle. Leave password blank to keep the current password." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
@@ -19,8 +20,8 @@
       <div class="mms-form-nonfield">{{ form.non_field_errors }}</div>
       {% endif %}
       <div class="mms-form-actions">
-        <button type="submit" class="mms-btn mms-btn--primary">Save changes</button>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_list' %}">Cancel</a>
+        <button type="submit" class="mms-btn mms-btn--primary">{% trans "Save changes" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'mms_user_list' %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>

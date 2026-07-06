@@ -1,6 +1,7 @@
+{% load i18n %}
 <div class="mms-card mms-asset-tree-bottom" style="margin-top:1.5rem">
   <div class="mms-card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
-    <span>📍 Asset Tree</span>
+    <span>{% trans "📍 Asset Tree" %}</span>
     {% if machine %}
     <small style="color:#6b7280;font-weight:normal">Site: {{ machine.site.name|default:"—" }}</small>
     {% endif %}
@@ -59,18 +60,18 @@
         </a>
       {% endif %}
       <details style="position:relative">
-        <summary class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.25rem 0.5rem;cursor:pointer;list-style:none">+ Quick</summary>
+        <summary class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.25rem 0.5rem;cursor:pointer;list-style:none">{% trans "+ Quick" %}</summary>
         <div style="position:absolute;right:0;top:100%;background:#fff;border:1px solid #ddd;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:10;min-width:180px;padding:0.4rem">
           <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Report Issue</a>
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">{% trans "Report Issue" %}</a>
           <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create WO</a>
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">{% trans "Create WO" %}</a>
           <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create PM</a>
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">{% trans "Create PM" %}</a>
           <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create ERO</a>
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">{% trans "Create ERO" %}</a>
           <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}"
-             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">Create PR</a>
+             style="display:block;padding:0.3rem 0.5rem;color:#333;text-decoration:none">{% trans "Create PR" %}</a>
         </div>
       </details>
     </div>
@@ -84,7 +85,7 @@
       </ul>
     </div>
     {% else %}
-    <p style="color:#6b7280;font-style:italic;margin:0.5rem 0">No asset linked.</p>
+    <p style="color:#6b7280;font-style:italic;margin:0.5rem 0">{% trans "No asset linked." %}</p>
     {% endif %}
   </div>
 </div>

@@ -1,12 +1,13 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% block title %}Switch active work order{% endblock %}
 {% block page_heading %}Switch active work order{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Only one work order can be active per technician. Starting this task will pause your current in-progress work order.</p>
+<p class="mms-page-lead">{% trans "Only one work order can be active per technician. Starting this task will pause your current in-progress work order." %}</p>
 
 <div class="mms-grid mms-grid--2">
   <div class="mms-card">
-    <div class="mms-card-header">Current active task</div>
+    <div class="mms-card-header">{% trans "Current active task" %}</div>
     <div class="mms-card-body mms-stack">
       <div><strong>WO-{{ conflicting_wo.number }}</strong></div>
       <div>{{ conflicting_wo.machine.name }}</div>
@@ -15,7 +16,7 @@
   </div>
 
   <div class="mms-card">
-    <div class="mms-card-header">Task to start</div>
+    <div class="mms-card-header">{% trans "Task to start" %}</div>
     <div class="mms-card-body mms-stack">
       <div><strong>WO-{{ wo.number }}</strong></div>
       <div>{{ wo.machine.name }}</div>
@@ -23,8 +24,8 @@
       <form method="post" action="{% url 'work_order_start' wo.pk %}" class="mms-actions" style="margin-top:1rem">
         {% csrf_token %}
         <input type="hidden" name="confirm_switch" value="1">
-        <button class="mms-btn mms-btn--primary" type="submit">Pause current and start this task</button>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'work_order_detail' wo.pk %}">Cancel</a>
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Pause current and start this task" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'work_order_detail' wo.pk %}">{% trans "Cancel" %}</a>
       </form>
     </div>
   </div>

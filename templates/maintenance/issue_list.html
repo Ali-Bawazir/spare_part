@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Issues{% endblock %}
@@ -8,8 +9,8 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
 </style>
 <div class="mms-actions" style="margin-bottom:1rem">
   {% if perm_report_issue %}
-  <a class="mms-btn mms-btn--primary" href="{% url 'issue_create' %}">Report issue</a>
-  <a class="mms-btn mms-btn--ghost" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">Scan machine QR</a>
+  <a class="mms-btn mms-btn--primary" href="{% url 'issue_create' %}">{% trans "Report issue" %}</a>
+  <a class="mms-btn mms-btn--ghost" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">{% trans "Scan machine QR" %}</a>
   {% endif %}
 </div>
 
@@ -17,20 +18,20 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
 {# their own reports and pick a time window. #}
 <div class="mms-card" style="margin-bottom:1rem;padding:.6rem .8rem">
   <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;font-size:.875rem">
-    <span style="color:var(--mms-muted)">Filter:</span>
+    <span style="color:var(--mms-muted)">{% trans "Filter:" %}</span>
     <a href="{% url 'issue_list' %}"
-       class="mms-badge {% if not mine_only and not period_days %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">All</a>
+       class="mms-badge {% if not mine_only and not period_days %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">{% trans "All" %}</a>
     <a href="{% url 'issue_list' %}?mine=1{% if period_days %}&period={{ period_days }}{% endif %}"
-       class="mms-badge {% if mine_only %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">My reports</a>
+       class="mms-badge {% if mine_only %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">{% trans "My reports" %}</a>
     <span style="color:var(--mms-muted);margin-left:.5rem">·</span>
     <a href="{% url 'issue_list' %}{% if mine_only %}?mine=1{% endif %}"
-       class="mms-badge {% if not period_days %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">All time</a>
+       class="mms-badge {% if not period_days %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">{% trans "All time" %}</a>
     <a href="{% url 'issue_list' %}?period=7{% if mine_only %}&mine=1{% endif %}"
-       class="mms-badge {% if period_days == 7 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">Last 7d</a>
+       class="mms-badge {% if period_days == 7 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">{% trans "Last 7d" %}</a>
     <a href="{% url 'issue_list' %}?period=30{% if mine_only %}&mine=1{% endif %}"
-       class="mms-badge {% if period_days == 30 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">Last 30d</a>
+       class="mms-badge {% if period_days == 30 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">{% trans "Last 30d" %}</a>
     <a href="{% url 'issue_list' %}?period=90{% if mine_only %}&mine=1{% endif %}"
-       class="mms-badge {% if period_days == 90 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">Last 90d</a>
+       class="mms-badge {% if period_days == 90 %}mms-badge--primary{% else %}mms-badge--muted{% endif %}">{% trans "Last 90d" %}</a>
     {% if mine_count is not None %}
     <span style="margin-left:auto;color:var(--mms-muted);font-size:.75rem">
       {{ mine_count }} match{% if mine_count != 1 %}es{% endif %}
@@ -41,7 +42,7 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>ID</th><th>Machine</th><th>Failure Category / Mode</th><th>Status</th><th>Priority</th><th>Reporter</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>{% trans "Machine" %}</th><th>Failure Category / Mode</th><th>{% trans "Status" %}</th><th>{% trans "Priority" %}</th><th>{% trans "Reporter" %}</th><th></th></tr></thead>
       <tbody>
       {% for i in issues %}
       <tr class="{% if i.is_archived %}mms-row--archived{% endif %} mms-row--clickable" onclick="window.location='{% url 'issue_detail' i.pk %}'" style="cursor:pointer">
@@ -57,7 +58,7 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
         <td>
           {% if i.status == 'new' %}
             {% if perm_validate_issue %}
-              <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_validate' i.pk %}">Validate</a>
+              <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_validate' i.pk %}">{% trans "Validate" %}</a>
             {% endif %}
           {% endif %}
           {% if i.status == 'validated' %}
@@ -67,11 +68,11 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
           {% endif %}
           {% if perm_issue_archive and i.status != 'converted' and not i.is_archived %}
             <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_archive' i.pk %}"
-               onclick="return confirm('Archive issue #{{ i.pk }}? This cannot be undone.')">Archive</a>
+               onclick="return confirm('Archive issue #{{ i.pk }}? This cannot be undone.')">{% trans "Archive" %}</a>
           {% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="7" class="mms-empty">No issues.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="7" class="mms-empty">{% trans "No issues." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

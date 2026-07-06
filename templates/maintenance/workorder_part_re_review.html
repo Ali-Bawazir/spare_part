@@ -1,3 +1,4 @@
+{% load i18n %}
 {% extends "base.html" %}
 {% load mms_extras %}
 {% block title %}Edit & re-review part request — Bawazir Maintenance{% endblock %}
@@ -24,16 +25,16 @@
       {% csrf_token %}
 
       <div class="mms-form-row">
-        <label for="part-select">Part</label>
+        <label for="part-select">{% trans "Part" %}</label>
         <select id="part-select" name="part" class="form-select" required>
-          <option value="">— Select a part —</option>
+          <option value="">{% trans "— Select a part —" %}</option>
           {% for p in active_parts %}
             <option value="{{ p.pk }}" {% if p.pk == line.part_id %}selected{% endif %}>
               {{ p.name }} ({{ p.sku }})
             </option>
           {% endfor %}
         </select>
-        <small style="color:var(--mms-muted)">Originally: <strong>{{ line.part.name }} ({{ line.part.sku }})</strong>. Switch to a different part if needed.</small>
+        <small style="color:var(--mms-muted)">{% trans "Originally:" %}<strong>{{ line.part.name }} ({{ line.part.sku }})</strong>{% trans ". Switch to a different part if needed." %}</small>
       </div>
 
       <div id="part-availability-card" class="mms-card" style="display:none; margin:.5rem 0; padding:.75rem; background:#f8f9fa">
@@ -48,37 +49,37 @@
       </div>
 
       <div class="mms-form-row">
-        <label for="quantity-input">Quantity</label>
+        <label for="quantity-input">{% trans "Quantity" %}</label>
         <input type="number" name="quantity" id="quantity-input" min="0.001" step="0.001" required class="form-control" value="{{ line.quantity }}">
         <small style="color:var(--mms-muted)">Originally: {{ line.quantity }}. Edit if the quantity was the issue.</small>
       </div>
 
       <div class="mms-form-row">
-        <label for="note-input">Note (optional, shown to manager)</label>
+        <label for="note-input">{% trans "Note (optional, shown to manager)" %}</label>
         <textarea name="note" id="note-input" rows="2" maxlength="500" class="form-control"
                   placeholder="Why are you re-requesting? Any new context?">{{ line.manager_note|default:"" }}</textarea>
       </div>
 
       <div class="mms-form-row">
-        <label>🎤 Voice note (optional, 30–60s)</label>
+        <label>{% trans "🎤 Voice note (optional, 30–60s)" %}</label>
         <div class="mms-voice-recorder" id="voice-recorder-section">
           <div class="mms-voice-controls">
-            <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="voice-start-btn">🎤 Start</button>
-            <button type="button" class="mms-btn mms-btn--danger mms-btn--sm" id="voice-stop-btn" style="display:none">⏹ Stop</button>
+            <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="voice-start-btn">{% trans "🎤 Start" %}</button>
+            <button type="button" class="mms-btn mms-btn--danger mms-btn--sm" id="voice-stop-btn" style="display:none">{% trans "⏹ Stop" %}</button>
             <span id="voice-timer-display" class="mms-voice-timer">0:00</span>
             <span id="voice-pulse" class="mms-voice-pulse" style="display:none"></span>
           </div>
-          <div id="voice-status-text" class="mms-voice-status">Tap Start to record. Auto-stops at 60s.</div>
+          <div id="voice-status-text" class="mms-voice-status">{% trans "Tap Start to record. Auto-stops at 60s." %}</div>
           <audio id="voice-preview" controls style="display:none; max-width:280px; height:32px"></audio>
-          <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="voice-discard-btn" style="display:none">🗑 Discard</button>
+          <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="voice-discard-btn" style="display:none">{% trans "🗑 Discard" %}</button>
           <input type="hidden" name="voice_attachment_id" id="voice-attachment-id">
         </div>
-        <small style="color:var(--mms-muted)">Recording auto-stops at 60s. Voice is uploaded and attached to the WO.</small>
+        <small style="color:var(--mms-muted)">{% trans "Recording auto-stops at 60s. Voice is uploaded and attached to the WO." %}</small>
       </div>
 
       <div class="mms-form-actions">
-        <a href="{% url 'work_order_detail' pk=line.work_order_id %}" class="mms-btn mms-btn--ghost">Cancel</a>
-        <button type="submit" class="mms-btn mms-btn--primary">Submit for re-review</button>
+        <a href="{% url 'work_order_detail' pk=line.work_order_id %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
+        <button type="submit" class="mms-btn mms-btn--primary">{% trans "Submit for re-review" %}</button>
       </div>
     </form>
   </div>
