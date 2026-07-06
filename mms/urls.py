@@ -9,6 +9,7 @@ admin.site.site_title = "MMS Admin"
 admin.site.index_title = "Operations & master data"
 
 urlpatterns = [
+    path("i18n/", include("django.conf.urls.i18n")),
     path("admin/", admin.site.urls),
     path("accounts/", include("django.contrib.auth.urls")),
     path("users/", include("accounts.urls")),

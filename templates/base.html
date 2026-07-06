@@ -1,7 +1,8 @@
 {% load static %}
+{% load i18n %}
 {% load mms_extras %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -11,12 +12,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/mms.css' %}">
 </head>
-<body class="mms-body" data-nav-user="{% if user.is_authenticated %}{{ user.username }}{% else %}anon{% endif %}">
+<body class="mms-body" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}" data-nav-user="{% if user.is_authenticated %}{{ user.username }}{% else %}anon{% endif %}">
 <div class="mms-app" id="mms-app">
   <aside class="mms-sidebar" id="mms-sidebar">
     <div class="mms-brand">
-      <div class="mms-brand-title">Bawazir MMS</div>
-      <div class="mms-brand-sub">Maintenance &amp; spare parts</div>
+      <div class="mms-brand-title">{% trans "Bawazir MMS" %}</div>
+      <div class="mms-brand-sub">{% trans "Maintenance & spare parts" %}</div>
     </div>
     <nav class="mms-nav">
       <div class="mms-nav-section" data-section="overview">Overview</div>
@@ -207,6 +208,18 @@
         <span class="mms-badge mms-badge--info">{{ nav_my_open_wo }} open WO</span>
         {% endif %}
       </div>
+      <form action="{% url 'set_language' %}" method="post" class="mms-lang-switch" aria-label="{% trans 'Language' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <span aria-hidden="true">🌐</span>
+        <select name="language" class="mms-lang-switch__select" onchange="this.form.submit()">
+          {% get_available_languages as available_languages %}
+          {% get_current_language as current_lang %}
+          {% for lang_code, lang_name in available_languages %}
+            <option value="{{ lang_code }}"{% if lang_code == current_lang %} selected{% endif %}>{{ lang_name }}</option>
+          {% endfor %}
+        </select>
+      </form>
     </header>
     <div class="mms-content">
       {% if messages %}

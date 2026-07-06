@@ -44,6 +44,7 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -121,10 +122,27 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "en"  # default; user-selectable via session/cookie
 TIME_ZONE = "Asia/Riyadh"
 USE_I18N = True
+USE_L10N = True  # drives number/date formatting from LANGUAGE_CODE
+USE_THOUSAND_SEPARATOR = True
+NUMBER_GROUPING = 3
 USE_TZ = True
+
+LANGUAGES = [
+    ("en", "English"),
+    ("ar", "العربية"),
+]
+LANGUAGES_BIDI = ["ar"]  # declares Arabic as RTL; Django sets LANGUAGE_BIDI
+
+LOCALE_PATHS = [BASE_DIR / "locale"]
+
+LANGUAGE_COOKIE_NAME = "django_language"
+LANGUAGE_COOKIE_AGE = 60 * 60 * 24 * 365  # 1 year
+LANGUAGE_COOKIE_PATH = "/"
+LANGUAGE_COOKIE_SAMESITE = "Lax"
+LANGUAGE_COOKIE_SECURE = not DEBUG
 
 
 # Static files (CSS, JavaScript, Images)
