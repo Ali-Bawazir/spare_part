@@ -1,5 +1,5 @@
-{% load i18n %}
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}{% if mode == 'create' %}New PM template{% else %}Edit {{ template.code }}{% endif %}{% endblock %}
 {% block page_heading %}{% if mode == 'create' %}New PM template{% else %}Edit {{ template.code }} — {{ template.title }}{% endif %}{% endblock %}
 {% block content %}

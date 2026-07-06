@@ -670,7 +670,7 @@ def purchase_order_receive(request, pk):
 
             # Damaged → quarantine
             if damaged > 0:
-                inv, _ = Inventory.objects.select_for_update().get_or_create(
+                inv, _created = Inventory.objects.select_for_update().get_or_create(
                     part=item.part, site=site,
                     defaults={"quantity_available": Decimal("0")},
                 )
