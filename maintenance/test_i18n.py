@@ -135,7 +135,7 @@ class I18nCsvTests(TestCase):
         # Hit the CSV export with Arabic locale
         c.cookies[settings.LANGUAGE_COOKIE_NAME] = 'ar'
         with translation.override('ar'):
-            resp = c.get('/reports/cost-ledger.csv?all=1')
+            resp = c.get('/cost-ledger/export/?all=1')
             # Might be 403 if no permission; skip
             if resp.status_code == 403:
                 self.skipTest("User lacks permission for cost ledger export")
