@@ -27,10 +27,10 @@
           <path d="M3 3v18h18"/>
           <path d="M7 14l4-4 4 3 5-6"/>
         </svg>
-        Costs
+        {% trans "Costs" %}
       </h3>
       <a href="{% url 'work_order_cost_ledger' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
-        Open cost ledger
+        {% trans "Open cost ledger" %}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="9 18 15 12 9 6"/>
         </svg>
@@ -68,7 +68,7 @@
             </span>
           {% endif %}
           <a href="{% url 'work_order_cost_ledger' wo.pk %}" style="color:var(--mms-accent);text-decoration:none;font-weight:600">
-            View ledger →
+            {% trans "View ledger →" %}
           </a>
         </div>
       </div>
@@ -78,10 +78,10 @@
 
         <div class="mms-wo-cost-bar" role="img" aria-label={% trans "Cost distribution across categories" %}>
           {% if tot %}
-            <div class="mms-wo-cost-bar__seg" data-cat="material"   style="width:{% widthratio mat tot 100 %}%" title="Material {{ mat|floatformat:2 }} SAR"></div>
-            <div class="mms-wo-cost-bar__seg" data-cat="vendor"     style="width:{% widthratio ven tot 100 %}%" title="Vendor repair {{ ven|floatformat:2 }} SAR"></div>
-            <div class="mms-wo-cost-bar__seg" data-cat="consumable" style="width:{% widthratio con tot 100 %}%" title="Consumables {{ con|floatformat:2 }} SAR"></div>
-            <div class="mms-wo-cost-bar__seg" data-cat="adjustment" style="width:{% widthratio adj tot 100 %}%" title="Adjustments {{ adj|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="material"   style="width:{% widthratio mat tot 100 %}%" title="{% trans "Material" %} {{ mat|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="vendor"     style="width:{% widthratio ven tot 100 %}%" title="{% trans "Vendor repair" %} {{ ven|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="consumable" style="width:{% widthratio con tot 100 %}%" title="{% trans "Consumables" %} {{ con|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="adjustment" style="width:{% widthratio adj tot 100 %}%" title="{% trans "Adjustments" %} {{ adj|floatformat:2 }} SAR"></div>
           {% else %}
             <div class="mms-wo-cost-bar__seg mms-wo-cost-bar__seg--empty" style="width:100%"></div>
           {% endif %}
@@ -91,7 +91,7 @@
           <li>
             <span class="mms-wo-cost-legend__name">
               <span class="mms-wo-cost-legend__dot" data-cat="material" aria-hidden="true"></span>
-              Material
+              {% trans "Material" %}
             </span>
             <span class="mms-wo-cost-legend__values">
               <span class="mms-wo-cost-legend__amount">{{ mat|floatformat:2 }}</span>
@@ -102,7 +102,7 @@
           <li>
             <span class="mms-wo-cost-legend__name">
               <span class="mms-wo-cost-legend__dot" data-cat="vendor" aria-hidden="true"></span>
-              Vendor repair
+              {% trans "Vendor repair" %}
             </span>
             <span class="mms-wo-cost-legend__values">
               <span class="mms-wo-cost-legend__amount">{{ ven|floatformat:2 }}</span>
@@ -113,7 +113,7 @@
           <li>
             <span class="mms-wo-cost-legend__name">
               <span class="mms-wo-cost-legend__dot" data-cat="consumable" aria-hidden="true"></span>
-              Consumables
+              {% trans "Consumables" %}
             </span>
             <span class="mms-wo-cost-legend__values">
               <span class="mms-wo-cost-legend__amount">{{ con|floatformat:2 }}</span>
@@ -124,7 +124,7 @@
           <li>
             <span class="mms-wo-cost-legend__name">
               <span class="mms-wo-cost-legend__dot" data-cat="adjustment" aria-hidden="true"></span>
-              Adjustments
+              {% trans "Adjustments" %}
             </span>
             <span class="mms-wo-cost-legend__values">
               <span class="mms-wo-cost-legend__amount">{{ adj|floatformat:2 }}</span>
@@ -220,10 +220,10 @@
           <path d="M3 3v18h18"/>
           <path d="M7 14l4-4 4 3 5-6"/>
         </svg>
-        Costs
+        {% trans "Costs" %}
       </h3>
       <a href="{% url 'work_order_cost_ledger' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
-        Open cost ledger
+        {% trans "Open cost ledger" %}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="9 18 15 12 9 6"/>
         </svg>
@@ -266,7 +266,7 @@
         <li>
           <span class="mms-wo-cost-legend__name">
             <span class="mms-wo-cost-legend__dot" data-cat="material" aria-hidden="true"></span>
-            Material
+              {% trans "Material" %}
           </span>
           <span class="mms-wo-cost-legend__values">
             <span class="mms-wo-cost-legend__amount">{{ mat|floatformat:2 }}</span>
@@ -277,7 +277,7 @@
         <li>
           <span class="mms-wo-cost-legend__name">
             <span class="mms-wo-cost-legend__dot" data-cat="vendor" aria-hidden="true"></span>
-            Vendor repair
+              {% trans "Vendor repair" %}
           </span>
           <span class="mms-wo-cost-legend__values">
             <span class="mms-wo-cost-legend__amount">{{ ven|floatformat:2 }}</span>
@@ -288,7 +288,7 @@
         <li>
           <span class="mms-wo-cost-legend__name">
             <span class="mms-wo-cost-legend__dot" data-cat="consumable" aria-hidden="true"></span>
-            Consumables
+              {% trans "Consumables" %}
           </span>
           <span class="mms-wo-cost-legend__values">
             <span class="mms-wo-cost-legend__amount">{{ con|floatformat:2 }}</span>
@@ -299,7 +299,7 @@
         <li>
           <span class="mms-wo-cost-legend__name">
             <span class="mms-wo-cost-legend__dot" data-cat="adjustment" aria-hidden="true"></span>
-            Adjustments
+              {% trans "Adjustments" %}
           </span>
           <span class="mms-wo-cost-legend__values">
             <span class="mms-wo-cost-legend__amount">{{ adj|floatformat:2 }}</span>

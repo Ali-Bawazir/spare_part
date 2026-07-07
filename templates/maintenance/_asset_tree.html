@@ -3,7 +3,7 @@
   <div class="mms-card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
     <span>{% trans "📍 Asset Tree" %}</span>
     {% if machine %}
-    <small style="color:#6b7280;font-weight:normal">Site: {{ machine.site.name|default:"—" }}</small>
+    <small style="color:#6b7280;font-weight:normal">{% trans "Site:" %} {{ machine.site.name|default:"—" }}</small>
     {% endif %}
   </div>
   <div class="mms-card-body">
