@@ -103,28 +103,28 @@
       {% if perm_pm_schedule_manage %}
       <div class="mms-nav-section" data-section="preventive">{% trans "Preventive Maintenance" %}</div>
       <a href="{% url 'preventive:mgr_dashboard' %}" class="mms-nav-link{% if current_url_name == 'mgr_dashboard' %} is-active{% endif %}">
-        Dashboard
+        {% trans "Dashboard" %}
       </a>
       <a href="{% url 'preventive:mgr_today' %}" class="mms-nav-link{% if current_url_name == 'mgr_today' %} is-active{% endif %}">
-        Today's Schedule
+        {% trans "Today's Schedule" %}
       </a>
       <a href="{% url 'preventive:mgr_reviews' %}" class="mms-nav-link{% if current_url_name == 'mgr_reviews' %} is-active{% endif %}">
-        Reviews
+        {% trans "Reviews" %}
         {% if nav_pm_reviews_pending %}<span class="mms-nav-badge mms-nav-badge--danger">{{ nav_pm_reviews_pending }}</span>{% endif %}
       </a>
       <a href="{% url 'preventive:mgr_plans' %}" class="mms-nav-link{% if current_url_name == 'mgr_plans' %} is-active{% endif %}">
-        Maintenance Plans
+        {% trans "Maintenance Plans" %}
       </a>
       <a href="{% url 'preventive:mgr_templates' %}" class="mms-nav-link{% if current_url_name == 'mgr_templates' %} is-active{% endif %}">
-        Templates
+        {% trans "Templates" %}
       </a>
       <a href="{% url 'preventive:mgr_history' %}" class="mms-nav-link{% if current_url_name == 'mgr_history' %} is-active{% endif %}">
-        History
+        {% trans "History" %}
       </a>
       {% endif %}
       {% if user.role == 'technician' or user.role == 'supervisor' or user.role == 'super_admin' %}
       <a href="{% url 'preventive:my' %}" class="mms-nav-link{% if current_url_name == 'my' %} is-active{% endif %}">
-        Preventive Maintenance
+        {% trans "Preventive Maintenance" %}
         {% if nav_pm_today_count %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_pm_today_count }}</span>{% endif %}
       </a>
       {% endif %}

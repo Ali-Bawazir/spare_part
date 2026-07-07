@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 02:51+0300\n"
+"POT-Creation-Date: 2026-07-07 03:02+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1435,7 +1435,7 @@ msgstr ""
 #: templates/maintenance/machine_detail.html:132
 #: templates/maintenance/pm_dashboard.html:47
 msgid "Pending review"
-msgstr ""
+msgstr "قيد المراجعة"
 
 #: maintenance/models.py:314 maintenance/models.py:331
 #: maintenance/models.py:853 templates/maintenance/machine_detail.html:130
@@ -2249,7 +2249,7 @@ msgstr ""
 msgid "HIGH COST"
 msgstr ""
 
-#: maintenance/test_i18n.py:65 templates/base.html:24
+#: maintenance/test_i18n.py:65 templates/base.html:24 templates/base.html:106
 #: templates/maintenance/dashboard.html:4
 msgid "Dashboard"
 msgstr "لوحة التحكم"
@@ -3239,9 +3239,33 @@ msgstr "الأصول"
 msgid "Machines"
 msgstr "الماكينات"
 
-#: templates/base.html:104
+#: templates/base.html:104 templates/base.html:127
 msgid "Preventive Maintenance"
 msgstr "الصيانة الوقائية"
+
+#: templates/base.html:109
+msgid "Today's Schedule"
+msgstr "جدول اليوم"
+
+#: templates/base.html:112
+#, fuzzy
+#| msgid "Overview"
+msgid "Reviews"
+msgstr "نظرة عامة"
+
+#: templates/base.html:116
+#, fuzzy
+#| msgid "Maintenance"
+msgid "Maintenance Plans"
+msgstr "الصيانة"
+
+#: templates/base.html:119
+msgid "Templates"
+msgstr "القوالب"
+
+#: templates/base.html:122
+msgid "History"
+msgstr "السجل"
 
 #: templates/base.html:132 templates/base.html:396 templates/base.html:513
 msgid "Tools"
@@ -4391,7 +4415,7 @@ msgstr "أمر عمل متوقف"
 
 #: templates/maintenance/dashboard.html:31
 msgid "Overdue WO (&gt;7d)"
-msgstr ""
+msgstr "أوامر عمل متأخرة (أكثر من 7 أيام)"
 
 #: templates/maintenance/dashboard.html:34
 msgid "Pending PRs"
@@ -4407,7 +4431,7 @@ msgstr "حالات نقص قيد التنفيذ"
 
 #: templates/maintenance/dashboard.html:51
 msgid "Stuck in fulfillment &gt;7d"
-msgstr ""
+msgstr "متأخرة في التنفيذ أكثر من 7 أيام"
 
 #: templates/maintenance/dashboard.html:55
 msgid "Low stock items"
@@ -4459,11 +4483,11 @@ msgstr "تحتاج انتباه"
 
 #: templates/maintenance/dashboard.html:121
 msgid "issue(s) still in"
-msgstr ""
+msgstr "مشكلة لا تزال في"
 
 #: templates/maintenance/dashboard.html:121
 msgid "after 24h —"
-msgstr ""
+msgstr "بعد 24 ساعة -"
 
 #: templates/maintenance/dashboard.html:121
 msgid "review issues"
@@ -4479,49 +4503,73 @@ msgstr "جداول الصيانة الوقائية"
 
 #: templates/maintenance/dashboard.html:134
 msgid "Quick actions — manager queue"
-msgstr ""
+msgstr "إجراءات سريعة - قائمة المدير"
 
 #: templates/maintenance/dashboard.html:138
 #, python-format
 msgid "%(counter)s part request awaiting your approval"
 msgid_plural "%(counter)s part requests awaiting your approval"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "طلب جزء بانتظار موافقتك"
+msgstr[1] "طلب جزء بانتظار موافقتك"
+msgstr[2] "طلب جزء بانتظار موافقتك"
+msgstr[3] "طلب جزء بانتظار موافقتك"
+msgstr[4] "طلب جزء بانتظار موافقتك"
+msgstr[5] "طلب جزء بانتظار موافقتك"
 
 #: templates/maintenance/dashboard.html:143
 #, python-format
 msgid "%(counter)s ext. repair request to review"
 msgid_plural "%(counter)s ext. repair requests to review"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "طلب إصلاح خارجي للمراجعة"
+msgstr[1] "طلب إصلاح خارجي للمراجعة"
+msgstr[2] "طلب إصلاح خارجي للمراجعة"
+msgstr[3] "طلب إصلاح خارجي للمراجعة"
+msgstr[4] "طلب إصلاح خارجي للمراجعة"
+msgstr[5] "طلب إصلاح خارجي للمراجعة"
 
 #: templates/maintenance/dashboard.html:148
 #, python-format
 msgid "%(counter)s WO pending your review"
 msgid_plural "%(counter)s WOs pending your review"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "أمر عمل بانتظار مراجعتك"
+msgstr[1] "أمر عمل بانتظار مراجعتك"
+msgstr[2] "أمر عمل بانتظار مراجعتك"
+msgstr[3] "أمر عمل بانتظار مراجعتك"
+msgstr[4] "أمر عمل بانتظار مراجعتك"
+msgstr[5] "أمر عمل بانتظار مراجعتك"
 
 #: templates/maintenance/dashboard.html:153
 #, python-format
 msgid "%(counter)s paused WO"
 msgid_plural "%(counter)s paused WOs"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "أمر عمل متوقف"
+msgstr[1] "أمر عمل متوقف"
+msgstr[2] "أمر عمل متوقف"
+msgstr[3] "أمر عمل متوقف"
+msgstr[4] "أمر عمل متوقف"
+msgstr[5] "أمر عمل متوقف"
 
 #: templates/maintenance/dashboard.html:158
 #, python-format
 msgid "%(counter)s overdue WO (>7d)"
 msgid_plural "%(counter)s overdue WOs (>7d)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[1] "أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[2] "أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[3] "أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[4] "أمر عمل متأخر (أكثر من 7 أيام)"
+msgstr[5] "أمر عمل متأخر (أكثر من 7 أيام)"
 
 #: templates/maintenance/dashboard.html:163
 #, python-format
 msgid "%(counter)s returned repair awaiting acceptance"
 msgid_plural "%(counter)s returned repairs awaiting acceptance"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "إصلاح مُعاد بانتظار القبول"
+msgstr[1] "إصلاح مُعاد بانتظار القبول"
+msgstr[2] "إصلاح مُعاد بانتظار القبول"
+msgstr[3] "إصلاح مُعاد بانتظار القبول"
+msgstr[4] "إصلاح مُعاد بانتظار القبول"
+msgstr[5] "إصلاح مُعاد بانتظار القبول"
 
 #: templates/maintenance/dashboard.html:167
 msgid "All caught up. Nothing pending your decision."
@@ -4893,6 +4941,12 @@ msgstr ""
 #: templates/maintenance/issue_form.html:164
 msgid "&times;"
 msgstr ""
+
+#: templates/maintenance/issue_list.html:5
+#, fuzzy
+#| msgid "Maintenance"
+msgid "Maintenance issues"
+msgstr "المشكلات"
 
 #: templates/maintenance/issue_list.html:21
 #: templates/maintenance/reservations_dashboard.html:31
