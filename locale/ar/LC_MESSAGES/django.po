@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 17:07+0300\n"
+"POT-Creation-Date: 2026-07-07 17:38+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -129,11 +129,11 @@ msgstr ""
 msgid "Operator / Labor"
 msgstr "مشغل / عامل"
 
-#: accounts/models.py:11 accounts/utils.py:16
+#: accounts/models.py:11 accounts/utils.py:15
 msgid "Supervisor"
 msgstr "مشرف"
 
-#: accounts/models.py:12 accounts/utils.py:17 maintenance/notifications.py:356
+#: accounts/models.py:12 accounts/utils.py:16 maintenance/notifications.py:356
 #: templates/maintenance/machine_detail.html:120
 #: templates/maintenance/pm_review.html:14
 #: templates/maintenance/pm_wo_detail.html:56
@@ -158,7 +158,7 @@ msgstr ""
 msgid "Procurement Officer"
 msgstr "مسؤول المشتريات"
 
-#: accounts/models.py:15 accounts/utils.py:20
+#: accounts/models.py:15 accounts/utils.py:19
 msgid "Super Admin"
 msgstr "المسؤول الأعلى"
 
@@ -166,7 +166,7 @@ msgstr "المسؤول الأعلى"
 msgid "You do not have permission to access this page."
 msgstr ""
 
-#: accounts/utils.py:15 inventory/forms.py:107
+#: accounts/utils.py:14 inventory/forms.py:107
 #: templates/maintenance/consumables.html:79
 #: templates/maintenance/consumables.html:159
 #: templates/maintenance/kpi.html:135
@@ -174,11 +174,11 @@ msgstr ""
 msgid "Operator"
 msgstr "مشغل"
 
-#: accounts/utils.py:18
+#: accounts/utils.py:17
 msgid "Maintenance Manager"
 msgstr "مدير الصيانة"
 
-#: accounts/utils.py:19
+#: accounts/utils.py:18
 msgid "Maintenance Supply Officer"
 msgstr "مسؤول توريد الصيانة"
 
@@ -445,7 +445,7 @@ msgstr ""
 
 #: inventory/models.py:254 templates/maintenance/workorder_detail.html:125
 msgid "Issued"
-msgstr ""
+msgstr "صُدِر"
 
 #: inventory/models.py:255 maintenance/models.py:633 maintenance/models.py:1079
 #: templates/maintenance/workorder_detail.html:368
@@ -1250,7 +1250,7 @@ msgstr "الماكينة"
 
 #: maintenance/models.py:88 maintenance/views.py:599 maintenance/views.py:606
 msgid "Subassembly"
-msgstr ""
+msgstr "تجميعة فرعية"
 
 #: maintenance/models.py:88 maintenance/views.py:599 maintenance/views.py:606
 #: templates/maintenance/issue_detail.html:15
@@ -1407,7 +1407,7 @@ msgstr "وقائي"
 #: maintenance/services.py:232 templates/base.html:453
 #: templates/maintenance/workorder_detail.html:19
 msgid "Emergency"
-msgstr ""
+msgstr "طارئ"
 
 #: maintenance/models.py:307 templates/maintenance/supplier_list.html:46
 msgid "Repair"
@@ -4065,6 +4065,18 @@ msgstr ""
 msgid "SAR"
 msgstr ""
 
+#: templates/maintenance/_wo_costs.html:339
+#: templates/maintenance/_wo_costs.html:454
+#: templates/maintenance/_wo_costs.html:527
+#: templates/maintenance/_wo_costs.html:630
+msgid "Last reconciled"
+msgstr "آخر تسوية"
+
+#: templates/maintenance/_wo_costs.html:339
+#: templates/maintenance/_wo_costs.html:527
+msgid "never"
+msgstr ""
+
 #: templates/maintenance/_wo_costs.html:424
 #: templates/maintenance/_wo_costs.html:600
 msgid "Posted"
@@ -4074,11 +4086,6 @@ msgstr "مُرحَّل"
 #: templates/maintenance/_wo_costs.html:617
 msgid "Avg / txn"
 msgstr "المتوسط / المعاملة"
-
-#: templates/maintenance/_wo_costs.html:454
-#: templates/maintenance/_wo_costs.html:630
-msgid "Last reconciled"
-msgstr "آخر تسوية"
 
 #: templates/maintenance/_wo_costs.html:462
 #: templates/maintenance/_wo_costs.html:637
@@ -4109,6 +4116,20 @@ msgstr ""
 msgid "No cost recorded yet"
 msgstr "لم يتم تسجيل تكاليف بعد"
 
+#: templates/maintenance/_wo_costs.html:512
+msgid ""
+"Costs will appear here once parts are issued to this work order or a manager "
+"posts an adjustment."
+msgstr ""
+
+#: templates/maintenance/_wo_health_card.html:29
+msgid "Health:"
+msgstr "الحالة:"
+
+#: templates/maintenance/_wo_health_card.html:31
+msgid "(Phase 3A read-only summary)"
+msgstr "(ملخص المرحلة 3A للقراءة فقط)"
+
 #: templates/maintenance/_wo_health_card.html:36
 msgid ""
 "The vendor returned the part. Manager still needs to accept the ERO before "
@@ -4131,7 +4152,7 @@ msgstr "الأولوية:"
 #: templates/maintenance/my_workorders.html:65
 #: templates/maintenance/workorder_list.html:28
 msgid "n/a"
-msgstr ""
+msgstr "غير متاح"
 
 #: templates/maintenance/_wo_health_card.html:64
 msgid "Open blockers:"
@@ -4140,6 +4161,12 @@ msgstr "الحاجزون المفتوحون:"
 #: templates/maintenance/_wo_health_card.html:73
 msgid "Waiting:"
 msgstr "بانتظار:"
+
+#: templates/maintenance/_wo_health_card.html:74
+#, fuzzy
+#| msgid "Today"
+msgid "day"
+msgstr "اليوم"
 
 #: templates/maintenance/_wo_health_card.html:77
 msgid "Total cost:"
@@ -4187,7 +4214,7 @@ msgstr ""
 #: templates/maintenance/workorder_detail.html:385
 #: templates/procurement/po_form.html:82 templates/procurement/pr_list.html:15
 msgid "Qty"
-msgstr ""
+msgstr "الكمية"
 
 #: templates/maintenance/_wo_reservation_history.html:29
 #: templates/maintenance/my_workorders.html:40
@@ -7095,6 +7122,7 @@ msgid "✅ Approved (editable)"
 msgstr "✅ موافق عليه (قابل للتعديل)"
 
 #: templates/maintenance/shortage_dashboard.html:44
+#: templates/maintenance/shortage_dashboard.html:116
 msgid "🔄 In fulfillment"
 msgstr "🔄 قيد التنفيذ"
 
@@ -7115,7 +7143,6 @@ msgid "⚠ Blocked (operational)"
 msgstr "⚠ محظور (تشغيلي)"
 
 #: templates/maintenance/shortage_dashboard.html:76
-#| msgid "⏳ Awaiting decision"
 msgid "⏳ Oldest pending decisions"
 msgstr "⏳ أقدم القرارات المعلّقة"
 
@@ -7211,7 +7238,6 @@ msgid "Terminal. Line stays PENDING for tech to act on."
 msgstr "نهائي. يبقى السطر معلّقاً حتى يتصرف الفني."
 
 #: templates/maintenance/shortage_dashboard.html:223
-#| msgid "View"
 msgid "View WOs"
 msgstr "عرض"
 
@@ -7573,7 +7599,7 @@ msgstr ""
 #: templates/maintenance/technician_report.html:84
 #: templates/maintenance/workorder_detail.html:81
 msgid "Labor"
-msgstr ""
+msgstr "العمل"
 
 #: templates/maintenance/technician_report.html:85
 msgid "Rejections"
@@ -7899,7 +7925,7 @@ msgstr ""
 
 #: templates/maintenance/workorder_detail.html:481
 msgid "Total Downtime"
-msgstr ""
+msgstr "إجمالي التوقف"
 
 #: templates/maintenance/workorder_detail.html:492
 #: templates/procurement/pr_detail.html:42
