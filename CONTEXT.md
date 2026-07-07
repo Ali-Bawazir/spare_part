@@ -291,3 +291,47 @@ Machine Cost = parts_cost + vendor_cost + consumables_cost + additional_cost
 - Shift-based authorization for consumables
 - ConsumableAssignment supervisor approval queue
 - Real-time push notifications for status changes
+## Internationalization (i18n)
+
+The MMS is bilingual (English + Arabic) using Django's i18n machinery.
+
+### Key files
+- `mms/settings.py` — `LANGUAGES`, `LANGUAGE_CODE`, `LocaleMiddleware`, locale paths
+- `templates/base.html` — language switcher form, `<html lang dir>`
+- `locale/en/LC_MESSAGES/django.po` — English msgids (source of truth)
+- `locale/ar/LC_MESSAGES/django.po` — Arabic translations
+- `maintenance/management/commands/check_i18n.py` — `python manage.py check_i18n` lint
+
+### Adding a new translation (translator workflow)
+1. Edit `.po` file directly — find the msgid, add `msgstr` Arabic translation
+2. Run `python manage.py compilemessages`
+3. **Never delete the .po file** — `makemessages` only ADDS new msgids, preserves existing msgstr
+
+### Adding a new translatable string in code
+1. Wrap with `{% trans "text" %}` in templates
+2. Or `_("text")` / `gettext_lazy("text")` in Python
+3. Run `python manage.py makemessages --locale ar` — adds new msgid with empty msgstr
+4. Translator adds the Arabic translation
+5. Run `python manage.py compilemessages`
+
+### Validating
+- `python manage.py check_i18n` — runs R1-R4 (templates); exit code 0 = pass, 1 = issues
+- Rules:
+  - R1: templates using `{% trans %}` must also `{% load i18n %}`
+  - R2: text between HTML tags should be `{% trans "..." %}`
+  - R3: `placeholder=`, `title=`, `alt=`, `aria-label=` should be wrapped
+  - R4: JS `confirm()` / `alert()` strings should be wrapped
+- Wire into CI: `<your CI config>` runs `python manage.py check_i18n`; non-zero exit fails the build
+
+### Adding a 3rd language
+1. Add `("xx", "XxxName")` to `LANGUAGES` in `settings.py`
+2. `python manage.py makemessages --locale xx`
+3. Translate `locale/xx/LC_MESSAGES/django.po`
+4. `python manage.py compilemessages`
+
+### Conventions
+- Database values stay English (e.g., `WorkOrder.Status.ASSIGNED == "assigned"`)
+- Only display strings are translated
+- RTL is handled via `[dir="rtl"]` CSS rules in `static/css/mms.css`
+- Western digits in both locales (USE_THOUSAND_SEPARATOR=True)
+- Arabic plural forms: msgstr[0] through msgstr[5] all set to same value (Arabic doesn't grammatically distinguish 1 vs many)

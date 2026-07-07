@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 
 # Rules: R1-R10
@@ -277,7 +277,7 @@ class Command(BaseCommand):
         # Group by file
         by_file = {}
         for rule_id, path, msg in all_issues:
-            by_file.setdefault(path, []).append((rule_id, msg))
+            by_file.setdefault(str(path), []).append((rule_id, str(msg)))
         
         if not quiet:
             self.stdout.write(self.style.NOTICE("=" * 70))
@@ -296,8 +296,7 @@ class Command(BaseCommand):
                 f"\n✗ {len(all_issues)} unwrapped string(s) found. "
                 f"Run with explicit rules for details."
             ))
-            return 1
+            raise CommandError(f"check_i18n found {len(all_issues)} unwrapped strings")
         self.stdout.write(self.style.SUCCESS(
             f"\n✓ All checked templates and Python files pass i18n validation."
         ))
-        return 0
