@@ -3,7 +3,6 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
@@ -3026,7 +3025,6 @@ msgid "PO %(po)s closed short."
 msgstr ""
 
 #: templates/accounts/mms_user_confirm_delete.html:4
-#, fuzzy
 #| msgid "Delete"
 msgid "Delete user"
 msgstr "حذف"
@@ -3267,13 +3265,11 @@ msgid "Today's Schedule"
 msgstr "جدول اليوم"
 
 #: templates/base.html:112 templates/maintenance/preventive/mgr_reviews.html:4
-#, fuzzy
 #| msgid "Overview"
 msgid "Reviews"
 msgstr "المراجعات"
 
 #: templates/base.html:116 templates/maintenance/preventive/mgr_plans.html:4
-#, fuzzy
 #| msgid "Maintenance"
 msgid "Maintenance Plans"
 msgstr "الصيانة"
@@ -4393,7 +4389,6 @@ msgid "Next"
 msgstr "التالي"
 
 #: templates/maintenance/consumables.html:4
-#, fuzzy
 #| msgid "Consumables"
 msgid "Daily consumables"
 msgstr "المواد الاستهلاكية"
@@ -4754,7 +4749,6 @@ msgid "Create emergency WO"
 msgstr ""
 
 #: templates/maintenance/failing_assets_report.html:4
-#, fuzzy
 #| msgid "Machine cost report"
 msgid "Failing assets report"
 msgstr "تقرير تكلفة الماكينة"
@@ -4800,7 +4794,6 @@ msgid "Total"
 msgstr "الإجمالي"
 
 #: templates/maintenance/failure_mode_report.html:5
-#, fuzzy
 #| msgid "Machine cost report"
 msgid "Failure mode report"
 msgstr "تقرير تكلفة الماكينة"
@@ -4962,7 +4955,6 @@ msgid "PDF"
 msgstr ""
 
 #: templates/maintenance/issue_form.html:4
-#, fuzzy
 #| msgid "Report issue"
 msgid "Report machine issue"
 msgstr "إبلاغ عن مشكلة"
@@ -5027,7 +5019,6 @@ msgid "&times;"
 msgstr ""
 
 #: templates/maintenance/issue_form.html:163
-#, fuzzy
 #| msgid "Overview"
 msgid "Preview"
 msgstr "نظرة عامة"
@@ -5037,7 +5028,6 @@ msgid "Failed to submit issue. Please try again."
 msgstr "فشل إرسال المشكلة. حاول مرة أخرى."
 
 #: templates/maintenance/issue_list.html:5
-#, fuzzy
 #| msgid "Maintenance"
 msgid "Maintenance issues"
 msgstr "المشكلات"
@@ -5213,7 +5203,6 @@ msgid ""
 msgstr ""
 
 #: templates/maintenance/legacy_reconciliation.html:5
-#, fuzzy
 #| msgid "Legacy reconciliation"
 msgid "Legacy Work Order Reconciliation"
 msgstr "تسوية قديمة"
@@ -5254,7 +5243,6 @@ msgid "No legacy WOs found."
 msgstr ""
 
 #: templates/maintenance/machine_cost_report.html:4
-#, fuzzy
 #| msgid "Machine cost report"
 msgid "Machine Cost Report"
 msgstr "تقرير تكلفة الماكينة"
@@ -5899,7 +5887,6 @@ msgid "Manage templates"
 msgstr ""
 
 #: templates/maintenance/pm_form.html:4
-#, fuzzy
 #| msgid "PM schedules"
 msgid "PM schedule"
 msgstr "جداول الصيانة الوقائية"
@@ -5923,7 +5910,6 @@ msgid "Reference Photos"
 msgstr ""
 
 #: templates/maintenance/pm_list.html:4
-#, fuzzy
 #| msgid "Preventive Maintenance"
 msgid "Preventive maintenance"
 msgstr "الصيانة الوقائية"
@@ -6120,7 +6106,6 @@ msgid "Estimated duration"
 msgstr ""
 
 #: templates/maintenance/pm_spawn_wo.html:24
-#, fuzzy
 #| msgid "Converted to work order"
 msgid "Create this PM work order now?"
 msgstr "تم التحويل إلى أمر عمل"
@@ -6200,7 +6185,6 @@ msgid "(empty rows are ignored on save)"
 msgstr ""
 
 #: templates/maintenance/pm_template_list.html:4
-#, fuzzy
 #| msgid "Templates"
 msgid "PM templates"
 msgstr "القوالب"
@@ -6508,7 +6492,6 @@ msgid "No maintenance scheduled today."
 msgstr ""
 
 #: templates/maintenance/preventive/my.html:5
-#, fuzzy
 #| msgid "Maintenance"
 msgid "My Maintenance"
 msgstr "الصيانة"
@@ -6599,7 +6582,6 @@ msgid "Use code"
 msgstr ""
 
 #: templates/maintenance/quick_log.html:4
-#, fuzzy
 #| msgid "Maintenance"
 msgid "Quick maintenance log"
 msgstr "الصيانة"
@@ -6609,7 +6591,6 @@ msgid "Ad-hoc notes on a machine without opening a full issue or work order."
 msgstr ""
 
 #: templates/maintenance/reconciliation_dashboard.html:5
-#, fuzzy
 #| msgid "Legacy reconciliation"
 msgid "Legacy WorkOrder Reconciliation"
 msgstr "تسوية قديمة"
@@ -6736,7 +6717,6 @@ msgid "Verify and close"
 msgstr ""
 
 #: templates/maintenance/repair_form.html:4
-#, fuzzy
 #| msgid "Pending part requests"
 msgid "Create repair request"
 msgstr "طلبات أجزاء معلقة"
@@ -6752,7 +6732,6 @@ msgid "Create"
 msgstr "إنشاء"
 
 #: templates/maintenance/repair_list.html:5
-#, fuzzy
 #| msgid "External repairs"
 msgid "External repair orders"
 msgstr "الإصلاحات الخارجية"
@@ -6798,7 +6777,6 @@ msgid "After Repair Photos"
 msgstr ""
 
 #: templates/maintenance/reporters_report.html:4
-#, fuzzy
 #| msgid "Reports"
 msgid "Reporters report"
 msgstr "التقارير"
@@ -6977,7 +6955,6 @@ msgid "No parts issued yet."
 msgstr ""
 
 #: templates/maintenance/reports_technicians.html:4
-#, fuzzy
 #| msgid "Technician"
 msgid "Technician Performance"
 msgstr "فني"
@@ -6999,7 +6976,6 @@ msgid "No technicians found."
 msgstr ""
 
 #: templates/maintenance/reports_work_orders.html:5
-#, fuzzy
 #| msgid "Work Orders"
 msgid "Work Order Report"
 msgstr "أوامر العمل"
@@ -7075,7 +7051,6 @@ msgid "No reservations matching this filter."
 msgstr ""
 
 #: templates/maintenance/shortage_dashboard.html:5
-#, fuzzy
 #| msgid "Shortage dashboard"
 msgid "📊 Shortage Dashboard"
 msgstr "لوحة النقص"
@@ -7437,7 +7412,6 @@ msgid "No parts found."
 msgstr ""
 
 #: templates/maintenance/stock_in.html:4
-#, fuzzy
 #| msgid "Maintenance & spare parts"
 msgid "Stock-in spare parts"
 msgstr "الصيانة وقطع الغيار"
@@ -7954,7 +7928,6 @@ msgid ""
 msgstr ""
 
 #: templates/maintenance/workorder_list.html:31
-#, fuzzy
 #| msgid "Back to work orders"
 msgid "Archive this work order?"
 msgstr "العودة إلى أوامر العمل"
@@ -7988,7 +7961,6 @@ msgid "Submit for re-review"
 msgstr ""
 
 #: templates/maintenance/workorder_switch_confirm.html:4
-#, fuzzy
 #| msgid "Back to work orders"
 msgid "Switch active work order"
 msgstr "العودة إلى أوامر العمل"
@@ -8317,7 +8289,6 @@ msgid "← Back to PR List"
 msgstr ""
 
 #: templates/procurement/pr_form.html:4
-#, fuzzy
 #| msgid "Purchase Requests"
 msgid "New purchase request"
 msgstr "طلبات الشراء"
@@ -8333,7 +8304,6 @@ msgid "Attachments can be added after saving the purchase request."
 msgstr ""
 
 #: templates/procurement/pr_list.html:5
-#, fuzzy
 #| msgid "Purchase Requests"
 msgid "Purchase requests"
 msgstr "طلبات الشراء"
