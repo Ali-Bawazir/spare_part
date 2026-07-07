@@ -184,7 +184,7 @@ async function uploadAttachment(file, entityType, entityId) {
 }
 
 async function deleteAttachment(attId, containerId, entityType, entityId) {
-    if (!confirm('Delete this attachment?')) return;
+    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
     const response = await fetch(`/attachments/${attId}/delete/`, {
         method: 'POST',
         credentials: 'same-origin',

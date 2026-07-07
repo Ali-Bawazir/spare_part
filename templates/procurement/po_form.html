@@ -110,7 +110,7 @@
     <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
       {% csrf_token %}
       <p><input type="text" name="code" placeholder={% trans "SUP-001 or مورد-001" %} required style="width:100%" dir="auto"></p>
-      <p><input type="text" name="name" placeholder="Supplier name / اسم المورد" required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="name" placeholder="{% trans 'Supplier name' %}" required style="width:100%" dir="auto"></p>
       <p><input type="text" name="phone" placeholder={% trans "Phone" %} style="width:100%" dir="auto"></p>
       <p><input type="email" name="email" placeholder={% trans "Email" %} style="width:100%" dir="auto"></p>
       <button type="submit">{% trans "Save Supplier" %}</button>

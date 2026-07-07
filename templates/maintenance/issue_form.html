@@ -158,10 +158,10 @@
                             div.className = 'photo-preview-item';
                             if (file.type.startsWith('video/')) {
                                 div.innerHTML = '<video src="' + e.target.result + '" controls style="width:100%;height:100%;object-fit:cover"></video>' +
-                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="Remove">{% trans "&times;" %}</button>';
+                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="{% trans 'Remove' %}">{% trans "&times;" %}</button>';
                             } else {
-                                div.innerHTML = '<img src="' + e.target.result + '" alt="Preview">' +
-                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="Remove">{% trans "&times;" %}</button>';
+                                div.innerHTML = '<img src="' + e.target.result + '" alt="{% trans 'Preview' %}">' +
+                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="{% trans 'Remove' %}">{% trans "&times;" %}</button>';
                             }
                             previewContainer.appendChild(div);
                         };
@@ -344,7 +344,7 @@
                 console.error('Form submission error:', err);
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit';
-                alert('Failed to submit issue. Please try again.');
+                alert('{% trans 'Failed to submit issue. Please try again.' %}');
             });
         });
     }

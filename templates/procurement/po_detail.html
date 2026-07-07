@@ -90,7 +90,7 @@
                     <td>{{ item.item.total_price }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="7">{% trans "No line items." %}<a href="#" onclick="alert('Add items from PO detail page in Phase 2')">{% trans "Add item" %}</a></td></tr>
+                <tr><td colspan="7">{% trans "No line items." %}<a href="#" onclick="alert('{% trans 'Add items from PO detail page in Phase 2' %}')">{% trans "Add item" %}</a></td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -179,7 +179,7 @@ async function uploadAttachment(file, entityType, entityId) {
 }
 
 async function deleteAttachment(attId, containerId, entityType, entityId) {
-    if (!confirm('Delete this attachment?')) return;
+    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
     await fetch(`/attachments/${attId}/delete/`, {
         method: 'POST',
         headers: { 'X-CSRFToken': getCSRFToken() }

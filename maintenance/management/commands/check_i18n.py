@@ -72,7 +72,11 @@ def is_translatable_text(text):
     text = text.strip()
     if not text or len(text) < 3:
         return False
+    # Django template vars and tags
     if '{{' in text or '{%' in text or '{#' in text:
+        return False
+    # JS template literals (${...}) - render client-side, not translatable via gettext
+    if '${' in text:
         return False
     # Must have at least 2 letters
     if sum(1 for c in text if c.isalpha()) < 2:

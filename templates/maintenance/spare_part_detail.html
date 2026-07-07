@@ -264,7 +264,7 @@ async function loadPartAttachments(partId) {
                 <div class="attachment-item" data-att-id="${att.id}"
                      style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.5rem;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:0.5rem;${att.is_primary ? 'background:#fef9c3;' : ''}">
                     ${att.mime_type && att.mime_type.startsWith('image/')
-                        ? `<a href="${att.url}" target="_blank" rel="noopener" title="Click to view full size in new tab" style="flex-shrink:0;display:inline-block;">
+                        ? `<a href="${att.url}" target="_blank" rel="noopener" title="{% trans 'Click to view full size in new tab' %}" style="flex-shrink:0;display:inline-block;">
                                <img src="${att.thumbnail_url || att.url}" alt="${att.filename}"
                                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
                              </a>`
@@ -307,7 +307,7 @@ async function uploadPartAttachment(partId) {
     const noteInput = document.getElementById('attachment-note-spare_part-' + partId);
 
     if (!fileInput.files.length) {
-        alert('Please select a file first.');
+        alert('{% trans 'Please select a file first.' %}');
         return;
     }
 
@@ -365,7 +365,7 @@ async function setPartPrimary(attId, partId) {
 }
 
 async function deletePartAttachment(attId, partId) {
-    if (!confirm('Delete this attachment?')) return;
+    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
     const csrf = getCookie('csrftoken');
     try {
         const response = await fetch('/attachments/' + attId + '/delete/', {

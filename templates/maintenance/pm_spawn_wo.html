@@ -21,7 +21,7 @@
 
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
-    <form method="post" class="mms-form" onsubmit="return confirm('Create this PM work order now?')">
+    <form method="post" class="mms-form" onsubmit="return confirm('{% trans 'Create this PM work order now?' %}')">
       {% csrf_token %}
       {% if has_children %}
       <div class="mms-form-row">

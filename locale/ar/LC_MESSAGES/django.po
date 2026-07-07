@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 03:02+0300\n"
+"POT-Creation-Date: 2026-07-07 03:26+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1087,8 +1087,9 @@ msgstr ""
 
 #: maintenance/forms.py:263
 #: templates/maintenance/preventive/mgr_template_form.html:28
+#: templates/maintenance/preventive/mgr_template_form.html:52
 msgid "Checklist item text"
-msgstr ""
+msgstr "نص عنصر قائمة التحقق"
 
 #: maintenance/forms.py:293
 msgid "Duplicate checklist item text."
@@ -3322,6 +3323,10 @@ msgstr ""
 msgid "Pending approvals"
 msgstr "موافقات معلقة"
 
+#: templates/base.html:168
+msgid "Work orders awaiting manager review/close"
+msgstr "أوامر عمل بانتظار مراجعة/إغلاق المدير"
+
 #: templates/base.html:172
 msgid "Shortage dashboard"
 msgstr "لوحة النقص"
@@ -3480,6 +3485,14 @@ msgstr ""
 msgid "Note (optional)"
 msgstr ""
 
+#: templates/maintenance/_attachment_uploader.html:123
+msgid "Open full size in new tab"
+msgstr "فتح بالحجم الكامل في علامة تبويب جديدة"
+
+#: templates/maintenance/_attachment_uploader.html:130
+msgid "Open video in new tab"
+msgstr "فتح الفيديو في علامة تبويب جديدة"
+
 #: templates/maintenance/_attachment_uploader.html:144
 msgid "${escapeHtml(ext)}"
 msgstr ""
@@ -3512,6 +3525,22 @@ msgstr ""
 #: templates/maintenance/spare_part_detail.html:299
 msgid "Failed to load attachments."
 msgstr ""
+
+#: templates/maintenance/_attachment_uploader.html:213
+#: templates/maintenance/spare_part_detail.html:310
+msgid "Please select a file first."
+msgstr "الرجاء تحديد ملف أولاً."
+
+#: templates/maintenance/_attachment_uploader.html:282
+#: templates/maintenance/part_adjust.html:187
+#: templates/maintenance/repair_officer.html:122
+#: templates/maintenance/spare_part_detail.html:368
+#: templates/maintenance/workorder_detail.html:686
+#: templates/procurement/po_detail.html:182
+#: templates/procurement/po_receive.html:209
+#: templates/procurement/pr_detail.html:195
+msgid "Delete this attachment?"
+msgstr "حذف هذا المرفق؟"
 
 #: templates/maintenance/_cost_ledger_table.html:114
 #: templates/maintenance/audit_log.html:10
@@ -4939,8 +4968,25 @@ msgstr ""
 
 #: templates/maintenance/issue_form.html:161
 #: templates/maintenance/issue_form.html:164
+#: templates/maintenance/preventive/mgr_template_form.html:30
+#: templates/maintenance/preventive/mgr_template_form.html:53
+msgid "Remove"
+msgstr "إزالة"
+
+#: templates/maintenance/issue_form.html:161
+#: templates/maintenance/issue_form.html:164
 msgid "&times;"
 msgstr ""
+
+#: templates/maintenance/issue_form.html:163
+#, fuzzy
+#| msgid "Overview"
+msgid "Preview"
+msgstr "نظرة عامة"
+
+#: templates/maintenance/issue_form.html:347
+msgid "Failed to submit issue. Please try again."
+msgstr "فشل إرسال المشكلة. حاول مرة أخرى."
 
 #: templates/maintenance/issue_list.html:5
 #, fuzzy
@@ -5852,6 +5898,10 @@ msgid "No PM schedules match the filter."
 msgstr ""
 
 #: templates/maintenance/pm_list.html:102
+msgid "Create PM work orders for all selected schedules?"
+msgstr "إنشاء أوامر عمل صيانة وقائية لجميع الجداول المحددة؟"
+
+#: templates/maintenance/pm_list.html:102
 msgid "Spawn WOs for selected"
 msgstr ""
 
@@ -5954,9 +6004,21 @@ msgstr ""
 msgid "Rejection reason (required if rejecting)"
 msgstr ""
 
+#: templates/maintenance/pm_review.html:93
+msgid "What needs to be redone?"
+msgstr "ما الذي يحتاج لإعادة؟"
+
+#: templates/maintenance/pm_review.html:96
+msgid "Approve this PM and close the work order?"
+msgstr "الموافقة على هذه الصيانة الوقائية وإغلاق أمر العمل؟"
+
 #: templates/maintenance/pm_review.html:96
 msgid "✓ Approve & Close WO"
 msgstr ""
+
+#: templates/maintenance/pm_review.html:97
+msgid "Reject and return to technician?"
+msgstr "رفض وإرجاع إلى الفني؟"
 
 #: templates/maintenance/pm_review.html:97
 msgid "✗ Reject & Return"
@@ -5972,6 +6034,12 @@ msgstr ""
 #: templates/maintenance/pm_wo_detail.html:74
 msgid "Estimated duration"
 msgstr ""
+
+#: templates/maintenance/pm_spawn_wo.html:24
+#, fuzzy
+#| msgid "Converted to work order"
+msgid "Create this PM work order now?"
+msgstr "تم التحويل إلى أمر عمل"
 
 #: templates/maintenance/pm_spawn_wo.html:35
 msgid "Create PM Work Order"
@@ -6249,6 +6317,10 @@ msgstr ""
 msgid "Run Now"
 msgstr ""
 
+#: templates/maintenance/preventive/mgr_plan_detail.html:75
+msgid "Archive this plan?"
+msgstr "أرشفة هذه الخطة؟"
+
 #: templates/maintenance/preventive/mgr_plan_detail.html:78
 msgid "View Machine"
 msgstr ""
@@ -6302,11 +6374,6 @@ msgstr ""
 #: templates/maintenance/preventive/mgr_reviews.html:57
 msgid "No pending reviews."
 msgstr ""
-
-#: templates/maintenance/preventive/mgr_template_form.html:30
-#: templates/maintenance/preventive/mgr_template_form.html:53
-msgid "Remove"
-msgstr "إزالة"
 
 #: templates/maintenance/preventive/mgr_template_form.html:36
 msgid "+ Add row"
@@ -6489,6 +6556,7 @@ msgstr ""
 
 #: templates/maintenance/reorder_suggestions.html:32
 #: templates/maintenance/spare_part_detail.html:34
+#: templates/maintenance/spare_part_detail.html:267
 #: templates/maintenance/stock_dashboard.html:83
 #: templates/maintenance/stock_lookup.html:61
 #: templates/maintenance/workorder_detail.html:132
@@ -6498,7 +6566,7 @@ msgstr ""
 #: templates/procurement/po_detail.html:70
 #: templates/procurement/pr_detail.html:70
 msgid "Click to view full size in new tab"
-msgstr ""
+msgstr "انقر لعرض الحجم الكامل في علامة تبويب جديدة"
 
 #: templates/maintenance/reorder_suggestions.html:36
 #: templates/maintenance/stock_dashboard.html:87
@@ -7705,6 +7773,12 @@ msgid ""
 "priority jobs."
 msgstr ""
 
+#: templates/maintenance/workorder_list.html:31
+#, fuzzy
+#| msgid "Back to work orders"
+msgid "Archive this work order?"
+msgstr "العودة إلى أوامر العمل"
+
 #: templates/maintenance/workorder_part_re_review.html:37
 msgid "Originally:"
 msgstr ""
@@ -7712,6 +7786,10 @@ msgstr ""
 #: templates/maintenance/workorder_part_re_review.html:37
 msgid ". Switch to a different part if needed."
 msgstr ""
+
+#: templates/maintenance/workorder_part_re_review.html:60
+msgid "Why are you re-requesting? Any new context?"
+msgstr "لماذا تطلب مرة أخرى؟ أي سياق جديد؟"
 
 #: templates/maintenance/workorder_part_re_review.html:72
 msgid "Tap Start to record. Auto-stops at 60s."
@@ -7856,6 +7934,10 @@ msgid "No line items."
 msgstr ""
 
 #: templates/procurement/po_detail.html:93
+msgid "Add items from PO detail page in Phase 2"
+msgstr "إضافة عناصر من صفحة تفاصيل أمر الشراء في المرحلة 2"
+
+#: templates/procurement/po_detail.html:93
 msgid "Add item"
 msgstr ""
 
@@ -7904,6 +7986,11 @@ msgstr ""
 
 #: templates/procurement/po_form.html:112
 msgid "SUP-001 or مورد-001"
+msgstr ""
+
+#: templates/procurement/po_form.html:113
+#: templates/procurement/pr_officer.html:35
+msgid "Supplier name"
 msgstr ""
 
 #: templates/procurement/po_form.html:116
@@ -8071,10 +8158,6 @@ msgstr ""
 
 #: templates/procurement/pr_officer.html:34
 msgid "SUP-001"
-msgstr ""
-
-#: templates/procurement/pr_officer.html:35
-msgid "Supplier name"
 msgstr ""
 
 #: templates/procurement/supplier_analytics.html:23

@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function deleteAtt(id) {
-  if (!confirm('Delete this attachment?')) return;
+  if (!confirm('{% trans 'Delete this attachment?' %}')) return;
   fetch(`/attachments/${id}/delete/`, { method: 'POST', headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''} })
     .then(r => r.json())
     .then(() => location.reload());

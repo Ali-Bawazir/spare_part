@@ -120,14 +120,14 @@
     let mediaHtml;
     if (mime.startsWith('image/')) {
       mediaHtml = `<a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener"
-                       title="Open full size in new tab"
+                       title="{% trans 'Open full size in new tab' %}"
                        style="flex-shrink:0;display:inline-block;">
                       <img src="${escapeHtml(thumbUrl || fileUrl)}" alt="${filename}"
                            style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
                   </a>`;
     } else if (mime === 'video/mp4' || mime === 'video/quicktime') {
       mediaHtml = `<a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener"
-                       title="Open video in new tab"
+                       title="{% trans 'Open video in new tab' %}"
                        style="flex-shrink:0;display:inline-block;">
                       <video src="${escapeHtml(fileUrl)}" controls
                              style="width:160px;max-height:120px;border-radius:4px;display:block;background:#000;">
@@ -210,7 +210,7 @@
     const noteInput = document.getElementById(NOTE_ID);
 
     if (!fileInput || !fileInput.files || !fileInput.files.length) {
-      alert('Please select a file first.');
+      alert('{% trans 'Please select a file first.' %}');
       return;
     }
 
@@ -279,7 +279,7 @@
   }
 
   async function deleteAttachment(attId) {
-    if (!confirm('Delete this attachment?')) return;
+    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
     const csrf = getCookie('csrftoken');
     try {
       const response = await fetch('/attachments/' + attId + '/delete/', {

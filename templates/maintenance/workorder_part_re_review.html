@@ -57,7 +57,7 @@
       <div class="mms-form-row">
         <label for="note-input">{% trans "Note (optional, shown to manager)" %}</label>
         <textarea name="note" id="note-input" rows="2" maxlength="500" class="form-control"
-                  placeholder="Why are you re-requesting? Any new context?">{{ line.manager_note|default:"" }}</textarea>
+                  placeholder="{% trans 'Why are you re-requesting? Any new context?' %}">{{ line.manager_note|default:"" }}</textarea>
       </div>
 
       <div class="mms-form-row">

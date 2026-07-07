@@ -165,7 +165,7 @@
       </a>
       <a href="{% url 'work_order_list' %}?status=pending_review" class="mms-nav-link{% if current_url_name == 'work_order_list' %} is-active{% endif %}">
         <span>{% trans "Pending approvals" %}</span>
-        {% if nav_wo_review %}<span class="mms-nav-badge mms-nav-badge--accent" title="Work orders awaiting manager review/close">{{ nav_wo_review }}</span>{% endif %}
+        {% if nav_wo_review %}<span class="mms-nav-badge mms-nav-badge--accent" title="{% trans 'Work orders awaiting manager review/close' %}">{{ nav_wo_review }}</span>{% endif %}
       </a>
       {% if perm_decide_part_shortage_report %}
       <a href="{% url 'shortage_dashboard' %}" class="mms-nav-link{% if current_url_name == 'shortage_dashboard' %} is-active{% endif %}">

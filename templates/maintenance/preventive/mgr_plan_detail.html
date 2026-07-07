@@ -72,7 +72,7 @@
             <form method="post" action="{% url 'preventive:mgr_plan_archive' schedule.pk %}" style="display:inline">
                 {% csrf_token %}
                 <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm"
-                        onclick="return confirm('Archive this plan?')">{% trans "Archive" %}</button>
+                        onclick="return confirm('{% trans 'Archive this plan?' %}')">{% trans "Archive" %}</button>
             </form>
 
             <a href="{% url 'machine_detail' schedule.machine.pk %}#preventive" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "View Machine" %}</a>

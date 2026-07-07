@@ -99,7 +99,7 @@
 
   {% if schedule_data %}
   <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center">
-    <button class="mms-btn mms-btn--primary" type="submit" onclick="return confirm('Create PM work orders for all selected schedules?')">{% trans "Spawn WOs for selected" %}</button>
+    <button class="mms-btn mms-btn--primary" type="submit" onclick="return confirm('{% trans 'Create PM work orders for all selected schedules?' %}')">{% trans "Spawn WOs for selected" %}</button>
     <small class="mms-text-muted">{% trans "Tip: only overdue schedules are checkable for batch spawn." %}</small>
   </div>
   {% endif %}
