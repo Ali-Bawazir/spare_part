@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Stock Analysis{% endblock %}
-{% block page_heading %}Stock Analysis{% endblock %}
+{% block page_heading %}{% trans "Stock Analysis" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{{ low_stock_count }} of {{ all_count }} active parts are at or below minimum stock level.</p>
 <div class="mms-card">

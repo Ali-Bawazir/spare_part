@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Report issue{% endblock %}
-{% block page_heading %}Report machine issue{% endblock %}
+{% block page_heading %}{% trans "Report machine issue" %}{% endblock %}
 {% block content %}
 <div class="mms-actions" style="margin-bottom:1rem">
   <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">{% trans "Scan machine QR" %}</a>

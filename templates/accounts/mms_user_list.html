@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Users{% endblock %}
-{% block page_heading %}MMS users{% endblock %}
+{% block page_heading %}{% trans "MMS users" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{% trans "Accounts for the maintenance app and optional Django admin access." %}</p>
 <p class="mms-actions"><a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'mms_user_create' %}">{% trans "Create user" %}</a></p>

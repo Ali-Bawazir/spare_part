@@ -201,7 +201,7 @@
         <button type="button" class="mms-menu-btn" id="mms-nav-toggle" aria-controls="mms-sidebar" aria-expanded="false" aria-label={% trans "Open navigation menu" %}>
           <span class="mms-menu-btn__bars" aria-hidden="true"></span>
         </button>
-        <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+        <h1>{% block page_heading %}{% trans "Dashboard" %}{% endblock %}</h1>
       </div>
       <div class="mms-user">
         {% if user.role == 'technician' and nav_my_open_wo %}

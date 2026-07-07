@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Stock-in{% endblock %}
-{% block page_heading %}Stock-in spare parts{% endblock %}
+{% block page_heading %}{% trans "Stock-in spare parts" %}{% endblock %}
 {% block content %}
 {% if part %}
 <a href="/media/qr/parts/PART_{{ part.sku }}.png" target="_blank" class="mms-btn mms-btn--secondary" style="margin-bottom:1rem;display:inline-block">

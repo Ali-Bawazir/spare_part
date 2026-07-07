@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}PM templates{% endblock %}
-{% block page_heading %}PM templates{% endblock %}
+{% block page_heading %}{% trans "PM templates" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{% trans "Reusable preventive maintenance procedures. Each template can be assigned to many machines via PMSchedule." %}</p>
 {% if perm_pm_schedule_manage %}

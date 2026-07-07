@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}PM Dashboard{% endblock %}
-{% block page_heading %}PM Compliance Dashboard{% endblock %}
+{% block page_heading %}{% trans "PM Compliance Dashboard" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">Compliance over the last {{ compliance.window_days }} days. Grace period {{ compliance.grace_days }} days.</p>
 

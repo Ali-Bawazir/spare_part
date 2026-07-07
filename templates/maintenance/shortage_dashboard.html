@@ -2,7 +2,7 @@
 {% load i18n %}
 {% load mms_extras %}
 {% block title %}Shortage Dashboard{% endblock %}
-{% block page_heading %}📊 Shortage Dashboard{% endblock %}
+{% block page_heading %}{% trans "📊 Shortage Dashboard" %}{% endblock %}
 {% block content %}
 
 <p class="mms-page-lead">{% trans "Shortage lifecycle overview — every shortage moves from" %}<em>{% trans "pending" %}</em> → <em>{% trans "approved" %}</em> → <em>{% trans "in fulfillment" %}</em> → <em>{% trans "fulfilled" %}</em> → <em>{% trans "closed" %}</em>.</p>

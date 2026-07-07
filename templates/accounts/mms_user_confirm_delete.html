@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Delete user{% endblock %}
-{% block page_heading %}Delete user{% endblock %}
+{% block page_heading %}{% trans "Delete user" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{% trans "Delete removes the row permanently (only when nothing in maintenance, inventory, or procurement still points at this user). Deactivate blocks sign-in but keeps all history." %}</p>
 <div class="mms-card mms-form-stack mms-form-stack--narrow">

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 03:26+0300\n"
+"POT-Creation-Date: 2026-07-07 03:37+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,7 +46,7 @@ msgstr ""
 
 #: accounts/forms.py:34 accounts/forms.py:68
 msgid "Grant admin app permissions"
-msgstr ""
+msgstr "منح صلاحيات المسؤول للتطبيقات"
 
 #: accounts/forms.py:36 accounts/forms.py:70
 msgid ""
@@ -68,7 +68,7 @@ msgstr ""
 
 #: accounts/forms.py:54 accounts/forms.py:129
 msgid "The two password fields do not match."
-msgstr ""
+msgstr "حقلا كلمة المرور غير متطابقين."
 
 #: accounts/forms.py:59 accounts/forms.py:133
 msgid "Grant admin app permissions only applies when Staff is checked."
@@ -1350,7 +1350,7 @@ msgstr "غير نشط"
 
 #: maintenance/models.py:120
 msgid "Retired"
-msgstr ""
+msgstr "متقاعد"
 
 #: maintenance/models.py:120
 msgid "Awaiting Repair"
@@ -1402,7 +1402,7 @@ msgstr ""
 
 #: maintenance/models.py:305
 msgid "Preventive"
-msgstr ""
+msgstr "وقائي"
 
 #: maintenance/models.py:306 maintenance/models.py:530
 #: maintenance/services.py:232 templates/base.html:453
@@ -1550,19 +1550,19 @@ msgstr ""
 
 #: maintenance/models.py:712
 msgid "Daily"
-msgstr ""
+msgstr "يومي"
 
 #: maintenance/models.py:713
 msgid "Weekly"
-msgstr ""
+msgstr "أسبوعي"
 
 #: maintenance/models.py:714
 msgid "Monthly"
-msgstr ""
+msgstr "شهري"
 
 #: maintenance/models.py:715
 msgid "Yearly"
-msgstr ""
+msgstr "سنوي"
 
 #: maintenance/models.py:718
 msgid "Time-based"
@@ -1620,7 +1620,7 @@ msgstr ""
 #: maintenance/models.py:815 templates/procurement/po_receive.html:54
 #: templates/procurement/po_receive.html:121
 msgid "Damaged"
-msgstr ""
+msgstr "تالف"
 
 #: maintenance/models.py:816
 msgid "Lost"
@@ -1679,14 +1679,14 @@ msgstr ""
 msgid "Work order closed"
 msgstr ""
 
-#: maintenance/models.py:905
+#: maintenance/models.py:905 templates/maintenance/emergency_wo.html:4
 msgid "Emergency work order"
 msgstr ""
 
 #: maintenance/models.py:906 templates/maintenance/reports_low_stock.html:19
 #: templates/maintenance/stock_dashboard.html:69
 msgid "Low stock"
-msgstr ""
+msgstr "مخزون منخفض"
 
 #: maintenance/models.py:907
 msgid "Part shortage reported"
@@ -2028,7 +2028,7 @@ msgstr ""
 
 #: maintenance/models.py:1609
 msgid "Resolved"
-msgstr ""
+msgstr "تم الحل"
 
 #: maintenance/models.py:1619
 msgid "Cached human-readable summary, e.g. 'BRG-6006 × 2' or 'Servo S7-300'"
@@ -2251,7 +2251,7 @@ msgid "HIGH COST"
 msgstr ""
 
 #: maintenance/test_i18n.py:65 templates/base.html:24 templates/base.html:106
-#: templates/maintenance/dashboard.html:4
+#: templates/base.html:204 templates/maintenance/dashboard.html:4
 msgid "Dashboard"
 msgstr "لوحة التحكم"
 
@@ -3025,6 +3025,12 @@ msgstr ""
 msgid "PO %(po)s closed short."
 msgstr ""
 
+#: templates/accounts/mms_user_confirm_delete.html:4
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete user"
+msgstr "حذف"
+
 #: templates/accounts/mms_user_confirm_delete.html:6
 msgid ""
 "Delete removes the row permanently (only when nothing in maintenance, "
@@ -3052,6 +3058,10 @@ msgstr ""
 msgid "Edit instead"
 msgstr ""
 
+#: templates/accounts/mms_user_create.html:4
+msgid "Create MMS user"
+msgstr ""
+
 #: templates/accounts/mms_user_create.html:6
 msgid "Set username, password, and MMS role. Use"
 msgstr ""
@@ -3073,6 +3083,10 @@ msgstr ""
 
 #: templates/accounts/mms_user_edit.html:23
 msgid "Save changes"
+msgstr "حفظ التغييرات"
+
+#: templates/accounts/mms_user_list.html:4
+msgid "MMS users"
 msgstr ""
 
 #: templates/accounts/mms_user_list.html:6
@@ -3149,6 +3163,7 @@ msgstr "المشكلات"
 
 #: templates/base.html:34 templates/maintenance/_cost_tab.html:537
 #: templates/maintenance/dashboard.html:208
+#: templates/maintenance/workorder_list.html:5
 msgid "Work orders"
 msgstr "أوامر العمل"
 
@@ -3185,6 +3200,7 @@ msgid "Inventory Lookup"
 msgstr "البحث في المخزون"
 
 #: templates/base.html:58 templates/base.html:490
+#: templates/maintenance/supplier_list.html:4
 #: templates/procurement/supplier_analytics.html:27
 msgid "Suppliers"
 msgstr "الموردون"
@@ -3201,7 +3217,7 @@ msgstr "التوريد"
 msgid "Purchase Requests"
 msgstr "طلبات الشراء"
 
-#: templates/base.html:71
+#: templates/base.html:71 templates/procurement/po_list.html:5
 msgid "Purchase Orders"
 msgstr "أوامر الشراء"
 
@@ -3228,43 +3244,46 @@ msgstr ""
 msgid "Returned EROs"
 msgstr ""
 
-#: templates/base.html:90
+#: templates/base.html:90 templates/maintenance/reorder_suggestions.html:5
 msgid "Reorder Suggestions"
-msgstr ""
+msgstr "اقتراحات إعادة الطلب"
 
 #: templates/base.html:98
 msgid "Assets"
 msgstr "الأصول"
 
 #: templates/base.html:101 templates/maintenance/dashboard.html:211
+#: templates/maintenance/machine_list.html:4
 msgid "Machines"
 msgstr "الماكينات"
 
 #: templates/base.html:104 templates/base.html:127
+#: templates/maintenance/preventive/mgr_dashboard.html:4
 msgid "Preventive Maintenance"
 msgstr "الصيانة الوقائية"
 
-#: templates/base.html:109
+#: templates/base.html:109 templates/maintenance/preventive/mgr_today.html:4
 msgid "Today's Schedule"
 msgstr "جدول اليوم"
 
-#: templates/base.html:112
+#: templates/base.html:112 templates/maintenance/preventive/mgr_reviews.html:4
 #, fuzzy
 #| msgid "Overview"
 msgid "Reviews"
-msgstr "نظرة عامة"
+msgstr "المراجعات"
 
-#: templates/base.html:116
+#: templates/base.html:116 templates/maintenance/preventive/mgr_plans.html:4
 #, fuzzy
 #| msgid "Maintenance"
 msgid "Maintenance Plans"
 msgstr "الصيانة"
 
 #: templates/base.html:119
+#: templates/maintenance/preventive/mgr_templates.html:4
 msgid "Templates"
 msgstr "القوالب"
 
-#: templates/base.html:122
+#: templates/base.html:122 templates/maintenance/preventive/mgr_history.html:4
 msgid "History"
 msgstr "السجل"
 
@@ -3289,6 +3308,7 @@ msgid "Insights"
 msgstr "الإحصائيات"
 
 #: templates/base.html:146 templates/maintenance/dashboard.html:221
+#: templates/maintenance/notifications.html:4
 msgid "Notifications"
 msgstr "الإشعارات"
 
@@ -3296,9 +3316,9 @@ msgstr "الإشعارات"
 msgid "KPIs"
 msgstr "مؤشرات الأداء"
 
-#: templates/base.html:153
+#: templates/base.html:153 templates/maintenance/audit_log.html:4
 msgid "Audit log"
-msgstr ""
+msgstr "سجل التدقيق"
 
 #: templates/base.html:156 templates/base.html:457 templates/base.html:517
 #: templates/maintenance/dashboard.html:214 templates/maintenance/kpi.html:135
@@ -4017,7 +4037,7 @@ msgstr ""
 
 #: templates/maintenance/_wo_blockers_panel.html:72
 msgid "✅ No active blockers"
-msgstr ""
+msgstr "✅ لا توجد حواجز نشطة"
 
 #: templates/maintenance/_wo_costs.html:322
 msgid "No costs posted yet."
@@ -4112,7 +4132,7 @@ msgstr ""
 
 #: templates/maintenance/_wo_health_card.html:51
 msgid "Priority:"
-msgstr ""
+msgstr "الأولوية:"
 
 #: templates/maintenance/_wo_health_card.html:61
 #: templates/maintenance/my_workorders.html:65
@@ -4242,6 +4262,10 @@ msgstr ""
 msgid "Return to Technician"
 msgstr ""
 
+#: templates/maintenance/active_blockers_dashboard.html:5
+msgid "Active WorkOrder Blockers"
+msgstr ""
+
 #: templates/maintenance/active_blockers_dashboard.html:14
 msgid "No active blockers. All clear!"
 msgstr ""
@@ -4367,6 +4391,12 @@ msgstr "السابق"
 #: templates/maintenance/audit_log.html:29
 msgid "Next"
 msgstr "التالي"
+
+#: templates/maintenance/consumables.html:4
+#, fuzzy
+#| msgid "Consumables"
+msgid "Daily consumables"
+msgstr "المواد الاستهلاكية"
 
 #: templates/maintenance/consumables.html:23
 msgid "Your consumption"
@@ -4667,7 +4697,7 @@ msgstr ""
 #: templates/maintenance/dashboard.html:280
 #: templates/maintenance/machine_detail.html:269
 msgid "Sent"
-msgstr ""
+msgstr "مُرسل"
 
 #: templates/maintenance/dashboard.html:285
 msgid "Returned from vendor"
@@ -4723,6 +4753,12 @@ msgstr ""
 msgid "Create emergency WO"
 msgstr ""
 
+#: templates/maintenance/failing_assets_report.html:4
+#, fuzzy
+#| msgid "Machine cost report"
+msgid "Failing assets report"
+msgstr "تقرير تكلفة الماكينة"
+
 #: templates/maintenance/failing_assets_report.html:8
 #: templates/maintenance/failure_mode_report.html:9
 #: templates/maintenance/reporters_report.html:8
@@ -4762,6 +4798,12 @@ msgstr ""
 #: templates/procurement/po_detail.html:61
 msgid "Total"
 msgstr "الإجمالي"
+
+#: templates/maintenance/failure_mode_report.html:5
+#, fuzzy
+#| msgid "Machine cost report"
+msgid "Failure mode report"
+msgstr "تقرير تكلفة الماكينة"
 
 #: templates/maintenance/failure_mode_report.html:23
 #: templates/maintenance/kpi.html:73 templates/maintenance/machine_list.html:38
@@ -4919,6 +4961,12 @@ msgstr ""
 msgid "PDF"
 msgstr ""
 
+#: templates/maintenance/issue_form.html:4
+#, fuzzy
+#| msgid "Report issue"
+msgid "Report machine issue"
+msgstr "إبلاغ عن مشكلة"
+
 #: templates/maintenance/issue_form.html:7
 #: templates/maintenance/issue_list.html:13
 msgid "Scan machine QR"
@@ -5027,7 +5075,7 @@ msgstr "فئة العطل / النمط"
 #: templates/maintenance/issue_list.html:45
 #: templates/maintenance/machine_detail.html:158
 msgid "Reporter"
-msgstr ""
+msgstr "المُبلِغ"
 
 #: templates/maintenance/issue_list.html:61
 msgid "Validate"
@@ -5061,6 +5109,10 @@ msgstr ""
 
 #: templates/maintenance/issue_validate.html:13
 msgid "Validate &amp; set priority"
+msgstr ""
+
+#: templates/maintenance/kpi.html:4
+msgid "KPIs &amp; reliability"
 msgstr ""
 
 #: templates/maintenance/kpi.html:6
@@ -5160,6 +5212,12 @@ msgid ""
 "maintenance, part, tool, and procurement records in the PDF scope."
 msgstr ""
 
+#: templates/maintenance/legacy_reconciliation.html:5
+#, fuzzy
+#| msgid "Legacy reconciliation"
+msgid "Legacy Work Order Reconciliation"
+msgstr "تسوية قديمة"
+
 #: templates/maintenance/legacy_reconciliation.html:18
 #: templates/maintenance/reports_work_orders.html:10
 msgid "Total WOs"
@@ -5194,6 +5252,12 @@ msgstr ""
 #: templates/maintenance/reconciliation_dashboard.html:76
 msgid "No legacy WOs found."
 msgstr ""
+
+#: templates/maintenance/machine_cost_report.html:4
+#, fuzzy
+#| msgid "Machine cost report"
+msgid "Machine Cost Report"
+msgstr "تقرير تكلفة الماكينة"
 
 #: templates/maintenance/machine_cost_report.html:10
 #: templates/procurement/po_list.html:28
@@ -5649,7 +5713,7 @@ msgstr ""
 
 #: templates/maintenance/notifications.html:27
 msgid "Read"
-msgstr ""
+msgstr "مقروء"
 
 #: templates/maintenance/part_adjust.html:12
 msgid "Current quantity"
@@ -5751,6 +5815,10 @@ msgstr ""
 msgid "${att.note}"
 msgstr ""
 
+#: templates/maintenance/pm_batch_spawn_confirm.html:4
+msgid "Confirm batch PM spawn"
+msgstr ""
+
 #: templates/maintenance/pm_batch_spawn_confirm.html:6
 msgid "Review the schedules below and confirm to spawn a work order for each."
 msgstr ""
@@ -5773,6 +5841,10 @@ msgstr ""
 
 #: templates/maintenance/pm_batch_spawn_confirm.html:65
 msgid "← Back to PM list"
+msgstr ""
+
+#: templates/maintenance/pm_dashboard.html:4
+msgid "PM Compliance Dashboard"
 msgstr ""
 
 #: templates/maintenance/pm_dashboard.html:27
@@ -5826,6 +5898,12 @@ msgstr ""
 msgid "Manage templates"
 msgstr ""
 
+#: templates/maintenance/pm_form.html:4
+#, fuzzy
+#| msgid "PM schedules"
+msgid "PM schedule"
+msgstr "جداول الصيانة الوقائية"
+
 #: templates/maintenance/pm_form.html:6
 msgid ""
 "Define preventive task frequency and next due date for a machine or "
@@ -5843,6 +5921,12 @@ msgstr ""
 #: templates/maintenance/pm_form.html:63
 msgid "Reference Photos"
 msgstr ""
+
+#: templates/maintenance/pm_list.html:4
+#, fuzzy
+#| msgid "Preventive Maintenance"
+msgid "Preventive maintenance"
+msgstr "الصيانة الوقائية"
 
 #: templates/maintenance/pm_list.html:6
 msgid "Schedules drive PM work orders. Spawn a WO when due."
@@ -6115,6 +6199,12 @@ msgstr ""
 msgid "(empty rows are ignored on save)"
 msgstr ""
 
+#: templates/maintenance/pm_template_list.html:4
+#, fuzzy
+#| msgid "Templates"
+msgid "PM templates"
+msgstr "القوالب"
+
 #: templates/maintenance/pm_template_list.html:6
 msgid ""
 "Reusable preventive maintenance procedures. Each template can be assigned to "
@@ -6363,6 +6453,11 @@ msgstr ""
 msgid "No plans in this filter."
 msgstr ""
 
+#: templates/maintenance/preventive/mgr_reviews.html:8
+#: templates/maintenance/shortage_dashboard.html:8
+msgid "pending"
+msgstr "معلّق"
+
 #: templates/maintenance/preventive/mgr_reviews.html:43
 msgid "Return reason (required)"
 msgstr ""
@@ -6373,7 +6468,7 @@ msgstr ""
 
 #: templates/maintenance/preventive/mgr_reviews.html:57
 msgid "No pending reviews."
-msgstr ""
+msgstr "لا توجد مراجعات معلقة."
 
 #: templates/maintenance/preventive/mgr_template_form.html:36
 msgid "+ Add row"
@@ -6411,6 +6506,12 @@ msgstr ""
 #: templates/maintenance/preventive/mgr_today.html:67
 msgid "No maintenance scheduled today."
 msgstr ""
+
+#: templates/maintenance/preventive/my.html:5
+#, fuzzy
+#| msgid "Maintenance"
+msgid "My Maintenance"
+msgstr "الصيانة"
 
 #: templates/maintenance/preventive/my.html:18
 msgid "Resume"
@@ -6457,6 +6558,10 @@ msgstr ""
 msgid "No completed maintenance today."
 msgstr ""
 
+#: templates/maintenance/qr_scan.html:4
+msgid "QR scanner"
+msgstr ""
+
 #: templates/maintenance/qr_scan.html:10
 msgid "Camera scan"
 msgstr ""
@@ -6493,9 +6598,21 @@ msgstr ""
 msgid "Use code"
 msgstr ""
 
+#: templates/maintenance/quick_log.html:4
+#, fuzzy
+#| msgid "Maintenance"
+msgid "Quick maintenance log"
+msgstr "الصيانة"
+
 #: templates/maintenance/quick_log.html:6
 msgid "Ad-hoc notes on a machine without opening a full issue or work order."
 msgstr ""
+
+#: templates/maintenance/reconciliation_dashboard.html:5
+#, fuzzy
+#| msgid "Legacy reconciliation"
+msgid "Legacy WorkOrder Reconciliation"
+msgstr "تسوية قديمة"
 
 #: templates/maintenance/reconciliation_dashboard.html:14
 msgid "All WorkOrders are on the blocker system (version 1+)."
@@ -6584,6 +6701,10 @@ msgstr ""
 msgid "All parts are above minimum stock."
 msgstr ""
 
+#: templates/maintenance/repair_accept.html:4
+msgid "Manager acceptance (UC-20)"
+msgstr ""
+
 #: templates/maintenance/repair_accept.html:6
 msgid ""
 "Verify the asset returned from vendor, record the vendor invoice, and close "
@@ -6614,6 +6735,12 @@ msgstr ""
 msgid "Verify and close"
 msgstr ""
 
+#: templates/maintenance/repair_form.html:4
+#, fuzzy
+#| msgid "Pending part requests"
+msgid "Create repair request"
+msgstr "طلبات أجزاء معلقة"
+
 #: templates/maintenance/repair_form.html:6
 msgid ""
 "Send equipment to an external vendor (UC-19). Supply Officer will progress "
@@ -6623,6 +6750,12 @@ msgstr ""
 #: templates/maintenance/repair_form.html:50
 msgid "Create"
 msgstr "إنشاء"
+
+#: templates/maintenance/repair_list.html:5
+#, fuzzy
+#| msgid "External repairs"
+msgid "External repair orders"
+msgstr "الإصلاحات الخارجية"
 
 #: templates/maintenance/repair_list.html:7
 msgid ""
@@ -6664,12 +6797,22 @@ msgstr ""
 msgid "After Repair Photos"
 msgstr ""
 
+#: templates/maintenance/reporters_report.html:4
+#, fuzzy
+#| msgid "Reports"
+msgid "Reporters report"
+msgstr "التقارير"
+
 #: templates/maintenance/reporters_report.html:24
 msgid "Converted to WO"
 msgstr ""
 
 #: templates/maintenance/reporters_report.html:25
 msgid "Conversion rate"
+msgstr ""
+
+#: templates/maintenance/reports.html:5
+msgid "Reports &amp; analytics"
 msgstr ""
 
 #: templates/maintenance/reports.html:7
@@ -6680,7 +6823,7 @@ msgstr ""
 
 #: templates/maintenance/reports.html:12
 msgid "Machines by issue count"
-msgstr ""
+msgstr "الماكينات حسب عدد المشكلات"
 
 #: templates/maintenance/reports.html:17
 msgid "No data."
@@ -6692,7 +6835,7 @@ msgstr ""
 
 #: templates/maintenance/reports.html:24
 msgid "Work orders by status"
-msgstr ""
+msgstr "أوامر العمل حسب الحالة"
 
 #: templates/maintenance/reports.html:29
 #: templates/maintenance/workorder_list.html:33
@@ -6751,6 +6894,10 @@ msgstr ""
 msgid "Open machine cost report →"
 msgstr ""
 
+#: templates/maintenance/reports_low_stock.html:4
+msgid "Stock Analysis"
+msgstr ""
+
 #: templates/maintenance/reports_low_stock.html:8
 msgid "All active parts"
 msgstr ""
@@ -6791,6 +6938,10 @@ msgstr ""
 msgid "← Back to Reports"
 msgstr ""
 
+#: templates/maintenance/reports_machines.html:4
+msgid "Machines by Issue Count"
+msgstr ""
+
 #: templates/maintenance/reports_machines.html:6
 msgid ""
 "All machines ranked by total reported issues. Machines with the most issues "
@@ -6803,6 +6954,10 @@ msgstr ""
 
 #: templates/maintenance/reports_machines.html:20
 msgid "No machines found."
+msgstr ""
+
+#: templates/maintenance/reports_parts_issued.html:4
+msgid "Most Issued Parts"
 msgstr ""
 
 #: templates/maintenance/reports_parts_issued.html:6
@@ -6821,6 +6976,12 @@ msgstr ""
 msgid "No parts issued yet."
 msgstr ""
 
+#: templates/maintenance/reports_technicians.html:4
+#, fuzzy
+#| msgid "Technician"
+msgid "Technician Performance"
+msgstr "فني"
+
 #: templates/maintenance/reports_technicians.html:6
 msgid "All technicians ranked by closed work orders and average repair time."
 msgstr ""
@@ -6836,6 +6997,12 @@ msgstr ""
 #: templates/maintenance/reports_technicians.html:22
 msgid "No technicians found."
 msgstr ""
+
+#: templates/maintenance/reports_work_orders.html:5
+#, fuzzy
+#| msgid "Work Orders"
+msgid "Work Order Report"
+msgstr "أوامر العمل"
 
 #: templates/maintenance/reports_work_orders.html:7
 msgid "All work orders with status breakdown."
@@ -6907,12 +7074,14 @@ msgstr ""
 msgid "No reservations matching this filter."
 msgstr ""
 
-#: templates/maintenance/shortage_dashboard.html:8
-msgid "Shortage lifecycle overview — every shortage moves from"
-msgstr ""
+#: templates/maintenance/shortage_dashboard.html:5
+#, fuzzy
+#| msgid "Shortage dashboard"
+msgid "📊 Shortage Dashboard"
+msgstr "لوحة النقص"
 
 #: templates/maintenance/shortage_dashboard.html:8
-msgid "pending"
+msgid "Shortage lifecycle overview — every shortage moves from"
 msgstr ""
 
 #: templates/maintenance/shortage_dashboard.html:8
@@ -7128,7 +7297,7 @@ msgstr ""
 #: templates/maintenance/spare_part_detail.html:235
 #: templates/maintenance/workorder_detail.html:532
 msgid "Upload"
-msgstr ""
+msgstr "رفع"
 
 #: templates/maintenance/spare_part_detail.html:271
 msgid "${att.filename.split('.').pop().toUpperCase()}"
@@ -7266,6 +7435,12 @@ msgstr ""
 #: templates/maintenance/stock_lookup.html:86
 msgid "No parts found."
 msgstr ""
+
+#: templates/maintenance/stock_in.html:4
+#, fuzzy
+#| msgid "Maintenance & spare parts"
+msgid "Stock-in spare parts"
+msgstr "الصيانة وقطع الغيار"
 
 #: templates/maintenance/stock_in.html:11
 msgid "Receive parts into inventory (goods receipt)."
@@ -7440,6 +7615,10 @@ msgstr ""
 msgid "Confirm return"
 msgstr ""
 
+#: templates/maintenance/tools.html:4
+msgid "Reusable tools"
+msgstr ""
+
 #: templates/maintenance/tools.html:6
 msgid ""
 "Assign calibrated or shared tools to technicians; return with condition."
@@ -7498,7 +7677,7 @@ msgstr ""
 
 #: templates/maintenance/tools.html:72
 msgid "Return"
-msgstr ""
+msgstr "إرجاع"
 
 #: templates/maintenance/tools.html:80
 msgid "All tools"
@@ -7514,6 +7693,11 @@ msgstr ""
 
 #: templates/maintenance/work_order_cost_ledger.html:139
 msgid "Grand total &middot; all time"
+msgstr ""
+
+#: templates/maintenance/workorder_create_confirm.html:5
+#: templates/maintenance/workorder_create_confirm.html:35
+msgid "Create work order"
 msgstr ""
 
 #: templates/maintenance/workorder_create_confirm.html:7
@@ -7549,10 +7733,6 @@ msgid ""
 "order will start in"
 msgstr ""
 
-#: templates/maintenance/workorder_create_confirm.html:35
-msgid "Create work order"
-msgstr ""
-
 #: templates/maintenance/workorder_detail.html:9
 msgid "Back to work orders"
 msgstr "العودة إلى أوامر العمل"
@@ -7567,7 +7747,7 @@ msgstr ""
 
 #: templates/maintenance/workorder_detail.html:51
 msgid "Work details"
-msgstr ""
+msgstr "تفاصيل العمل"
 
 #: templates/maintenance/workorder_detail.html:56
 msgid "Issue photos"
@@ -7579,19 +7759,19 @@ msgstr ""
 
 #: templates/maintenance/workorder_detail.html:86
 msgid "Pause reason"
-msgstr ""
+msgstr "سبب الإيقاف"
 
 #: templates/maintenance/workorder_detail.html:90
 msgid "Downtime window"
-msgstr ""
+msgstr "نافذة التوقف"
 
 #: templates/maintenance/workorder_detail.html:94
 msgid "Root cause"
-msgstr ""
+msgstr "السبب الجذري"
 
 #: templates/maintenance/workorder_detail.html:95
 msgid "Action taken"
-msgstr ""
+msgstr "الإجراء المتخذ"
 
 #: templates/maintenance/workorder_detail.html:111
 msgid "You already have an active work order:"
@@ -7779,6 +7959,10 @@ msgstr ""
 msgid "Archive this work order?"
 msgstr "العودة إلى أوامر العمل"
 
+#: templates/maintenance/workorder_part_re_review.html:5
+msgid "Edit & re-submit refused part request"
+msgstr ""
+
 #: templates/maintenance/workorder_part_re_review.html:37
 msgid "Originally:"
 msgstr ""
@@ -7802,6 +7986,12 @@ msgstr ""
 #: templates/maintenance/workorder_part_re_review.html:82
 msgid "Submit for re-review"
 msgstr ""
+
+#: templates/maintenance/workorder_switch_confirm.html:4
+#, fuzzy
+#| msgid "Back to work orders"
+msgid "Switch active work order"
+msgstr "العودة إلى أوامر العمل"
 
 #: templates/maintenance/workorder_switch_confirm.html:6
 msgid ""
@@ -7844,7 +8034,7 @@ msgstr ""
 
 #: templates/procurement/po_close_short.html:16
 msgid "Received"
-msgstr ""
+msgstr "مُستلم"
 
 #: templates/procurement/po_close_short.html:16
 #: templates/procurement/po_detail.html:59
@@ -8126,6 +8316,12 @@ msgstr ""
 msgid "← Back to PR List"
 msgstr ""
 
+#: templates/procurement/pr_form.html:4
+#, fuzzy
+#| msgid "Purchase Requests"
+msgid "New purchase request"
+msgstr "طلبات الشراء"
+
 #: templates/procurement/pr_form.html:6
 msgid ""
 "Request spare parts or services. Link to a work order when the shortage came "
@@ -8135,6 +8331,12 @@ msgstr ""
 #: templates/procurement/pr_form.html:63
 msgid "Attachments can be added after saving the purchase request."
 msgstr ""
+
+#: templates/procurement/pr_list.html:5
+#, fuzzy
+#| msgid "Purchase Requests"
+msgid "Purchase requests"
+msgstr "طلبات الشراء"
 
 #: templates/procurement/pr_list.html:9
 msgid "New request"

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Notifications{% endblock %}
-{% block page_heading %}Notifications{% endblock %}
+{% block page_heading %}{% trans "Notifications" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{% trans "In-app alerts: new issues, validated issues," %}<strong>{% trans "emergency work orders" %}</strong>{% trans ", assignments, manager review," %}<strong>{% trans "overdue PM" %}</strong>{% trans ", low stock, purchase requests, and repair returns. Unread count appears in the sidebar." %}</p>
 <div class="mms-actions" style="margin-bottom:1rem">

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Create user{% endblock %}
-{% block page_heading %}Create MMS user{% endblock %}
+{% block page_heading %}{% trans "Create MMS user" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{% trans "Set username, password, and MMS role. Use" %}<strong>{% trans "Staff" %}</strong>{% trans "only for people who should use Django" %}<code>/admin/</code>.</p>
 <div class="mms-card mms-form-stack">

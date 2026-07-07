@@ -2,7 +2,7 @@
 {% load i18n %}
 {% load mms_extras %}
 {% block title %}Repairs{% endblock %}
-{% block page_heading %}External repair orders{% endblock %}
+{% block page_heading %}{% trans "External repair orders" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{% trans "Vendor repairs (UC-19/20). Supply Officer updates status; maintenance manager accepts after return." %}</p>
 {% if perm_repair_create %}

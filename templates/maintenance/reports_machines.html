@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Machines by Issue Count{% endblock %}
-{% block page_heading %}Machines by Issue Count{% endblock %}
+{% block page_heading %}{% trans "Machines by Issue Count" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">{% trans "All machines ranked by total reported issues. Machines with the most issues may need root-cause analysis or PM schedule review." %}</p>
 <div class="mms-card">

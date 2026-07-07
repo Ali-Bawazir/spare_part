@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Suppliers — Stock{% endblock %}
-{% block page_heading %}Suppliers{% endblock %}
+{% block page_heading %}{% trans "Suppliers" %}{% endblock %}
 {% block content %}
 <div class="mms-actions" style="margin-bottom:1rem">
   <a class="mms-btn mms-btn--primary" href="{% url 'supplier_create' %}">{% trans "+ New supplier" %}</a>

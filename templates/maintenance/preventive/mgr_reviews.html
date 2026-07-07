@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Reviews — Bawazir MMS{% endblock %}
-{% block page_heading %}Reviews{% endblock %}
+{% block page_heading %}{% trans "Reviews" %}{% endblock %}
 {% block content %}
 
 <div class="mms-banner" style="margin-bottom:1rem">
-    <strong>{{ pending.count }}</strong> pending
+    <strong>{{ pending.count }}</strong> {% trans "pending" %}
 </div>
 
 {% if pending %}
