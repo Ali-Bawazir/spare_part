@@ -11,13 +11,13 @@
 {% with pending=counts|dict_get:"pending" in_ful=counts|dict_get:"in_fulfillment" blocked=counts|dict_get:"blocked" %}
   {% if pending %}
   <div class="mms-alert mms-alert--error">
-    <strong>📦 {{ pending }} shortage{{ pending|pluralize }} awaiting your decision.</strong>
+    {% blocktrans count pending=pending %}<strong>📦 {{ pending }} shortage awaiting your decision.</strong>{% plural %}<strong>📦 {{ pending }} shortages awaiting your decision.</strong>{% endblocktrans %}
     &nbsp;<a href="#pending-section" class="mms-alert-link">{% trans "Review oldest pending →" %}</a>
   </div>
   {% endif %}
   {% if blocked %}
   <div class="mms-alert mms-alert--warn" style="margin-top:.5rem">
-    <strong>⚠ {{ blocked }} shortage{{ blocked|pluralize }} blocked</strong> — operational problem flagged.
+    {% blocktrans count blocked=blocked %}<strong>⚠ {{ blocked }} shortage blocked</strong> — operational problem flagged.{% plural %}<strong>⚠ {{ blocked }} shortages blocked</strong> — operational problem flagged.{% endblocktrans %}
     &nbsp;<a href="#in-fulfillment-section" class="mms-alert-link">{% trans "Review in-fulfillment list →" %}</a>
   </div>
   {% endif %}
@@ -73,7 +73,7 @@
   {# === LEFT COLUMN: Oldest pending (the most actionable) === #}
   <div class="mms-card" id="pending-section" style="border-left:4px solid {% if counts|dict_get:'pending' %}#dc3545{% else %}#16a34a{% endif %}">
     <div class="mms-card-header">
-      ⏳ Oldest pending decisions
+      {% trans "⏳ Oldest pending decisions" %}
       <span class="mms-badge mms-badge--{% if counts|dict_get:'pending' %}danger{% else %}success{% endif %}">{{ counts|dict_get:"pending"|default:0 }}</span>
     </div>
     <div class="mms-card-body">
@@ -113,7 +113,7 @@
   {# === RIGHT COLUMN: In fulfillment (active work) === #}
   <div class="mms-card" id="in-fulfillment-section" style="border-left:4px solid {% if counts|dict_get:'in_fulfillment' %}#0d6efd{% else %}#16a34a{% endif %}">
     <div class="mms-card-header">
-      🔄 In fulfillment
+      {% trans "🔄 In fulfillment" %}
       <span class="mms-badge mms-badge--{% if counts|dict_get:'in_fulfillment' %}info{% else %}success{% endif %}">{{ counts|dict_get:"in_fulfillment"|default:0 }}</span>
     </div>
     <div class="mms-card-body">
@@ -220,7 +220,7 @@
             </td>
             <td>
               <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?shortage_status={{ value }}">
-                View WOs
+                {% trans "View WOs" %}
               </a>
             </td>
           </tr>
@@ -233,7 +233,7 @@
 <div style="margin-top:1.5rem">
   <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'dashboard' %}">{% trans "← Back to dashboard" %}</a>
   <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?has_pending_shortage=1" style="margin-left:.5rem">
-    📋 WOs with any shortage
+    {% trans "📋 WOs with any shortage" %}
   </a>
 </div>
 
