@@ -4687,7 +4687,7 @@ def reporters_report(request):
 def repair_manager_accept(request, pk):
     rwo = get_object_or_404(ExternalRepairOrder, pk=pk)
     if rwo.status != ExternalRepairOrder.Status.RETURNED:
-        messages.error(request, "Repair must be in Returned status before manager acceptance (UC-20).")
+        messages.error(request, _("Repair must be in Returned status before manager acceptance (UC-20)."))
         return redirect("repair_list")
     if request.method == "POST":
         form = RepairManagerAcceptForm(request.POST)
@@ -5033,10 +5033,10 @@ def attachment_set_primary(request, pk):
 def issue_archive(request, pk):
     issue = get_object_or_404(MaintenanceIssue, pk=pk)
     if issue.is_archived:
-        messages.error(request, "Issue is already archived.")
+        messages.error(request, _("Issue is already archived."))
         return redirect("issue_list")
     if issue.status == MaintenanceIssue.Status.CONVERTED:
-        messages.error(request, "Cannot archive a converted issue. Archive the linked work order instead.")
+        messages.error(request, _("Cannot archive a converted issue. Archive the linked work order instead."))
         return redirect("issue_list")
     archive_maintenance_issue(issue, request.user)
     messages.success(request, f"Issue #{issue.pk} has been archived.")
@@ -5048,7 +5048,7 @@ def issue_archive(request, pk):
 def work_order_archive(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.is_archived:
-        messages.error(request, "Work order is already archived.")
+        messages.error(request, _("Work order is already archived."))
         return redirect("work_order_list")
     archive_work_order(wo, request.user)
     messages.success(request, f"Work order WO-{wo.number} has been archived.")
@@ -5177,7 +5177,7 @@ def part_adjust(request, pk):
             except Exception as e:
                 messages.error(request, f"Adjustment failed: {e}")
         else:
-            messages.error(request, "New quantity and reason are required.")
+            messages.error(request, _("New quantity and reason are required."))
 
     return render(request, "maintenance/part_adjust.html", {
         "part": part,
@@ -5455,12 +5455,12 @@ def work_order_request_shortage(request, pk):
 
     wo = get_object_or_404(WorkOrder, pk=pk)
     if wo.assigned_technician_id != request.user.id and not request.user.is_super_admin_role():
-        messages.error(request, "You can only raise shortage requests on work orders assigned to you.")
+        messages.error(request, _("You can only raise shortage requests on work orders assigned to you."))
         return redirect("work_order_detail", pk=wo.pk)
 
     part_id = request.POST.get("part_id")
     if not part_id:
-        messages.error(request, "Missing part_id.")
+        messages.error(request, _("Missing part_id."))
         return redirect("work_order_detail", pk=wo.pk)
 
     part = get_object_or_404(SparePart, pk=part_id)
@@ -5503,7 +5503,7 @@ def work_order_decide_shortage(request, pk, report_id):
 
     decision_type = request.POST.get("decision_type", "").strip()
     if decision_type not in ("approve", "reject"):
-        messages.error(request, "Invalid decision type.")
+        messages.error(request, _("Invalid decision type."))
         return redirect("work_order_detail", pk=wo.pk)
 
     note = (request.POST.get("decision_note") or "").strip()
@@ -5515,7 +5515,7 @@ def work_order_decide_shortage(request, pk, report_id):
     if decision_type == "reject":
         reason = (request.POST.get("rejection_reason") or "").strip()
         if len(reason) < 15:
-            messages.error(request, "Rejection reason is required (min 15 characters).")
+            messages.error(request, _("Rejection reason is required (min 15 characters)."))
             return redirect("work_order_detail", pk=wo.pk)
         rejected = report.qty_requested
     else:
@@ -5524,10 +5524,10 @@ def work_order_decide_shortage(request, pk, report_id):
             approved_procure = Decimal(request.POST.get("approved_procurement_qty") or "0")
             rejected         = Decimal(request.POST.get("rejected_qty") or "0")
         except (InvalidOperation, ValueError):
-            messages.error(request, "Quantities must be numbers.")
+            messages.error(request, _("Quantities must be numbers."))
             return redirect("work_order_detail", pk=wo.pk)
         if any(v < 0 for v in (approved_issue, approved_procure, rejected)):
-            messages.error(request, "Quantities cannot be negative.")
+            messages.error(request, _("Quantities cannot be negative."))
             return redirect("work_order_detail", pk=wo.pk)
         if approved_issue + approved_procure + rejected != report.qty_requested:
             messages.error(
@@ -5538,7 +5538,7 @@ def work_order_decide_shortage(request, pk, report_id):
             )
             return redirect("work_order_detail", pk=wo.pk)
         if approved_issue == 0 and approved_procure == 0:
-            messages.error(request, "Approve with both 0 makes no sense — use Reject instead.")
+            messages.error(request, _("Approve with both 0 makes no sense — use Reject instead."))
             return redirect("work_order_detail", pk=wo.pk)
 
     eta_raw = (request.POST.get("expected_availability_date") or "").strip()
@@ -5547,7 +5547,7 @@ def work_order_decide_shortage(request, pk, report_id):
         try:
             eta = date.fromisoformat(eta_raw)
         except ValueError:
-            messages.warning(request, "Invalid expected_availability_date; skipped.")
+            messages.warning(request, _("Invalid expected_availability_date; skipped."))
 
     try:
         decision = create_shortage_decision(
@@ -5620,10 +5620,10 @@ def work_order_edit_shortage(request, pk, report_id):
         approved_procure = Decimal(request.POST.get("approved_procurement_qty") or "0")
         rejected         = Decimal(request.POST.get("rejected_qty") or "0")
     except (InvalidOperation, ValueError):
-        messages.error(request, "Quantities must be numbers.")
+        messages.error(request, _("Quantities must be numbers."))
         return redirect("work_order_detail", pk=wo.pk)
     if any(v < 0 for v in (approved_issue, approved_procure, rejected)):
-        messages.error(request, "Quantities cannot be negative.")
+        messages.error(request, _("Quantities cannot be negative."))
         return redirect("work_order_detail", pk=wo.pk)
     if approved_issue + approved_procure + rejected != report.qty_requested:
         messages.error(
@@ -5769,7 +5769,7 @@ def work_order_warehouse_issue(request, pk, line_id):
     try:
         qty = Decimal(request.POST.get("qty") or "0")
     except (InvalidOperation, ValueError):
-        messages.error(request, "Issue qty must be a number.")
+        messages.error(request, _("Issue qty must be a number."))
         return redirect("work_order_detail", pk=wo.pk)
 
     try:
@@ -6267,7 +6267,7 @@ def pm_batch_spawn_wo(request):
 
     schedule_ids = request.POST.getlist("schedule_ids")
     if not schedule_ids:
-        messages.error(request, "No schedules selected.")
+        messages.error(request, _("No schedules selected."))
         return redirect("pm_list")
 
     created_count = 0
@@ -6319,5 +6319,5 @@ def pm_batch_spawn_wo(request):
             f"No new work orders created — all {skipped_pending} selected schedule{'s' if skipped_pending != 1 else ''} already have a pending execution.",
         )
     else:
-        messages.warning(request, "No work orders created. All schedules were invalid or inactive.")
+        messages.warning(request, _("No work orders created. All schedules were invalid or inactive."))
     return redirect("pm_list")

@@ -46,8 +46,9 @@
   <input type="hidden" name="schedule_ids" value="{{ s.pk }}">
   {% endfor %}
   <div class="mms-form-actions">
-    <button class="mms-btn mms-btn--primary" type="submit" onclick="return confirm('Spawn {{ schedules|length }} PM work order{{ schedules|length|pluralize }}?')">
-      ✓ Confirm — Spawn {{ schedules|length }} Work Order{{ schedules|length|pluralize }}
+    <button class="mms-btn mms-btn--primary" type="submit"
+            data-confirm-msg="{% blocktrans count counter=schedules|length %}Spawn {{ counter }} PM work order?{% plural %}Spawn {{ counter }} PM work orders?{% endblocktrans %}">
+      {% blocktrans count counter=schedules|length %}✓ Confirm — Spawn {{ counter }} Work Order{% plural %}✓ Confirm — Spawn {{ counter }} Work Orders{% endblocktrans %}
     </button>
     <a class="mms-btn mms-btn--ghost" href="{% url 'pm_list' %}">{% trans "Cancel" %}</a>
   </div>

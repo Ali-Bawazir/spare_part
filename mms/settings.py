@@ -43,6 +43,7 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -79,13 +80,32 @@ WSGI_APPLICATION = "mms.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 def _get_db_config():
-    db_user = os.environ.get("DB_USER") or os.environ.get("DB_USER", "mms_user")
+    """Pick the database backend based on environment variables.
+
+    Precedence (highest to lowest):
+        1. ``MMS_USE_SQLITE=1`` — explicit SQLite fallback (CI, tests, local dev).
+           Forces SQLite regardless of other DB_* vars.
+        2. All of ``DB_USER``, ``DB_PASSWORD``, ``DB_NAME`` set — PostgreSQL.
+        3. None of the above — SQLite (last-resort) with a warning in DEBUG only.
+
+    In production, the docker compose stack always sets DB_PASSWORD, so the
+    SQLite path is never hit. Tests run with ``MMS_USE_SQLITE=1``.
+    """
+    # 1) Explicit SQLite opt-in
+    if os.environ.get("MMS_USE_SQLITE") == "1":
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+
+    db_user = os.environ.get("DB_USER", "")
     db_password = os.environ.get("DB_PASSWORD", "")
     db_host = os.environ.get("DB_HOST", "localhost")
     db_port = os.environ.get("DB_PORT", "5432")
-    db_name = os.environ.get("DB_NAME", "mms_db")
+    db_name = os.environ.get("DB_NAME", "")
 
-    if db_password:
+    # 2) PostgreSQL when all required vars are present
+    if db_user and db_password and db_name:
         return {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": db_name,
@@ -98,6 +118,15 @@ def _get_db_config():
                 "connect_timeout": 10,
             },
         }
+
+    # 3) Last-resort: SQLite (dev convenience; warn in DEBUG only)
+    if DEBUG:
+        import warnings
+        warnings.warn(
+            "MMS: DB_PASSWORD/DB_USER/DB_NAME not set and MMS_USE_SQLITE is not '1'. "
+            "Falling back to SQLite. For production, configure the docker compose stack.",
+            stacklevel=1,
+        )
     return {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
@@ -152,6 +181,14 @@ LANGUAGE_COOKIE_SECURE = not DEBUG
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"

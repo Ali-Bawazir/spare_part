@@ -24,16 +24,24 @@ class PurchaseRequestForm(forms.ModelForm):
         # not mandatory.
         required=False,
         widget=forms.Select(attrs=_SEL),
+        label=_("Machine"),
     )
     component = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=5),
         required=False,
         widget=forms.Select(attrs=_SEL),
+        label=_("Component"),
     )
 
     class Meta:
         model = PurchaseRequest
         fields = ("part", "machine", "component", "work_order", "quantity", "notes")
+        labels = {
+            "part": _("Part"),
+            "work_order": _("Work order"),
+            "quantity": _("Quantity"),
+            "notes": _("Notes"),
+        }
         widgets = {
             "part": forms.Select(attrs=_SEL),
             "work_order": forms.Select(attrs=_SEL),
@@ -88,6 +96,12 @@ class PurchaseOfficerForm(forms.ModelForm):
     class Meta:
         model = PurchaseRequest
         fields = ("supplier", "unit_price", "status", "notes")
+        labels = {
+            "supplier": _("Supplier"),
+            "unit_price": _("Unit price"),
+            "status": _("Status"),
+            "notes": _("Notes"),
+        }
         widgets = {
             "supplier": forms.Select(attrs=_SEL),
             "unit_price": forms.NumberInput(attrs=_CTRL),
@@ -102,6 +116,14 @@ class PurchaseOrderForm(forms.ModelForm):
     class Meta:
         model = PurchaseOrder
         fields = ["supplier", "invoice_ref", "expected_delivery", "status", "notes", "handled_by"]
+        labels = {
+            "supplier": _("Supplier"),
+            "invoice_ref": _("Internal ref"),
+            "expected_delivery": _("Expected delivery"),
+            "status": _("Status"),
+            "notes": _("Notes"),
+            "handled_by": _("Handled by"),
+        }
         widgets = {
             "expected_delivery": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notes": forms.Textarea(attrs={"rows": 3}),
@@ -119,6 +141,11 @@ class PurchaseOrderItemForm(forms.ModelForm):
     class Meta:
         model = PurchaseOrderItem
         fields = ["part", "ordered_qty", "negotiated_unit_price"]
+        labels = {
+            "part": _("Part"),
+            "ordered_qty": _("Ordered qty"),
+            "negotiated_unit_price": _("Unit price"),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -158,9 +185,20 @@ class SupplierForm(forms.ModelForm):
             "is_active",
             "notes",
         )
+        labels = {
+            "code": _("Code"),
+            "name": _("Name"),
+            "contact_person": _("Contact person"),
+            "phone": _("Phone"),
+            "email": _("Email"),
+            "address": _("Address"),
+            "is_repair_vendor": _("Repair vendor"),
+            "is_active": _("Active"),
+            "notes": _("Notes"),
+        }
         widgets = {
             "code": forms.TextInput(attrs={**_CTRL, "placeholder": "SUP-001"}),
-            "name": forms.TextInput(attrs={**_CTRL, "placeholder": "ACME Parts Ltd"}),
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("ACME Parts Ltd")}),
             "contact_person": forms.TextInput(attrs={**_CTRL}),
             "phone": forms.TextInput(attrs={**_CTRL, "placeholder": "+966 11 555 0100"}),
             "email": forms.EmailInput(attrs={**_CTRL, "placeholder": "contact@acme.com"}),

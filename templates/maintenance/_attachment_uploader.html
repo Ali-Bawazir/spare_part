@@ -1,4 +1,6 @@
 {% load i18n %}
+{% load mms_extras %}
+{% i18n_json "error_prefix" "Error: " %}
 {% comment %}
    Reusable attachment uploader partial.
    Usage:
@@ -65,6 +67,8 @@
 
 <script>
 (function () {
+  const i18nEl = document.getElementById('i18n-json');
+  const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
   const ENTITY_TYPE = {{ entity_type|stringformat:'s'|escapejs }};
   const ENTITY_ID = {{ entity_id|stringformat:'s'|escapejs }};
   const EDITABLE = {{ editable|default_if_none:True|yesno:"true,false" }};
@@ -274,7 +278,7 @@
       }
       await loadAttachments();
     } catch (e) {
-      alert('Error: ' + e.message);
+      alert((T.error_prefix || 'Error: ') + e.message);
     }
   }
 
@@ -296,7 +300,7 @@
       }
       await loadAttachments();
     } catch (e) {
-      alert('Error: ' + e.message);
+      alert((T.error_prefix || 'Error: ') + e.message);
     }
   }
 

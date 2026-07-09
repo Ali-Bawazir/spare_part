@@ -1,0 +1,1787 @@
+# Untranslated msgids in locale/ar/LC_MESSAGES/django.po
+# Total: 1783 entries
+# Format: <msgid> | <first_location>
+
+Accounts | accounts/apps.py:8
+Username | accounts/forms.py:22
+Staff | accounts/forms.py:28
+Allows sign-in to Django /admin/ when combined with app permissions below. | accounts/forms.py:29
+Grant admin app permissions | accounts/forms.py:34
+When Staff is checked, assigns Maintenance, Inventory, and Procurement  permissions so /admin/ lists those apps. | accounts/forms.py:36
+Password | accounts/forms.py:40
+Password (again) | accounts/forms.py:41
+A user with this username already exists. | accounts/forms.py:46
+The two password fields do not match. | accounts/forms.py:54
+Grant admin app permissions only applies when Staff is checked. | accounts/forms.py:59
+New password | accounts/forms.py:77
+New password (again) | accounts/forms.py:82
+Allows sign-in to Django /admin/ when the user also has app permissions. | accounts/forms.py:105
+Active | accounts/forms.py:108
+Inactive users cannot sign in. Prefer deactivating over deleting an account. | accounts/forms.py:109
+You cannot remove your own Super Admin access or deactivate yourself here. | accounts/forms.py:146
+Another active Super Admin or Django superuser is required before demoting,  deactivating, or changing this account. | accounts/forms.py:152
+Create a real MMS user (production-style): username, role, optional staff  flag, and optional Django admin permissions for maintenance/inventory/ procurement. | accounts/management/commands/create_mms_user.py:12
+Login name (no spaces). | accounts/management/commands/create_mms_user.py:17
+MMS role. | accounts/management/commands/create_mms_user.py:29
+Email address. | accounts/management/commands/create_mms_user.py:31
+Allow login to /admin/ (still needs model permissions unless --grant-admin- apps). | accounts/management/commands/create_mms_user.py:37
+Django superuser (full admin). Prefer createsuperuser unless you know you  need this. | accounts/management/commands/create_mms_user.py:42
+If --staff, assign maintenance+inventory+procurement permissions so /admin/  is not empty. | accounts/management/commands/create_mms_user.py:47
+Unsafe for shell history; omit to be prompted securely. | accounts/management/commands/create_mms_user.py:52
+With --password only; fail if password empty. | accounts/management/commands/create_mms_user.py:57
+username is required. | accounts/management/commands/create_mms_user.py:64
+User %s already exists. | accounts/management/commands/create_mms_user.py:67
+--no-input requires --password. | accounts/management/commands/create_mms_user.py:73
+Password:  | accounts/management/commands/create_mms_user.py:76
+Password (again):  | accounts/management/commands/create_mms_user.py:77
+Passwords do not match. | accounts/management/commands/create_mms_user.py:79
+Password is shorter than 8 characters (not recommended). | accounts/management/commands/create_mms_user.py:82
+Granted maintenance/inventory/procurement admin permissions to %s. | accounts/management/commands/create_mms_user.py:101
+User is staff but has no model permissions yet — /admin/ may be empty. Run:\n   python manage.py grant_staff_admin_permissions --usernames=%s | accounts/management/commands/create_mms_user.py:108
+Created user %(username)r role=%(role)s staff=%(staff)s  superuser=%(superuser)s. MMS login: same username/password at site root  (not /admin/ unless staff). | accounts/management/commands/create_mms_user.py:118
+Operator / Labor | accounts/models.py:10
+Supervisor | accounts/models.py:11
+Technician | accounts/models.py:12
+Maintenance Manager (Storekeeper) | accounts/models.py:13
+Procurement Officer | accounts/models.py:14
+Super Admin | accounts/models.py:15
+You do not have permission to access this page. | accounts/permissions.py:22
+Operator | accounts/utils.py:14
+Maintenance Manager | accounts/utils.py:17
+Maintenance Supply Officer | accounts/utils.py:18
+You cannot delete your own account. | accounts/views.py:22
+Cannot delete the last Super Admin or Django superuser. Promote another  account first. | accounts/views.py:26
+You cannot deactivate your own account. | accounts/views.py:32
+This account is already inactive. | accounts/views.py:34
+Cannot deactivate the last active Super Admin or Django superuser. | accounts/views.py:38
+Only Super Admins (or Django superusers) can manage users. | accounts/views.py:45
+Only Super Admins (or Django superusers) can create users. | accounts/views.py:56
+User %s created. | accounts/views.py:81
+Only Super Admins (or Django superusers) can edit users. | accounts/views.py:91
+User %s updated. | accounts/views.py:125
+Only Super Admins (or Django superusers) can delete users. | accounts/views.py:136
+This user cannot be removed from the database while maintenance, inventory,  or procurement records still reference them. Use \"Deactivate account\"  below to block sign-in and keep history, or reassign those records in Django  admin and try delete again. | accounts/views.py:154
+User %s was deleted. | accounts/views.py:167
+Only Super Admins (or Django superusers) can deactivate users. | accounts/views.py:183
+User %s is now inactive (they cannot sign in; records that reference them  are unchanged). | accounts/views.py:209
+Identification | inventory/admin.py:82
+Classification | inventory/admin.py:83
+Stock levels | inventory/admin.py:84
+Procurement | inventory/admin.py:85
+Audit | inventory/admin.py:86
+Quantities | inventory/admin.py:143
+People | inventory/admin.py:144
+Decision | inventory/admin.py:145
+Timestamps | inventory/admin.py:146
+Optional note for the manager | inventory/forms.py:48
+Approve | inventory/forms.py:58
+Reject | inventory/forms.py:58
+Edit Qty | inventory/forms.py:58
+Required when rejecting | inventory/forms.py:70
+Rejection reason is required. | inventory/forms.py:78
+New qty is required when editing. | inventory/forms.py:84
+BRG-6006 | inventory/forms.py:151
+Ball bearing 6006 | inventory/forms.py:152
+Bearings | inventory/forms.py:154
+pcs | inventory/forms.py:155
+SKU is required. | inventory/forms.py:170
+SKU '%(sku)s' is already in use. | inventory/forms.py:172
+Opening quantity | inventory/forms.py:184
+Initial stock at default site. Leave blank or 0 if no opening stock. | inventory/forms.py:185
+Rack location | inventory/forms.py:191
+Storage location at default site. | inventory/forms.py:192
+A-01-03 | inventory/forms.py:193
+Damaged units received from suppliers. Not visible to maintenance. Distinct  from quantity_available (usable) and quantity_rejected (audit only). | inventory/models.py:18
+Units rejected at inspection. Not in inventory; tracked for audit only. | inventory/models.py:21
+inventories | inventory/models.py:34
+Auto-generated from SKU. Used in PART QR format. | inventory/models.py:60
+When True, operators can self-log this item via /consumables/ | inventory/models.py:70
+Most recent unit purchase price. | inventory/models.py:89
+Obsolete | inventory/models.py:95
+Discontinued | inventory/models.py:96
+Stock in | inventory/models.py:181
+Stock out | inventory/models.py:182
+Issue to work order | inventory/models.py:183
+Consumable use | inventory/models.py:184
+Adjustment | inventory/models.py:185
+Pending | inventory/models.py:251
+Approved | inventory/models.py:252
+Rejected | inventory/models.py:255
+Technician who added the request (null when created by manager). | inventory/models.py:278
+The actor who caused the stock deduction. For manager direct-issue, this is  the manager. For technician emergency auto-approve, this is the technician.  Set at approval time for non-emergency approvals. | inventory/models.py:285
+Manager's free-text comment attached to this part line. | inventory/models.py:300
+Set when this line is the execution record for a shortage report. Set  atomically in request_part_on_wo. Used by execute_warehouse_issue to find  the report via explicit FK link, not by (wo, part) lookup. | inventory/models.py:308
+True when the line was auto-approved due to the parent WO being an  emergency. Manager should review the cost and edit the qty if needed. | inventory/models.py:316
+What the technician originally requested. Mirrors `quantity` at request  time. Preserved through edits so audit trail is intact. | inventory/models.py:323
+Stage 3: units reserved in inventory. Set by approve_part_request. PART WO  Blocker resolves when issued_qty == approved_qty (not at allocation). | inventory/models.py:329
+Quantity the manager approved (may differ from requested_qty). Set on  approval. 0 while PENDING. | inventory/models.py:335
+Quantity actually deducted from stock on approval. May be less than  approved_qty if stock ran out between request and approval. | inventory/models.py:342
+Quantity covered by an auto-created PurchaseRequest. Computed as max(0,  requested_qty - approved_qty). Independent of whether the manager edits  approved_qty — PR is a separate procurement doc. | inventory/models.py:349
+v4.9 A5: If this line is a re-review request, points to the refused line it  replaces. Preserves the audit trail of the original decision. | inventory/models.py:362
+Quantity must be positive. | inventory/models.py:372
+Rejection reason is required when status is REJECTED. | inventory/models.py:374
+Self Service | inventory/models.py:381
+Supervisor Issue | inventory/models.py:382
+Work Order Consumption | inventory/models.py:383
+Consumable Assignment | inventory/models.py:430
+Consumable Assignments | inventory/models.py:431
+Pending manager decision | inventory/models.py:452
+Manager decision recorded (editable, no execution yet) | inventory/models.py:453
+Execution started (warehouse issue or PR in progress) | inventory/models.py:454
+All committed units issued and/or procured (manager-verified) | inventory/models.py:455
+Operational problem (PR cancelled, reservation conflict, etc.) | inventory/models.py:456
+Manager-verified closure (terminal) | inventory/models.py:457
+Manager rejected (terminal) | inventory/models.py:458
+Set when source is a WO. Null for other sources. | inventory/models.py:478
+Snapshot of the source machine's criticality at report time. | inventory/models.py:491
+Snapshot of the part's criticality. Empty until part-criticality is added in  Sprint 4+. | inventory/models.py:493
+Snapshot of the source WO's priority at report time. Managers approve based  on urgency. | inventory/models.py:495
+Manager's estimate of when the part will be back. Visible to the technician  as '📦 Awaiting Procurement'. | inventory/models.py:500
+Tech's note when raising the report. | inventory/models.py:502
+Manager's reason for rejection. Required when status=REJECTED. Shown to the  technician. | inventory/models.py:511
+Manager's free-text decision note (used for both approve and reject). | inventory/models.py:515
+Approve (issue and/or procure committed) | inventory/models.py:572
+Reject (nothing committed, full qty rejected) | inventory/models.py:573
+Quantities cannot be negative. | inventory/models.py:604
+Books must balance: issue(%(issue)s) + procure(%(procure)s) +  reject(%(reject)s) = %(total)s != requested(%(requested)s). | inventory/models.py:608
+Approve decision must commit at least one unit to issue or procure. Use  REJECT instead. | inventory/models.py:622
+Reject decision must have issue_qty=0 and procurement_qty=0. | inventory/models.py:627
+Reject decision must reject all requested units (%(rejected)s !=  %(requested)s). | inventory/models.py:630
+Released | inventory/models.py:644
+Cancelled | inventory/models.py:645
+Nullable for legacy/synthetic reservations | inventory/models.py:650
+The PartIssueLine that created this reservation | inventory/models.py:655
+Snapshot of WO priority rank when the reservation was created | inventory/models.py:660
+No default site configured. Please create a Site first. | inventory/services.py:43
+Duplicate stock-in detected. Please wait before submitting again. | inventory/services.py:51
+Issued to WO-%(wo)s | inventory/services.py:183
+No default site configured. | inventory/services.py:204
+Cannot issue parts to a closed work order. | inventory/services.py:208
+Parts already issued for this work order and part combination. | inventory/services.py:212
+Part issued: %(name)s x %(qty)s | inventory/services.py:241
+Issued full quantity (%(qty)s). | inventory/services.py:277
+Part issued (partial): %(name)s x %(qty)s | inventory/services.py:301
+Partial issue: %(available)s issued; %(short)s short. Manager should open a  PurchaseRequest manually. | inventory/services.py:336
+Out of stock for %(sku)s: 0 available, requested %(qty).1f. Manager must  open a PurchaseRequest to procure this part. | inventory/services.py:354
+Selected part is not marked as consumable. | inventory/services.py:382
+This item is not available for operator self-service. | inventory/services.py:384
+Duplicate consumable log detected. Please wait. | inventory/services.py:403
+Cannot exceed stock. | inventory/services.py:409
+Consumable: %(name)s x %(qty)s | inventory/services.py:501
+Logged %(qty)s x %(name)s. | inventory/services.py:517
+Issued %(qty)s x %(name)s to %(user)s. | inventory/services.py:607
+Cannot request parts on a closed work order. | inventory/services.py:647
+Only PENDING requests can be approved. | inventory/services.py:921
+Only PENDING requests can be rejected. | inventory/services.py:1029
+Only APPROVED or ALLOCATED requests can be cancelled (this line is  %(status)s). | inventory/services.py:1080
+Cannot cancel a line that has already been issued from stock. | inventory/services.py:1085
+Cancellation reason must be at least 15 characters. | inventory/services.py:1089
+Line cancelled: %(reason)s | inventory/services.py:1099
+Only PENDING requests can be edited. | inventory/services.py:1198
+Reservation qty must be positive. | inventory/services.py:1283
+Cannot reserve %(qty).1f × %(sku)s: only %(unreserved).1f unreserved  (%(available).1f on hand). Missing %(missing).1f unit(s). | inventory/services.py:1299
+legacy reserve_stock() call | inventory/services.py:1320
+Release qty must be positive. | inventory/services.py:1352
+legacy release_reservation() call by %(actor)s | inventory/services.py:1381
+Partial release on legacy release_reservation() by %(actor)s | inventory/services.py:1390
+Cannot release %(qty).1f × %(sku)s: only %(released).1f released from legacy  reservations; %(remaining).1f requested but no matching reservation rows.  Live reserved = %(live_reserved).1f. | inventory/services.py:1400
+Invalid shortage status transition: %(old)s → %(new)s. Valid transitions  from %(old2)s: %(valid)s | inventory/services.py:1465
+Shortage report closed (was %(old)s); releasing %(released).1f unit(s) | inventory/services.py:1494
+Only PENDING_REVIEW reports can receive a decision. Current status:  %(status)s. | inventory/services.py:1546
+Decision is locked: report is in %(status)s. Close this report and create a  new shortage if fulfillment needs to change. | inventory/services.py:1617
+Report has no decision to edit. | inventory/services.py:1625
+Cannot edit procurement qty: PR #%(pk)s already created for this shortage.  Close this shortage and create a new one, or manually edit PR #%(pk2)s. | inventory/services.py:1632
+Only IN_FULFILLMENT reports can be marked fulfilled. Current status:  %(status)s. | inventory/services.py:1691
+Only approved shortages can be marked fulfilled. | inventory/services.py:1696
+Cannot mark fulfilled: only %(issued).1f of %(approved).1f stock units  issued. Issue the remaining %(missing).1f from stock first. | inventory/services.py:1701
+Manager verified full fulfillment (procurement verification deferred to  Sprint 4) | inventory/services.py:1711
+Manager verified full fulfillment | inventory/services.py:1713
+Line is %(status)s, cannot issue. | inventory/services.py:1765
+Line has no approved_qty (status=%(status)s). Manager must approve before  warehouse issue. | inventory/services.py:1768
+Issue qty must be positive. | inventory/services.py:1772
+Out of stock for %(sku)s: 0 available, requested %(qty).1f. | inventory/services.py:1782
+Cannot issue %(qty).1f × %(sku)s: only %(available).1f available. Missing  %(missing).1f unit(s). Manager must decide. | inventory/services.py:1789
+Warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s | inventory/services.py:1826
+Partial release on warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s | inventory/services.py:1846
+Warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s (legacy reserve) | inventory/services.py:1883
+Partial release on warehouse issue (legacy reserve) %(qty).1f × %(sku)s to  WO-%(wo)s | inventory/services.py:1902
+Warehouse issued %(qty).1f × %(sku)s | inventory/services.py:1962
+Warehouse issued to WO-%(wo)s (released %(released).1f reservation) | inventory/services.py:1981
+Warehouse issued to WO-%(wo)s: %(name)s x %(qty).1f | inventory/services.py:2019
+Video file not found: %(path)s | inventory/services_video.py:70
+not a video | inventory/services_video.py:83
+file too small (<5MB) to benefit from compression | inventory/services_video.py:94
+Phase 2: ffmpeg not yet wired | inventory/services_video.py:105
+Assignment | maintenance/admin.py:127
+Execution | maintenance/admin.py:129
+Vendor & cost | maintenance/admin.py:242
+People & dates | maintenance/admin.py:243
+Request | maintenance/admin.py:273
+Review | maintenance/admin.py:274
+Maintenance | maintenance/apps.py:8
+Failure Category | maintenance/forms.py:35
+Top-level failure classification | maintenance/forms.py:36
+Failure Mode | maintenance/forms.py:41
+Specific failure pattern (optional) | maintenance/forms.py:42
+Mark as emergency | maintenance/forms.py:46
+P3.3: tick if this issue is an emergency. The issue will be set to CRITICAL  priority, and any WO created from it will be an Emergency WO. | maintenance/forms.py:48
+Reason for pause | maintenance/forms.py:149
+Required when reason is 'Other' | maintenance/forms.py:155
+Note | maintenance/forms.py:157
+Note is required when reason is 'Other'. | maintenance/forms.py:166
+Time-of-day for scheduled occurrences (default 08:00) | maintenance/forms.py:195
+Schedule stops generating occurrences after this date | maintenance/forms.py:199
+Apply to all child machines | maintenance/forms.py:236
+If this machine has child machines, create PM work orders for each of them. | maintenance/forms.py:237
+Checklist item text | maintenance/forms.py:263
+Duplicate checklist item text. | maintenance/forms.py:293
+At least one checklist item is required. | maintenance/forms.py:296
+Minimum number of photos the technician must attach | maintenance/forms.py:312
+Select an available tool | maintenance/forms.py:337
+Only tools in Available status can be assigned. | maintenance/forms.py:338
+Optional: Target a specific component (level-5) | maintenance/forms.py:461
+e.g. Line stop — hydraulic leak | maintenance/forms.py:463
+Optional note for the log | maintenance/forms.py:477
+What's wrong with the part? Why does it need an external repair? | maintenance/forms.py:492
+Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1') | maintenance/forms.py:499
+Diagnosis note is required. | maintenance/forms.py:507
+Part description is required. | maintenance/forms.py:509
+Approve (create ERO) | maintenance/forms.py:517
+Required on reject; optional on approve. | maintenance/forms.py:524
+A rejection reason is required. | maintenance/forms.py:531
+Signed: positive adds, negative reduces | maintenance/forms.py:545
+Signed amount. Positive adds to the WO total, negative reduces it. | maintenance/forms.py:547
+Why does this adjustment exist? (min 10 chars) | maintenance/forms.py:553
+Required. Min 10 characters. Explains why this adjustment exists. | maintenance/forms.py:555
+Memo must be at least 10 characters. | maintenance/forms.py:561
+Amount must be non-zero. | maintenance/forms.py:567
+Vendor invoice total | maintenance/forms.py:581
+Required — final vendor invoice amount. | maintenance/forms.py:583
+Vendor invoice number | maintenance/forms.py:588
+Required — vendor invoice number (UC-20). | maintenance/forms.py:590
+Optional verification note (e.g. condition of returned part) | maintenance/forms.py:596
+Actual cost must be greater than zero. | maintenance/forms.py:604
+Vendor invoice number is required. | maintenance/forms.py:607
+Failure Categories | maintenance/models.py:44
+Failure Modes | maintenance/models.py:66
+Area | maintenance/models.py:87
+Production Line | maintenance/models.py:87
+Machine | maintenance/models.py:87
+Subassembly | maintenance/models.py:88
+Component | maintenance/models.py:88
+Production | maintenance/models.py:94
+Utility | maintenance/models.py:94
+Safety | maintenance/models.py:95
+HVAC | maintenance/models.py:95
+Other | maintenance/models.py:95
+Serial number (level-5 Component) | maintenance/models.py:106
+Manufacturer (level-5 Component) | maintenance/models.py:107
+Model number (level-5 Component) | maintenance/models.py:108
+Date installed (level-5 Component) | maintenance/models.py:109
+Expected service life in days (level-5 Component) | maintenance/models.py:110
+Low | maintenance/models.py:113
+Medium | maintenance/models.py:113
+High | maintenance/models.py:113
+Critical | maintenance/models.py:113
+Criticality rating (level-5 Component) | maintenance/models.py:114
+Inactive | maintenance/models.py:119
+Retired | maintenance/models.py:120
+Awaiting Repair | maintenance/models.py:120
+Component status | maintenance/models.py:122
+Hierarchical asset code (e.g. FM-01-CONV-BRG-001) | maintenance/models.py:126
+New | maintenance/models.py:198
+Issue Type | maintenance/models.py:228
+Classified failure category (Phase 2: FailureMode sub-classification) | maintenance/models.py:229
+P3.3: operator can flag an issue as emergency on creation, or a supervisor/ manager can escalate during validation. When True, priority auto-sets to  CRITICAL and any WO created from this issue inherits is_emergency=True. | maintenance/models.py:264
+P3.3: user who escalated this issue to emergency status. | maintenance/models.py:274
+Breakdown / corrective | maintenance/models.py:304
+Preventive | maintenance/models.py:305
+Repair | maintenance/models.py:307
+Draft | maintenance/models.py:310
+Assigned | maintenance/models.py:311
+In progress | maintenance/models.py:312
+Pending review | maintenance/models.py:313
+Closed | maintenance/models.py:314
+Pending parts | maintenance/models.py:319
+Waiting vendor | maintenance/models.py:320
+Waiting for vendor | maintenance/models.py:328
+Pending manager review | maintenance/models.py:330
+Emergency override (auto-paused) | maintenance/models.py:341
+Operational interruption | maintenance/models.py:342
+Other (note required) | maintenance/models.py:343
+Level-5 Component this WO targets (optional) | maintenance/models.py:364
+Explicit, user-driven state. | maintenance/models.py:369
+Derived from open blockers + labor state. Always computed; do not write  directly. | maintenance/models.py:374
+Denormalized count of attached photos — used for fast Complete gating | maintenance/models.py:404
+0 = created under legacy single-status model. 1 = created under the new  lifecycle/operational/blocker model. Auto-bumped to 1 on the first domain  event (part request, pause, etc.) that creates a WorkOrderBlocker row. | maintenance/models.py:424
+Breakdown | maintenance/models.py:529
+Scheduled | maintenance/models.py:531
+Idle | maintenance/models.py:532
+e.g. PM-HYD-001 | maintenance/models.py:588
+Minimum number of photos the technician must attach when completing this PM | maintenance/models.py:598
+Submitted | maintenance/models.py:631
+Missed | maintenance/models.py:634
+Locks this execution to a specific due occurrence | maintenance/models.py:647
+Cycle counter per PMSchedule | maintenance/models.py:650
+Immutable snapshot of template state at WO spawn time | maintenance/models.py:654
+Daily | maintenance/models.py:712
+Weekly | maintenance/models.py:713
+Monthly | maintenance/models.py:714
+Yearly | maintenance/models.py:715
+Time-based | maintenance/models.py:718
+Meter-based | maintenance/models.py:719
+Reusable procedure applied to this asset | maintenance/models.py:723
+Level-5 Component this PM targets (optional) | maintenance/models.py:729
+e.g. MONTHLY × 3 = every 3 months | maintenance/models.py:734
+If null, fall back to template.priority | maintenance/models.py:743
+If null, fall back to template.estimated_duration_minutes | maintenance/models.py:747
+Time-of-day for scheduled occurrences (used for grouping Today's Schedule) | maintenance/models.py:754
+Available | maintenance/models.py:791
+In use | maintenance/models.py:792
+Out of service | maintenance/models.py:793
+Good | maintenance/models.py:814
+Damaged | maintenance/models.py:815
+Lost | maintenance/models.py:816
+Return condition is required when returning a tool. | maintenance/models.py:844
+Open | maintenance/models.py:851
+Investigating | maintenance/models.py:852
+New issue | maintenance/models.py:896
+Issue validated | maintenance/models.py:897
+Stale issue (not validated) | maintenance/models.py:898
+Work order created from issue | maintenance/models.py:899
+Work order pending review | maintenance/models.py:900
+Work order assigned | maintenance/models.py:901
+Work order started | maintenance/models.py:902
+Work order paused / waiting | maintenance/models.py:903
+Work order closed | maintenance/models.py:904
+Emergency work order | maintenance/models.py:905
+Low stock | maintenance/models.py:906
+Part shortage reported | maintenance/models.py:907
+PM overdue | maintenance/models.py:909
+PM due in 7 days | maintenance/models.py:910
+PM due in 3 days | maintenance/models.py:911
+PM due tomorrow | maintenance/models.py:912
+PM due today | maintenance/models.py:913
+Repair returned from vendor | maintenance/models.py:914
+External repair requested | maintenance/models.py:915
+External repair order created (needs vendor) | maintenance/models.py:916
+External repair sent to vendor | maintenance/models.py:917
+Part received against PO | maintenance/models.py:919
+Vendor returned spare part | maintenance/models.py:920
+Shortage follow-up | maintenance/models.py:921
+Part received from supplier (linked to WO) | maintenance/models.py:923
+Part returned from vendor (linked to WO) | maintenance/models.py:924
+Part request rejected (linked to WO) | maintenance/models.py:925
+WO blocker opened | maintenance/models.py:927
+WO blocker resolved | maintenance/models.py:928
+WO blocker cancelled | maintenance/models.py:929
+Emergency WO interrupted another WO | maintenance/models.py:930
+Labor resumed on WO | maintenance/models.py:931
+PO received (summary) | maintenance/models.py:932
+PM morning summary (technician) | maintenance/models.py:934
+PM manager morning summary | maintenance/models.py:935
+PM assigned to you | maintenance/models.py:936
+PM submission returned | maintenance/models.py:937
+PM is overdue | maintenance/models.py:938
+PM overdue (manager alert) | maintenance/models.py:939
+PM has no technician | maintenance/models.py:940
+PM awaiting manager review | maintenance/models.py:941
+PM plan paused | maintenance/models.py:942
+Normal | maintenance/models.py:959
+Sent to vendor | maintenance/models.py:982
+Returned | maintenance/models.py:983
+Closed / accepted | maintenance/models.py:984
+Rejected / re-repair | maintenance/models.py:985
+Final vendor invoice amount. Set by manager on UC-20 acceptance. Required  when status moves to CLOSED. | maintenance/models.py:1016
+Vendor invoice number. Required on UC-20 acceptance. | maintenance/models.py:1022
+Approved (ERO created) | maintenance/models.py:1078
+Technician's diagnosis: what's wrong with the part | maintenance/models.py:1099
+Description of the part being sent out (name, part#, qty) | maintenance/models.py:1102
+The level-3 machine whose part is being sent for repair | maintenance/models.py:1111
+The level-5 component where the part is located | maintenance/models.py:1116
+Manager's reason on approve/reject | maintenance/models.py:1126
+Set when manager approves — links to the created ERO | maintenance/models.py:1134
+Sum of StockMovement.unit_cost × qty for ISSUE_TO_WO movements on this WO.  Renamed from parts_cost. | maintenance/models.py:1157
+Sum of (PartIssueLine.approved_qty × unit_cost) for approved / allocated /  issued lines. Set at approval time. Distinct from material_cost (which is  the actual cost posted to the ledger at warehouse-issue time). Allows the  dashboard to show committed vs actual side-by-side. Excludes pending/ rejected lines. Falls back to SparePart.last_purchase_cost or avg_cost if  line.unit_cost is 0. | maintenance/models.py:1162
+Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this  WO. Renamed from vendor_cost. | maintenance/models.py:1172
+Cached count of CostTransaction rows for this WO. Updated by  WorkOrderCost.recalculate_from_ledger(). | maintenance/models.py:1180
+Work Order Cost | maintenance/models.py:1184
+Work Order Costs | maintenance/models.py:1185
+Part Issue Line | maintenance/models.py:1316
+External Repair Order | maintenance/models.py:1317
+Stock Movement | maintenance/models.py:1318
+Cost Adjustment | maintenance/models.py:1319
+Calibration | maintenance/models.py:1320
+Fuel | maintenance/models.py:1321
+Tool Issue | maintenance/models.py:1322
+ISO 4217 currency code. SAR default for this deployment. | maintenance/models.py:1337
+True if this transaction reverses a previous one. Net amount for  (source_type, source_id) = SUM(amount) over ALL rows including reversals. | maintenance/models.py:1370
+If is_reversal=True, points to the row being reversed. Audit trail. | maintenance/models.py:1376
+Signed: positive adds, negative reduces. | maintenance/models.py:1428
+Required. Min 10 chars. Explains why this adjustment exists. | maintenance/models.py:1432
+Auto-generated 300px thumbnail | maintenance/models.py:1523
+Original image width in px | maintenance/models.py:1525
+Original image height in px | maintenance/models.py:1526
+Primary/default image for this entity | maintenance/models.py:1527
+Product | maintenance/models.py:1531
+Label | maintenance/models.py:1532
+Packaging | maintenance/models.py:1533
+Installed | maintenance/models.py:1534
+Document | maintenance/models.py:1535
+Category of attachment image | maintenance/models.py:1538
+Path to the compressed video file (mp4) — populated by  VideoCompressionService | maintenance/models.py:1542
+Path to a 1-second thumbnail of the video | maintenance/models.py:1544
+Awaiting Spare Part | maintenance/models.py:1602
+Awaiting Procurement | maintenance/models.py:1603
+Awaiting Vendor Repair | maintenance/models.py:1604
+Operational Pause | maintenance/models.py:1605
+Resolved | maintenance/models.py:1609
+Cached human-readable summary, e.g. 'BRG-6006 × 2' or 'Servo S7-300' | maintenance/models.py:1619
+'operational' | 'other' | 'emergency' (system-set) | maintenance/models.py:1626
+Maintenance settings | maintenance/models.py:1695
+Verify repair quality and cost, then accept (UC-20). | maintenance/notifications.py:243
+A new external repair order is awaiting vendor assignment.  | maintenance/notifications.py:291
+The maintenance supply officer has sent this repair to  | maintenance/notifications.py:318
+tomorrow | maintenance/notifications.py:462
+You can pick it up from the warehouse. | maintenance/notifications.py:668
+You can re-install it on the asset. | maintenance/notifications.py:701
+No reason given | maintenance/notifications.py:733
+Edit & re-submit, switch parts, or use the shortage flow. | maintenance/notifications.py:734
+Bawazir Maintenance | maintenance/pdf_utils.py:153
+Maintenance & Spare Parts Management | maintenance/pdf_utils.py:155
+Transition the WO to WAITING_FOR_PARTS or WAITING_FOR_VENDOR instead. | maintenance/services.py:84
+Start work | maintenance/services.py:263
+now | maintenance/services.py:284
+Submitted for review | maintenance/services.py:300
+Work order must be in progress. | maintenance/services.py:309
+Approved & closed | maintenance/services.py:355
+Work order is already archived. | maintenance/services.py:421
+Work order is not archived. | maintenance/services.py:436
+Issue is already archived. | maintenance/services.py:450
+Only the assigned technician can request external repair. | maintenance/services.py:474
+PM execution has no associated work order. | maintenance/services.py:777
+Work order is not pending review. | maintenance/services.py:779
+Operational pause | maintenance/services_blocker.py:172
+Open a new blocker for a new wait episode. | maintenance/services_blocker.py:212
+Part fully issued | maintenance/services_blocker.py:349
+Part request rejected | maintenance/services_blocker.py:357
+Shortage fulfilled | maintenance/services_blocker.py:364
+Vendor repair accepted | maintenance/services_blocker.py:371
+Vendor returned part | maintenance/services_blocker.py:384
+part | maintenance/services_notifications.py:77
+shortage | maintenance/services_notifications.py:78
+vendor repair | maintenance/services_notifications.py:79
+operational pause | maintenance/services_notifications.py:80
+Manager rejected the part request. | maintenance/services_notifications.py:314
+Procurement / warehouse fulfilled the shortage. | maintenance/services_notifications.py:374
+External repair order created. | maintenance/services_notifications.py:400
+Vendor repair accepted. | maintenance/services_notifications.py:430
+Technician resumed work on this WO. | maintenance/services_notifications.py:492
+Lines received. | maintenance/services_notifications.py:594
+PO received. | maintenance/services_notifications.py:596
+No historical external repairs for this part — defaulting to REPAIR. | maintenance/services_repair_viability.py:130
+well below threshold; REPAIR is cheaper. | maintenance/services_repair_viability.py:156
+unknown | maintenance/services_repair_viability.py:165
+in the borderline band; manager judgment required. | maintenance/services_repair_viability.py:182
+acceptable MTBF; REPAIR is recommended. | maintenance/services_repair_viability.py:188
+CRITICAL PRIORITY | maintenance/services_wo_health.py:173
+HIGH COST | maintenance/services_wo_health.py:177
+Dashboard | maintenance/test_i18n.py:65
+Save | maintenance/test_i18n.py:66
+Cancel | maintenance/test_i18n.py:67
+Component requires a machine to be set. | maintenance/validators.py:18
+(none) | maintenance/validators.py:31
+Component '%(component)s' does not belong to machine '%(machine)s'. Valid  components for this machine: %(valid)s%(more)s | maintenance/validators.py:34
+ ... | maintenance/validators.py:40
+Choose a QR image to upload, or use manual entry. | maintenance/views.py:492
+Add machine | maintenance/views.py:576
+Asset | maintenance/views.py:599
+Machine updated. | maintenance/views.py:637
+Edit machine | maintenance/views.py:641
+Emergency issue reported. Manager has been paged. | maintenance/views.py:938
+Issue reported. | maintenance/views.py:941
+Issue is not in NEW state. | maintenance/views.py:1061
+Issue validated. | maintenance/views.py:1067
+Issue is already flagged as emergency. | maintenance/views.py:1083
+Issue escalated to EMERGENCY (priority CRITICAL). Manager has been paged. | maintenance/views.py:1088
+Issue must be validated first. | maintenance/views.py:1599
+Work order already exists for this issue. | maintenance/views.py:1602
+Work order cannot be assigned in current state. | maintenance/views.py:1651
+Invalid assignment. | maintenance/views.py:1657
+Technician assigned | maintenance/views.py:1662
+Technician assigned. | maintenance/views.py:1682
+You can only start work orders assigned to you. | maintenance/views.py:1692
+Cannot start work in this state. | maintenance/views.py:1704
+You have an active emergency work order. Finish it before starting another  task. | maintenance/views.py:1713
+Work started. | maintenance/views.py:1724
+You can only pause work orders assigned to you. | maintenance/views.py:1736
+Not in progress. | maintenance/views.py:1739
+Paused. | maintenance/views.py:1755
+You can only submit work orders assigned to you. | maintenance/views.py:1765
+Submit for review is only available while work is in progress. | maintenance/views.py:1776
+Submit for review is not available in this state. | maintenance/views.py:1782
+Check completion fields. | maintenance/views.py:1787
+Submitted for manager review. | maintenance/views.py:1826
+Rejection reason is required when returning to technician. | maintenance/views.py:1842
+Work order closed. | maintenance/views.py:1847
+Work order returned to technician. | maintenance/views.py:1849
+Invalid part issue. | maintenance/views.py:1864
+You can only request parts on work orders assigned to you. | maintenance/views.py:1896
+Manager will review. | maintenance/views.py:1933
+You can only re-review your own requests. | maintenance/views.py:1963
+Only rejected lines can be re-reviewed. | maintenance/views.py:1965
+Edits sent to manager | maintenance/views.py:2075
+Same as before | maintenance/views.py:2075
+Please record a voice note before submitting. | maintenance/views.py:2095
+Voice attachment not found or not owned by you. | maintenance/views.py:2112
+Only PENDING requests can be decided. | maintenance/views.py:2155
+External repair request submitted. Manager has been notified. | maintenance/views.py:2245
+can now send the part to the vendor. | maintenance/views.py:2278
+External repair request rejected. | maintenance/views.py:2284
+Emergency WO created | maintenance/views.py:2305
+You can only mark parts for work orders assigned to you. | maintenance/views.py:2393
+Invalid form. | maintenance/views.py:2399
+Work order set to waiting for parts (labor timer stopped). | maintenance/views.py:2403
+You can only mark vendor status for work orders assigned to you. | maintenance/views.py:2415
+Work order set to waiting for vendor (labor timer stopped). | maintenance/views.py:2425
+Stock-in recorded. | maintenance/views.py:2552
+You do not have permission to perform this action. | maintenance/views.py:2609
+PM schedule saved. | maintenance/views.py:2918
+Cannot spawn a WO from an inactive PM schedule. | maintenance/views.py:3026
+A PM work order for this schedule's current due date is already in progress. | maintenance/views.py:3036
+PM work order | maintenance/views.py:3049
+This is not a preventive maintenance work order. | maintenance/views.py:3229
+You can't execute this PM. | maintenance/views.py:3249
+PM submitted for manager review. | maintenance/views.py:3288
+No PM execution record found for this work order. | maintenance/views.py:3321
+PM rejected. Returned to technician. | maintenance/views.py:3337
+Invalid action. | maintenance/views.py:3340
+Tool saved. | maintenance/views.py:3421
+Add tool | maintenance/views.py:3425
+Tool updated. | maintenance/views.py:3437
+Edit tool | maintenance/views.py:3441
+Invalid tool assignment. | maintenance/views.py:3451
+Tool not available. | maintenance/views.py:3456
+Tool assigned. | maintenance/views.py:3462
+Already returned. | maintenance/views.py:3474
+Return recorded — tool is available. | maintenance/views.py:3488
+Return recorded. Lost tool incident created — investigating. | maintenance/views.py:3515
+Repair request created. | maintenance/views.py:3532
+Repair order updated. | maintenance/views.py:3700
+<b>EXTERNAL REPAIR ORDER</b> | maintenance/views.py:3768
+Repair Order | maintenance/views.py:3770
+ERO Number | maintenance/views.py:3772
+WO Number | maintenance/views.py:3773
+Asset / Machine | maintenance/views.py:3774
+Serial Number | maintenance/views.py:3775
+Description | maintenance/views.py:3776
+Vendor | maintenance/views.py:3779
+Timeline | maintenance/views.py:3784
+Sent Date | maintenance/views.py:3786
+Cost | maintenance/views.py:3789
+Estimated Cost | maintenance/views.py:3791
+Actual Cost | maintenance/views.py:3792
+Approval | maintenance/views.py:3795
+Authorised by Maintenance Manager: | maintenance/views.py:3796
+Quick log saved. | maintenance/views.py:3818
+Repair must be in Returned status before manager acceptance (UC-20). | maintenance/views.py:4690
+Cannot archive a converted issue. Archive the linked work order instead. | maintenance/views.py:5039
+New quantity and reason are required. | maintenance/views.py:5180
+You can only raise shortage requests on work orders assigned to you. | maintenance/views.py:5458
+Missing part_id. | maintenance/views.py:5463
+Invalid decision type. | maintenance/views.py:5506
+Rejection reason is required (min 15 characters). | maintenance/views.py:5518
+Quantities must be numbers. | maintenance/views.py:5527
+Approve with both 0 makes no sense — use Reject instead. | maintenance/views.py:5541
+Invalid expected_availability_date; skipped. | maintenance/views.py:5550
+Issue qty must be a number. | maintenance/views.py:5772
+Occurred at | maintenance/views.py:6104
+Work order | maintenance/views.py:6104
+Category | maintenance/views.py:6104
+Source type | maintenance/views.py:6104
+Source ID | maintenance/views.py:6105
+Amount | maintenance/views.py:6105
+Currency | maintenance/views.py:6105
+Quantity | maintenance/views.py:6105
+Unit cost | maintenance/views.py:6106
+Memo | maintenance/views.py:6106
+Actor | maintenance/views.py:6106
+Is reversal | maintenance/views.py:6106
+Supersedes ID | maintenance/views.py:6107
+Adjustment ID | maintenance/views.py:6107
+No schedules selected. | maintenance/views.py:6270
+No work orders created. All schedules were invalid or inactive. | maintenance/views.py:6322
+Maintenance submitted for review. | maintenance/views_preventive.py:285
+Start the maintenance before adding photos. | maintenance/views_preventive.py:313
+No photo uploaded. | maintenance/views_preventive.py:318
+Photo added. | maintenance/views_preventive.py:335
+Approved. | maintenance/views_preventive.py:460
+Return reason is required. | maintenance/views_preventive.py:471
+Returned to technician. | maintenance/views_preventive.py:475
+Template saved. | maintenance/views_preventive.py:518
+Plan saved. | maintenance/views_preventive.py:572
+Assigned. | maintenance/views_preventive.py:671
+Plan paused. | maintenance/views_preventive.py:686
+Plan resumed. | maintenance/views_preventive.py:688
+Plan archived. | maintenance/views_preventive.py:701
+Maintenance scheduled for now. | maintenance/views_preventive.py:720
+Contact | procurement/admin.py:30
+Vendor type | procurement/admin.py:33
+QR Code | procurement/admin.py:51
+Unit price | procurement/forms.py:125
+Supplier code is required. | procurement/forms.py:176
+Supplier code '%(code)s' is already in use. | procurement/forms.py:178
+Also handles external repairs | procurement/models.py:15
+Unique supplier code. Use letters, digits, and dashes (e.g. SUP-001 or  MWRD-001). Used in QR format SUPPLIER:{code}. | procurement/models.py:25
+Pending officer | procurement/models.py:59
+Converted to PO | procurement/models.py:60
+Partially fulfilled | procurement/models.py:61
+Fulfilled | procurement/models.py:62
+Set when this PR was auto-created from a shortage decision. Null for manual  PRs. SET_NULL on delete (closing the shortage does not delete the PR). | procurement/models.py:122
+Sent to supplier | procurement/models.py:156
+Partial received | procurement/models.py:157
+Fully received | procurement/models.py:158
+Closed short | procurement/models.py:159
+PO currency → site currency at receive time | procurement/models.py:184
+Damaged (quarantine) | procurement/models.py:260
+Rejected at inspection | procurement/models.py:261
+Price agreed on the PO. Renamed from unit_price. | procurement/models.py:276
+What was actually invoiced by the supplier. Used for weighted-avg cost  recompute. | procurement/models.py:278
+Units the supplier owes but hasn't delivered. ordered_qty = received_qty +  backordered_qty + cancelled_qty. | procurement/models.py:283
+purchase order items | procurement/models.py:288
+Auto-created from shortage decision #%(decision_pk)s (qty requested:  %(qty_requested)s, procurement qty: %(approved_qty)s) | procurement/services.py:41
+Purchase request sent to procurement. | procurement/views.py:55
+Purchase request updated. | procurement/views.py:170
+Voice note added to PR #%(pk)d. | procurement/views.py:269
+Purchase order %(po)s created. | procurement/views.py:476
+New purchase order | procurement/views.py:494
+PO %(po)s created from PR #%(pk)d. | procurement/views.py:520
+New PO from PR #%(pk)d | procurement/views.py:527
+This PO is locked and cannot be edited. | procurement/views.py:554
+Purchase order updated. | procurement/views.py:559
+PO is %(status)s — cannot receive. | procurement/views.py:596
+%(sku)s: receiving %(arrived)s exceeds remaining %(remaining)s — capped. | procurement/views.py:634
+Received: %(items)s | procurement/views.py:766
+Supplier invoice ref: %(ref)s | procurement/views.py:768
+Auto-issued to WOs: %(items)s | procurement/views.py:779
+PURCHASE ORDER | procurement/views.py:818
+POST required | procurement/views.py:904
+PO cannot be closed short in current status. | procurement/views.py:913
+PO %(po)s closed short. | procurement/views.py:922
+Delete user | templates/accounts/mms_user_confirm_delete.html:4
+Delete removes the row permanently (only when nothing in maintenance,  inventory, or procurement still points at this user). Deactivate blocks sign- in but keeps all history. | templates/accounts/mms_user_confirm_delete.html:6
+(already inactive) | templates/accounts/mms_user_confirm_delete.html:10
+Delete user permanently | templates/accounts/mms_user_confirm_delete.html:13
+Deactivate account (keep history) | templates/accounts/mms_user_confirm_delete.html:20
+Back to users | templates/accounts/mms_user_confirm_delete.html:24
+Edit instead | templates/accounts/mms_user_confirm_delete.html:25
+Create MMS user | templates/accounts/mms_user_create.html:4
+Set username, password, and MMS role. Use | templates/accounts/mms_user_create.html:6
+only for people who should use Django | templates/accounts/mms_user_create.html:6
+Create user | templates/accounts/mms_user_create.html:23
+Update profile, MMS role, sign-in status, optional Django admin access, and  permissions bundle. Leave password blank to keep the current password. | templates/accounts/mms_user_edit.html:6
+Save changes | templates/accounts/mms_user_edit.html:23
+MMS users | templates/accounts/mms_user_list.html:4
+Accounts for the maintenance app and optional Django admin access. | templates/accounts/mms_user_list.html:6
+Role | templates/accounts/mms_user_list.html:11
+Email | templates/accounts/mms_user_list.html:11
+Edit | templates/accounts/mms_user_list.html:21
+Delete | templates/accounts/mms_user_list.html:25
+No users. | templates/accounts/mms_user_list.html:29
+Bawazir MMS | templates/base.html:20
+Maintenance & spare parts | templates/base.html:21
+Overview | templates/base.html:24
+Issues | templates/base.html:30
+Work orders | templates/base.html:35
+My queue | templates/base.html:38
+Quick log | templates/base.html:44
+Inventory | templates/base.html:48
+Stock | templates/base.html:50
+Inventory Lookup | templates/base.html:56
+Suppliers | templates/base.html:59
+Reservations | templates/base.html:60
+Supply | templates/base.html:65
+Purchase Requests | templates/base.html:67
+Purchase Orders | templates/base.html:72
+By Supplier | templates/base.html:76
+Supplier analytics | templates/base.html:80
+External Repairs | templates/base.html:86
+Draft EROs | templates/base.html:87
+Returned EROs | templates/base.html:88
+Reorder Suggestions | templates/base.html:91
+Assets | templates/base.html:99
+Machines | templates/base.html:102
+Preventive Maintenance | templates/base.html:105
+Today's Schedule | templates/base.html:110
+Reviews | templates/base.html:113
+Maintenance Plans | templates/base.html:117
+Templates | templates/base.html:120
+History | templates/base.html:123
+Tools | templates/base.html:133
+External repairs | templates/base.html:136
+System | templates/base.html:141
+Users | templates/base.html:142
+Insights | templates/base.html:145
+Notifications | templates/base.html:147
+KPIs | templates/base.html:151
+Audit log | templates/base.html:154
+Reports | templates/base.html:157
+Machine cost report | templates/base.html:161
+Pending repairs | templates/base.html:164
+Returned EROs awaiting manager acceptance | templates/base.html:165
+Pending approvals | templates/base.html:168
+Work orders awaiting manager review/close | templates/base.html:169
+Shortage dashboard | templates/base.html:173
+Pending shortage reports awaiting decision | templates/base.html:174
+In-fulfillment shortages | templates/base.html:175
+Stuck in fulfillment >7 days | templates/base.html:176
+Legacy reconciliation | templates/base.html:182
+Work orders still on the legacy state model | templates/base.html:183
+Admin | templates/base.html:192
+Sign out | templates/base.html:194
+Close navigation | templates/base.html:198
+Open navigation menu | templates/base.html:202
+%(counter)s open WO | templates/base.html:209
+Language | templates/base.html:212
+Mobile navigation | templates/base.html:382
+Report | templates/base.html:389
+Consume | templates/base.html:393
+Home | templates/base.html:407
+All WO | templates/base.html:416
+Shortages | templates/base.html:447
+Requests | templates/base.html:472
+Orders | templates/base.html:477
+Repairs | templates/base.html:485
+Report Issue | templates/maintenance/_asset_tree.html:66
+Create WO | templates/maintenance/_asset_tree.html:68
+Create PM | templates/maintenance/_asset_tree.html:70
+Create ERO | templates/maintenance/_asset_tree.html:72
+Create PR | templates/maintenance/_asset_tree.html:74
+No asset linked. | templates/maintenance/_asset_tree.html:88
+Click to view this asset | templates/maintenance/_asset_tree_node.html:22
+Loading attachments… | templates/maintenance/_attachment_uploader.html:21
+Set as primary | templates/maintenance/_attachment_uploader.html:39
+Product shot | templates/maintenance/_attachment_uploader.html:44
+Manufacturer label | templates/maintenance/_attachment_uploader.html:45
+Installed in machine | templates/maintenance/_attachment_uploader.html:47
+Document / datasheet | templates/maintenance/_attachment_uploader.html:48
+Note (optional) | templates/maintenance/_attachment_uploader.html:52
+Open full size in new tab | templates/maintenance/_attachment_uploader.html:127
+Open video in new tab | templates/maintenance/_attachment_uploader.html:134
+${escapeHtml(ext)} | templates/maintenance/_attachment_uploader.html:148
+★ primary | templates/maintenance/_attachment_uploader.html:152
+${filename} | templates/maintenance/_attachment_uploader.html:180
+${note} | templates/maintenance/_attachment_uploader.html:184
+No attachments yet. | templates/maintenance/_attachment_uploader.html:202
+Failed to load attachments. | templates/maintenance/_attachment_uploader.html:206
+Please select a file first. | templates/maintenance/_attachment_uploader.html:217
+Delete this attachment? | templates/maintenance/_attachment_uploader.html:286
+When | templates/maintenance/_cost_ledger_table.html:114
+Source | templates/maintenance/_cost_ledger_table.html:116
+REVERSAL | templates/maintenance/_cost_ledger_table.html:130
+No cost ledger entries yet for WO-%(n)s. | templates/maintenance/_cost_ledger_table.html:156
+Maintenance costs | templates/maintenance/_cost_tab.html:410
+Select time period | templates/maintenance/_cost_tab.html:419
+No maintenance cost recorded in the last %(d)s days | templates/maintenance/_cost_tab.html:450
+Costs will appear here after work orders are closed. | templates/maintenance/_cost_tab.html:451
+Total cost &middot; last %(d)s days | templates/maintenance/_cost_tab.html:456
+&mdash; | templates/maintenance/_cost_tab.html:463
+no prior comparison | templates/maintenance/_cost_tab.html:464
+Cost distribution across categories | templates/maintenance/_cost_tab.html:472
+Failures | templates/maintenance/_cost_tab.html:551
+Cost per failure | templates/maintenance/_cost_tab.html:568
+No failures recorded | templates/maintenance/_cost_tab.html:570
+' + fmtPct(pct) + ' ' + priorLabel + ' | templates/maintenance/_cost_tab.html:629
+Recording auto-stops at 60s. Voice is uploaded and attached to the record. | templates/maintenance/_voice_recorder.html:14
+🗑 Discard | templates/maintenance/_voice_recorder.html:24
+Manager actions | templates/maintenance/_wo_actions_manager.html:6
+Assign / reassign technician | templates/maintenance/_wo_actions_manager.html:12
+Direct issue (manager override — bypasses technician request flow) | templates/maintenance/_wo_actions_manager.html:20
+Issue to WO | templates/maintenance/_wo_actions_manager.html:22
+New purchase request for this WO | templates/maintenance/_wo_actions_manager.html:26
+Need | templates/maintenance/_wo_actions_manager.html:37
+Reported | templates/maintenance/_wo_actions_manager.html:39
+Decision type | templates/maintenance/_wo_actions_manager.html:73
+✅ Approve (issue and/or procure) | templates/maintenance/_wo_actions_manager.html:75
+❌ Reject | templates/maintenance/_wo_actions_manager.html:76
+Issue from stock | templates/maintenance/_wo_actions_manager.html:80
+Procure (via PR) | templates/maintenance/_wo_actions_manager.html:91
+Reject (not needed) | templates/maintenance/_wo_actions_manager.html:100
+Expected availability (procure ETA) | templates/maintenance/_wo_actions_manager.html:116
+Rejection reason (reject only, min 15 chars) | templates/maintenance/_wo_actions_manager.html:120
+Decision note (optional) | templates/maintenance/_wo_actions_manager.html:124
+Submit Decision | templates/maintenance/_wo_actions_manager.html:127
+· status: | templates/maintenance/_wo_actions_manager.html:184
+· free stock: | templates/maintenance/_wo_actions_manager.html:185
+Insufficient stock | templates/maintenance/_wo_actions_manager.html:197
+Cancel this part request (release reservation + clear PART blocker) | templates/maintenance/_wo_actions_manager.html:203
+Cancellation reason (min 15 chars — required for audit) | templates/maintenance/_wo_actions_manager.html:212
+✅ Approve | templates/maintenance/_wo_actions_manager.html:253
+Legacy (no decision row) | templates/maintenance/_wo_actions_manager.html:272
+✎ Edit decision | templates/maintenance/_wo_actions_manager.html:282
+Decision note | templates/maintenance/_wo_actions_manager.html:301
+Save Edit | templates/maintenance/_wo_actions_manager.html:304
+🔒 Decision locked | templates/maintenance/_wo_actions_manager.html:308
+✓ Mark as Fulfilled | templates/maintenance/_wo_actions_manager.html:314
+Mark as blocked (operational problem) | templates/maintenance/_wo_actions_manager.html:326
+⚠ Block | templates/maintenance/_wo_actions_manager.html:326
+Close this shortage report (releases reservation, cancels PRs) | templates/maintenance/_wo_actions_manager.html:333
+🗙 Close | templates/maintenance/_wo_actions_manager.html:333
+📦 Awaiting Procurement | templates/maintenance/_wo_actions_manager.html:349
+My actions (technician) | templates/maintenance/_wo_actions_technician.html:5
+Emergency override: | templates/maintenance/_wo_actions_technician.html:8
+Finish the active emergency WO first | templates/maintenance/_wo_actions_technician.html:16
+Pause work | templates/maintenance/_wo_actions_technician.html:30
+— Select — | templates/maintenance/_wo_actions_technician.html:35
+(required for Other) | templates/maintenance/_wo_actions_technician.html:41
+Optional context | templates/maintenance/_wo_actions_technician.html:42
+Confirm pause | templates/maintenance/_wo_actions_technician.html:44
+Execution flow | templates/maintenance/_wo_actions_technician.html:62
+Add note (optional) | templates/maintenance/_wo_actions_technician.html:80
+Completion submission | templates/maintenance/_wo_actions_technician.html:86
+Open dedicated PM page → | templates/maintenance/_wo_actions_technician.html:96
+Request a part (manager will approve) | templates/maintenance/_wo_actions_technician.html:104
+— Select a part — | templates/maintenance/_wo_actions_technician.html:111
+All active parts shown | templates/maintenance/_wo_actions_technician.html:123
+Note (optional, shown to manager) | templates/maintenance/_wo_actions_technician.html:143
+Emergency WO: | templates/maintenance/_wo_actions_technician.html:149
+Submit part request | templates/maintenance/_wo_actions_technician.html:153
+Stock is available; the manager will approve and deduct the stock. | templates/maintenance/_wo_actions_technician.html:161
+The manager has NOT been notified yet. | templates/maintenance/_wo_actions_technician.html:167
+RESOLVED | templates/maintenance/_wo_blocker_history.html:36
+CANCELLED | templates/maintenance/_wo_blocker_history.html:38
+Opened: | templates/maintenance/_wo_blocker_history.html:46
+Resolved: | templates/maintenance/_wo_blocker_history.html:52
+Cancelled: | templates/maintenance/_wo_blocker_history.html:59
+Resolution: | templates/maintenance/_wo_blocker_history.html:68
+Cancel reason: | templates/maintenance/_wo_blocker_history.html:73
+Events: | templates/maintenance/_wo_blocker_history.html:80
+Pause reason: | templates/maintenance/_wo_blockers_panel.html:44
+Triggered by: | templates/maintenance/_wo_blockers_panel.html:51
+✅ No active blockers | templates/maintenance/_wo_blockers_panel.html:72
+No costs posted yet. | templates/maintenance/_wo_costs.html:46
+Costs will appear here after parts are issued, vendor repairs close, or  consumables are logged. | templates/maintenance/_wo_costs.html:47
+Total cost &middot; all time | templates/maintenance/_wo_costs.html:52
+SAR | templates/maintenance/_wo_costs.html:55
+Amount (SAR) * | templates/maintenance/_wo_costs.html:190
+Memo * | templates/maintenance/_wo_costs.html:195
+Min 10 characters. Explains why this adjustment exists. | templates/maintenance/_wo_costs.html:197
+Post adjustment | templates/maintenance/_wo_costs.html:200
+The vendor returned the part. Manager still needs to accept the ERO before  the cost posts to the ledger. | templates/maintenance/_wo_health_card.html:36
+Priority: | templates/maintenance/_wo_health_card.html:51
+day | templates/maintenance/_wo_health_card.html:74
+Yes | templates/maintenance/_wo_health_card.html:83
+Active claims | templates/maintenance/_wo_reservation_history.html:22
+SKU | templates/maintenance/_wo_reservation_history.html:27
+Created | templates/maintenance/_wo_reservation_history.html:29
+Source line | templates/maintenance/_wo_reservation_history.html:30
+Released at | templates/maintenance/_wo_reservation_history.html:71
+released | templates/maintenance/_wo_reservation_history.html:83
+cancelled | templates/maintenance/_wo_reservation_history.html:85
+Manager review (pending your decision) | templates/maintenance/_wo_review_manager.html:6
+Manager review checklist: repair quality, parts used, notes, labor time, and  downtime before final closure. | templates/maintenance/_wo_review_manager.html:7
+Previously rejected: | templates/maintenance/_wo_review_manager.html:10
+Rejection Reason (required if returning to technician) | templates/maintenance/_wo_review_manager.html:17
+Enter reason if returning to technician... | templates/maintenance/_wo_review_manager.html:19
+Approve & Close | templates/maintenance/_wo_review_manager.html:22
+Return to Technician | templates/maintenance/_wo_review_manager.html:23
+Active WorkOrder Blockers | templates/maintenance/active_blockers_dashboard.html:5
+No active blockers. All clear! | templates/maintenance/active_blockers_dashboard.html:14
+Blocker Kind | templates/maintenance/active_blockers_dashboard.html:26
+All | templates/maintenance/active_blockers_dashboard.html:28
+Search | templates/maintenance/active_blockers_dashboard.html:35
+WO number or machine name | templates/maintenance/active_blockers_dashboard.html:36
+Impact Level | templates/maintenance/active_blockers_dashboard.html:39
+Apply | templates/maintenance/active_blockers_dashboard.html:48
+Clear | templates/maintenance/active_blockers_dashboard.html:49
+Work Order | templates/maintenance/active_blockers_dashboard.html:58
+External Reference | templates/maintenance/active_blockers_dashboard.html:60
+Impact Score | templates/maintenance/active_blockers_dashboard.html:61
+Age | templates/maintenance/active_blockers_dashboard.html:62
+Opened By | templates/maintenance/active_blockers_dashboard.html:63
+No blockers match the current filters. | templates/maintenance/active_blockers_dashboard.html:98
+&laquo; Previous | templates/maintenance/active_blockers_dashboard.html:108
+Page %(n)s of %(t)s | templates/maintenance/active_blockers_dashboard.html:110
+Next &raquo; | templates/maintenance/active_blockers_dashboard.html:112
+← Back to dashboard | templates/maintenance/active_blockers_dashboard.html:119
+Immutable record of key actions (who did what, and when). | templates/maintenance/audit_log.html:6
+Action | templates/maintenance/audit_log.html:10
+Entity | templates/maintenance/audit_log.html:10
+No entries. | templates/maintenance/audit_log.html:20
+Previous | templates/maintenance/audit_log.html:27
+Next | templates/maintenance/audit_log.html:29
+Daily consumables | templates/maintenance/consumables.html:4
+Your consumption | templates/maintenance/consumables.html:23
+Items logged since midnight | templates/maintenance/consumables.html:24
+Items logged in the last 7 days | templates/maintenance/consumables.html:27
+Items logged in the last 30 days | templates/maintenance/consumables.html:30
+Self-consumption | templates/maintenance/consumables.html:45
+Log usage | templates/maintenance/consumables.html:64
+Issue to operator | templates/maintenance/consumables.html:73
+Issue | templates/maintenance/consumables.html:102
+My recent consumptions | templates/maintenance/consumables.html:113
+Time | templates/maintenance/consumables.html:129
+Items I issued | templates/maintenance/consumables.html:151
+— quick access based on your permissions. | templates/maintenance/dashboard.html:6
+New issues | templates/maintenance/dashboard.html:10
+Open work orders | templates/maintenance/dashboard.html:13
+Open emergency WO | templates/maintenance/dashboard.html:19
+Pending part requests | templates/maintenance/dashboard.html:22
+Pending ext. repair req. | templates/maintenance/dashboard.html:25
+Paused WO | templates/maintenance/dashboard.html:28
+Overdue WO (&gt;7d) | templates/maintenance/dashboard.html:31
+Pending PRs | templates/maintenance/dashboard.html:34
+Shortages awaiting decision | templates/maintenance/dashboard.html:39
+Shortages in fulfillment | templates/maintenance/dashboard.html:45
+Stuck in fulfillment &gt;7d | templates/maintenance/dashboard.html:51
+Low stock items | templates/maintenance/dashboard.html:55
+Open vendor orders | templates/maintenance/dashboard.html:64
+Monthly purchasing cost | templates/maintenance/dashboard.html:67
+Issues NEW &gt; 24h | templates/maintenance/dashboard.html:70
+PM schedules overdue | templates/maintenance/dashboard.html:73
+My in-progress WO | templates/maintenance/dashboard.html:76
+My pending part req. | templates/maintenance/dashboard.html:79
+Parts Missing Image | templates/maintenance/dashboard.html:84
+Review now → | templates/maintenance/dashboard.html:94
+Review → | templates/maintenance/dashboard.html:102
+Open shortage dashboard → | templates/maintenance/dashboard.html:113
+Needs attention | templates/maintenance/dashboard.html:119
+issue(s) still in | templates/maintenance/dashboard.html:121
+after 24h — | templates/maintenance/dashboard.html:121
+review issues | templates/maintenance/dashboard.html:121
+Overdue PM (next due) | templates/maintenance/dashboard.html:123
+PM schedules | templates/maintenance/dashboard.html:125
+Quick actions — manager queue | templates/maintenance/dashboard.html:134
+%(counter)s part request awaiting your approval | templates/maintenance/dashboard.html:138
+%(counter)s ext. repair request to review | templates/maintenance/dashboard.html:143
+%(counter)s WO pending your review | templates/maintenance/dashboard.html:148
+%(counter)s paused WO | templates/maintenance/dashboard.html:153
+%(counter)s overdue WO (>7d) | templates/maintenance/dashboard.html:158
+%(counter)s returned repair awaiting acceptance | templates/maintenance/dashboard.html:163
+All caught up. Nothing pending your decision. | templates/maintenance/dashboard.html:167
+Quick actions — supply | templates/maintenance/dashboard.html:175
+All caught up. Nothing pending your action. | templates/maintenance/dashboard.html:198
+Shortcuts | templates/maintenance/dashboard.html:204
+Report issue | templates/maintenance/dashboard.html:207
+My work orders | templates/maintenance/dashboard.html:209
+Recent notifications | templates/maintenance/dashboard.html:225
+All notifications | templates/maintenance/dashboard.html:229
+No notifications yet. | templates/maintenance/dashboard.html:231
+Your queue | templates/maintenance/dashboard.html:236
+Your issues | templates/maintenance/dashboard.html:239
+Issues you reported in the last 30 days | templates/maintenance/dashboard.html:244
+Issues you reported in the last 7 days | templates/maintenance/dashboard.html:247
+Your open issues | templates/maintenance/dashboard.html:251
+Issues awaiting your validation | templates/maintenance/dashboard.html:261
+Sent | templates/maintenance/dashboard.html:280
+Returned from vendor | templates/maintenance/dashboard.html:285
+All caught up. | templates/maintenance/dashboard.html:290
+No personal queue items. | templates/maintenance/dashboard.html:294
+Create a breakdown / emergency work order without a prior issue (UC-08  style). | templates/maintenance/emergency_wo.html:6
+🔒 Asset locked: | templates/maintenance/emergency_wo.html:14
+The machine and component fields below are read-only. To attach this record  to a different asset, go to that asset's page and click the action from  there. | templates/maintenance/emergency_wo.html:17
+Component: | templates/maintenance/emergency_wo.html:42
+Optional. Only components under the selected machine are shown. | templates/maintenance/emergency_wo.html:44
+Create emergency WO | templates/maintenance/emergency_wo.html:50
+Failing assets report | templates/maintenance/failing_assets_report.html:4
+← Back to KPIs | templates/maintenance/failing_assets_report.html:8
+Code | templates/maintenance/failing_assets_report.html:22
+Total cost | templates/maintenance/failing_assets_report.html:24
+Cost / failure | templates/maintenance/failing_assets_report.html:25
+Last failure | templates/maintenance/failing_assets_report.html:26
+Total | templates/maintenance/failing_assets_report.html:61
+Failure mode report | templates/maintenance/failure_mode_report.html:5
+Name | templates/maintenance/failure_mode_report.html:23
+Occurrences | templates/maintenance/failure_mode_report.html:25
+Affected assets | templates/maintenance/failure_mode_report.html:26
+Share | templates/maintenance/failure_mode_report.html:27
+Recent | templates/maintenance/failure_mode_report.html:28
+Converted | templates/maintenance/issue_detail.html:32
+Priority | templates/maintenance/issue_detail.html:35
+Reported By | templates/maintenance/issue_detail.html:46
+Reported At | templates/maintenance/issue_detail.html:47
+Validated By | templates/maintenance/issue_detail.html:49
+Validated At | templates/maintenance/issue_detail.html:50
+Linked WO | templates/maintenance/issue_detail.html:52
+Issue Photos | templates/maintenance/issue_detail.html:65
+Loading... | templates/maintenance/issue_detail.html:70
+← Back to My Issues | templates/maintenance/issue_detail.html:81
+This action will: | templates/maintenance/issue_detail.html:90
+Set priority to | templates/maintenance/issue_detail.html:92
+CRITICAL | templates/maintenance/issue_detail.html:92
+and tag the issue as | templates/maintenance/issue_detail.html:92
+Page the on-call technician and the maintenance manager | templates/maintenance/issue_detail.html:93
+Auto-prioritise this issue at the top of the work-order queue | templates/maintenance/issue_detail.html:94
+If a work order is later created from this issue, it will be created with | templates/maintenance/issue_detail.html:95
+This action is logged in the audit trail. It cannot be undone from this page. | templates/maintenance/issue_detail.html:97
+Yes, escalate to emergency | templates/maintenance/issue_detail.html:100
+No photos yet. | templates/maintenance/issue_detail.html:136
+AUDIO | templates/maintenance/issue_detail.html:148
+▶ Play | templates/maintenance/issue_detail.html:150
+${thumbTag} | templates/maintenance/issue_detail.html:160
+▶ VIDEO | templates/maintenance/issue_detail.html:160
+PDF | templates/maintenance/issue_detail.html:162
+Report machine issue | templates/maintenance/issue_form.html:6
+View machines | templates/maintenance/issue_form.html:11
+Scanned code: | templates/maintenance/issue_form.html:18
+No machine matched this QR code yet. Add it in Machines, then retry. | templates/maintenance/issue_form.html:22
+Optional. Pick a specific sub-assembly / component inside the selected  machine. | templates/maintenance/issue_form.html:66
+Photos &amp; Videos (optional) | templates/maintenance/issue_form.html:71
+Max 10 files. Images/PDF: 5MB each. Videos: 30MB each. JPG, PNG, WEBP, PDF,  MP4, MOV. | templates/maintenance/issue_form.html:75
+Submit | templates/maintenance/issue_form.html:80
+Tip: QR deep link | templates/maintenance/issue_form.html:85
+pre-selects the machine, and the scanner page can fill it for you. | templates/maintenance/issue_form.html:85
+Remove | templates/maintenance/issue_form.html:165
+&times; | templates/maintenance/issue_form.html:165
+Preview | templates/maintenance/issue_form.html:167
+Failed to submit issue. Please try again. | templates/maintenance/issue_form.html:351
+Reporter | templates/maintenance/issue_list.html:45
+Validate | templates/maintenance/issue_list.html:61
+Archive issue #%(n)s? This cannot be undone. | templates/maintenance/issue_list.html:71
+Archive | templates/maintenance/issue_list.html:71
+No issues. | templates/maintenance/issue_list.html:75
+Machine: | templates/maintenance/issue_validate.html:6
+Issue Type: | templates/maintenance/issue_validate.html:6
+Description: | templates/maintenance/issue_validate.html:6
+Validate &amp; set priority | templates/maintenance/issue_validate.html:13
+KPIs &amp; reliability | templates/maintenance/kpi.html:4
+Executive maintenance metrics — MTTR, MTBF, PM compliance, and more. | templates/maintenance/kpi.html:6
+MTTR | templates/maintenance/kpi.html:9
+MTTW | templates/maintenance/kpi.html:10
+MTBF | templates/maintenance/kpi.html:11
+PM compliance | templates/maintenance/kpi.html:12
+Avg. downtime / closed WO | templates/maintenance/kpi.html:13
+PM work orders closed (90d) | templates/maintenance/kpi.html:15
+Lost tools | templates/maintenance/kpi.html:16
+Tool loss rate | templates/maintenance/kpi.html:17
+PM due now | templates/maintenance/kpi.html:18
+Failures (90d) | templates/maintenance/kpi.html:20
+Consumables used (30d) | templates/maintenance/kpi.html:27
+Vendor repairs accepted (30d) | templates/maintenance/kpi.html:28
+POs received (30d) | templates/maintenance/kpi.html:29
+Top failure modes (90d) | templates/maintenance/kpi.html:66
+View all → | templates/maintenance/kpi.html:67
+Count | templates/maintenance/kpi.html:73
+No failure modes recorded in the last 90 days. | templates/maintenance/kpi.html:90
+Top failing assets (90d) | templates/maintenance/kpi.html:98
+No closed corrective work orders in the last 90 days. | templates/maintenance/kpi.html:118
+Top reporters (30d) | templates/maintenance/kpi.html:128
+No issues reported in the last 30 days. | templates/maintenance/kpi.html:151
+Definitions used here are practical system KPIs based on available  maintenance, part, tool, and procurement records in the PDF scope. | templates/maintenance/kpi.html:157
+Legacy Work Order Reconciliation | templates/maintenance/legacy_reconciliation.html:5
+Total WOs | templates/maintenance/legacy_reconciliation.html:18
+Legacy (v0) | templates/maintenance/legacy_reconciliation.html:22
+Blocker system (v1) | templates/maintenance/legacy_reconciliation.html:26
+All Work Orders are on the blocker system (v1). | templates/maintenance/legacy_reconciliation.html:32
+WO# | templates/maintenance/legacy_reconciliation.html:41
+Lifecycle | templates/maintenance/legacy_reconciliation.html:43
+Days since created | templates/maintenance/legacy_reconciliation.html:44
+No legacy WOs found. | templates/maintenance/legacy_reconciliation.html:59
+Machine Cost Report | templates/maintenance/machine_cost_report.html:4
+Period: | templates/maintenance/machine_cost_report.html:10
+Current Inventory Value | templates/maintenance/machine_cost_report.html:23
+Total Quantity on Hand | templates/maintenance/machine_cost_report.html:31
+Total Inventory Value | templates/maintenance/machine_cost_report.html:37
+Site | templates/maintenance/machine_cost_report.html:43
+Value | templates/maintenance/machine_cost_report.html:56
+Level | templates/maintenance/machine_cost_report.html:84
+WOs | templates/maintenance/machine_cost_report.html:85
+Parts | templates/maintenance/machine_cost_report.html:86
+Additional | templates/maintenance/machine_cost_report.html:89
+GRAND TOTAL | templates/maintenance/machine_cost_report.html:121
+Work Orders | templates/maintenance/machine_detail.html:20
+SAR · last 90 days | templates/maintenance/machine_detail.html:24
+Failures · 90d | templates/maintenance/machine_detail.html:28
+Days since last activity | templates/maintenance/machine_detail.html:32
+Asset Code | templates/maintenance/machine_detail.html:46
+Location | templates/maintenance/machine_detail.html:49
+Specifications | templates/maintenance/machine_detail.html:53
+Serial | templates/maintenance/machine_detail.html:55
+Manufacturer | templates/maintenance/machine_detail.html:56
+Model | templates/maintenance/machine_detail.html:57
+Criticality | templates/maintenance/machine_detail.html:58
+← Back to machines | templates/maintenance/machine_detail.html:64
+⚡ Quick Actions | templates/maintenance/machine_detail.html:70
+🚨 Report Issue | templates/maintenance/machine_detail.html:72
+🔧 Create Work Order | templates/maintenance/machine_detail.html:73
+🛡️ Create PM | templates/maintenance/machine_detail.html:74
+🔩 Create ERO | templates/maintenance/machine_detail.html:75
+📦 Create PR | templates/maintenance/machine_detail.html:76
+📷 Asset Photos | templates/maintenance/machine_detail.html:82
+Asset Photos | templates/maintenance/machine_detail.html:84
+🔗 Related Records | templates/maintenance/machine_detail.html:90
+Opened | templates/maintenance/machine_detail.html:119
+Days open | templates/maintenance/machine_detail.html:122
+No work orders yet. | templates/maintenance/machine_detail.html:144
+Date | templates/maintenance/machine_detail.html:158
+No issues yet. | templates/maintenance/machine_detail.html:174
+Active PMs | templates/maintenance/machine_detail.html:186
+Due This Week | templates/maintenance/machine_detail.html:190
+Overdue | templates/maintenance/machine_detail.html:194
+Compliance (90d) | templates/maintenance/machine_detail.html:200
+Template | templates/maintenance/machine_detail.html:208
+Frequency | templates/maintenance/machine_detail.html:209
+Next due | templates/maintenance/machine_detail.html:210
+Last execution | templates/maintenance/machine_detail.html:212
+OVERDUE | templates/maintenance/machine_detail.html:230
+Create PM WO | templates/maintenance/machine_detail.html:251
+No PM schedules yet. | templates/maintenance/machine_detail.html:257
+Title | templates/maintenance/machine_detail.html:269
+No external repairs yet. | templates/maintenance/machine_detail.html:281
+Supplier | templates/maintenance/machine_detail.html:293
+No purchase requests yet. | templates/maintenance/machine_detail.html:305
+Keep machine names and QR codes aligned with the shop-floor labels so issue  reporting stays fast and accurate. | templates/maintenance/machine_form.html:13
+Will be created under: | templates/maintenance/machine_form.html:20
+Basic Information | templates/maintenance/machine_form.html:27
+Name * | templates/maintenance/machine_form.html:30
+QR Code * | templates/maintenance/machine_form.html:35
+Unique code used for QR-based issue reporting | templates/maintenance/machine_form.html:37
+e.g. Hall A, Floor 2, Bay 3 | templates/maintenance/machine_form.html:45
+Inactive assets are hidden from issue reporting | templates/maintenance/machine_form.html:52
+Asset Hierarchy | templates/maintenance/machine_form.html:58
+Parent Machine | templates/maintenance/machine_form.html:65
+Leave blank if this is a top-level machine | templates/maintenance/machine_form.html:67
+Asset Level | templates/maintenance/machine_form.html:72
+Asset Type | templates/maintenance/machine_form.html:76
+Component Tracking | templates/maintenance/machine_form.html:82
+These fields apply to Component-level (level-5) assets — optional for other  levels | templates/maintenance/machine_form.html:83
+Model Number | templates/maintenance/machine_form.html:96
+Install Date | templates/maintenance/machine_form.html:100
+Expected Life (days) | templates/maintenance/machine_form.html:106
+Save machine | templates/maintenance/machine_form.html:132
+Back | templates/maintenance/machine_form.html:133
+Quick issue link: | templates/maintenance/machine_form.html:139
+Maintain the machine master used by issue reporting, work orders, preventive  tasks, and QR-based intake. | templates/maintenance/machine_list.html:6
+Open QR scanner | templates/maintenance/machine_list.html:9
+📋 List view | templates/maintenance/machine_list.html:12
+🌳 Tree view (active) | templates/maintenance/machine_list.html:13
+📋 List view (active) | templates/maintenance/machine_list.html:15
+🌳 Tree view | templates/maintenance/machine_list.html:16
+No machines yet. | templates/maintenance/machine_list.html:30
+QR code | templates/maintenance/machine_list.html:38
+Hierarchy | templates/maintenance/machine_list.html:38
+Tree | templates/maintenance/machine_list.html:38
+Open WO | templates/maintenance/machine_list.html:38
+View | templates/maintenance/machine_list.html:70
+Open work orders assigned to you | templates/maintenance/my_workorders.html:15
+In-progress right now | templates/maintenance/my_workorders.html:18
+EMRG | templates/maintenance/my_workorders.html:48
+No open work orders assigned to you. 🎉 | templates/maintenance/my_workorders.html:75
+View all work orders | templates/maintenance/my_workorders.html:84
+In-app alerts: new issues, validated issues, | templates/maintenance/notifications.html:6
+emergency work orders | templates/maintenance/notifications.html:6
+, assignments, manager review, | templates/maintenance/notifications.html:6
+overdue PM | templates/maintenance/notifications.html:6
+, low stock, purchase requests, and repair returns. Unread count appears in  the sidebar. | templates/maintenance/notifications.html:6
+Mark all read | templates/maintenance/notifications.html:10
+Read | templates/maintenance/notifications.html:27
+Current quantity | templates/maintenance/part_adjust.html:12
+New quantity * | templates/maintenance/part_adjust.html:45
+Reason * | templates/maintenance/part_adjust.html:52
+Select a reason… | templates/maintenance/part_adjust.html:54
+Audit correction | templates/maintenance/part_adjust.html:55
+Damaged goods | templates/maintenance/part_adjust.html:56
+Expired material | templates/maintenance/part_adjust.html:57
+Suspected theft/loss | templates/maintenance/part_adjust.html:58
+Cycle count | templates/maintenance/part_adjust.html:59
+Additional details… | templates/maintenance/part_adjust.html:66
+e.g. A-01-03 | templates/maintenance/part_adjust.html:73
+Specify reason | templates/maintenance/part_adjust.html:76
+Describe the reason… | templates/maintenance/part_adjust.html:79
+Planned cycle count (vs emergency correction) | templates/maintenance/part_adjust.html:84
+Note: | templates/maintenance/part_adjust.html:88
+Adjustments are logged with | templates/maintenance/part_adjust.html:88
+Record adjustment | templates/maintenance/part_adjust.html:93
+Evidence Photo | templates/maintenance/part_adjust.html:100
+${att.filename} | templates/maintenance/part_adjust.html:134
+${att.filename} (${formatFileSize(att.size)}) | templates/maintenance/part_adjust.html:136
+${att.uploaded_by} - ${att.uploaded_at} | templates/maintenance/part_adjust.html:137
+${att.note} | templates/maintenance/part_adjust.html:138
+Confirm batch PM spawn | templates/maintenance/pm_batch_spawn_confirm.html:4
+Review the schedules below and confirm to spawn a work order for each. | templates/maintenance/pm_batch_spawn_confirm.html:6
+Estimated | templates/maintenance/pm_batch_spawn_confirm.html:21
+Spawn %(counter)s PM work order? | templates/maintenance/pm_batch_spawn_confirm.html:50
+✓ Confirm — Spawn %(counter)s Work Order | templates/maintenance/pm_batch_spawn_confirm.html:51
+No valid schedules to spawn. | templates/maintenance/pm_batch_spawn_confirm.html:60
+Add | templates/maintenance/pm_batch_spawn_confirm.html:64
+to the URL to see a confirmation. | templates/maintenance/pm_batch_spawn_confirm.html:64
+← Back to PM list | templates/maintenance/pm_batch_spawn_confirm.html:66
+PM Compliance Dashboard | templates/maintenance/pm_dashboard.html:4
+Compliance | templates/maintenance/pm_dashboard.html:27
+Scheduled PMs in window | templates/maintenance/pm_dashboard.html:35
+Completed on time | templates/maintenance/pm_dashboard.html:36
+Completed late (after grace) | templates/maintenance/pm_dashboard.html:37
+&mdash; (no scheduled PMs in window) | templates/maintenance/pm_dashboard.html:53
+Per-Machine Compliance | templates/maintenance/pm_dashboard.html:61
+Scheduled (90d) | templates/maintenance/pm_dashboard.html:69
+On time | templates/maintenance/pm_dashboard.html:70
+View PMs | templates/maintenance/pm_dashboard.html:104
+No machines with PMs. | templates/maintenance/pm_dashboard.html:107
+&larr; All PM schedules | templates/maintenance/pm_dashboard.html:115
+Manage templates | templates/maintenance/pm_dashboard.html:116
+PM schedule | templates/maintenance/pm_form.html:6
+Define preventive task frequency and next due date for a machine or  component. | templates/maintenance/pm_form.html:8
+Component (optional): | templates/maintenance/pm_form.html:46
+— leave blank to apply the PM to the whole machine | templates/maintenance/pm_form.html:47
+Reference Photos | templates/maintenance/pm_form.html:65
+Preventive maintenance | templates/maintenance/pm_list.html:4
+Schedules drive PM work orders. Spawn a WO when due. | templates/maintenance/pm_list.html:6
+New schedule | templates/maintenance/pm_list.html:9
+Compliance dashboard | templates/maintenance/pm_list.html:11
+Active only | templates/maintenance/pm_list.html:18
+Inactive only | templates/maintenance/pm_list.html:19
+Due this week | templates/maintenance/pm_list.html:28
+Future | templates/maintenance/pm_list.html:29
+All machines | templates/maintenance/pm_list.html:35
+Reset | templates/maintenance/pm_list.html:42
+Select all overdue | templates/maintenance/pm_list.html:54
+Days until due | templates/maintenance/pm_list.html:60
+No PM schedules match the filter. | templates/maintenance/pm_list.html:93
+Create PM work orders for all selected schedules? | templates/maintenance/pm_list.html:102
+Spawn WOs for selected | templates/maintenance/pm_list.html:102
+Tip: only overdue schedules are checkable for batch spawn. | templates/maintenance/pm_list.html:103
+Work Order & Schedule | templates/maintenance/pm_review.html:8
+PM Template | templates/maintenance/pm_review.html:15
+Schedule | templates/maintenance/pm_review.html:16
+Scheduled due | templates/maintenance/pm_review.html:17
+Execution sequence | templates/maintenance/pm_review.html:18
+Completion time | templates/maintenance/pm_review.html:19
+Item | templates/maintenance/pm_review.html:32
+Required | templates/maintenance/pm_review.html:33
+Technician note | templates/maintenance/pm_review.html:34
+✓ Done | templates/maintenance/pm_review.html:41
+✗ Not done | templates/maintenance/pm_review.html:42
+No checklist items. | templates/maintenance/pm_review.html:50
+No checklist data recorded. | templates/maintenance/pm_review.html:55
+📦 Template Snapshot (immutable) | templates/maintenance/pm_review.html:62
+Title (at spawn) | templates/maintenance/pm_review.html:65
+Code (at spawn) | templates/maintenance/pm_review.html:66
+Priority (at spawn) | templates/maintenance/pm_review.html:67
+Duration (at spawn) | templates/maintenance/pm_review.html:68
+Captured at | templates/maintenance/pm_review.html:69
+✓ Approved | templates/maintenance/pm_review.html:77
+✗ Rejected | templates/maintenance/pm_review.html:82
+⚖️ Manager Decision | templates/maintenance/pm_review.html:87
+Rejection reason (required if rejecting) | templates/maintenance/pm_review.html:92
+What needs to be redone? | templates/maintenance/pm_review.html:93
+Approve this PM and close the work order? | templates/maintenance/pm_review.html:96
+✓ Approve & Close WO | templates/maintenance/pm_review.html:96
+Reject and return to technician? | templates/maintenance/pm_review.html:97
+✗ Reject & Return | templates/maintenance/pm_review.html:97
+← Back to WO | templates/maintenance/pm_review.html:105
+Estimated duration | templates/maintenance/pm_spawn_wo.html:17
+Create this PM work order now? | templates/maintenance/pm_spawn_wo.html:24
+Create PM Work Order | templates/maintenance/pm_spawn_wo.html:35
+Procedure metadata | templates/maintenance/pm_template_detail.html:9
+Manager review | templates/maintenance/pm_template_detail.html:14
+required | templates/maintenance/pm_template_detail.html:27
+No checklist items defined. | templates/maintenance/pm_template_detail.html:29
+No schedules using this template yet. | templates/maintenance/pm_template_detail.html:47
+Edit template | templates/maintenance/pm_template_detail.html:55
+Assign to machine | templates/maintenance/pm_template_detail.html:56
+← All templates | templates/maintenance/pm_template_detail.html:58
+Procedure details | templates/maintenance/pm_template_form.html:10
+Checklist items | templates/maintenance/pm_template_form.html:20
+One line item per inspection step. Mark required items that must be  completed. Use the  | templates/maintenance/pm_template_form.html:21
++ Add another item | templates/maintenance/pm_template_form.html:21
+ button to add more rows. | templates/maintenance/pm_template_form.html:21
+Order | templates/maintenance/pm_template_form.html:25
+Text | templates/maintenance/pm_template_form.html:25
+Required? | templates/maintenance/pm_template_form.html:25
+new | templates/maintenance/pm_template_form.html:33
+(empty rows are ignored on save) | templates/maintenance/pm_template_form.html:41
+PM templates | templates/maintenance/pm_template_list.html:4
+Reusable preventive maintenance procedures. Each template can be assigned to  many machines via PMSchedule. | templates/maintenance/pm_template_list.html:6
+New template | templates/maintenance/pm_template_list.html:9
+Duration | templates/maintenance/pm_template_list.html:15
+Items | templates/maintenance/pm_template_list.html:15
+Schedules | templates/maintenance/pm_template_list.html:15
+No PM templates. | templates/maintenance/pm_template_list.html:28
+← Back to WO-%(n)s | templates/maintenance/pm_wo_detail.html:9
+This is a Preventive Maintenance work order. | templates/maintenance/pm_wo_detail.html:15
+PM Context | templates/maintenance/pm_wo_detail.html:24
+Lifecycle status | templates/maintenance/pm_wo_detail.html:33
+PM Schedule | templates/maintenance/pm_wo_detail.html:60
+Schedule info | templates/maintenance/pm_wo_detail.html:77
+PM Execution | templates/maintenance/pm_wo_detail.html:85
+Reference Photos (read-only) | templates/maintenance/pm_wo_detail.html:103
+Completion Notes | templates/maintenance/pm_wo_detail.html:150
+✓ Submit for Review | templates/maintenance/pm_wo_detail.html:155
+No checklist defined for this PM template. You can still submit for review  with notes. | templates/maintenance/pm_wo_detail.html:165
+Inspection Checklist (read-only) | templates/maintenance/pm_wo_detail.html:179
+No checklist defined. | templates/maintenance/pm_wo_detail.html:188
+Last submission | templates/maintenance/pm_wo_detail.html:193
+⚖️ Review PM | templates/maintenance/pm_wo_detail.html:201
+⚠ Returned | templates/maintenance/preventive/execute.html:18
+Elapsed | templates/maintenance/preventive/execute.html:28
+Expected | templates/maintenance/preventive/execute.html:32
+Checklist | templates/maintenance/preventive/execute.html:44
+Overall notes (optional, but counts as completion) | templates/maintenance/preventive/execute.html:73
+Photos | templates/maintenance/preventive/execute.html:91
+No photos uploaded yet. | templates/maintenance/preventive/execute.html:106
++ Add photo | templates/maintenance/preventive/execute.html:116
+Today | templates/maintenance/preventive/mgr_dashboard.html:8
+Due Today | templates/maintenance/preventive/mgr_dashboard.html:15
+Waiting Review | templates/maintenance/preventive/mgr_dashboard.html:27
+Unassigned | templates/maintenance/preventive/mgr_dashboard.html:33
+Completed Today | templates/maintenance/preventive/mgr_dashboard.html:39
+Any | templates/maintenance/preventive/mgr_history.html:13
+Date range | templates/maintenance/preventive/mgr_history.html:29
+Last 7 days | templates/maintenance/preventive/mgr_history.html:31
+Last 30 days | templates/maintenance/preventive/mgr_history.html:32
+Last 90 days | templates/maintenance/preventive/mgr_history.html:33
+Last year | templates/maintenance/preventive/mgr_history.html:34
+Actual vs Expected | templates/maintenance/preventive/mgr_history.html:62
+✗ Returned | templates/maintenance/preventive/mgr_history.html:85
+Plan Information | templates/maintenance/preventive/mgr_plan_detail.html:16
+Ends | templates/maintenance/preventive/mgr_plan_detail.html:33
+Quick Actions | templates/maintenance/preventive/mgr_plan_detail.html:42
+Run Now | templates/maintenance/preventive/mgr_plan_detail.html:69
+Archive this plan? | templates/maintenance/preventive/mgr_plan_detail.html:75
+View Machine | templates/maintenance/preventive/mgr_plan_detail.html:78
+Upcoming Schedule | templates/maintenance/preventive/mgr_plan_detail.html:85
+Last completed | templates/maintenance/preventive/mgr_plan_detail.html:101
+Recent Executions | templates/maintenance/preventive/mgr_plan_detail.html:122
+View all history → | templates/maintenance/preventive/mgr_plan_detail.html:124
+No executions yet. | templates/maintenance/preventive/mgr_plan_detail.html:167
+Archived | templates/maintenance/preventive/mgr_plans.html:10
++ New Plan | templates/maintenance/preventive/mgr_plans.html:13
+Due | templates/maintenance/preventive/mgr_plans.html:23
+No plans in this filter. | templates/maintenance/preventive/mgr_plans.html:60
+pending | templates/maintenance/preventive/mgr_reviews.html:8
+Return reason (required) | templates/maintenance/preventive/mgr_reviews.html:43
+Return to technician | templates/maintenance/preventive/mgr_reviews.html:46
+No pending reviews. | templates/maintenance/preventive/mgr_reviews.html:57
++ Add row | templates/maintenance/preventive/mgr_template_form.html:36
++ New Template | templates/maintenance/preventive/mgr_templates.html:8
+Checks | templates/maintenance/preventive/mgr_templates.html:19
+No templates yet. | templates/maintenance/preventive/mgr_templates.html:39
+Select... | templates/maintenance/preventive/mgr_today.html:38
+Assign | templates/maintenance/preventive/mgr_today.html:43
+Reassign to... | templates/maintenance/preventive/mgr_today.html:49
+Reassign | templates/maintenance/preventive/mgr_today.html:54
+No maintenance scheduled today. | templates/maintenance/preventive/mgr_today.html:67
+My Maintenance | templates/maintenance/preventive/my.html:5
+Resume | templates/maintenance/preventive/my.html:18
+TODAY | templates/maintenance/preventive/my.html:34
+YOUR TASKS | templates/maintenance/preventive/my.html:37
+UNASSIGNED — PICK UP | templates/maintenance/preventive/my.html:60
+Pick up | templates/maintenance/preventive/my.html:75
+UPCOMING | templates/maintenance/preventive/my.html:93
+Nothing upcoming. | templates/maintenance/preventive/my.html:116
+COMPLETED | templates/maintenance/preventive/my.html:121
+Waiting for approval | templates/maintenance/preventive/my.html:132
+No completed maintenance today. | templates/maintenance/preventive/my.html:145
+QR scanner | templates/maintenance/qr_scan.html:4
+Camera scan | templates/maintenance/qr_scan.html:10
+Waiting to start camera. | templates/maintenance/qr_scan.html:13
+Start camera | templates/maintenance/qr_scan.html:15
+Stop | templates/maintenance/qr_scan.html:16
+Upload or manual fallback | templates/maintenance/qr_scan.html:22
+Upload QR image | templates/maintenance/qr_scan.html:30
+Upload and read | templates/maintenance/qr_scan.html:34
+Enter scanned value | templates/maintenance/qr_scan.html:40
+Use code | templates/maintenance/qr_scan.html:43
+Quick maintenance log | templates/maintenance/quick_log.html:4
+Ad-hoc notes on a machine without opening a full issue or work order. | templates/maintenance/quick_log.html:6
+Legacy WorkOrder Reconciliation | templates/maintenance/reconciliation_dashboard.html:5
+All WorkOrders are on the blocker system (version 1+). | templates/maintenance/reconciliation_dashboard.html:14
+Legacy WOs | templates/maintenance/reconciliation_dashboard.html:20
+Lifecycle Status | templates/maintenance/reconciliation_dashboard.html:26
+Created after | templates/maintenance/reconciliation_dashboard.html:39
+Created before | templates/maintenance/reconciliation_dashboard.html:43
+Created At | templates/maintenance/reconciliation_dashboard.html:60
+Version | templates/maintenance/reconciliation_dashboard.html:61
+Image | templates/maintenance/reorder_suggestions.html:14
+Current | templates/maintenance/reorder_suggestions.html:17
+Min | templates/maintenance/reorder_suggestions.html:18
+Max | templates/maintenance/reorder_suggestions.html:19
+Suggested | templates/maintenance/reorder_suggestions.html:20
+Last cost | templates/maintenance/reorder_suggestions.html:22
+Click to view full size in new tab | templates/maintenance/reorder_suggestions.html:32
+This part has no primary image. Upload one in the part detail page. | templates/maintenance/reorder_suggestions.html:36
+⚠ Missing Image | templates/maintenance/reorder_suggestions.html:36
+All parts are above minimum stock. | templates/maintenance/reorder_suggestions.html:50
+Manager acceptance (UC-20) | templates/maintenance/repair_accept.html:4
+Verify the asset returned from vendor, record the vendor invoice, and close  the repair record. | templates/maintenance/repair_accept.html:6
+Status: | templates/maintenance/repair_accept.html:10
+Vendor: | templates/maintenance/repair_accept.html:11
+Linked WO: | templates/maintenance/repair_accept.html:12
+Estimated cost: | templates/maintenance/repair_accept.html:13
+UC-20: | templates/maintenance/repair_accept.html:18
+Verify and close | templates/maintenance/repair_accept.html:38
+Create repair request | templates/maintenance/repair_form.html:4
+Send equipment to an external vendor (UC-19). Supply Officer will progress  the order. | templates/maintenance/repair_form.html:6
+Create | templates/maintenance/repair_form.html:50
+External repair orders | templates/maintenance/repair_list.html:5
+Vendor repairs (UC-19/20). Supply Officer updates status; maintenance  manager accepts after return. | templates/maintenance/repair_list.html:7
+New repair request | templates/maintenance/repair_list.html:9
+Officer | templates/maintenance/repair_list.html:23
+Accept | templates/maintenance/repair_list.html:28
+None. | templates/maintenance/repair_list.html:33
+Update vendor status, costs, and return workflow. | templates/maintenance/repair_officer.html:8
+📄 Download PDF | templates/maintenance/repair_officer.html:16
+Before Repair Photos | templates/maintenance/repair_officer.html:23
+After Repair Photos | templates/maintenance/repair_officer.html:42
+Reporters report | templates/maintenance/reporters_report.html:4
+Converted to WO | templates/maintenance/reporters_report.html:24
+Conversion rate | templates/maintenance/reporters_report.html:25
+Reports &amp; analytics | templates/maintenance/reports.html:5
+Operational summaries — preview tables with links to full dedicated reports.  Sections are filtered by your role. | templates/maintenance/reports.html:7
+Machines by issue count | templates/maintenance/reports.html:12
+No data. | templates/maintenance/reports.html:17
+View all machines → | templates/maintenance/reports.html:21
+Work orders by status | templates/maintenance/reports.html:24
+No work orders. | templates/maintenance/reports.html:29
+View all work orders → | templates/maintenance/reports.html:33
+Technician throughput (closed WO count) | templates/maintenance/reports.html:40
+Closed WOs | templates/maintenance/reports.html:43
+Drill-down | templates/maintenance/reports.html:48
+No technicians. | templates/maintenance/reports.html:49
+View all technicians → | templates/maintenance/reports.html:53
+View all stock → | templates/maintenance/reports.html:69
+Total qty | templates/maintenance/reports.html:75
+No part issues recorded yet. | templates/maintenance/reports.html:77
+View all parts → | templates/maintenance/reports.html:81
+Vendor cost, parts cost, consumables, and additional cost per machine over a  configurable period. | templates/maintenance/reports.html:90
+Open machine cost report → | templates/maintenance/reports.html:91
+Stock Analysis | templates/maintenance/reports_low_stock.html:4
+%(low)s of %(all)s active parts are at or below minimum stock level. | templates/maintenance/reports_low_stock.html:6
+All active parts | templates/maintenance/reports_low_stock.html:8
+Qty on hand | templates/maintenance/reports_low_stock.html:11
+Min stock | templates/maintenance/reports_low_stock.html:11
+No active parts. | templates/maintenance/reports_low_stock.html:21
+← Previous | templates/maintenance/reports_low_stock.html:28
+Page %(n)s of %(t)s (%(c)s total) | templates/maintenance/reports_low_stock.html:29
+Next → | templates/maintenance/reports_low_stock.html:30
+← Back to Reports | templates/maintenance/reports_low_stock.html:33
+Machines by Issue Count | templates/maintenance/reports_machines.html:4
+All machines ranked by total reported issues. Machines with the most issues  may need root-cause analysis or PM schedule review. | templates/maintenance/reports_machines.html:6
+Open WOs | templates/maintenance/reports_machines.html:10
+No machines found. | templates/maintenance/reports_machines.html:20
+Most Issued Parts | templates/maintenance/reports_parts_issued.html:4
+All spare parts issued against work orders, ranked by total quantity. | templates/maintenance/reports_parts_issued.html:6
+UOM | templates/maintenance/reports_parts_issued.html:10
+Total qty issued | templates/maintenance/reports_parts_issued.html:10
+No parts issued yet. | templates/maintenance/reports_parts_issued.html:21
+Technician Performance | templates/maintenance/reports_technicians.html:4
+All technicians ranked by closed work orders and average repair time. | templates/maintenance/reports_technicians.html:6
+Avg repair hours | templates/maintenance/reports_technicians.html:10
+Reopened jobs | templates/maintenance/reports_technicians.html:10
+No technicians found. | templates/maintenance/reports_technicians.html:22
+Work Order Report | templates/maintenance/reports_work_orders.html:5
+All work orders with status breakdown. | templates/maintenance/reports_work_orders.html:7
+Overdue (&gt;7d) | templates/maintenance/reports_work_orders.html:11
+Statuses | templates/maintenance/reports_work_orders.html:12
+Status breakdown | templates/maintenance/reports_work_orders.html:16
+No WOs. | templates/maintenance/reports_work_orders.html:23
+Filter by status | templates/maintenance/reports_work_orders.html:30
+Tech | templates/maintenance/reports_work_orders.html:42
+ACTIVE | templates/maintenance/reservations_dashboard.html:17
+RELEASED | templates/maintenance/reservations_dashboard.html:21
+By part (active only, top 25) | templates/maintenance/reservations_dashboard.html:38
+Total reserved | templates/maintenance/reservations_dashboard.html:45
+# WOs | templates/maintenance/reservations_dashboard.html:46
+No active reservations. | templates/maintenance/reservations_dashboard.html:61
+active | templates/maintenance/reservations_dashboard.html:88
+Showing the first 200 rows. | templates/maintenance/reservations_dashboard.html:117
+No reservations matching this filter. | templates/maintenance/reservations_dashboard.html:120
+📊 Shortage Dashboard | templates/maintenance/shortage_dashboard.html:5
+Shortage lifecycle overview — every shortage moves from | templates/maintenance/shortage_dashboard.html:8
+approved | templates/maintenance/shortage_dashboard.html:8
+in fulfillment | templates/maintenance/shortage_dashboard.html:8
+fulfilled | templates/maintenance/shortage_dashboard.html:8
+closed | templates/maintenance/shortage_dashboard.html:8
+<strong>📦 %(pending)s shortage awaiting your decision.</strong> <strong>📦 %(pending)s shortages awaiting your decision.</strong> | templates/maintenance/shortage_dashboard.html:14
+Review oldest pending → | templates/maintenance/shortage_dashboard.html:15
+<strong>⚠ %(blocked)s shortage blocked</strong> — operational problem  flagged. <strong>⚠ %(blocked)s shortages blocked</strong> — operational problem  flagged. | templates/maintenance/shortage_dashboard.html:20
+Review in-fulfillment list → | templates/maintenance/shortage_dashboard.html:21
+⏳ Awaiting decision | templates/maintenance/shortage_dashboard.html:32
+✅ Approved (editable) | templates/maintenance/shortage_dashboard.html:38
+🔄 In fulfillment | templates/maintenance/shortage_dashboard.html:44
+✓ Fulfilled (awaiting close) | templates/maintenance/shortage_dashboard.html:50
+🗙 Closed (terminal) | templates/maintenance/shortage_dashboard.html:56
+❌ Rejected (terminal) | templates/maintenance/shortage_dashboard.html:62
+⚠ Blocked (operational) | templates/maintenance/shortage_dashboard.html:68
+⏳ Oldest pending decisions | templates/maintenance/shortage_dashboard.html:76
+Requested | templates/maintenance/shortage_dashboard.html:85
+Reported by | templates/maintenance/shortage_dashboard.html:86
+✅ No pending decisions. All caught up! | templates/maintenance/shortage_dashboard.html:108
+Progress | templates/maintenance/shortage_dashboard.html:125
+Started | templates/maintenance/shortage_dashboard.html:127
+Ready to fulfill | templates/maintenance/shortage_dashboard.html:144
+No active fulfillment right now. | templates/maintenance/shortage_dashboard.html:158
+🔝 Top parts with active shortages (pending + approved + in_fulfillment) | templates/maintenance/shortage_dashboard.html:166
+Active reports | templates/maintenance/shortage_dashboard.html:170
+View part | templates/maintenance/shortage_dashboard.html:179
+No active shortages. 🎉 | templates/maintenance/shortage_dashboard.html:186
+📋 All states breakdown | templates/maintenance/shortage_dashboard.html:193
+State | templates/maintenance/shortage_dashboard.html:197
+Meaning | templates/maintenance/shortage_dashboard.html:199
+Next action | templates/maintenance/shortage_dashboard.html:200
+Tech raised a shortage. Manager decision needed. | templates/maintenance/shortage_dashboard.html:212
+Manager approved. Awaiting warehouse issue. | templates/maintenance/shortage_dashboard.html:213
+Warehouse or procurement in progress. | templates/maintenance/shortage_dashboard.html:214
+All units delivered. Manager should close. | templates/maintenance/shortage_dashboard.html:215
+Operational problem flagged. Investigate. | templates/maintenance/shortage_dashboard.html:216
+Terminal. Reservation released, PRs cancelled. | templates/maintenance/shortage_dashboard.html:217
+Terminal. Line stays PENDING for tech to act on. | templates/maintenance/shortage_dashboard.html:218
+View WOs | templates/maintenance/shortage_dashboard.html:223
+📋 WOs with any shortage | templates/maintenance/shortage_dashboard.html:236
+⚠ This part has no primary image. | templates/maintenance/spare_part_detail.html:23
+SKU: | templates/maintenance/spare_part_detail.html:41
+📋 Print QR | templates/maintenance/spare_part_detail.html:73
+Reserved | templates/maintenance/spare_part_detail.html:98
+Rack | templates/maintenance/spare_part_detail.html:102
+Last counted | templates/maintenance/spare_part_detail.html:106
+No inventory record at this site. | templates/maintenance/spare_part_detail.html:117
++ Stock-in | templates/maintenance/spare_part_detail.html:122
+Adjust qty | templates/maintenance/spare_part_detail.html:126
+No movements recorded. | templates/maintenance/spare_part_detail.html:155
+Recent work orders using this part | templates/maintenance/spare_part_detail.html:163
+Pending purchase requests | templates/maintenance/spare_part_detail.html:187
+Documents & Attachments | templates/maintenance/spare_part_detail.html:211
+Mark as primary image | templates/maintenance/spare_part_detail.html:225
+${att.filename.split('.').pop().toUpperCase()} | templates/maintenance/spare_part_detail.html:275
+★ Primary | templates/maintenance/spare_part_detail.html:288
+Set as Primary | templates/maintenance/spare_part_detail.html:290
+No attachments yet. Upload an image to set as the primary part photo. | templates/maintenance/spare_part_detail.html:299
+← Back to stock | templates/maintenance/spare_part_detail.html:407
+SKU * | templates/maintenance/spare_part_form.html:25
+Unique part identifier (e.g. BRG-6006). Uppercase letters, numbers, dashes  only. | templates/maintenance/spare_part_form.html:27
+e.g. Bearings, Filters, Electrical, Hydraulic | templates/maintenance/spare_part_form.html:38
+Unit | templates/maintenance/spare_part_form.html:41
+e.g. pcs, kg, liter, meter | templates/maintenance/spare_part_form.html:43
+Preferred supplier | templates/maintenance/spare_part_form.html:46
+Consumable (depletes on use) | templates/maintenance/spare_part_form.html:52
+Repairable (can be refurbished) | templates/maintenance/spare_part_form.html:58
+Min stock level | templates/maintenance/spare_part_form.html:63
+Max stock level | templates/maintenance/spare_part_form.html:68
+Avg cost (€) | templates/maintenance/spare_part_form.html:72
+Last purchase cost (€) | templates/maintenance/spare_part_form.html:78
+Most recent procurement unit price. | templates/maintenance/spare_part_form.html:80
+Datasheet / Certificate | templates/maintenance/spare_part_form.html:93
+Optional: PDF or image (datasheet, certificate, etc.) | templates/maintenance/spare_part_form.html:95
+Opening inventory (optional) | templates/maintenance/spare_part_form.html:101
+Initial stock at default site. | templates/maintenance/spare_part_form.html:106
+Storage location (e.g. A-01-03). | templates/maintenance/spare_part_form.html:111
+Search SKU or name… | templates/maintenance/stock_dashboard.html:15
+All categories | templates/maintenance/stock_dashboard.html:17
+Low stock only | templates/maintenance/stock_dashboard.html:30
+Consumables only | templates/maintenance/stock_dashboard.html:34
++ New part | templates/maintenance/stock_dashboard.html:52
+Qty available | templates/maintenance/stock_dashboard.html:63
+Consumable | templates/maintenance/stock_dashboard.html:67
+Out | templates/maintenance/stock_dashboard.html:118
+Print QR | templates/maintenance/stock_dashboard.html:125
+No parts found. | templates/maintenance/stock_dashboard.html:128
+Stock-in spare parts | templates/maintenance/stock_in.html:4
+Receive parts into inventory (goods receipt). | templates/maintenance/stock_in.html:11
+Invoice attachment | templates/maintenance/stock_in.html:18
+Optional: PDF or image of the invoice | templates/maintenance/stock_in.html:20
+Out of stock | templates/maintenance/stock_lookup.html:73
+← Back to suppliers | templates/maintenance/supplier_detail.html:7
+Contact information | templates/maintenance/supplier_detail.html:12
+Contact person | templates/maintenance/supplier_detail.html:15
+Phone | templates/maintenance/supplier_detail.html:16
+Address | templates/maintenance/supplier_detail.html:18
+Repair vendor | templates/maintenance/supplier_detail.html:36
+Yes — handles external repairs | templates/maintenance/supplier_detail.html:39
+Edit supplier | templates/maintenance/supplier_detail.html:61
+Is consumable | templates/maintenance/supplier_detail.html:70
+Supplier code * | templates/maintenance/supplier_form.html:18
+Unique code e.g. SUP-001. Used in QR format. | templates/maintenance/supplier_form.html:20
+Supplier name * | templates/maintenance/supplier_form.html:24
+Active (deactivate to hide from lists) | templates/maintenance/supplier_form.html:54
++ New supplier | templates/maintenance/supplier_list.html:7
+Clear search | templates/maintenance/supplier_list.html:12
+No suppliers found. | templates/maintenance/supplier_list.html:60
+Completed WOs | templates/maintenance/technician_report.html:23
+work orders closed | templates/maintenance/technician_report.html:26
+actively being worked | templates/maintenance/technician_report.html:33
+Reopened (rejections) | templates/maintenance/technician_report.html:37
+total rejected returns | templates/maintenance/technician_report.html:43
+WOs sent to vendor | templates/maintenance/technician_report.html:50
+Avg. repair duration | templates/maintenance/technician_report.html:57
+min | templates/maintenance/technician_report.html:60
+mean labor time on closed WOs | templates/maintenance/technician_report.html:62
+Avg. response time | templates/maintenance/technician_report.html:66
+assignment → first start | templates/maintenance/technician_report.html:71
+Recent closed work orders | templates/maintenance/technician_report.html:77
+Rejections | templates/maintenance/technician_report.html:85
+No closed work orders yet. | templates/maintenance/technician_report.html:108
+Create and maintain the reusable tools list before assigning tools to  operators or technicians. | templates/maintenance/tool_form.html:6
+Save tool | templates/maintenance/tool_form.html:19
+Tool code: | templates/maintenance/tool_form.html:26
+Record return condition so the tool goes back to available stock. | templates/maintenance/tool_return.html:6
+Confirm return | templates/maintenance/tool_return.html:13
+Reusable tools | templates/maintenance/tools.html:4
+Assign calibrated or shared tools to technicians; return with condition. | templates/maintenance/tools.html:6
+Scan tool code | templates/maintenance/tools.html:11
+Scanned tool code: | templates/maintenance/tools.html:17
+This tool cannot be assigned right now because it is not in | templates/maintenance/tools.html:21
+status. | templates/maintenance/tools.html:21
+Open return form | templates/maintenance/tools.html:26
+No tool matched that code. | templates/maintenance/tools.html:30
+Assign tool | templates/maintenance/tools.html:36
+No tools are currently in Available status. Add a tool or edit an existing  tool and set its status to Available. | templates/maintenance/tools.html:41
+Open assignments | templates/maintenance/tools.html:61
+Tool | templates/maintenance/tools.html:65
+User | templates/maintenance/tools.html:65
+Since | templates/maintenance/tools.html:65
+Return | templates/maintenance/tools.html:72
+All tools | templates/maintenance/tools.html:80
+No tools. | templates/maintenance/tools.html:98
+Cost ledger summary | templates/maintenance/work_order_cost_ledger.html:135
+Grand total &middot; all time | templates/maintenance/work_order_cost_ledger.html:139
+Create work order | templates/maintenance/workorder_create_confirm.html:5
+Review the validated issue before converting it into a work order, as  defined in the approved maintenance flow. | templates/maintenance/workorder_create_confirm.html:7
+Back to issues | templates/maintenance/workorder_create_confirm.html:10
+Validated issue | templates/maintenance/workorder_create_confirm.html:15
+Validated by | templates/maintenance/workorder_create_confirm.html:22
+Validated at | templates/maintenance/workorder_create_confirm.html:23
+Issue description | templates/maintenance/workorder_create_confirm.html:28
+Creating the work order will link this issue and machine, and the new work  order will start in | templates/maintenance/workorder_create_confirm.html:32
+📋 View PM Work Order | templates/maintenance/workorder_detail.html:36
+▶ Execute PM (with checklist) | templates/maintenance/workorder_detail.html:43
+Issue photos | templates/maintenance/workorder_detail.html:57
+Reporter / validator | templates/maintenance/workorder_detail.html:75
+You already have an active work order: | templates/maintenance/workorder_detail.html:112
+. Starting this one will pause that task to keep only one active technician  job. | templates/maintenance/workorder_detail.html:112
+Auto-approved due to emergency | templates/maintenance/workorder_detail.html:142
+No parts issued or requested. | templates/maintenance/workorder_detail.html:170
+read-only | templates/maintenance/workorder_detail.html:181
+Approve (deduct stock) | templates/maintenance/workorder_detail.html:205
+Edit quantity | templates/maintenance/workorder_detail.html:206
+New qty (when editing) | templates/maintenance/workorder_detail.html:211
+Rejection reason (required when rejecting) | templates/maintenance/workorder_detail.html:215
+Submit decision | templates/maintenance/workorder_detail.html:219
+Refused | templates/maintenance/workorder_detail.html:248
+Reason: | templates/maintenance/workorder_detail.html:253
+✏️ Edit & re-submit | templates/maintenance/workorder_detail.html:257
+Request external repair (vendor) | templates/maintenance/workorder_detail.html:273
+Submit request | templates/maintenance/workorder_detail.html:298
+Diagnosis | templates/maintenance/workorder_detail.html:317
+Reason (required on reject) | templates/maintenance/workorder_detail.html:335
+External-repair history | templates/maintenance/workorder_detail.html:350
+ERO | templates/maintenance/workorder_detail.html:358
+Linked procurement requests | templates/maintenance/workorder_detail.html:383
+No transitions yet. | templates/maintenance/workorder_detail.html:412
+Assignment History | templates/maintenance/workorder_detail.html:424
+Assigned At | templates/maintenance/workorder_detail.html:430
+Released At | templates/maintenance/workorder_detail.html:431
+Still down | templates/maintenance/workorder_detail.html:474
+Total Downtime | templates/maintenance/workorder_detail.html:482
+Record a verbal note (e.g. supplier update, vendor callback, work log) and  save it as an attachment to this WO. | templates/maintenance/workorder_detail.html:496
+The recording is auto-stopped at 60s and the file is linked to WO-%(n)s. | templates/maintenance/workorder_detail.html:497
+Note (optional, shown alongside the recording) | templates/maintenance/workorder_detail.html:502
+e.g. 'Called supplier ABC, they will deliver Friday' | templates/maintenance/workorder_detail.html:504
+${a.filename} | templates/maintenance/workorder_detail.html:659
+${(a.size/1024).toFixed(1)} KB | templates/maintenance/workorder_detail.html:660
+${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()} | templates/maintenance/workorder_detail.html:661
+Queue is ordered to surface active work first, then emergency and higher- priority jobs. | templates/maintenance/workorder_list.html:7
+Archive this work order? | templates/maintenance/workorder_list.html:31
+Edit & re-submit refused part request | templates/maintenance/workorder_part_re_review.html:5
+Originally: | templates/maintenance/workorder_part_re_review.html:37
+. Switch to a different part if needed. | templates/maintenance/workorder_part_re_review.html:37
+Why are you re-requesting? Any new context? | templates/maintenance/workorder_part_re_review.html:60
+Recording auto-stops at 60s. Voice is uploaded and attached to the WO. | templates/maintenance/workorder_part_re_review.html:77
+Submit for re-review | templates/maintenance/workorder_part_re_review.html:82
+Switch active work order | templates/maintenance/workorder_switch_confirm.html:4
+Only one work order can be active per technician. Starting this task will  pause your current in-progress work order. | templates/maintenance/workorder_switch_confirm.html:6
+Current active task | templates/maintenance/workorder_switch_confirm.html:10
+Task to start | templates/maintenance/workorder_switch_confirm.html:19
+Pause current and start this task | templates/maintenance/workorder_switch_confirm.html:27
+You are about to | templates/procurement/po_close_short.html:10
+close short | templates/procurement/po_close_short.html:10
+Current status: | templates/procurement/po_close_short.html:11
+This will cancel all remaining undelivered quantities for this PO. | templates/procurement/po_close_short.html:12
+Ordered | templates/procurement/po_close_short.html:16
+Received | templates/procurement/po_close_short.html:16
+Remaining | templates/procurement/po_close_short.html:16
+Confirm Close Short | templates/procurement/po_close_short.html:33
+Supplier Invoice | templates/procurement/po_detail.html:16
+Internal Ref | templates/procurement/po_detail.html:17
+Expected Delivery | templates/procurement/po_detail.html:18
+Handled By | templates/procurement/po_detail.html:19
+Created By | templates/procurement/po_detail.html:20
+Total Value | templates/procurement/po_detail.html:22
+Received Value | templates/procurement/po_detail.html:23
+Notes: | templates/procurement/po_detail.html:26
+This PO is locked. | templates/procurement/po_detail.html:35
+Receive Items | templates/procurement/po_detail.html:37
+Close Short | templates/procurement/po_detail.html:40
+← Back | templates/procurement/po_detail.html:43
+Line Items | templates/procurement/po_detail.html:51
+Ordered Qty | templates/procurement/po_detail.html:59
+Received Qty | templates/procurement/po_detail.html:60
+Unit Price | templates/procurement/po_detail.html:62
+(actual / negotiated) | templates/procurement/po_detail.html:62
+No line items. | templates/procurement/po_detail.html:95
+Add items from PO detail page in Phase 2 | templates/procurement/po_detail.html:95
+Add item | templates/procurement/po_detail.html:95
+To add line items, use  | templates/procurement/po_detail.html:100
+Create from PR | templates/procurement/po_detail.html:100
+ or contact admin. | templates/procurement/po_detail.html:100
+Photos & Attachments | templates/procurement/po_detail.html:108
+${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by} | templates/procurement/po_detail.html:144
++ Add New Supplier | templates/procurement/po_form.html:27
+Merge from Purchase Requests | templates/procurement/po_form.html:80
+Select | templates/procurement/po_form.html:82
+PR# | templates/procurement/po_form.html:82
+Save Purchase Order | templates/procurement/po_form.html:99
+Add New Supplier | templates/procurement/po_form.html:109
+SUP-001 or MWRD-001 | templates/procurement/po_form.html:112
+Supplier name | templates/procurement/po_form.html:113
+Save Supplier | templates/procurement/po_form.html:116
+Track every PO from creation through receiving. Filter by status, jump to  detail, or open a new one. | templates/procurement/po_list.html:8
++ New PO | templates/procurement/po_list.html:12
+Filter by status: | templates/procurement/po_list.html:18
+× clear period | templates/procurement/po_list.html:43
+Gross spend by supplier | templates/procurement/po_list.html:57
+POs | templates/procurement/po_list.html:68
+Line items | templates/procurement/po_list.html:69
+Total spent (SAR) | templates/procurement/po_list.html:70
+CSV | templates/procurement/po_list.html:71
+📥 CSV | templates/procurement/po_list.html:86
+No purchase orders for this filter. | templates/procurement/po_list.html:108
+Grand total | templates/procurement/po_list.html:114
+All purchase orders | templates/procurement/po_list.html:126
+PO Number | templates/procurement/po_list.html:134
+Invoice | templates/procurement/po_list.html:136
+Receive | templates/procurement/po_list.html:157
+Current Status | templates/procurement/po_receive.html:14
+Supplier invoice reference | templates/procurement/po_receive.html:27
+e.g. INV-2026-0042 | templates/procurement/po_receive.html:34
+Receive Line Items | templates/procurement/po_receive.html:44
+Already Received | templates/procurement/po_receive.html:53
+Actual Unit Price | templates/procurement/po_receive.html:58
+Negotiated | templates/procurement/po_receive.html:59
+Confirm Receipt | templates/procurement/po_receive.html:114
+🎤 Voice notes | templates/procurement/pr_detail.html:24
+All voice recordings attached to this PR (manager's context, officer's  voicemail, etc.). | templates/procurement/pr_detail.html:26
+Linked Work Order | templates/procurement/pr_detail.html:86
+Linked PO | templates/procurement/pr_detail.html:94
+Create PO from this PR | templates/procurement/pr_detail.html:110
+← Back to PR List | templates/procurement/pr_detail.html:112
+New purchase request | templates/procurement/pr_form.html:4
+Request spare parts or services. Link to a work order when the shortage came  from maintenance. | templates/procurement/pr_form.html:6
+Attachments can be added after saving the purchase request. | templates/procurement/pr_form.html:63
+Purchase requests | templates/procurement/pr_list.html:5
+New request | templates/procurement/pr_list.html:9
+Update | templates/procurement/pr_list.html:34
+Create PO | templates/procurement/pr_list.html:38
+No requests. | templates/procurement/pr_list.html:43
+← Back to requests | templates/procurement/pr_officer.html:26
+SUP-001 | templates/procurement/pr_officer.html:34
+Total spend | templates/procurement/supplier_analytics.html:23
+Avg on-time | templates/procurement/supplier_analytics.html:35
+Per-supplier breakdown | templates/procurement/supplier_analytics.html:40
+On-time %% | templates/procurement/supplier_analytics.html:48
+Avg cycle (days) | templates/procurement/supplier_analytics.html:49
+No supplier activity in the last %(d)s days. | templates/procurement/supplier_analytics.html:77
+Try a wider range, or create and receive a PO. | templates/procurement/supplier_analytics.html:78
+Sign in — Bawazir MMS | templates/registration/login.html:8
+Factory maintenance &amp; spare parts | templates/registration/login.html:18
+Invalid username or password. | templates/registration/login.html:21
+Sign in | templates/registration/login.html:35

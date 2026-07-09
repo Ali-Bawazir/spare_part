@@ -50,13 +50,13 @@
       {% if machine.asset_level == 3 or machine.asset_level == 4 %}
         <a href="{% url 'machine_create' %}?parent={{ machine.pk }}&asset_level=4"
            class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.25rem 0.5rem">
-           + Subassembly
+           + {% trans "Subassembly" %}
         </a>
       {% endif %}
       {% if machine.asset_level <= 4 %}
         <a href="{% url 'machine_create' %}?parent={{ machine.pk }}&asset_level=5"
            class="mms-btn mms-btn--ghost" style="font-size:0.8em;padding:0.25rem 0.5rem">
-           + Component
+           + {% trans "Component" %}
         </a>
       {% endif %}
       <details style="position:relative">

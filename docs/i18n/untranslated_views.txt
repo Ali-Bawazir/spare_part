@@ -1,0 +1,120 @@
+# Untranslated msgids: VIEWS (118 entries)
+
+Choose a QR image to upload, or use manual entry. | maintenance/views.py
+Add machine | maintenance/views.py
+Asset | maintenance/views.py
+Machine updated. | maintenance/views.py
+Edit machine | maintenance/views.py
+Emergency issue reported. Manager has been paged. | maintenance/views.py
+Issue reported. | maintenance/views.py
+Issue is not in NEW state. | maintenance/views.py
+Issue validated. | maintenance/views.py
+Issue is already flagged as emergency. | maintenance/views.py
+Issue escalated to EMERGENCY (priority CRITICAL). Manager has been paged. | maintenance/views.py
+Issue must be validated first. | maintenance/views.py
+Work order already exists for this issue. | maintenance/views.py
+Work order cannot be assigned in current state. | maintenance/views.py
+Invalid assignment. | maintenance/views.py
+Technician assigned | maintenance/views.py
+Technician assigned. | maintenance/views.py
+You can only start work orders assigned to you. | maintenance/views.py
+Cannot start work in this state. | maintenance/views.py
+You have an active emergency work order. Finish it before starting another task. | maintenance/views.py
+Work started. | maintenance/views.py
+You can only pause work orders assigned to you. | maintenance/views.py
+Not in progress. | maintenance/views.py
+Paused. | maintenance/views.py
+You can only submit work orders assigned to you. | maintenance/views.py
+Submit for review is only available while work is in progress. | maintenance/views.py
+Submit for review is not available in this state. | maintenance/views.py
+Check completion fields. | maintenance/views.py
+Submitted for manager review. | maintenance/views.py
+Rejection reason is required when returning to technician. | maintenance/views.py
+Work order closed. | maintenance/views.py
+Work order returned to technician. | maintenance/views.py
+Invalid part issue. | maintenance/views.py
+You can only request parts on work orders assigned to you. | maintenance/views.py
+Manager will review. | maintenance/views.py
+You can only re-review your own requests. | maintenance/views.py
+Only rejected lines can be re-reviewed. | maintenance/views.py
+Edits sent to manager | maintenance/views.py
+Same as before | maintenance/views.py
+Please record a voice note before submitting. | maintenance/views.py
+Voice attachment not found or not owned by you. | maintenance/views.py
+Only PENDING requests can be decided. | maintenance/views.py
+External repair request submitted. Manager has been notified. | maintenance/views.py
+can now send the part to the vendor. | maintenance/views.py
+External repair request rejected. | maintenance/views.py
+Emergency WO created | maintenance/views.py
+You can only mark parts for work orders assigned to you. | maintenance/views.py
+Invalid form. | maintenance/views.py
+Work order set to waiting for parts (labor timer stopped). | maintenance/views.py
+You can only mark vendor status for work orders assigned to you. | maintenance/views.py
+Work order set to waiting for vendor (labor timer stopped). | maintenance/views.py
+Stock-in recorded. | maintenance/views.py
+You do not have permission to perform this action. | maintenance/views.py
+PM schedule saved. | maintenance/views.py
+Cannot spawn a WO from an inactive PM schedule. | maintenance/views.py
+A PM work order for this schedule's current due date is already in progress. | maintenance/views.py
+PM work order | maintenance/views.py
+This is not a preventive maintenance work order. | maintenance/views.py
+You can't execute this PM. | maintenance/views.py
+PM submitted for manager review. | maintenance/views.py
+No PM execution record found for this work order. | maintenance/views.py
+PM rejected. Returned to technician. | maintenance/views.py
+Invalid action. | maintenance/views.py
+Tool saved. | maintenance/views.py
+Add tool | maintenance/views.py
+Tool updated. | maintenance/views.py
+Edit tool | maintenance/views.py
+Invalid tool assignment. | maintenance/views.py
+Tool not available. | maintenance/views.py
+Tool assigned. | maintenance/views.py
+Already returned. | maintenance/views.py
+Return recorded — tool is available. | maintenance/views.py
+Return recorded. Lost tool incident created — investigating. | maintenance/views.py
+Repair request created. | maintenance/views.py
+Repair order updated. | maintenance/views.py
+<b>EXTERNAL REPAIR ORDER</b> | maintenance/views.py
+Repair Order | maintenance/views.py
+ERO Number | maintenance/views.py
+WO Number | maintenance/views.py
+Asset / Machine | maintenance/views.py
+Serial Number | maintenance/views.py
+Description | maintenance/views.py
+Vendor | maintenance/views.py
+Timeline | maintenance/views.py
+Sent Date | maintenance/views.py
+Cost | maintenance/views.py
+Estimated Cost | maintenance/views.py
+Actual Cost | maintenance/views.py
+Approval | maintenance/views.py
+Authorised by Maintenance Manager: | maintenance/views.py
+Quick log saved. | maintenance/views.py
+Repair must be in Returned status before manager acceptance (UC-20). | maintenance/views.py
+Cannot archive a converted issue. Archive the linked work order instead. | maintenance/views.py
+New quantity and reason are required. | maintenance/views.py
+You can only raise shortage requests on work orders assigned to you. | maintenance/views.py
+Missing part_id. | maintenance/views.py
+Invalid decision type. | maintenance/views.py
+Rejection reason is required (min 15 characters). | maintenance/views.py
+Quantities must be numbers. | maintenance/views.py
+Approve with both 0 makes no sense — use Reject instead. | maintenance/views.py
+Invalid expected_availability_date; skipped. | maintenance/views.py
+Issue qty must be a number. | maintenance/views.py
+Occurred at | maintenance/views.py
+Work order | maintenance/views.py
+Category | maintenance/views.py
+Source type | maintenance/views.py
+Source ID | maintenance/views.py
+Amount | maintenance/views.py
+Currency | maintenance/views.py
+Quantity | maintenance/views.py
+Unit cost | maintenance/views.py
+Memo | maintenance/views.py
+Actor | maintenance/views.py
+Is reversal | maintenance/views.py
+Supersedes ID | maintenance/views.py
+Adjustment ID | maintenance/views.py
+No schedules selected. | maintenance/views.py
+No work orders created. All schedules were invalid or inactive. | maintenance/views.py

@@ -39,7 +39,7 @@
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>{% trans "أمر العمل" %}</th><th>{% trans "Machine" %}</th><th>{% trans "Status" %}</th><th>{% trans "Tech" %}</th><th>{% trans "Created" %}</th></tr></thead>
+      <thead><tr><th>{% trans "Work Order" %}</th><th>{% trans "Machine" %}</th><th>{% trans "Status" %}</th><th>{% trans "Tech" %}</th><th>{% trans "Created" %}</th></tr></thead>
       <tbody>
       {% for w in page_obj %}
       <tr>
@@ -57,7 +57,7 @@
 {% if page_obj.paginator.num_pages > 1 %}
 <nav style="margin-top:1rem;display:flex;gap:.5rem;align-items:center">
   {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Previous" %}</a>{% endif %}
-  <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} total)</span>
+  <span class="text-muted">{% blocktrans with n=page_obj.number t=page_obj.paginator.num_pages c=page_obj.paginator.count %}Page {{ n }} of {{ t }} ({{ c }} total){% endblocktrans %}</span>
   {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Next →" %}</a>{% endif %}
 </nav>
 {% endif %}

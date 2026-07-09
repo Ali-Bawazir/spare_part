@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% load mms_extras %}
+{% i18n_json "upload_error_prefix" "Upload error: " "error_prefix" "Error: " %}
 {% block title %}{{ part.name }} ({% if part.sku %}{{ part.sku }}{% endif %}) — Stock{% endblock %}
 {% block page_heading %}{{ part.name }}{% endblock %}
 {% block content %}
@@ -239,6 +240,9 @@
 </div>
 
 <script>
+(function() {
+const i18nEl = document.getElementById('i18n-json');
+const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
 function getCookie(name) {
     let value = null;
     document.cookie.split(';').forEach(cookie => {
@@ -339,7 +343,7 @@ async function uploadPartAttachment(partId) {
         noteInput.value = '';
         await loadPartAttachments(partId);
     } catch (e) {
-        alert('Upload error: ' + e.message);
+        alert((T.upload_error_prefix || 'Upload error: ') + e.message);
     }
 }
 
@@ -360,7 +364,7 @@ async function setPartPrimary(attId, partId) {
         }
         await loadPartAttachments(partId);
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert((T.error_prefix || 'Error: ') + e.message);
     }
 }
 
@@ -381,12 +385,13 @@ async function deletePartAttachment(attId, partId) {
             return;
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        alert((T.error_prefix || 'Error: ') + e.message);
     }
 }
 
 // Auto-load attachments on page load
 loadPartAttachments({{ part.pk }});
+})();
 
 </script>
 

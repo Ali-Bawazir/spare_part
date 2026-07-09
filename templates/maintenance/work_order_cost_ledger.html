@@ -128,7 +128,7 @@
 </style>
 
 <p class="mms-link-back">
-  <a href="{% url 'work_order_detail' wo.pk %}">← Back to WO-{{ wo.number }}</a>
+  <a href="{% url 'work_order_detail' wo.pk %}">{% blocktrans with n=wo.number %}← Back to WO-{{ n }}{% endblocktrans %}</a>
 </p>
 
 <div class="mms-card mms-wo-ledger-dashboard">

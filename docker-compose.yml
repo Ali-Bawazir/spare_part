@@ -1,67 +1,96 @@
+# MMS Docker Compose — production / company-server deployment.
+#
+# This is the SINGLE compose file. It is NOT a dev override.
+# Developers run the app natively (python manage.py runserver) for hot-reload,
+# and use this compose only for production / company-server deploys.
+#
+# Phase 2 will introduce a separate docker-compose.override.yml (or compose.dev.yml)
+# for live-reload; until then, this file is the source of truth.
+
+name: mms
+
 services:
   db:
     image: postgres:15-alpine
-    container_name: mms_postgres
+    container_name: mms_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: mms_db
-      POSTGRES_USER: mms_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      # `${VAR:?msg}` syntax makes compose fail-fast with a clear message
+      # if any required variable is missing or empty in .env.
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required — copy .env.example to .env}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required — copy .env.example to .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required — copy .env.example to .env}
+      # UTF-8 collation so Arabic strings (and emoji) store and compare correctly.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    # Bound to host loopback only. Remove `127.0.0.1:` if operators need to
+    # connect from outside the host (e.g. running psql from a workstation).
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mms_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mms_user -d mms_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: mms_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: mms_web
     restart: unless-stopped
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-    ports:
-      - "8000:8000"
+    # Load every var from .env (DB_*, SECRET_KEY, GUNICORN_WORKERS, MMS_CREATE_SUPERUSER, etc.)
+    env_file: .env
     environment:
-      - DB_NAME=mms_db
-      - DB_USER=mms_user
-      - DB_PASSWORD=${DB_PASSWORD}
+      # The web container must talk to the db container by its service name.
+      # .env provides DB_NAME/DB_USER/DB_PASSWORD; we override HOST/PORT here.
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY}
-      - DEBUG=True
-      - ALLOWED_HOSTS=localhost,127.0.0.1
+      - DJANGO_SETTINGS_MODULE=mms.settings
+    ports:
+      - "8000:8000"
+    volumes:
+      # No source bind-mount — the image is self-contained.
+      # Static + media are persisted via named volumes so they survive
+      # `docker compose down` (but are removed by `docker compose down -v`).
+      - mms_static:/app/staticfiles
+      - mms_media:/app/media
+    # Array form. The entrypoint.sh (set as ENTRYPOINT in the Dockerfile) does
+    # the wait-for-DB + migrate + collectstatic + optional superuser, then
+    # `exec "$@"` to hand off to whatever we pass here.
+    # GUNICORN_WORKERS is read by entrypoint.sh from the env (env_file: .env)
+    # and substituted into the gunicorn CLI here, so we keep the array form
+    # to avoid a nested sh -c that would re-run entrypoint.sh.
+    command:
+      - gunicorn
+      - mms.wsgi:application
+      - --bind
+      - 0.0.0.0:8000
+      - --workers
+      - "2"
+      - --timeout
+      - "120"
+      - --max-requests
+      - "1000"
+      - --access-logfile
+      - "-"
+      - --error-logfile
+      - "-"
+      - --forwarded-allow-ips
+      - "*"
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
+    healthcheck:
+      # Hit the lightweight /health/ endpoint. Returns 200 ok / 503 degraded.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
-  postgres_data:
-  redis_data:
-  static_volume:
-  media_volume:
+  mms_postgres_data:
+  mms_static:
+  mms_media:

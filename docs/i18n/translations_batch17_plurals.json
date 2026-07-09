@@ -1,0 +1,24 @@
+{
+  "_plural": {
+    "%(counter)s part request awaiting your approval": "طلب قطعة %(counter)s بانتظار موافقتك",
+    "%(counter)s part requests awaiting your approval": "طلب %(counter)s قطعة بانتظار موافقتك",
+    "%(counter)s ext. repair request to review": "طلب إصلاح خارجي %(counter)s للمراجعة",
+    "%(counter)s ext. repair requests to review": "طلب %(counter)s إصلاح خارجي للمراجعة",
+    "%(counter)s WO pending your review": "أمر عمل %(counter)s بانتظار مراجعتك",
+    "%(counter)s WOs pending your review": "%(counter)s أمر عمل بانتظار مراجعتك",
+    "%(counter)s paused WO": "أمر عمل %(counter)s مُوقف",
+    "%(counter)s paused WOs": "%(counter)s أمر عمل مُوقف",
+    "%(counter)s overdue WO (>7d)": "أمر عمل %(counter)s متأخر (أكثر من 7 أيام)",
+    "%(counter)s overdue WOs (>7d)": "%(counter)s أمر عمل متأخر (أكثر من 7 أيام)",
+    "%(counter)s returned repair awaiting acceptance": "إصلاح %(counter)s مُعاد بانتظار القبول",
+    "%(counter)s returned repairs awaiting acceptance": "%(counter)s إصلاح مُعاد بانتظار القبول",
+    "Spawn %(counter)s PM work order?": "إنشاء أمر عمل صيانة وقائية %(counter)s؟",
+    "Spawn %(counter)s PM work orders?": "إنشاء %(counter)s أمر عمل صيانة وقائية؟",
+    "✓ Confirm — Spawn %(counter)s Work Order": "✓ تأكيد — إنشاء %(counter)s أمر عمل",
+    "✓ Confirm — Spawn %(counter)s Work Orders": "✓ تأكيد — إنشاء %(counter)s أمر عمل",
+    "<strong>📦 %(pending)s shortage awaiting your decision.</strong>": "<strong>📦 نقص %(pending)s بانتظار قرارك.</strong>",
+    "<strong>📦 %(pending)s shortages awaiting your decision.</strong>": "<strong>📦 %(pending)s نقص بانتظار قرارك.</strong>",
+    "<strong>⚠ %(blocked)s shortage blocked</strong> — operational problem flagged.": "<strong>⚠ نقص %(blocked)s محجوب</strong> — تم وضع علامة مشكلة تشغيلية.",
+    "<strong>⚠ %(blocked)s shortages blocked</strong> — operational problem flagged.": "<strong>⚠ %(blocked)s نقص محجوب</strong> — تم وضع علامة مشكلة تشغيلية."
+  }
+}

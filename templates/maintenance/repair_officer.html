@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load mms_extras %}
+{% i18n_json "upload_failed_prefix" "Upload failed: " "unknown_error" "Unknown error" %}
 {% block title %}Repair officer{% endblock %}
 {% block page_heading %}Repair: {{ rwo.title }}{% endblock %}
 {% block content %}
@@ -56,6 +58,8 @@
 </div>
 
 <script>
+const i18nEl = document.getElementById('i18n-json');
+const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
 async function loadAttachments(entityType, entityId, containerId) {
     try {
         const response = await fetch(`/attachments/${entityType}/${entityId}/`);
@@ -113,7 +117,7 @@ async function uploadAttachment(file, entityType, entityId) {
     });
     if (!response.ok) {
         const err = await response.json();
-        alert('Upload failed: ' + (err.error || 'Unknown error'));
+        alert((T.upload_failed_prefix || 'Upload failed: ') + (err.error || (T.unknown_error || 'Unknown error')));
     }
     return response.json();
 }

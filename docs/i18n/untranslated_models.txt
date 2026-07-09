@@ -1,0 +1,240 @@
+# Untranslated msgids: MODELS (238 entries)
+
+Damaged units received from suppliers. Not visible to maintenance. Distinct from quantity_available (usable) and quantity_rejected (audit only). | inventory/models.py
+Units rejected at inspection. Not in inventory; tracked for audit only. | inventory/models.py
+inventories | inventory/models.py
+Auto-generated from SKU. Used in PART QR format. | inventory/models.py
+When True, operators can self-log this item via /consumables/ | inventory/models.py
+Most recent unit purchase price. | inventory/models.py
+Obsolete | inventory/models.py
+Discontinued | inventory/models.py
+Stock in | inventory/models.py
+Stock out | inventory/models.py
+Issue to work order | inventory/models.py
+Consumable use | inventory/models.py
+Adjustment | inventory/models.py
+Pending | inventory/models.py
+Approved | inventory/models.py
+Rejected | inventory/models.py
+Technician who added the request (null when created by manager). | inventory/models.py
+The actor who caused the stock deduction. For manager direct-issue, this is the manager. For technician emergency auto-approve, this is the technician. Set at approval time for non-emergency approvals. | inventory/models.py
+Manager's free-text comment attached to this part line. | inventory/models.py
+Set when this line is the execution record for a shortage report. Set atomically in request_part_on_wo. Used by execute_warehouse_issue to find the report via explicit FK link, not by (wo, part) lookup. | inventory/models.py
+True when the line was auto-approved due to the parent WO being an emergency. Manager should review the cost and edit the qty if needed. | inventory/models.py
+What the technician originally requested. Mirrors `quantity` at request time. Preserved through edits so audit trail is intact. | inventory/models.py
+Stage 3: units reserved in inventory. Set by approve_part_request. PART WO Blocker resolves when issued_qty == approved_qty (not at allocation). | inventory/models.py
+Quantity the manager approved (may differ from requested_qty). Set on approval. 0 while PENDING. | inventory/models.py
+Quantity actually deducted from stock on approval. May be less than approved_qty if stock ran out between request and approval. | inventory/models.py
+Quantity covered by an auto-created PurchaseRequest. Computed as max(0, requested_qty - approved_qty). Independent of whether the manager edits approved_qty — PR is a separate procurement doc. | inventory/models.py
+v4.9 A5: If this line is a re-review request, points to the refused line it replaces. Preserves the audit trail of the original decision. | inventory/models.py
+Quantity must be positive. | inventory/models.py
+Rejection reason is required when status is REJECTED. | inventory/models.py
+Self Service | inventory/models.py
+Supervisor Issue | inventory/models.py
+Work Order Consumption | inventory/models.py
+Consumable Assignment | inventory/models.py
+Consumable Assignments | inventory/models.py
+Pending manager decision | inventory/models.py
+Manager decision recorded (editable, no execution yet) | inventory/models.py
+Execution started (warehouse issue or PR in progress) | inventory/models.py
+All committed units issued and/or procured (manager-verified) | inventory/models.py
+Operational problem (PR cancelled, reservation conflict, etc.) | inventory/models.py
+Manager-verified closure (terminal) | inventory/models.py
+Manager rejected (terminal) | inventory/models.py
+Set when source is a WO. Null for other sources. | inventory/models.py
+Snapshot of the source machine's criticality at report time. | inventory/models.py
+Snapshot of the part's criticality. Empty until part-criticality is added in Sprint 4+. | inventory/models.py
+Snapshot of the source WO's priority at report time. Managers approve based on urgency. | inventory/models.py
+Manager's estimate of when the part will be back. Visible to the technician as '📦 Awaiting Procurement'. | inventory/models.py
+Tech's note when raising the report. | inventory/models.py
+Manager's reason for rejection. Required when status=REJECTED. Shown to the technician. | inventory/models.py
+Manager's free-text decision note (used for both approve and reject). | inventory/models.py
+Approve (issue and/or procure committed) | inventory/models.py
+Reject (nothing committed, full qty rejected) | inventory/models.py
+Quantities cannot be negative. | inventory/models.py
+Books must balance: issue(%(issue)s) + procure(%(procure)s) + reject(%(reject)s) = %(total)s != requested(%(requested)s). | inventory/models.py
+Approve decision must commit at least one unit to issue or procure. Use REJECT instead. | inventory/models.py
+Reject decision must have issue_qty=0 and procurement_qty=0. | inventory/models.py
+Reject decision must reject all requested units (%(rejected)s != %(requested)s). | inventory/models.py
+Released | inventory/models.py
+Cancelled | inventory/models.py
+Nullable for legacy/synthetic reservations | inventory/models.py
+The PartIssueLine that created this reservation | inventory/models.py
+Snapshot of WO priority rank when the reservation was created | inventory/models.py
+Failure Categories | maintenance/models.py
+Failure Modes | maintenance/models.py
+Area | maintenance/models.py
+Production Line | maintenance/models.py
+Machine | maintenance/models.py
+Subassembly | maintenance/models.py
+Component | maintenance/models.py
+Production | maintenance/models.py
+Utility | maintenance/models.py
+Safety | maintenance/models.py
+HVAC | maintenance/models.py
+Other | maintenance/models.py
+Serial number (level-5 Component) | maintenance/models.py
+Manufacturer (level-5 Component) | maintenance/models.py
+Model number (level-5 Component) | maintenance/models.py
+Date installed (level-5 Component) | maintenance/models.py
+Expected service life in days (level-5 Component) | maintenance/models.py
+Low | maintenance/models.py
+Medium | maintenance/models.py
+High | maintenance/models.py
+Critical | maintenance/models.py
+Criticality rating (level-5 Component) | maintenance/models.py
+Inactive | maintenance/models.py
+Retired | maintenance/models.py
+Awaiting Repair | maintenance/models.py
+Component status | maintenance/models.py
+Hierarchical asset code (e.g. FM-01-CONV-BRG-001) | maintenance/models.py
+New | maintenance/models.py
+Issue Type | maintenance/models.py
+Classified failure category (Phase 2: FailureMode sub-classification) | maintenance/models.py
+P3.3: operator can flag an issue as emergency on creation, or a supervisor/manager can escalate during validation. When True, priority auto-sets to CRITICAL and any WO created from this issue inherits is_emergency=True. | maintenance/models.py
+P3.3: user who escalated this issue to emergency status. | maintenance/models.py
+Breakdown / corrective | maintenance/models.py
+Preventive | maintenance/models.py
+Repair | maintenance/models.py
+Draft | maintenance/models.py
+Assigned | maintenance/models.py
+In progress | maintenance/models.py
+Pending review | maintenance/models.py
+Closed | maintenance/models.py
+Pending parts | maintenance/models.py
+Waiting vendor | maintenance/models.py
+Waiting for vendor | maintenance/models.py
+Pending manager review | maintenance/models.py
+Emergency override (auto-paused) | maintenance/models.py
+Operational interruption | maintenance/models.py
+Other (note required) | maintenance/models.py
+Level-5 Component this WO targets (optional) | maintenance/models.py
+Explicit, user-driven state. | maintenance/models.py
+Derived from open blockers + labor state. Always computed; do not write directly. | maintenance/models.py
+Denormalized count of attached photos — used for fast Complete gating | maintenance/models.py
+0 = created under legacy single-status model. 1 = created under the new lifecycle/operational/blocker model. Auto-bumped to 1 on the first domain event (part request, pause, etc.) that creates a WorkOrderBlocker row. | maintenance/models.py
+Breakdown | maintenance/models.py
+Scheduled | maintenance/models.py
+Idle | maintenance/models.py
+e.g. PM-HYD-001 | maintenance/models.py
+Minimum number of photos the technician must attach when completing this PM | maintenance/models.py
+Submitted | maintenance/models.py
+Missed | maintenance/models.py
+Locks this execution to a specific due occurrence | maintenance/models.py
+Cycle counter per PMSchedule | maintenance/models.py
+Immutable snapshot of template state at WO spawn time | maintenance/models.py
+Daily | maintenance/models.py
+Weekly | maintenance/models.py
+Monthly | maintenance/models.py
+Yearly | maintenance/models.py
+Time-based | maintenance/models.py
+Meter-based | maintenance/models.py
+Reusable procedure applied to this asset | maintenance/models.py
+Level-5 Component this PM targets (optional) | maintenance/models.py
+e.g. MONTHLY × 3 = every 3 months | maintenance/models.py
+If null, fall back to template.priority | maintenance/models.py
+If null, fall back to template.estimated_duration_minutes | maintenance/models.py
+Time-of-day for scheduled occurrences (used for grouping Today's Schedule) | maintenance/models.py
+Available | maintenance/models.py
+In use | maintenance/models.py
+Out of service | maintenance/models.py
+Good | maintenance/models.py
+Damaged | maintenance/models.py
+Lost | maintenance/models.py
+Return condition is required when returning a tool. | maintenance/models.py
+Open | maintenance/models.py
+Investigating | maintenance/models.py
+New issue | maintenance/models.py
+Issue validated | maintenance/models.py
+Stale issue (not validated) | maintenance/models.py
+Work order created from issue | maintenance/models.py
+Work order pending review | maintenance/models.py
+Work order assigned | maintenance/models.py
+Work order started | maintenance/models.py
+Work order paused / waiting | maintenance/models.py
+Work order closed | maintenance/models.py
+Emergency work order | maintenance/models.py
+Low stock | maintenance/models.py
+Part shortage reported | maintenance/models.py
+PM overdue | maintenance/models.py
+PM due in 7 days | maintenance/models.py
+PM due in 3 days | maintenance/models.py
+PM due tomorrow | maintenance/models.py
+PM due today | maintenance/models.py
+Repair returned from vendor | maintenance/models.py
+External repair requested | maintenance/models.py
+External repair order created (needs vendor) | maintenance/models.py
+External repair sent to vendor | maintenance/models.py
+Part received against PO | maintenance/models.py
+Vendor returned spare part | maintenance/models.py
+Shortage follow-up | maintenance/models.py
+Part received from supplier (linked to WO) | maintenance/models.py
+Part returned from vendor (linked to WO) | maintenance/models.py
+Part request rejected (linked to WO) | maintenance/models.py
+WO blocker opened | maintenance/models.py
+WO blocker resolved | maintenance/models.py
+WO blocker cancelled | maintenance/models.py
+Emergency WO interrupted another WO | maintenance/models.py
+Labor resumed on WO | maintenance/models.py
+PO received (summary) | maintenance/models.py
+PM morning summary (technician) | maintenance/models.py
+PM manager morning summary | maintenance/models.py
+PM assigned to you | maintenance/models.py
+PM submission returned | maintenance/models.py
+PM is overdue | maintenance/models.py
+PM overdue (manager alert) | maintenance/models.py
+PM has no technician | maintenance/models.py
+PM awaiting manager review | maintenance/models.py
+PM plan paused | maintenance/models.py
+Normal | maintenance/models.py
+Sent to vendor | maintenance/models.py
+Returned | maintenance/models.py
+Closed / accepted | maintenance/models.py
+Rejected / re-repair | maintenance/models.py
+Final vendor invoice amount. Set by manager on UC-20 acceptance. Required when status moves to CLOSED. | maintenance/models.py
+Vendor invoice number. Required on UC-20 acceptance. | maintenance/models.py
+Approved (ERO created) | maintenance/models.py
+Technician's diagnosis: what's wrong with the part | maintenance/models.py
+Description of the part being sent out (name, part#, qty) | maintenance/models.py
+The level-3 machine whose part is being sent for repair | maintenance/models.py
+The level-5 component where the part is located | maintenance/models.py
+Manager's reason on approve/reject | maintenance/models.py
+Set when manager approves — links to the created ERO | maintenance/models.py
+Sum of StockMovement.unit_cost × qty for ISSUE_TO_WO movements on this WO. Renamed from parts_cost. | maintenance/models.py
+Sum of (PartIssueLine.approved_qty × unit_cost) for approved / allocated / issued lines. Set at approval time. Distinct from material_cost (which is the actual cost posted to the ledger at warehouse-issue time). Allows the dashboard to show committed vs actual side-by-side. Excludes pending/rejected lines. Falls back to SparePart.last_purchase_cost or avg_cost if line.unit_cost is 0. | maintenance/models.py
+Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this WO. Renamed from vendor_cost. | maintenance/models.py
+Cached count of CostTransaction rows for this WO. Updated by WorkOrderCost.recalculate_from_ledger(). | maintenance/models.py
+Work Order Cost | maintenance/models.py
+Work Order Costs | maintenance/models.py
+Part Issue Line | maintenance/models.py
+External Repair Order | maintenance/models.py
+Stock Movement | maintenance/models.py
+Cost Adjustment | maintenance/models.py
+Calibration | maintenance/models.py
+Fuel | maintenance/models.py
+Tool Issue | maintenance/models.py
+ISO 4217 currency code. SAR default for this deployment. | maintenance/models.py
+True if this transaction reverses a previous one. Net amount for (source_type, source_id) = SUM(amount) over ALL rows including reversals. | maintenance/models.py
+If is_reversal=True, points to the row being reversed. Audit trail. | maintenance/models.py
+Signed: positive adds, negative reduces. | maintenance/models.py
+Required. Min 10 chars. Explains why this adjustment exists. | maintenance/models.py
+Auto-generated 300px thumbnail | maintenance/models.py
+Original image width in px | maintenance/models.py
+Original image height in px | maintenance/models.py
+Primary/default image for this entity | maintenance/models.py
+Product | maintenance/models.py
+Label | maintenance/models.py
+Packaging | maintenance/models.py
+Installed | maintenance/models.py
+Document | maintenance/models.py
+Category of attachment image | maintenance/models.py
+Path to the compressed video file (mp4) — populated by VideoCompressionService | maintenance/models.py
+Path to a 1-second thumbnail of the video | maintenance/models.py
+Awaiting Spare Part | maintenance/models.py
+Awaiting Procurement | maintenance/models.py
+Awaiting Vendor Repair | maintenance/models.py
+Operational Pause | maintenance/models.py
+Resolved | maintenance/models.py
+Cached human-readable summary, e.g. 'BRG-6006 × 2' or 'Servo S7-300' | maintenance/models.py
+'operational' | 'other' | 'emergency' (system-set) | maintenance/models.py
+Maintenance settings | maintenance/models.py

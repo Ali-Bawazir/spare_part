@@ -54,10 +54,15 @@ class IssueReportForm(forms.ModelForm):
     class Meta:
         model = MaintenanceIssue
         fields = ("machine", "component", "issue_type", "failure_mode", "description", "is_emergency")
+        labels = {
+            "machine": _("Machine"),
+            "component": _("Component"),
+            "description": _("Description"),
+        }
         widgets = {
             "machine": forms.Select(attrs=_SEL),
             "failure_mode": forms.Select(attrs=_SEL),
-            "description": forms.Textarea(attrs={**_CTRL, "rows": 4, "placeholder": "Describe the problem…"}),
+            "description": forms.Textarea(attrs={**_CTRL, "rows": 4, "placeholder": _("Describe the problem…")}),
         }
 
     def __init__(self, *args, lock_asset=False, **kwargs):
@@ -134,6 +139,11 @@ class WorkOrderCompleteForm(forms.ModelForm):
     class Meta:
         model = WorkOrder
         fields = ("root_cause", "action_taken", "notes")
+        labels = {
+            "root_cause": _("Root cause"),
+            "action_taken": _("Action taken"),
+            "notes": _("Notes"),
+        }
         widgets = {
             "root_cause": forms.Textarea(attrs={**_CTRL, "rows": 3}),
             "action_taken": forms.Textarea(attrs={**_CTRL, "rows": 3}),
@@ -172,9 +182,14 @@ class QuickLogForm(forms.ModelForm):
     class Meta:
         model = QuickMaintenanceLog
         fields = ("machine", "summary", "details")
+        labels = {
+            "machine": _("Machine"),
+            "summary": _("Summary"),
+            "details": _("Details"),
+        }
         widgets = {
             "machine": forms.Select(attrs=_SEL),
-            "summary": forms.TextInput(attrs={**_CTRL, "placeholder": "Short summary"}),
+            "summary": forms.TextInput(attrs={**_CTRL, "placeholder": _("Short summary")}),
             "details": forms.Textarea(attrs={**_CTRL, "rows": 3}),
         }
 
@@ -183,19 +198,23 @@ class PMScheduleForm(forms.ModelForm):
     machine = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=3),
         required=True,
+        label=_("Machine"),
         widget=forms.Select(attrs=_SEL),
     )
     component = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=5),
         required=False,
+        label=_("Component"),
         widget=forms.Select(attrs=_SEL),
     )
     due_time = forms.TimeField(
         required=False,
+        label=_("Due time"),
         help_text=_("Time-of-day for scheduled occurrences (default 08:00)"),
     )
     ends_at = forms.DateField(
         required=False,
+        label=_("Ends at"),
         help_text=_("Schedule stops generating occurrences after this date"),
     )
 
@@ -209,6 +228,19 @@ class PMScheduleForm(forms.ModelForm):
             "grace_days", "reminder_days_before",
             "trigger_type", "is_active",
         )
+        labels = {
+            "template": _("Template"),
+            "frequency_type": _("Frequency"),
+            "interval": _("Interval"),
+            "start_date": _("Start date"),
+            "next_due_at": _("Next due at"),
+            "priority_override": _("Priority override"),
+            "estimated_duration_override": _("Estimated duration override"),
+            "grace_days": _("Grace days"),
+            "reminder_days_before": _("Reminder days before"),
+            "trigger_type": _("Trigger type"),
+            "is_active": _("Is active"),
+        }
         widgets = {
             "template": forms.Select(attrs=_SEL),
             "frequency_type": forms.Select(attrs=_SEL),
@@ -260,16 +292,21 @@ class BasePMChecklistItemForm(forms.ModelForm):
     text = forms.CharField(
         max_length=500,
         required=False,
+        label=_("Text"),
         widget=forms.TextInput(attrs={**_CTRL, "placeholder": _("Checklist item text")}),
     )
     order = forms.IntegerField(
         required=False,
+        label=_("Order"),
         widget=forms.NumberInput(attrs={**_CTRL, "min": "1"}),
     )
 
     class Meta:
         model = PMChecklistItem
         fields = ("order", "text", "is_required")
+        labels = {
+            "is_required": _("Required?"),
+        }
         widgets = {
             "is_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
@@ -309,6 +346,7 @@ PMChecklistItemFormSet = forms.inlineformset_factory(
 class PMTemplateForm(forms.ModelForm):
     requires_photo_min_count = forms.IntegerField(
         required=False, min_value=0, max_value=20,
+        label=_("Requires photo min count"),
         help_text=_("Minimum number of photos the technician must attach"),
     )
 
@@ -316,6 +354,15 @@ class PMTemplateForm(forms.ModelForm):
         model = PMTemplate
         fields = ("code", "title", "description", "estimated_duration_minutes",
                   "priority", "requires_manager_review", "requires_photo_min_count", "is_active")
+        labels = {
+            "code": _("Code"),
+            "title": _("Title"),
+            "description": _("Description"),
+            "estimated_duration_minutes": _("Estimated duration (minutes)"),
+            "priority": _("Priority"),
+            "requires_manager_review": _("Requires manager review"),
+            "is_active": _("Is active"),
+        }
         widgets = {
             "code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. PM-HYD-001"}),
             "title": forms.TextInput(attrs=_CTRL),
@@ -328,8 +375,8 @@ class PMTemplateForm(forms.ModelForm):
 
 
 class ToolAssignForm(forms.Form):
-    tool = forms.ModelChoiceField(queryset=Tool.objects.none(), widget=forms.Select(attrs=_SEL))
-    assignee = forms.ModelChoiceField(queryset=User.objects.none(), widget=forms.Select(attrs=_SEL))
+    tool = forms.ModelChoiceField(queryset=Tool.objects.none(), widget=forms.Select(attrs=_SEL), label=_("Tool"))
+    assignee = forms.ModelChoiceField(queryset=User.objects.none(), widget=forms.Select(attrs=_SEL), label=_("Assignee"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -347,6 +394,7 @@ class ToolReturnForm(forms.Form):
     condition = forms.ChoiceField(
         choices=ToolAssignment.ReturnCondition.choices,
         widget=forms.Select(attrs=_SEL),
+        label=_("Condition"),
     )
 
 
@@ -354,9 +402,14 @@ class ToolForm(forms.ModelForm):
     class Meta:
         model = Tool
         fields = ("code", "name", "status")
+        labels = {
+            "code": _("Code"),
+            "name": _("Name"),
+            "status": _("Status"),
+        }
         widgets = {
             "code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. TOOL-01"}),
-            "name": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Torque wrench"}),
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Torque wrench")}),
             "status": forms.Select(attrs=_SEL),
         }
 
@@ -365,17 +418,25 @@ class ExternalRepairForm(forms.ModelForm):
     machine = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=3),
         required=True,
+        label=_("Machine"),
         widget=forms.Select(attrs=_SEL),
     )
     component = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=5),
         required=False,
+        label=_("Component"),
         widget=forms.Select(attrs=_SEL),
     )
 
     class Meta:
         model = ExternalRepairOrder
         fields = ("title", "description", "machine", "component", "work_order", "estimated_cost")
+        labels = {
+            "title": _("Title"),
+            "description": _("Description"),
+            "work_order": _("Work order"),
+            "estimated_cost": _("Estimated cost"),
+        }
         widgets = {
             "title": forms.TextInput(attrs=_CTRL),
             "description": forms.Textarea(attrs={**_CTRL, "rows": 4}),
@@ -412,6 +473,11 @@ class ExternalRepairOfficerForm(forms.ModelForm):
     class Meta:
         model = ExternalRepairOrder
         fields = ("vendor_name", "actual_cost", "status")
+        labels = {
+            "vendor_name": _("Vendor name"),
+            "actual_cost": _("Actual cost"),
+            "status": _("Status"),
+        }
         widgets = {
             "vendor_name": forms.TextInput(attrs=_CTRL),
             "actual_cost": forms.NumberInput(attrs=_CTRL),
@@ -425,22 +491,41 @@ class MachineForm(forms.ModelForm):
         fields = ("name", "qr_code", "location", "is_active", "site", "parent", "asset_level", "asset_type",
                   "serial_number", "manufacturer", "model_number", "install_date", "expected_life_days",
                   "criticality", "status", "asset_code", "failure_category")
+        labels = {
+            "name": _("Name"),
+            "qr_code": _("QR Code"),
+            "location": _("Location"),
+            "is_active": _("Is active"),
+            "site": _("Site"),
+            "parent": _("Parent machine"),
+            "asset_level": _("Asset level"),
+            "asset_type": _("Asset type"),
+            "serial_number": _("Serial number"),
+            "manufacturer": _("Manufacturer"),
+            "model_number": _("Model number"),
+            "install_date": _("Install date"),
+            "expected_life_days": _("Expected life (days)"),
+            "criticality": _("Criticality"),
+            "status": _("Status"),
+            "asset_code": _("Asset code"),
+            "failure_category": _("Failure category"),
+        }
         widgets = {
-            "name": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Line A Press 1"}),
-            "qr_code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. PRESS-01"}),
-            "location": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Hall A"}),
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Line A Press 1")}),
+            "qr_code": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. PRESS-01")}),
+            "location": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Hall A")}),
             "site": forms.Select(attrs=_SEL),
             "parent": forms.Select(attrs=_SEL),
             "asset_level": forms.Select(attrs=_SEL),
             "asset_type": forms.Select(attrs=_SEL),
-            "serial_number": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. SN-12345"}),
-            "manufacturer": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. Siemens"}),
-            "model_number": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. MDL-X100"}),
+            "serial_number": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. SN-12345")}),
+            "manufacturer": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Siemens")}),
+            "model_number": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. MDL-X100")}),
             "install_date": forms.DateInput(attrs={**_CTRL, "type": "date"}),
-            "expected_life_days": forms.NumberInput(attrs={**_CTRL, "placeholder": "e.g. 3650"}),
+            "expected_life_days": forms.NumberInput(attrs={**_CTRL, "placeholder": _("e.g. 3650")}),
             "criticality": forms.Select(attrs=_SEL),
             "status": forms.Select(attrs=_SEL),
-            "asset_code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. FM-01-CONV-BRG-001"}),
+            "asset_code": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. FM-01-CONV-BRG-001")}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -453,15 +538,24 @@ class EmergencyWOForm(forms.Form):
     machine = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=3),
         widget=forms.Select(attrs=_SEL),
+        label=_("Machine"),
     )
     component = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=5),
         required=False,
         widget=forms.Select(attrs=_SEL),
         help_text=_("Optional: Target a specific component (level-5)"),
+        label=_("Component"),
     )
-    title = forms.CharField(max_length=255, widget=forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Line stop — hydraulic leak")}))
-    detail = forms.CharField(widget=forms.Textarea(attrs={**_CTRL, "rows": 4}))
+    title = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Line stop — hydraulic leak")}),
+        label=_("Title"),
+    )
+    detail = forms.CharField(
+        widget=forms.Textarea(attrs={**_CTRL, "rows": 4}),
+        label=_("Detail"),
+    )
 
     def __init__(self, *args, lock_asset=False, **kwargs):
         super().__init__(*args, **kwargs)
@@ -540,6 +634,7 @@ class CostAdjustmentForm(forms.Form):
     """
     amount = forms.DecimalField(
         max_digits=12, decimal_places=2,
+        label=_("Amount"),
         widget=forms.NumberInput(attrs={
             **_CTRL, "step": "0.01",
             "placeholder": _("Signed: positive adds, negative reduces"),
@@ -548,6 +643,7 @@ class CostAdjustmentForm(forms.Form):
     )
     memo = forms.CharField(
         max_length=300,
+        label=_("Memo"),
         widget=forms.Textarea(attrs={
             **_CTRL, "rows": 3,
             "placeholder": _("Why does this adjustment exist? (min 10 chars)"),
@@ -576,6 +672,7 @@ class RepairManagerAcceptForm(forms.Form):
     """
     actual_cost = forms.DecimalField(
         max_digits=12, decimal_places=2, min_value=Decimal("0"),
+        label=_("Actual cost"),
         widget=forms.NumberInput(attrs={
             **_CTRL, "step": "0.01", "min": "0",
             "placeholder": _("Vendor invoice total"),
@@ -584,6 +681,7 @@ class RepairManagerAcceptForm(forms.Form):
     )
     invoice_ref = forms.CharField(
         max_length=120,
+        label=_("Invoice ref"),
         widget=forms.TextInput(attrs={
             **_CTRL, "placeholder": _("Vendor invoice number"),
         }),
@@ -591,6 +689,7 @@ class RepairManagerAcceptForm(forms.Form):
     )
     note = forms.CharField(
         required=False,
+        label=_("Note"),
         widget=forms.Textarea(attrs={
             **_CTRL, "rows": 2,
             "placeholder": _("Optional verification note (e.g. condition of returned part)"),

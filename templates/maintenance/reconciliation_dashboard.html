@@ -85,7 +85,7 @@
   {% if legacy_wos.has_previous %}
   <a href="?page={{ legacy_wos.previous_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "&laquo; Previous" %}</a>
   {% endif %}
-  <span style="padding:.25rem .5rem">Page {{ legacy_wos.number }} of {{ legacy_wos.paginator.num_pages }}</span>
+  <span style="padding:.25rem .5rem">{% blocktrans with n=legacy_wos.number t=legacy_wos.paginator.num_pages %}Page {{ n }} of {{ t }}{% endblocktrans %}</span>
   {% if legacy_wos.has_next %}
   <a href="?page={{ legacy_wos.next_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "Next &raquo;" %}</a>
   {% endif %}

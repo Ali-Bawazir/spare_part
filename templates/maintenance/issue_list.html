@@ -68,7 +68,7 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
           {% endif %}
           {% if perm_issue_archive and i.status != 'converted' and not i.is_archived %}
             <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_archive' i.pk %}"
-               onclick="return confirm('Archive issue #{{ i.pk }}? This cannot be undone.')">{% trans "Archive" %}</a>
+               data-confirm-msg="{% blocktrans with n=i.pk %}Archive issue #{{ n }}? This cannot be undone.{% endblocktrans %}">{% trans "Archive" %}</a>
           {% endif %}
         </td>
       </tr>

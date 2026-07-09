@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% load mms_extras %}
+{% i18n_json "upload_failed_prefix" "Upload failed: " "unknown_error" "Unknown error" %}
+{% load mms_extras %}
 {% block title %}PO {{ po.po_number }}{% endblock %}
 {% block page_heading %}PO {{ po.po_number }}{% endblock %}
 {% block content %}
@@ -95,7 +97,7 @@
             </tbody>
         </table>
         {% if not po.is_locked %}
-        <p class="text-muted" style="margin-top:0.5rem"><em>{% trans "To add line items, use "Create from PR" or contact admin." %}</em></p>
+        <p class="text-muted" style="margin-top:0.5rem"><em>{% trans "To add line items, use " %}<strong>{% trans "Create from PR" %}</strong>{% trans " or contact admin." %}</em></p>
         {% endif %}
     </div>
 </div>
@@ -124,6 +126,8 @@
 
 
 <script>
+const i18nEl = document.getElementById('i18n-json');
+const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
 async function loadAttachments(entityType, entityId, containerId) {
     try {
         const response = await fetch(`/attachments/${entityType}/${entityId}/`);
@@ -173,7 +177,7 @@ async function uploadAttachment(file, entityType, entityId) {
     });
     if (!response.ok) {
         const err = await response.json();
-        alert('Upload failed: ' + (err.error || 'Unknown error'));
+        alert((T.upload_failed_prefix || 'Upload failed: ') + (err.error || (T.unknown_error || 'Unknown error')));
     }
     return response.json();
 }

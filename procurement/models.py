@@ -22,7 +22,7 @@ class Supplier(models.Model):
         # Bug fix: was SlugField, which only accepts ASCII. CharField allows
         # Arabic and other non-ASCII codes. DB column type is unchanged
         # (VARCHAR(64)); only form-validator behavior changes.
-        help_text=_("Unique supplier code. Supports Arabic, e.g. SUP-001 or مورد-001. "
+        help_text=_("Unique supplier code. Use letters, digits, and dashes (e.g. SUP-001 or MWRD-001). "
                   "Used in QR format SUPPLIER:{code}."),
     )
     contact_person = models.CharField(max_length=128, blank=True)

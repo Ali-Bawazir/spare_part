@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load mms_extras %}
+{% i18n_json "pm_select_machine_hint" "Select a machine above to see its components." "pm_no_components_hint" "No components found for this machine. Leave blank to apply to the whole machine." "pm_components_count_singular" " component available." "pm_components_count_plural" " components available." %}
 {% block title %}PM schedule{% endblock %}
 {% block page_heading %}{% trans "PM schedule" %}{% endblock %}
 {% block content %}
@@ -76,6 +78,8 @@
 <script id="components-by-machine" type="application/json">{{ components_by_machine_json|safe }}</script>
 <script>
 (function() {
+  var i18nEl = document.getElementById('i18n-json');
+  var T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
   var machineSel = document.getElementById('id_machine');
   var componentSel = document.getElementById('id_component');
   var hint = document.getElementById('component-hint');
@@ -121,13 +125,13 @@
     });
 
     if (!machinePk) {
-      hint.textContent = 'Select a machine above to see its components.';
+      hint.textContent = T.pm_select_machine_hint || 'Select a machine above to see its components.';
       if (componentSel.value) componentSel.value = '';
     } else if (visibleCount === 0) {
-      hint.textContent = 'No components found for this machine. Leave blank to apply to the whole machine.';
+      hint.textContent = T.pm_no_components_hint || 'No components found for this machine. Leave blank to apply to the whole machine.';
       if (componentSel.value) componentSel.value = '';
     } else {
-      hint.textContent = visibleCount + ' component' + (visibleCount === 1 ? '' : 's') + ' available.';
+      hint.textContent = visibleCount + (visibleCount === 1 ? (T.pm_components_count_singular || ' component available.') : (T.pm_components_count_plural || ' components available.'));
     }
   }
 

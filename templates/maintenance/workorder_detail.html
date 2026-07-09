@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% load mms_extras %}
+{% i18n_json "last_received_prefix" "Last received: " "per_unit_suffix" " / unit (" "date_separator" ", " %}
 {% block title %}WO-{{ wo.number }}{% endblock %}
 {% block page_heading %}WO-{{ wo.number }}{% endblock %}
 {% block content %}
@@ -79,8 +80,8 @@
       {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Technician" %}</span><br>{{ wo.assigned_technician|default:"-" }}</div>
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Labor" %}</span><br>
-        Started: {{ wo.labor_started_at|default:"-" }}<br>
-        Stopped: {{ wo.labor_stopped_at|default:"-" }}
+        {% trans "Started:" %} {{ wo.labor_started_at|default:"-" }}<br>
+        {% trans "Stopped:" %} {{ wo.labor_stopped_at|default:"-" }}
       </div>
       {% if wo.operational_status == 'paused' %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Pause reason" %}</span><br>
@@ -492,8 +493,8 @@
   <div class="mms-card-header" style="background:#f0fdf4">{% trans "🎤 Add voice note" %}</div>
   <div class="mms-card-body">
     <p class="text-muted" style="margin:0 0 .75rem 0;font-size:.85rem">
-      Record a verbal note (e.g. supplier update, vendor callback, work log) and save it as an attachment to this WO.
-      The recording is auto-stopped at 60s and the file is linked to WO-{{ wo.number }}.
+      {% trans "Record a verbal note (e.g. supplier update, vendor callback, work log) and save it as an attachment to this WO." %}
+      {% blocktrans with n=wo.number %}The recording is auto-stopped at 60s and the file is linked to WO-{{ n }}.{% endblocktrans %}
     </p>
     <form method="post" action="{% url 'work_order_add_voice' wo.pk %}">
       {% csrf_token %}
@@ -617,6 +618,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // P3.1 P1.5: show last received supplier price for the selected part.
   const partSelect = document.getElementById('id_part');
   const hintEl = document.getElementById('id_part_last_price');
+  const i18nEl = document.getElementById('i18n-json');
+  const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
   if (partSelect && hintEl) {
     let lastPrices = {};
     try { lastPrices = JSON.parse(partSelect.dataset.lastPrices || '{}'); } catch (_) { lastPrices = {}; }
@@ -624,8 +627,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const v = partSelect.value;
       const info = lastPrices[v];
       if (!info) { hintEl.textContent = ''; return; }
-      hintEl.textContent = 'Last received: ' + info.unit_cost + ' / unit ('
-        + info.supplier_name + ', ' + info.date + ')';
+      hintEl.textContent = (T.last_received_prefix || 'Last received: ') + info.unit_cost + (T.per_unit_suffix || ' / unit (')
+        + info.supplier_name + (T.date_separator || ', ') + info.date + ')';
     }
     partSelect.addEventListener('change', updateHint);
     updateHint();

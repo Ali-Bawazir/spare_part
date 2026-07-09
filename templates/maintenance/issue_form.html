@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load mms_extras %}
+{% i18n_json "select_failure_mode" "— Select failure mode —" "submitting" "Submitting..." "submit" "Submit" %}
 {% block title %}Report issue{% endblock %}
 {% block page_heading %}{% trans "Report machine issue" %}{% endblock %}
 {% block content %}
@@ -117,6 +119,8 @@
 </style>
 <script>
 (function() {
+    const i18nEl = document.getElementById('i18n-json');
+    const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
     // ─── Photo upload (enhanced for multiple) ────────────────────────────
     // Simple approach: treat <input type="file"> as append-only event source
     // Maintain our own fileArray as single source of truth
@@ -199,7 +203,7 @@
         modeSelect.innerHTML = '';
         var blankOpt = document.createElement('option');
         blankOpt.value = '';
-        blankOpt.textContent = '— Select failure mode —';
+        blankOpt.textContent = T.select_failure_mode || '— Select failure mode —';
         modeSelect.appendChild(blankOpt);
         modes.forEach(function(m) {
             var opt = document.createElement('option');
@@ -292,7 +296,7 @@
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
+            submitBtn.textContent = T.submitting || 'Submitting...';
 
             // Build FormData manually to ensure files are properly included
             const formData = new FormData();
@@ -343,7 +347,7 @@
             .catch(function(err) {
                 console.error('Form submission error:', err);
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit';
+                submitBtn.textContent = T.submit || 'Submit';
                 alert('{% trans 'Failed to submit issue. Please try again.' %}');
             });
         });

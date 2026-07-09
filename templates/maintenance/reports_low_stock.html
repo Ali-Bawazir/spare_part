@@ -3,7 +3,7 @@
 {% block title %}Stock Analysis{% endblock %}
 {% block page_heading %}{% trans "Stock Analysis" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">{{ low_stock_count }} of {{ all_count }} active parts are at or below minimum stock level.</p>
+<p class="mms-page-lead">{% blocktrans with low=low_stock_count all=all_count %}{{ low }} of {{ all }} active parts are at or below minimum stock level.{% endblocktrans %}</p>
 <div class="mms-card">
   <div class="mms-card-header">{% trans "All active parts" %}</div>
   <div class="mms-table-wrap">
@@ -26,7 +26,7 @@
 {% if page_obj.paginator.num_pages > 1 %}
 <nav style="margin-top:1rem;display:flex;gap:.5rem;align-items:center">
   {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Previous" %}</a>{% endif %}
-  <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} total)</span>
+  <span class="text-muted">{% blocktrans with n=page_obj.number t=page_obj.paginator.num_pages c=page_obj.paginator.count %}Page {{ n }} of {{ t }} ({{ c }} total){% endblocktrans %}</span>
   {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Next →" %}</a>{% endif %}
 </nav>
 {% endif %}

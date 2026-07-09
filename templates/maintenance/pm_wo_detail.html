@@ -6,7 +6,7 @@
 {% block content %}
 
 <nav class="mms-breadcrumb" style="margin-bottom:0.75rem">
-    <a href="{% url 'work_order_detail' wo.pk %}">← Back to WO-{{ wo.number }}</a>
+    <a href="{% url 'work_order_detail' wo.pk %}">{% blocktrans with n=wo.number %}← Back to WO-{{ n }}{% endblocktrans %}</a>
 </nav>
 
 <div class="mms-banner mms-banner--info" style="margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem">

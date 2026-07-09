@@ -1,0 +1,81 @@
+# .dockerignore — keep the production image lean and deterministic.
+
+# VCS + dev tooling
+.git
+.gitignore
+.gitattributes
+.github
+.gitlab-ci.yml
+.vscode
+.idea
+.aider*
+.cursor*
+.opencode
+.agents
+.scratch
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+.coverage.*
+htmlcov
+*.cover
+
+# OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Python bytecode / caches
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+*.egg
+.pytest_cache
+.mypy_cache
+
+# Local data we do NOT want in the image
+db.sqlite3
+*.sqlite3
+.env
+.env.local
+.env.*
+!.env.example
+
+# Collected artifacts (entrypoint re-runs these in container)
+staticfiles/
+media/
+mediafiles/
+attachments/
+
+# Compiled message catalogs (built from .po on demand)
+locale/*.mo
+
+# Docs + dev screenshots (not needed at runtime)
+docs/
+README.md
+*.md
+!docs/DOCKER.md
+!docs/adr/0001-postgresql-with-docker.md
+.devtools-screenshots/
+screenshots/
+README.md
+
+# Logs
+*.log
+celerybeat-schedule
+celerybeat-schedule.db
+
+# Python virtualenv (in case someone has one in the repo)
+venv/
+.venv/
+env/
+ENV/
+
+# Misc editor files
+.idea/
+*.swp

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 02:45+0300\n"
+"POT-Creation-Date: 2026-07-08 17:41+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,7 +87,7 @@ msgid ""
 msgstr ""
 
 #: accounts/forms.py:108 inventory/models.py:94 inventory/models.py:643
-#: maintenance/models.py:119 maintenance/models.py:318
+#: maintenance/models.py:119 maintenance/models.py:318 procurement/forms.py:196
 #: templates/accounts/mms_user_list.html:11
 #: templates/maintenance/machine_detail.html:50
 #: templates/maintenance/machine_detail.html:248
@@ -100,12 +100,12 @@ msgstr ""
 #: templates/maintenance/preventive/mgr_plans.html:48
 #: templates/maintenance/preventive/mgr_templates.html:21
 #: templates/maintenance/reservations_dashboard.html:32
-#: templates/maintenance/spare_part_detail.html:45
+#: templates/maintenance/spare_part_detail.html:46
 #: templates/maintenance/supplier_detail.html:27
 #: templates/maintenance/supplier_detail.html:30
 #: templates/maintenance/supplier_list.html:25
 #: templates/maintenance/supplier_list.html:39
-#: templates/maintenance/workorder_detail.html:441
+#: templates/maintenance/workorder_detail.html:442
 msgid "Active"
 msgstr ""
 
@@ -125,15 +125,109 @@ msgid ""
 "deactivating, or changing this account."
 msgstr ""
 
+#: accounts/management/commands/create_mms_user.py:12
+msgid ""
+"Create a real MMS user (production-style): username, role, optional staff "
+"flag, and optional Django admin permissions for maintenance/inventory/"
+"procurement."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:17
+msgid "Login name (no spaces)."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:29
+msgid "MMS role."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:31
+msgid "Email address."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:37
+msgid ""
+"Allow login to /admin/ (still needs model permissions unless --grant-admin-"
+"apps)."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:42
+msgid ""
+"Django superuser (full admin). Prefer createsuperuser unless you know you "
+"need this."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:47
+msgid ""
+"If --staff, assign maintenance+inventory+procurement permissions so /admin/ "
+"is not empty."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:52
+msgid "Unsafe for shell history; omit to be prompted securely."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:57
+msgid "With --password only; fail if password empty."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:64
+msgid "username is required."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:67
+#, python-format
+msgid "User %s already exists."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:73
+msgid "--no-input requires --password."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:76
+msgid "Password: "
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:77
+msgid "Password (again): "
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:79
+msgid "Passwords do not match."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:82
+msgid "Password is shorter than 8 characters (not recommended)."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:101
+#, python-format
+msgid "Granted maintenance/inventory/procurement admin permissions to %s."
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:108
+#, python-format
+msgid ""
+"User is staff but has no model permissions yet — /admin/ may be empty. Run:\n"
+"  python manage.py grant_staff_admin_permissions --usernames=%s"
+msgstr ""
+
+#: accounts/management/commands/create_mms_user.py:118
+#, python-format
+msgid ""
+"Created user %(username)r role=%(role)s staff=%(staff)s "
+"superuser=%(superuser)s. MMS login: same username/password at site root "
+"(not /admin/ unless staff)."
+msgstr ""
+
 #: accounts/models.py:10
 msgid "Operator / Labor"
 msgstr ""
 
-#: accounts/models.py:11 accounts/utils.py:16
+#: accounts/models.py:11 accounts/utils.py:15
 msgid "Supervisor"
 msgstr ""
 
-#: accounts/models.py:12 accounts/utils.py:17 maintenance/notifications.py:356
+#: accounts/models.py:12 accounts/utils.py:16 maintenance/notifications.py:356
 #: templates/maintenance/machine_detail.html:120
 #: templates/maintenance/pm_review.html:14
 #: templates/maintenance/pm_wo_detail.html:56
@@ -143,10 +237,10 @@ msgstr ""
 #: templates/maintenance/reconciliation_dashboard.html:58
 #: templates/maintenance/reports.html:43
 #: templates/maintenance/reports_technicians.html:10
-#: templates/maintenance/workorder_detail.html:80
-#: templates/maintenance/workorder_detail.html:315
-#: templates/maintenance/workorder_detail.html:354
-#: templates/maintenance/workorder_detail.html:427
+#: templates/maintenance/workorder_detail.html:81
+#: templates/maintenance/workorder_detail.html:316
+#: templates/maintenance/workorder_detail.html:355
+#: templates/maintenance/workorder_detail.html:428
 msgid "Technician"
 msgstr ""
 
@@ -158,7 +252,7 @@ msgstr ""
 msgid "Procurement Officer"
 msgstr ""
 
-#: accounts/models.py:15 accounts/utils.py:20
+#: accounts/models.py:15 accounts/utils.py:19
 msgid "Super Admin"
 msgstr ""
 
@@ -166,7 +260,7 @@ msgstr ""
 msgid "You do not have permission to access this page."
 msgstr ""
 
-#: accounts/utils.py:15 inventory/forms.py:107
+#: accounts/utils.py:14 inventory/forms.py:111
 #: templates/maintenance/consumables.html:79
 #: templates/maintenance/consumables.html:159
 #: templates/maintenance/kpi.html:135
@@ -174,11 +268,11 @@ msgstr ""
 msgid "Operator"
 msgstr ""
 
-#: accounts/utils.py:18
+#: accounts/utils.py:17
 msgid "Maintenance Manager"
 msgstr ""
 
-#: accounts/utils.py:19
+#: accounts/utils.py:18
 msgid "Maintenance Supply Officer"
 msgstr ""
 
@@ -293,84 +387,184 @@ msgstr ""
 msgid "Timestamps"
 msgstr ""
 
-#: inventory/forms.py:48
+#: inventory/forms.py:13 inventory/forms.py:22 inventory/forms.py:38
+#: inventory/forms.py:100 inventory/forms.py:119 procurement/forms.py:40
+#: procurement/forms.py:145 templates/maintenance/_wo_actions_manager.html:36
+#: templates/maintenance/_wo_actions_manager.html:238
+#: templates/maintenance/_wo_actions_technician.html:109
+#: templates/maintenance/_wo_reservation_history.html:26
+#: templates/maintenance/_wo_reservation_history.html:67
+#: templates/maintenance/consumables.html:51
+#: templates/maintenance/consumables.html:84
+#: templates/maintenance/consumables.html:125
+#: templates/maintenance/consumables.html:157
+#: templates/maintenance/machine_detail.html:293
+#: templates/maintenance/reservations_dashboard.html:43
+#: templates/maintenance/reservations_dashboard.html:69
+#: templates/maintenance/shortage_dashboard.html:84
+#: templates/maintenance/shortage_dashboard.html:124
+#: templates/maintenance/shortage_dashboard.html:170
+#: templates/maintenance/workorder_detail.html:126
+#: templates/maintenance/workorder_detail.html:318
+#: templates/maintenance/workorder_detail.html:356
+#: templates/maintenance/workorder_detail.html:386
+#: templates/maintenance/workorder_part_re_review.html:28
+#: templates/procurement/po_close_short.html:16
+#: templates/procurement/po_detail.html:57
+#: templates/procurement/po_form.html:82
+#: templates/procurement/po_receive.html:50
+#: templates/procurement/pr_detail.html:68
+#: templates/procurement/pr_list.html:15
+msgid "Part"
+msgstr ""
+
+#: inventory/forms.py:14 inventory/forms.py:23 inventory/forms.py:45
+#: inventory/forms.py:102 inventory/forms.py:121 maintenance/views.py:6105
+#: procurement/forms.py:42 templates/maintenance/_cost_ledger_table.html:118
+#: templates/maintenance/_wo_actions_technician.html:138
+#: templates/maintenance/consumables.html:56
+#: templates/maintenance/consumables.html:89
+#: templates/maintenance/machine_cost_report.html:55
+#: templates/maintenance/workorder_part_re_review.html:52
+#: templates/procurement/pr_detail.html:78
+msgid "Quantity"
+msgstr ""
+
+#: inventory/forms.py:15 inventory/forms.py:26
+#: templates/procurement/po_form.html:113
+#: templates/procurement/pr_officer.html:35
+msgid "Supplier name"
+msgstr ""
+
+#: inventory/forms.py:16 inventory/forms.py:24 maintenance/views.py:6106
+#: templates/maintenance/_cost_ledger_table.html:119
+msgid "Unit cost"
+msgstr ""
+
+#: inventory/forms.py:17 inventory/forms.py:25 maintenance/forms.py:684
+msgid "Invoice ref"
+msgstr ""
+
+#: inventory/forms.py:18 inventory/forms.py:50 inventory/forms.py:123
+#: maintenance/forms.py:167 maintenance/forms.py:692
+#: templates/maintenance/_wo_actions_technician.html:41
+#: templates/maintenance/active_blockers_dashboard.html:64
+#: templates/maintenance/consumables.html:97
+#: templates/maintenance/part_adjust.html:64
+msgid "Note"
+msgstr ""
+
+#: inventory/forms.py:51
 msgid "Optional note for the manager"
 msgstr ""
 
-#: inventory/forms.py:58 templates/maintenance/preventive/mgr_reviews.html:32
+#: inventory/forms.py:61 templates/maintenance/preventive/mgr_reviews.html:32
 msgid "Approve"
 msgstr ""
 
-#: inventory/forms.py:58 maintenance/forms.py:518
-#: templates/maintenance/workorder_detail.html:206
-#: templates/maintenance/workorder_detail.html:332
+#: inventory/forms.py:61 maintenance/forms.py:612
+#: templates/maintenance/workorder_detail.html:207
+#: templates/maintenance/workorder_detail.html:333
 msgid "Reject"
 msgstr ""
 
-#: inventory/forms.py:58
+#: inventory/forms.py:61
 msgid "Edit Qty"
 msgstr ""
 
-#: inventory/forms.py:70
+#: inventory/forms.py:73
 msgid "Required when rejecting"
 msgstr ""
 
-#: inventory/forms.py:78 inventory/services.py:1032 inventory/services.py:1166
+#: inventory/forms.py:81 inventory/services.py:1032 inventory/services.py:1166
 #: maintenance/services.py:360 maintenance/services.py:807
 msgid "Rejection reason is required."
 msgstr ""
 
-#: inventory/forms.py:84
+#: inventory/forms.py:87
 msgid "New qty is required when editing."
 msgstr ""
 
-#: inventory/forms.py:118 templates/maintenance/workorder_detail.html:531
+#: inventory/forms.py:103 inventory/forms.py:122 maintenance/forms.py:58
+#: maintenance/forms.py:186 maintenance/forms.py:201 maintenance/forms.py:421
+#: maintenance/forms.py:541 maintenance/models.py:87 maintenance/views.py:599
+#: maintenance/views.py:606 procurement/forms.py:27
+#: templates/maintenance/active_blockers_dashboard.html:59
+#: templates/maintenance/consumables.html:127
+#: templates/maintenance/consumables.html:160
+#: templates/maintenance/issue_detail.html:10
+#: templates/maintenance/issue_list.html:45
+#: templates/maintenance/legacy_reconciliation.html:42
+#: templates/maintenance/my_workorders.html:35
+#: templates/maintenance/pm_batch_spawn_confirm.html:16
+#: templates/maintenance/pm_dashboard.html:66
+#: templates/maintenance/pm_list.html:33 templates/maintenance/pm_list.html:57
+#: templates/maintenance/pm_review.html:13
+#: templates/maintenance/pm_spawn_wo.html:13
+#: templates/maintenance/pm_template_detail.html:38
+#: templates/maintenance/pm_wo_detail.html:41
+#: templates/maintenance/preventive/mgr_history.html:11
+#: templates/maintenance/preventive/mgr_history.html:59
+#: templates/maintenance/preventive/mgr_plan_detail.html:19
+#: templates/maintenance/preventive/mgr_plans.html:21
+#: templates/maintenance/reconciliation_dashboard.html:57
+#: templates/maintenance/reports.html:15
+#: templates/maintenance/reports_machines.html:10
+#: templates/maintenance/reports_work_orders.html:42
+#: templates/maintenance/spare_part_detail.html:167
+#: templates/maintenance/technician_report.html:82
+#: templates/maintenance/workorder_create_confirm.html:18
+#: templates/maintenance/workorder_list.html:20
+msgid "Machine"
+msgstr ""
+
+#: inventory/forms.py:123 templates/maintenance/workorder_detail.html:532
 msgid "Optional note"
 msgstr ""
 
-#: inventory/forms.py:151
+#: inventory/forms.py:156
 msgid "BRG-6006"
 msgstr ""
 
-#: inventory/forms.py:152
+#: inventory/forms.py:157
 msgid "Ball bearing 6006"
 msgstr ""
 
-#: inventory/forms.py:154
+#: inventory/forms.py:159
 msgid "Bearings"
 msgstr ""
 
-#: inventory/forms.py:155
+#: inventory/forms.py:160
 msgid "pcs"
 msgstr ""
 
-#: inventory/forms.py:170
+#: inventory/forms.py:175
 msgid "SKU is required."
 msgstr ""
 
-#: inventory/forms.py:172
+#: inventory/forms.py:177
 #, python-format
 msgid "SKU '%(sku)s' is already in use."
 msgstr ""
 
-#: inventory/forms.py:184 templates/maintenance/spare_part_form.html:104
+#: inventory/forms.py:189 templates/maintenance/spare_part_form.html:104
 msgid "Opening quantity"
 msgstr ""
 
-#: inventory/forms.py:185
+#: inventory/forms.py:190
 msgid "Initial stock at default site. Leave blank or 0 if no opening stock."
 msgstr ""
 
-#: inventory/forms.py:191 templates/maintenance/part_adjust.html:69
+#: inventory/forms.py:196 templates/maintenance/part_adjust.html:69
 #: templates/maintenance/spare_part_form.html:109
 msgid "Rack location"
 msgstr ""
 
-#: inventory/forms.py:192
+#: inventory/forms.py:197
 msgid "Storage location at default site."
 msgstr ""
 
-#: inventory/forms.py:193
+#: inventory/forms.py:198
 msgid "A-01-03"
 msgstr ""
 
@@ -400,11 +594,11 @@ msgstr ""
 msgid "Most recent unit purchase price."
 msgstr ""
 
-#: inventory/models.py:95 templates/maintenance/spare_part_detail.html:46
+#: inventory/models.py:95 templates/maintenance/spare_part_detail.html:47
 msgid "Obsolete"
 msgstr ""
 
-#: inventory/models.py:96 templates/maintenance/spare_part_detail.html:47
+#: inventory/models.py:96 templates/maintenance/spare_part_detail.html:48
 msgid "Discontinued"
 msgstr ""
 
@@ -428,14 +622,14 @@ msgstr ""
 msgid "Adjustment"
 msgstr ""
 
-#: inventory/models.py:251 templates/maintenance/workorder_detail.html:366
+#: inventory/models.py:251 templates/maintenance/workorder_detail.html:367
 msgid "Pending"
 msgstr ""
 
 #: inventory/models.py:252 maintenance/models.py:324 maintenance/models.py:632
 #: templates/maintenance/preventive/mgr_history.html:41
 #: templates/maintenance/workorder_create_confirm.html:32
-#: templates/maintenance/workorder_detail.html:367
+#: templates/maintenance/workorder_detail.html:368
 msgid "Approved"
 msgstr ""
 
@@ -443,14 +637,14 @@ msgstr ""
 msgid "Allocated"
 msgstr ""
 
-#: inventory/models.py:254 templates/maintenance/workorder_detail.html:125
+#: inventory/models.py:254 templates/maintenance/workorder_detail.html:126
 msgid "Issued"
 msgstr ""
 
 #: inventory/models.py:255 maintenance/models.py:633 maintenance/models.py:1079
-#: templates/maintenance/workorder_detail.html:368
-#: templates/procurement/po_receive.html:55
-#: templates/procurement/po_receive.html:122
+#: templates/maintenance/workorder_detail.html:369
+#: templates/procurement/po_receive.html:57
+#: templates/procurement/po_receive.html:124
 msgid "Rejected"
 msgstr ""
 
@@ -625,7 +819,7 @@ msgstr ""
 msgid "Reject (nothing committed, full qty rejected)"
 msgstr ""
 
-#: inventory/models.py:604
+#: inventory/models.py:604 maintenance/views.py:5530 maintenance/views.py:5626
 msgid "Quantities cannot be negative."
 msgstr ""
 
@@ -1003,7 +1197,7 @@ msgid "People & dates"
 msgstr ""
 
 #: maintenance/admin.py:273 procurement/admin.py:84
-#: templates/maintenance/workorder_detail.html:356
+#: templates/maintenance/workorder_detail.html:357
 msgid "Request"
 msgstr ""
 
@@ -1011,7 +1205,7 @@ msgstr ""
 msgid "Review"
 msgstr ""
 
-#: maintenance/apps.py:8 templates/base.html:27
+#: maintenance/apps.py:8 templates/base.html:28
 #: templates/maintenance/preventive/mgr_history.html:60
 #: templates/maintenance/preventive/mgr_plan_detail.html:23
 #: templates/maintenance/preventive/mgr_plans.html:22
@@ -1047,157 +1241,535 @@ msgid ""
 "priority, and any WO created from it will be an Emergency WO."
 msgstr ""
 
-#: maintenance/forms.py:149
+#: maintenance/forms.py:59 maintenance/forms.py:207 maintenance/forms.py:427
+#: maintenance/forms.py:548 maintenance/models.py:88 maintenance/views.py:599
+#: maintenance/views.py:606 procurement/forms.py:33
+#: templates/maintenance/_asset_tree.html:59
+#: templates/maintenance/issue_detail.html:15
+#: templates/maintenance/machine_detail.html:118
+#: templates/maintenance/my_workorders.html:36
+#: templates/maintenance/pm_batch_spawn_confirm.html:17
+#: templates/maintenance/pm_wo_detail.html:45
+#: templates/maintenance/preventive/mgr_plan_detail.html:21
+#: templates/maintenance/workorder_detail.html:79
+#: templates/maintenance/workorder_list.html:20
+msgid "Component"
+msgstr ""
+
+#: maintenance/forms.py:60 maintenance/forms.py:360 maintenance/forms.py:436
+#: maintenance/views.py:3776 templates/maintenance/issue_detail.html:45
+#: templates/maintenance/machine_detail.html:158
+#: templates/maintenance/spare_part_detail.html:400
+#: templates/maintenance/spare_part_form.html:88
+msgid "Description"
+msgstr ""
+
+#: maintenance/forms.py:65
+msgid "Describe the problem…"
+msgstr ""
+
+#: maintenance/forms.py:143 templates/maintenance/workorder_detail.html:95
+msgid "Root cause"
+msgstr ""
+
+#: maintenance/forms.py:144 templates/maintenance/workorder_detail.html:96
+msgid "Action taken"
+msgstr ""
+
+#: maintenance/forms.py:145 procurement/admin.py:36 procurement/forms.py:43
+#: procurement/forms.py:103 procurement/forms.py:124 procurement/forms.py:197
+#: templates/maintenance/preventive/execute.html:71
+#: templates/maintenance/supplier_detail.html:89
+#: templates/maintenance/supplier_form.html:58
+#: templates/maintenance/workorder_detail.html:97
+#: templates/maintenance/workorder_detail.html:126
+#: templates/procurement/pr_detail.html:103
+msgid "Notes"
+msgstr ""
+
+#: maintenance/forms.py:159
 msgid "Reason for pause"
 msgstr ""
 
-#: maintenance/forms.py:155
+#: maintenance/forms.py:165
 msgid "Required when reason is 'Other'"
 msgstr ""
 
-#: maintenance/forms.py:157
-#: templates/maintenance/_wo_actions_technician.html:41
-#: templates/maintenance/active_blockers_dashboard.html:64
-#: templates/maintenance/consumables.html:97
-#: templates/maintenance/part_adjust.html:64
-msgid "Note"
-msgstr ""
-
-#: maintenance/forms.py:166
+#: maintenance/forms.py:176
 msgid "Note is required when reason is 'Other'."
 msgstr ""
 
-#: maintenance/forms.py:195
+#: maintenance/forms.py:187
+msgid "Summary"
+msgstr ""
+
+#: maintenance/forms.py:188
+msgid "Details"
+msgstr ""
+
+#: maintenance/forms.py:192
+msgid "Short summary"
+msgstr ""
+
+#: maintenance/forms.py:212
+msgid "Due time"
+msgstr ""
+
+#: maintenance/forms.py:213
 msgid "Time-of-day for scheduled occurrences (default 08:00)"
 msgstr ""
 
-#: maintenance/forms.py:199 maintenance/models.py:758
+#: maintenance/forms.py:217
+msgid "Ends at"
+msgstr ""
+
+#: maintenance/forms.py:218 maintenance/models.py:758
 msgid "Schedule stops generating occurrences after this date"
 msgstr ""
 
+#: maintenance/forms.py:232 templates/maintenance/machine_detail.html:208
+#: templates/maintenance/pm_batch_spawn_confirm.html:15
+#: templates/maintenance/pm_list.html:56
+#: templates/maintenance/pm_spawn_wo.html:12
+msgid "Template"
+msgstr ""
+
+#: maintenance/forms.py:233 templates/maintenance/machine_detail.html:209
+#: templates/maintenance/pm_batch_spawn_confirm.html:18
+#: templates/maintenance/pm_list.html:58
+#: templates/maintenance/pm_spawn_wo.html:14
+#: templates/maintenance/pm_template_detail.html:38
+#: templates/maintenance/pm_wo_detail.html:71
+#: templates/maintenance/preventive/mgr_plan_detail.html:24
+msgid "Frequency"
+msgstr ""
+
+#: maintenance/forms.py:234
+msgid "Interval"
+msgstr ""
+
+#: maintenance/forms.py:235
+msgid "Start date"
+msgstr ""
+
 #: maintenance/forms.py:236
-msgid "Apply to all child machines"
+msgid "Next due at"
 msgstr ""
 
 #: maintenance/forms.py:237
+msgid "Priority override"
+msgstr ""
+
+#: maintenance/forms.py:238
+msgid "Estimated duration override"
+msgstr ""
+
+#: maintenance/forms.py:239
+msgid "Grace days"
+msgstr ""
+
+#: maintenance/forms.py:240
+msgid "Reminder days before"
+msgstr ""
+
+#: maintenance/forms.py:241
+msgid "Trigger type"
+msgstr ""
+
+#: maintenance/forms.py:242 maintenance/forms.py:364 maintenance/forms.py:498
+msgid "Is active"
+msgstr ""
+
+#: maintenance/forms.py:268
+msgid "Apply to all child machines"
+msgstr ""
+
+#: maintenance/forms.py:269
 msgid ""
 "If this machine has child machines, create PM work orders for each of them."
 msgstr ""
 
-#: maintenance/forms.py:263
-#: templates/maintenance/preventive/mgr_template_form.html:28
-msgid "Checklist item text"
-msgstr ""
-
-#: maintenance/forms.py:293
-msgid "Duplicate checklist item text."
+#: maintenance/forms.py:295 templates/maintenance/pm_template_form.html:25
+msgid "Text"
 msgstr ""
 
 #: maintenance/forms.py:296
+#: templates/maintenance/preventive/mgr_template_form.html:28
+#: templates/maintenance/preventive/mgr_template_form.html:52
+msgid "Checklist item text"
+msgstr ""
+
+#: maintenance/forms.py:300 templates/maintenance/pm_template_form.html:25
+msgid "Order"
+msgstr ""
+
+#: maintenance/forms.py:308 templates/maintenance/pm_template_form.html:25
+msgid "Required?"
+msgstr ""
+
+#: maintenance/forms.py:330
+msgid "Duplicate checklist item text."
+msgstr ""
+
+#: maintenance/forms.py:333
 msgid "At least one checklist item is required."
 msgstr ""
 
-#: maintenance/forms.py:312
+#: maintenance/forms.py:349
+msgid "Requires photo min count"
+msgstr ""
+
+#: maintenance/forms.py:350
 msgid "Minimum number of photos the technician must attach"
 msgstr ""
 
-#: maintenance/forms.py:337
+#: maintenance/forms.py:358 maintenance/forms.py:406 procurement/forms.py:189
+#: templates/maintenance/failing_assets_report.html:22
+#: templates/maintenance/failure_mode_report.html:22
+#: templates/maintenance/kpi.html:73
+#: templates/maintenance/pm_template_list.html:15
+#: templates/maintenance/preventive/mgr_templates.html:16
+#: templates/maintenance/reports_machines.html:10
+#: templates/maintenance/supplier_detail.html:45
+#: templates/maintenance/supplier_list.html:20
+#: templates/maintenance/tools.html:84
+msgid "Code"
+msgstr ""
+
+#: maintenance/forms.py:359 maintenance/forms.py:435 maintenance/forms.py:553
+#: templates/maintenance/machine_detail.html:269
+#: templates/maintenance/pm_template_list.html:15
+#: templates/maintenance/preventive/mgr_templates.html:17
+#: templates/maintenance/repair_list.html:14
+msgid "Title"
+msgstr ""
+
+#: maintenance/forms.py:361
+msgid "Estimated duration (minutes)"
+msgstr ""
+
+#: maintenance/forms.py:362 templates/maintenance/issue_detail.html:35
+#: templates/maintenance/issue_list.html:45
+#: templates/maintenance/machine_detail.html:158
+#: templates/maintenance/machine_detail.html:211
+#: templates/maintenance/my_workorders.html:38
+#: templates/maintenance/pm_batch_spawn_confirm.html:20
+#: templates/maintenance/pm_list.html:61
+#: templates/maintenance/pm_spawn_wo.html:16
+#: templates/maintenance/pm_template_detail.html:12
+#: templates/maintenance/pm_template_list.html:15
+#: templates/maintenance/pm_wo_detail.html:49
+#: templates/maintenance/preventive/mgr_plan_detail.html:30
+#: templates/maintenance/workorder_create_confirm.html:20
+#: templates/maintenance/workorder_list.html:20
+msgid "Priority"
+msgstr ""
+
+#: maintenance/forms.py:363
+msgid "Requires manager review"
+msgstr ""
+
+#: maintenance/forms.py:378 templates/maintenance/tools.html:65
+msgid "Tool"
+msgstr ""
+
+#: maintenance/forms.py:379
+msgid "Assignee"
+msgstr ""
+
+#: maintenance/forms.py:384
 msgid "Select an available tool"
 msgstr ""
 
-#: maintenance/forms.py:338
+#: maintenance/forms.py:385
 msgid "Only tools in Available status can be assigned."
 msgstr ""
 
-#: maintenance/forms.py:461
-msgid "Optional: Target a specific component (level-5)"
+#: maintenance/forms.py:397
+msgid "Condition"
 msgstr ""
 
-#: maintenance/forms.py:463
-msgid "e.g. Line stop — hydraulic leak"
+#: maintenance/forms.py:407 maintenance/forms.py:495 procurement/forms.py:190
+#: templates/maintenance/failure_mode_report.html:23
+#: templates/maintenance/kpi.html:73 templates/maintenance/machine_list.html:38
+#: templates/maintenance/reorder_suggestions.html:15
+#: templates/maintenance/reports.html:75
+#: templates/maintenance/reports_low_stock.html:11
+#: templates/maintenance/reports_parts_issued.html:10
+#: templates/maintenance/stock_dashboard.html:61
+#: templates/maintenance/stock_lookup.html:49
+#: templates/maintenance/supplier_detail.html:70
+#: templates/maintenance/supplier_list.html:21
+#: templates/maintenance/tools.html:84
+msgid "Name"
+msgstr ""
+
+#: maintenance/forms.py:408 maintenance/forms.py:479 maintenance/forms.py:509
+#: procurement/forms.py:102 procurement/forms.py:123
+#: templates/maintenance/_wo_actions_manager.html:240
+#: templates/maintenance/_wo_reservation_history.html:70
+#: templates/maintenance/issue_detail.html:28
+#: templates/maintenance/issue_list.html:45
+#: templates/maintenance/machine_detail.html:50
+#: templates/maintenance/machine_detail.html:117
+#: templates/maintenance/machine_detail.html:158
+#: templates/maintenance/machine_detail.html:213
+#: templates/maintenance/machine_detail.html:269
+#: templates/maintenance/machine_detail.html:293
+#: templates/maintenance/machine_form.html:116
+#: templates/maintenance/my_workorders.html:37
+#: templates/maintenance/pm_list.html:24
+#: templates/maintenance/pm_review.html:12
+#: templates/maintenance/pm_review.html:31
+#: templates/maintenance/preventive/mgr_history.html:38
+#: templates/maintenance/preventive/mgr_history.html:63
+#: templates/maintenance/preventive/mgr_plan_detail.html:132
+#: templates/maintenance/preventive/mgr_plans.html:25
+#: templates/maintenance/repair_list.html:14
+#: templates/maintenance/reports.html:27
+#: templates/maintenance/reports_low_stock.html:11
+#: templates/maintenance/reports_work_orders.html:19
+#: templates/maintenance/reports_work_orders.html:42
+#: templates/maintenance/reservations_dashboard.html:72
+#: templates/maintenance/shortage_dashboard.html:126
+#: templates/maintenance/spare_part_detail.html:167
+#: templates/maintenance/spare_part_detail.html:191
+#: templates/maintenance/spare_part_form.html:84
+#: templates/maintenance/supplier_detail.html:24
+#: templates/maintenance/tools.html:84
+#: templates/maintenance/workorder_create_confirm.html:19
+#: templates/maintenance/workorder_detail.html:126
+#: templates/maintenance/workorder_detail.html:386
+#: templates/maintenance/workorder_list.html:9
+#: templates/maintenance/workorder_list.html:20
+#: templates/procurement/po_detail.html:15
+#: templates/procurement/po_form.html:82 templates/procurement/po_list.html:137
+#: templates/procurement/pr_detail.html:80
+#: templates/procurement/pr_list.html:15
+msgid "Status"
+msgstr ""
+
+#: maintenance/forms.py:412
+msgid "e.g. Torque wrench"
+msgstr ""
+
+#: maintenance/forms.py:437 maintenance/views.py:6104 procurement/forms.py:41
+msgid "Work order"
+msgstr ""
+
+#: maintenance/forms.py:438
+msgid "Estimated cost"
 msgstr ""
 
 #: maintenance/forms.py:477
-msgid "Optional note for the log"
+msgid "Vendor name"
 msgstr ""
 
-#: maintenance/forms.py:492
-msgid "What's wrong with the part? Why does it need an external repair?"
+#: maintenance/forms.py:478 maintenance/forms.py:675
+msgid "Actual cost"
 msgstr ""
 
-#: maintenance/forms.py:499
-msgid "Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1')"
+#: maintenance/forms.py:496 procurement/admin.py:51
+#: templates/maintenance/machine_detail.html:45
+msgid "QR Code"
 msgstr ""
 
-#: maintenance/forms.py:507 maintenance/services.py:476
-msgid "Diagnosis note is required."
+#: maintenance/forms.py:497 templates/maintenance/machine_detail.html:49
+#: templates/maintenance/machine_form.html:43
+#: templates/maintenance/machine_list.html:38
+msgid "Location"
 msgstr ""
 
-#: maintenance/forms.py:509 maintenance/services.py:478
-msgid "Part description is required."
+#: maintenance/forms.py:499 templates/maintenance/machine_cost_report.html:43
+#: templates/maintenance/machine_cost_report.html:54
+#: templates/maintenance/machine_detail.html:48
+#: templates/maintenance/machine_form.html:61
+#: templates/maintenance/machine_list.html:38
+#: templates/maintenance/part_adjust.html:28
+msgid "Site"
 msgstr ""
 
-#: maintenance/forms.py:517 templates/maintenance/workorder_detail.html:331
-msgid "Approve (create ERO)"
+#: maintenance/forms.py:500
+msgid "Parent machine"
 msgstr ""
 
-#: maintenance/forms.py:524
-msgid "Required on reject; optional on approve."
+#: maintenance/forms.py:501
+msgid "Asset level"
 msgstr ""
 
-#: maintenance/forms.py:531 maintenance/services.py:606
-msgid "A rejection reason is required."
+#: maintenance/forms.py:502
+msgid "Asset type"
 msgstr ""
 
-#: maintenance/forms.py:545
-msgid "Signed: positive adds, negative reduces"
+#: maintenance/forms.py:503
+msgid "Serial number"
+msgstr ""
+
+#: maintenance/forms.py:504 templates/maintenance/machine_detail.html:56
+#: templates/maintenance/machine_form.html:90
+msgid "Manufacturer"
+msgstr ""
+
+#: maintenance/forms.py:505
+msgid "Model number"
+msgstr ""
+
+#: maintenance/forms.py:506
+msgid "Install date"
+msgstr ""
+
+#: maintenance/forms.py:507
+msgid "Expected life (days)"
+msgstr ""
+
+#: maintenance/forms.py:508 templates/maintenance/machine_detail.html:58
+#: templates/maintenance/machine_form.html:110
+msgid "Criticality"
+msgstr ""
+
+#: maintenance/forms.py:510
+msgid "Asset code"
+msgstr ""
+
+#: maintenance/forms.py:511
+msgid "Failure category"
+msgstr ""
+
+#: maintenance/forms.py:514
+msgid "e.g. Line A Press 1"
+msgstr ""
+
+#: maintenance/forms.py:515
+msgid "e.g. PRESS-01"
+msgstr ""
+
+#: maintenance/forms.py:516
+msgid "e.g. Hall A"
+msgstr ""
+
+#: maintenance/forms.py:521
+msgid "e.g. SN-12345"
+msgstr ""
+
+#: maintenance/forms.py:522
+msgid "e.g. Siemens"
+msgstr ""
+
+#: maintenance/forms.py:523
+msgid "e.g. MDL-X100"
+msgstr ""
+
+#: maintenance/forms.py:525
+msgid "e.g. 3650"
+msgstr ""
+
+#: maintenance/forms.py:528
+msgid "e.g. FM-01-CONV-BRG-001"
 msgstr ""
 
 #: maintenance/forms.py:547
+msgid "Optional: Target a specific component (level-5)"
+msgstr ""
+
+#: maintenance/forms.py:552
+msgid "e.g. Line stop — hydraulic leak"
+msgstr ""
+
+#: maintenance/forms.py:557
+msgid "Detail"
+msgstr ""
+
+#: maintenance/forms.py:571
+msgid "Optional note for the log"
+msgstr ""
+
+#: maintenance/forms.py:586
+msgid "What's wrong with the part? Why does it need an external repair?"
+msgstr ""
+
+#: maintenance/forms.py:593
+msgid "Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1')"
+msgstr ""
+
+#: maintenance/forms.py:601 maintenance/services.py:476
+msgid "Diagnosis note is required."
+msgstr ""
+
+#: maintenance/forms.py:603 maintenance/services.py:478
+msgid "Part description is required."
+msgstr ""
+
+#: maintenance/forms.py:611 templates/maintenance/workorder_detail.html:332
+msgid "Approve (create ERO)"
+msgstr ""
+
+#: maintenance/forms.py:618
+msgid "Required on reject; optional on approve."
+msgstr ""
+
+#: maintenance/forms.py:625 maintenance/services.py:606
+msgid "A rejection reason is required."
+msgstr ""
+
+#: maintenance/forms.py:637 maintenance/views.py:6105
+#: templates/maintenance/_cost_ledger_table.html:117
+msgid "Amount"
+msgstr ""
+
+#: maintenance/forms.py:640
+msgid "Signed: positive adds, negative reduces"
+msgstr ""
+
+#: maintenance/forms.py:642
 msgid "Signed amount. Positive adds to the WO total, negative reduces it."
 msgstr ""
 
-#: maintenance/forms.py:553
+#: maintenance/forms.py:646 maintenance/views.py:6106
+#: templates/maintenance/_cost_ledger_table.html:120
+msgid "Memo"
+msgstr ""
+
+#: maintenance/forms.py:649
 msgid "Why does this adjustment exist? (min 10 chars)"
 msgstr ""
 
-#: maintenance/forms.py:555
+#: maintenance/forms.py:651
 msgid "Required. Min 10 characters. Explains why this adjustment exists."
 msgstr ""
 
-#: maintenance/forms.py:561 maintenance/models.py:1455
+#: maintenance/forms.py:657 maintenance/models.py:1455
 msgid "Memo must be at least 10 characters."
 msgstr ""
 
-#: maintenance/forms.py:567
+#: maintenance/forms.py:663
 msgid "Amount must be non-zero."
 msgstr ""
 
-#: maintenance/forms.py:581
+#: maintenance/forms.py:678
 msgid "Vendor invoice total"
 msgstr ""
 
-#: maintenance/forms.py:583
+#: maintenance/forms.py:680
 msgid "Required — final vendor invoice amount."
 msgstr ""
 
-#: maintenance/forms.py:588
+#: maintenance/forms.py:686
 msgid "Vendor invoice number"
 msgstr ""
 
-#: maintenance/forms.py:590
+#: maintenance/forms.py:688
 msgid "Required — vendor invoice number (UC-20)."
 msgstr ""
 
-#: maintenance/forms.py:596
+#: maintenance/forms.py:695
 msgid "Optional verification note (e.g. condition of returned part)"
 msgstr ""
 
-#: maintenance/forms.py:604
+#: maintenance/forms.py:703
 msgid "Actual cost must be greater than zero."
 msgstr ""
 
-#: maintenance/forms.py:607
+#: maintenance/forms.py:706
 msgid "Vendor invoice number is required."
 msgstr ""
 
@@ -1217,50 +1789,9 @@ msgstr ""
 msgid "Production Line"
 msgstr ""
 
-#: maintenance/models.py:87 maintenance/views.py:599 maintenance/views.py:606
-#: templates/maintenance/active_blockers_dashboard.html:59
-#: templates/maintenance/consumables.html:127
-#: templates/maintenance/consumables.html:160
-#: templates/maintenance/issue_detail.html:10
-#: templates/maintenance/issue_list.html:45
-#: templates/maintenance/legacy_reconciliation.html:42
-#: templates/maintenance/my_workorders.html:35
-#: templates/maintenance/pm_batch_spawn_confirm.html:16
-#: templates/maintenance/pm_dashboard.html:66
-#: templates/maintenance/pm_list.html:33 templates/maintenance/pm_list.html:57
-#: templates/maintenance/pm_review.html:13
-#: templates/maintenance/pm_spawn_wo.html:13
-#: templates/maintenance/pm_template_detail.html:38
-#: templates/maintenance/pm_wo_detail.html:41
-#: templates/maintenance/preventive/mgr_history.html:11
-#: templates/maintenance/preventive/mgr_history.html:59
-#: templates/maintenance/preventive/mgr_plan_detail.html:19
-#: templates/maintenance/preventive/mgr_plans.html:21
-#: templates/maintenance/reconciliation_dashboard.html:57
-#: templates/maintenance/reports.html:15
-#: templates/maintenance/reports_machines.html:10
-#: templates/maintenance/reports_work_orders.html:42
-#: templates/maintenance/spare_part_detail.html:166
-#: templates/maintenance/technician_report.html:82
-#: templates/maintenance/workorder_create_confirm.html:18
-#: templates/maintenance/workorder_list.html:20
-msgid "Machine"
-msgstr ""
-
 #: maintenance/models.py:88 maintenance/views.py:599 maintenance/views.py:606
+#: templates/maintenance/_asset_tree.html:53
 msgid "Subassembly"
-msgstr ""
-
-#: maintenance/models.py:88 maintenance/views.py:599 maintenance/views.py:606
-#: templates/maintenance/issue_detail.html:15
-#: templates/maintenance/machine_detail.html:118
-#: templates/maintenance/my_workorders.html:36
-#: templates/maintenance/pm_batch_spawn_confirm.html:17
-#: templates/maintenance/pm_wo_detail.html:45
-#: templates/maintenance/preventive/mgr_plan_detail.html:21
-#: templates/maintenance/workorder_detail.html:78
-#: templates/maintenance/workorder_list.html:20
-msgid "Component"
 msgstr ""
 
 #: maintenance/models.py:94
@@ -1403,8 +1934,8 @@ msgid "Preventive"
 msgstr ""
 
 #: maintenance/models.py:306 maintenance/models.py:530
-#: maintenance/services.py:232 templates/base.html:453
-#: templates/maintenance/workorder_detail.html:19
+#: maintenance/services.py:232 templates/base.html:454
+#: templates/maintenance/workorder_detail.html:20
 msgid "Emergency"
 msgstr ""
 
@@ -1453,7 +1984,7 @@ msgstr ""
 #: maintenance/models.py:321 maintenance/models.py:327
 #: templates/maintenance/preventive/mgr_plans.html:9
 #: templates/maintenance/preventive/mgr_plans.html:52
-#: templates/maintenance/workorder_detail.html:87
+#: templates/maintenance/workorder_detail.html:88
 msgid "Paused"
 msgstr ""
 
@@ -1525,7 +2056,7 @@ msgid ""
 "Minimum number of photos the technician must attach when completing this PM"
 msgstr ""
 
-#: maintenance/models.py:631 templates/maintenance/workorder_detail.html:353
+#: maintenance/models.py:631 templates/maintenance/workorder_detail.html:354
 msgid "Submitted"
 msgstr ""
 
@@ -1595,7 +2126,7 @@ msgid ""
 "Time-of-day for scheduled occurrences (used for grouping Today's Schedule)"
 msgstr ""
 
-#: maintenance/models.py:791 templates/maintenance/spare_part_detail.html:87
+#: maintenance/models.py:791 templates/maintenance/spare_part_detail.html:88
 #: templates/maintenance/stock_lookup.html:51
 #: templates/maintenance/tools.html:21
 msgid "Available"
@@ -1610,13 +2141,13 @@ msgid "Out of service"
 msgstr ""
 
 #: maintenance/models.py:814 procurement/models.py:259
-#: templates/procurement/po_receive.html:53
-#: templates/procurement/po_receive.html:120
+#: templates/procurement/po_receive.html:55
+#: templates/procurement/po_receive.html:122
 msgid "Good"
 msgstr ""
 
-#: maintenance/models.py:815 templates/procurement/po_receive.html:54
-#: templates/procurement/po_receive.html:121
+#: maintenance/models.py:815 templates/procurement/po_receive.html:56
+#: templates/procurement/po_receive.html:123
 msgid "Damaged"
 msgstr ""
 
@@ -1677,7 +2208,7 @@ msgstr ""
 msgid "Work order closed"
 msgstr ""
 
-#: maintenance/models.py:905
+#: maintenance/models.py:905 templates/maintenance/emergency_wo.html:4
 msgid "Emergency work order"
 msgstr ""
 
@@ -1947,8 +2478,8 @@ msgstr ""
 msgid "If is_reversal=True, points to the row being reversed. Audit trail."
 msgstr ""
 
-#: maintenance/models.py:1428 templates/maintenance/_wo_costs.html:468
-#: templates/maintenance/_wo_costs.html:643
+#: maintenance/models.py:1428 templates/maintenance/_wo_costs.html:192
+#: templates/maintenance/_wo_costs.html:367
 msgid "Signed: positive adds, negative reduces."
 msgstr ""
 
@@ -1981,8 +2512,8 @@ msgid "Label"
 msgstr ""
 
 #: maintenance/models.py:1533
-#: templates/maintenance/_attachment_uploader.html:44
-#: templates/maintenance/spare_part_detail.html:229
+#: templates/maintenance/_attachment_uploader.html:46
+#: templates/maintenance/spare_part_detail.html:230
 msgid "Packaging"
 msgstr ""
 
@@ -2104,7 +2635,7 @@ msgstr ""
 msgid "Approved & closed"
 msgstr ""
 
-#: maintenance/services.py:421
+#: maintenance/services.py:421 maintenance/views.py:5051
 msgid "Work order is already archived."
 msgstr ""
 
@@ -2112,7 +2643,7 @@ msgstr ""
 msgid "Work order is not archived."
 msgstr ""
 
-#: maintenance/services.py:450
+#: maintenance/services.py:450 maintenance/views.py:5036
 msgid "Issue is already archived."
 msgstr ""
 
@@ -2120,7 +2651,9 @@ msgstr ""
 msgid "Only the assigned technician can request external repair."
 msgstr ""
 
-#: maintenance/services.py:499
+#: maintenance/services.py:499 templates/maintenance/_wo_costs.html:82
+#: templates/maintenance/_wo_costs.html:105
+#: templates/maintenance/_wo_costs.html:281
 msgid "Vendor repair"
 msgstr ""
 
@@ -2248,16 +2781,16 @@ msgstr ""
 msgid "HIGH COST"
 msgstr ""
 
-#: maintenance/test_i18n.py:65 templates/base.html:24
-#: templates/maintenance/dashboard.html:4
+#: maintenance/test_i18n.py:65 templates/base.html:25 templates/base.html:107
+#: templates/base.html:205 templates/maintenance/dashboard.html:4
 msgid "Dashboard"
 msgstr ""
 
-#: maintenance/test_i18n.py:66 templates/maintenance/pm_form.html:56
+#: maintenance/test_i18n.py:66 templates/maintenance/pm_form.html:58
 #: templates/maintenance/preventive/mgr_plan_form.html:24
 #: templates/maintenance/preventive/mgr_template_form.html:41
 #: templates/maintenance/quick_log.html:13
-#: templates/maintenance/repair_officer.html:13
+#: templates/maintenance/repair_officer.html:15
 #: templates/maintenance/stock_in.html:23
 #: templates/procurement/pr_officer.html:21
 msgid "Save"
@@ -2267,7 +2800,7 @@ msgstr ""
 #: templates/accounts/mms_user_edit.html:24
 #: templates/maintenance/issue_detail.html:101
 #: templates/maintenance/part_adjust.html:94
-#: templates/maintenance/pm_batch_spawn_confirm.html:52
+#: templates/maintenance/pm_batch_spawn_confirm.html:53
 #: templates/maintenance/pm_review.html:98
 #: templates/maintenance/pm_spawn_wo.html:36
 #: templates/maintenance/pm_template_form.html:46
@@ -2288,7 +2821,7 @@ msgstr ""
 #: templates/procurement/po_close_short.html:34
 #: templates/procurement/po_form.html:100
 #: templates/procurement/po_form.html:117
-#: templates/procurement/po_receive.html:113
+#: templates/procurement/po_receive.html:115
 #: templates/procurement/pr_officer.html:39
 msgid "Cancel"
 msgstr ""
@@ -2644,13 +3177,6 @@ msgstr ""
 msgid "Serial Number"
 msgstr ""
 
-#: maintenance/views.py:3776 templates/maintenance/issue_detail.html:45
-#: templates/maintenance/machine_detail.html:158
-#: templates/maintenance/spare_part_detail.html:395
-#: templates/maintenance/spare_part_form.html:88
-msgid "Description"
-msgstr ""
-
 #: maintenance/views.py:3779 maintenance/views.py:3781
 #: templates/maintenance/machine_cost_report.html:87
 #: templates/maintenance/machine_detail.html:269
@@ -2691,12 +3217,53 @@ msgstr ""
 msgid "Quick log saved."
 msgstr ""
 
-#: maintenance/views.py:6104
-msgid "Occurred at"
+#: maintenance/views.py:4690
+msgid "Repair must be in Returned status before manager acceptance (UC-20)."
+msgstr ""
+
+#: maintenance/views.py:5039
+msgid ""
+"Cannot archive a converted issue. Archive the linked work order instead."
+msgstr ""
+
+#: maintenance/views.py:5180
+msgid "New quantity and reason are required."
+msgstr ""
+
+#: maintenance/views.py:5458
+msgid "You can only raise shortage requests on work orders assigned to you."
+msgstr ""
+
+#: maintenance/views.py:5463
+msgid "Missing part_id."
+msgstr ""
+
+#: maintenance/views.py:5506
+msgid "Invalid decision type."
+msgstr ""
+
+#: maintenance/views.py:5518
+msgid "Rejection reason is required (min 15 characters)."
+msgstr ""
+
+#: maintenance/views.py:5527 maintenance/views.py:5623
+msgid "Quantities must be numbers."
+msgstr ""
+
+#: maintenance/views.py:5541
+msgid "Approve with both 0 makes no sense — use Reject instead."
+msgstr ""
+
+#: maintenance/views.py:5550
+msgid "Invalid expected_availability_date; skipped."
+msgstr ""
+
+#: maintenance/views.py:5772
+msgid "Issue qty must be a number."
 msgstr ""
 
 #: maintenance/views.py:6104
-msgid "Work order"
+msgid "Occurred at"
 msgstr ""
 
 #: maintenance/views.py:6104 templates/maintenance/_cost_ledger_table.html:115
@@ -2719,30 +3286,8 @@ msgstr ""
 msgid "Source ID"
 msgstr ""
 
-#: maintenance/views.py:6105 templates/maintenance/_cost_ledger_table.html:117
-msgid "Amount"
-msgstr ""
-
 #: maintenance/views.py:6105
 msgid "Currency"
-msgstr ""
-
-#: maintenance/views.py:6105 templates/maintenance/_cost_ledger_table.html:118
-#: templates/maintenance/_wo_actions_technician.html:138
-#: templates/maintenance/consumables.html:56
-#: templates/maintenance/consumables.html:89
-#: templates/maintenance/machine_cost_report.html:55
-#: templates/maintenance/workorder_part_re_review.html:52
-#: templates/procurement/pr_detail.html:76
-msgid "Quantity"
-msgstr ""
-
-#: maintenance/views.py:6106 templates/maintenance/_cost_ledger_table.html:119
-msgid "Unit cost"
-msgstr ""
-
-#: maintenance/views.py:6106 templates/maintenance/_cost_ledger_table.html:120
-msgid "Memo"
 msgstr ""
 
 #: maintenance/views.py:6106 templates/maintenance/_cost_ledger_table.html:121
@@ -2760,6 +3305,14 @@ msgstr ""
 
 #: maintenance/views.py:6107
 msgid "Adjustment ID"
+msgstr ""
+
+#: maintenance/views.py:6270
+msgid "No schedules selected."
+msgstr ""
+
+#: maintenance/views.py:6322
+msgid "No work orders created. All schedules were invalid or inactive."
 msgstr ""
 
 #: maintenance/views_preventive.py:285
@@ -2826,28 +3379,81 @@ msgstr ""
 msgid "Vendor type"
 msgstr ""
 
-#: procurement/admin.py:36 templates/maintenance/preventive/execute.html:71
-#: templates/maintenance/supplier_detail.html:89
-#: templates/maintenance/supplier_form.html:58
-#: templates/maintenance/workorder_detail.html:96
-#: templates/maintenance/workorder_detail.html:125
-#: templates/procurement/pr_detail.html:101
-msgid "Notes"
+#: procurement/forms.py:100 procurement/forms.py:120
+#: templates/maintenance/machine_detail.html:293
+#: templates/maintenance/reorder_suggestions.html:21
+#: templates/maintenance/spare_part_detail.html:191
+#: templates/maintenance/stock_dashboard.html:68
+#: templates/procurement/po_detail.html:14
+#: templates/procurement/po_list.html:67 templates/procurement/po_list.html:135
+#: templates/procurement/po_receive.html:13
+#: templates/procurement/pr_detail.html:82
+#: templates/procurement/supplier_analytics.html:45
+msgid "Supplier"
 msgstr ""
 
-#: procurement/admin.py:51 templates/maintenance/machine_detail.html:45
-msgid "QR Code"
-msgstr ""
-
-#: procurement/forms.py:125
+#: procurement/forms.py:101 procurement/forms.py:147 procurement/forms.py:152
 msgid "Unit price"
 msgstr ""
 
-#: procurement/forms.py:176
+#: procurement/forms.py:121
+msgid "Internal ref"
+msgstr ""
+
+#: procurement/forms.py:122
+msgid "Expected delivery"
+msgstr ""
+
+#: procurement/forms.py:125
+msgid "Handled by"
+msgstr ""
+
+#: procurement/forms.py:146
+msgid "Ordered qty"
+msgstr ""
+
+#: procurement/forms.py:191 templates/maintenance/supplier_detail.html:15
+#: templates/maintenance/supplier_form.html:29
+#: templates/maintenance/supplier_list.html:22
+msgid "Contact person"
+msgstr ""
+
+#: procurement/forms.py:192 templates/maintenance/supplier_detail.html:16
+#: templates/maintenance/supplier_form.html:33
+#: templates/maintenance/supplier_list.html:23
+#: templates/procurement/po_form.html:114
+#: templates/procurement/pr_officer.html:36
+msgid "Phone"
+msgstr ""
+
+#: procurement/forms.py:193 templates/accounts/mms_user_list.html:11
+#: templates/maintenance/supplier_detail.html:17
+#: templates/maintenance/supplier_form.html:37
+#: templates/maintenance/supplier_list.html:24
+#: templates/procurement/po_form.html:115
+#: templates/procurement/pr_officer.html:37
+msgid "Email"
+msgstr ""
+
+#: procurement/forms.py:194 templates/maintenance/supplier_detail.html:18
+#: templates/maintenance/supplier_form.html:42
+msgid "Address"
+msgstr ""
+
+#: procurement/forms.py:195 templates/maintenance/supplier_detail.html:36
+#: templates/maintenance/supplier_list.html:26
+msgid "Repair vendor"
+msgstr ""
+
+#: procurement/forms.py:201
+msgid "ACME Parts Ltd"
+msgstr ""
+
+#: procurement/forms.py:214
 msgid "Supplier code is required."
 msgstr ""
 
-#: procurement/forms.py:178
+#: procurement/forms.py:216
 #, python-format
 msgid "Supplier code '%(code)s' is already in use."
 msgstr ""
@@ -2859,8 +3465,8 @@ msgstr ""
 #: procurement/models.py:25
 #, python-brace-format
 msgid ""
-"Unique supplier code. Supports Arabic, e.g. SUP-001 or مورد-001. Used in QR "
-"format SUPPLIER:{code}."
+"Unique supplier code. Use letters, digits, and dashes (e.g. SUP-001 or "
+"MWRD-001). Used in QR format SUPPLIER:{code}."
 msgstr ""
 
 #: procurement/models.py:59
@@ -3023,6 +3629,10 @@ msgstr ""
 msgid "PO %(po)s closed short."
 msgstr ""
 
+#: templates/accounts/mms_user_confirm_delete.html:4
+msgid "Delete user"
+msgstr ""
+
 #: templates/accounts/mms_user_confirm_delete.html:6
 msgid ""
 "Delete removes the row permanently (only when nothing in maintenance, "
@@ -3050,6 +3660,10 @@ msgstr ""
 msgid "Edit instead"
 msgstr ""
 
+#: templates/accounts/mms_user_create.html:4
+msgid "Create MMS user"
+msgstr ""
+
 #: templates/accounts/mms_user_create.html:6
 msgid "Set username, password, and MMS role. Use"
 msgstr ""
@@ -3070,7 +3684,12 @@ msgid ""
 msgstr ""
 
 #: templates/accounts/mms_user_edit.html:23
+#: templates/maintenance/pm_template_form.html:45
 msgid "Save changes"
+msgstr ""
+
+#: templates/accounts/mms_user_list.html:4
+msgid "MMS users"
 msgstr ""
 
 #: templates/accounts/mms_user_list.html:6
@@ -3083,21 +3702,12 @@ msgid "Role"
 msgstr ""
 
 #: templates/accounts/mms_user_list.html:11
-#: templates/maintenance/supplier_detail.html:17
-#: templates/maintenance/supplier_form.html:37
-#: templates/maintenance/supplier_list.html:24
-#: templates/procurement/po_form.html:115
-#: templates/procurement/pr_officer.html:37
-msgid "Email"
-msgstr ""
-
-#: templates/accounts/mms_user_list.html:11
 #: templates/maintenance/_wo_actions_manager.html:241
 #: templates/maintenance/legacy_reconciliation.html:45
 #: templates/maintenance/preventive/mgr_plans.html:26
 #: templates/maintenance/preventive/mgr_templates.html:22
-#: templates/maintenance/workorder_detail.html:108
-#: templates/procurement/po_detail.html:31
+#: templates/maintenance/workorder_detail.html:109
+#: templates/procurement/po_detail.html:33
 #: templates/procurement/po_list.html:141
 msgid "Actions"
 msgstr ""
@@ -3114,10 +3724,10 @@ msgstr ""
 
 #: templates/accounts/mms_user_list.html:25
 #: templates/maintenance/pm_template_form.html:25
-#: templates/maintenance/spare_part_detail.html:289
-#: templates/procurement/po_detail.html:142
-#: templates/procurement/po_receive.html:169
-#: templates/procurement/pr_detail.html:154
+#: templates/maintenance/spare_part_detail.html:293
+#: templates/procurement/po_detail.html:146
+#: templates/procurement/po_receive.html:173
+#: templates/procurement/pr_detail.html:158
 msgid "Delete"
 msgstr ""
 
@@ -3125,262 +3735,309 @@ msgstr ""
 msgid "No users."
 msgstr ""
 
-#: templates/base.html:19 templates/registration/login.html:17
+#: templates/base.html:20 templates/registration/login.html:17
 msgid "Bawazir MMS"
 msgstr ""
 
-#: templates/base.html:20
+#: templates/base.html:21
 msgid "Maintenance & spare parts"
 msgstr ""
 
-#: templates/base.html:23
+#: templates/base.html:24
 msgid "Overview"
 msgstr ""
 
-#: templates/base.html:29 templates/base.html:384 templates/base.html:442
-#: templates/base.html:504 templates/maintenance/dashboard.html:206
+#: templates/base.html:30 templates/base.html:385 templates/base.html:443
+#: templates/base.html:505 templates/maintenance/dashboard.html:206
 #: templates/maintenance/machine_list.html:38
 #: templates/maintenance/reports.html:15
 #: templates/maintenance/reports_machines.html:10
 msgid "Issues"
 msgstr ""
 
-#: templates/base.html:34 templates/maintenance/_cost_tab.html:537
+#: templates/base.html:35 templates/maintenance/_cost_tab.html:537
 #: templates/maintenance/dashboard.html:208
+#: templates/maintenance/workorder_list.html:5
 msgid "Work orders"
 msgstr ""
 
-#: templates/base.html:37 templates/base.html:410
+#: templates/base.html:38 templates/base.html:411
 #: templates/maintenance/my_workorders.html:30
 msgid "My queue"
 msgstr ""
 
-#: templates/base.html:40
+#: templates/base.html:41
 msgid "Emergency WO"
 msgstr ""
 
-#: templates/base.html:43 templates/base.html:423
+#: templates/base.html:44 templates/base.html:424
 msgid "Quick log"
 msgstr ""
 
-#: templates/base.html:47
+#: templates/base.html:48
 msgid "Inventory"
 msgstr ""
 
-#: templates/base.html:49 templates/base.html:419 templates/base.html:480
+#: templates/base.html:50 templates/base.html:420 templates/base.html:481
 #: templates/maintenance/_wo_actions_manager.html:38
 #: templates/maintenance/dashboard.html:210
 msgid "Stock"
 msgstr ""
 
-#: templates/base.html:52 templates/maintenance/dashboard.html:212
+#: templates/base.html:53 templates/maintenance/_wo_costs.html:83
+#: templates/maintenance/_wo_costs.html:116
+#: templates/maintenance/_wo_costs.html:292
+#: templates/maintenance/dashboard.html:212
 #: templates/maintenance/machine_cost_report.html:88
 msgid "Consumables"
 msgstr ""
 
-#: templates/base.html:55
+#: templates/base.html:56
 msgid "Inventory Lookup"
 msgstr ""
 
-#: templates/base.html:58 templates/base.html:490
+#: templates/base.html:59 templates/base.html:491
+#: templates/maintenance/supplier_list.html:4
 #: templates/procurement/supplier_analytics.html:27
 msgid "Suppliers"
 msgstr ""
 
-#: templates/base.html:59
+#: templates/base.html:60
 msgid "Reservations"
 msgstr ""
 
-#: templates/base.html:64 templates/maintenance/dashboard.html:213
+#: templates/base.html:65 templates/maintenance/dashboard.html:213
 msgid "Supply"
 msgstr ""
 
-#: templates/base.html:66 templates/maintenance/dashboard.html:267
+#: templates/base.html:67 templates/maintenance/dashboard.html:267
 msgid "Purchase Requests"
 msgstr ""
 
-#: templates/base.html:71
+#: templates/base.html:72 templates/procurement/po_list.html:5
 msgid "Purchase Orders"
 msgstr ""
 
-#: templates/base.html:75
+#: templates/base.html:76
 msgid "By Supplier"
 msgstr ""
 
-#: templates/base.html:79 templates/procurement/supplier_analytics.html:9
+#: templates/base.html:80 templates/procurement/supplier_analytics.html:9
 msgid "Supplier analytics"
 msgstr ""
 
-#: templates/base.html:85
+#: templates/base.html:86
 msgid "External Repairs"
 msgstr ""
 
-#: templates/base.html:86 templates/base.html:485
+#: templates/base.html:87 templates/base.html:486
 #: templates/maintenance/dashboard.html:58
 #: templates/maintenance/dashboard.html:273
 msgid "Draft EROs"
 msgstr ""
 
-#: templates/base.html:87 templates/base.html:486
+#: templates/base.html:88 templates/base.html:487
 #: templates/maintenance/dashboard.html:61
 msgid "Returned EROs"
 msgstr ""
 
-#: templates/base.html:90
+#: templates/base.html:91 templates/maintenance/reorder_suggestions.html:5
 msgid "Reorder Suggestions"
 msgstr ""
 
-#: templates/base.html:98
+#: templates/base.html:99
 msgid "Assets"
 msgstr ""
 
-#: templates/base.html:101 templates/maintenance/dashboard.html:211
+#: templates/base.html:102 templates/maintenance/dashboard.html:211
+#: templates/maintenance/machine_list.html:4
 msgid "Machines"
 msgstr ""
 
-#: templates/base.html:104
+#: templates/base.html:105 templates/base.html:128
+#: templates/maintenance/preventive/mgr_dashboard.html:4
 msgid "Preventive Maintenance"
 msgstr ""
 
-#: templates/base.html:132 templates/base.html:396 templates/base.html:513
+#: templates/base.html:110 templates/maintenance/preventive/mgr_today.html:4
+msgid "Today's Schedule"
+msgstr ""
+
+#: templates/base.html:113 templates/maintenance/preventive/mgr_reviews.html:4
+msgid "Reviews"
+msgstr ""
+
+#: templates/base.html:117 templates/maintenance/preventive/mgr_plans.html:4
+msgid "Maintenance Plans"
+msgstr ""
+
+#: templates/base.html:120
+#: templates/maintenance/preventive/mgr_templates.html:4
+msgid "Templates"
+msgstr ""
+
+#: templates/base.html:123 templates/maintenance/preventive/mgr_history.html:4
+msgid "History"
+msgstr ""
+
+#: templates/base.html:133 templates/base.html:397 templates/base.html:514
 msgid "Tools"
 msgstr ""
 
-#: templates/base.html:135 templates/maintenance/technician_report.html:47
+#: templates/base.html:136 templates/maintenance/technician_report.html:47
 msgid "External repairs"
 msgstr ""
 
-#: templates/base.html:140
+#: templates/base.html:141
 msgid "System"
 msgstr ""
 
-#: templates/base.html:141
+#: templates/base.html:142
 msgid "Users"
 msgstr ""
 
-#: templates/base.html:144
+#: templates/base.html:145
 msgid "Insights"
 msgstr ""
 
-#: templates/base.html:146 templates/maintenance/dashboard.html:221
+#: templates/base.html:147 templates/maintenance/dashboard.html:221
+#: templates/maintenance/notifications.html:4
 msgid "Notifications"
 msgstr ""
 
-#: templates/base.html:150 templates/maintenance/dashboard.html:215
+#: templates/base.html:151 templates/maintenance/dashboard.html:215
 msgid "KPIs"
 msgstr ""
 
-#: templates/base.html:153
+#: templates/base.html:154 templates/maintenance/audit_log.html:4
 msgid "Audit log"
 msgstr ""
 
-#: templates/base.html:156 templates/base.html:457 templates/base.html:517
+#: templates/base.html:157 templates/base.html:458 templates/base.html:518
 #: templates/maintenance/dashboard.html:214 templates/maintenance/kpi.html:135
 #: templates/maintenance/reporters_report.html:23
 msgid "Reports"
 msgstr ""
 
-#: templates/base.html:160 templates/maintenance/dashboard.html:217
+#: templates/base.html:161 templates/maintenance/dashboard.html:217
 #: templates/maintenance/reports.html:88
 msgid "Machine cost report"
 msgstr ""
 
-#: templates/base.html:163
+#: templates/base.html:164
 msgid "Pending repairs"
 msgstr ""
 
-#: templates/base.html:164
+#: templates/base.html:165
 msgid "Returned EROs awaiting manager acceptance"
 msgstr ""
 
-#: templates/base.html:167
+#: templates/base.html:168
 msgid "Pending approvals"
 msgstr ""
 
-#: templates/base.html:172
-msgid "Shortage dashboard"
+#: templates/base.html:169
+msgid "Work orders awaiting manager review/close"
 msgstr ""
 
 #: templates/base.html:173
-msgid "Pending shortage reports awaiting decision"
+msgid "Shortage dashboard"
 msgstr ""
 
 #: templates/base.html:174
-msgid "In-fulfillment shortages"
+msgid "Pending shortage reports awaiting decision"
 msgstr ""
 
 #: templates/base.html:175
+msgid "In-fulfillment shortages"
+msgstr ""
+
+#: templates/base.html:176
 msgid "Stuck in fulfillment >7 days"
 msgstr ""
 
-#: templates/base.html:181
+#: templates/base.html:182
 msgid "Legacy reconciliation"
 msgstr ""
 
-#: templates/base.html:182
+#: templates/base.html:183
 msgid "Work orders still on the legacy state model"
 msgstr ""
 
-#: templates/base.html:191
+#: templates/base.html:192
 msgid "Admin"
 msgstr ""
 
-#: templates/base.html:193
+#: templates/base.html:194
 msgid "Sign out"
 msgstr ""
 
-#: templates/base.html:197
+#: templates/base.html:198
 msgid "Close navigation"
 msgstr ""
 
-#: templates/base.html:201
+#: templates/base.html:202
 msgid "Open navigation menu"
 msgstr ""
 
-#: templates/base.html:211
+#: templates/base.html:209
+#, python-format
+msgid "%(counter)s open WO"
+msgid_plural "%(counter)s open WOs"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/base.html:212
 msgid "Language"
 msgstr ""
 
-#: templates/base.html:381 templates/base.html:403 templates/base.html:430
-#: templates/base.html:464 templates/base.html:497
+#: templates/base.html:382 templates/base.html:404 templates/base.html:431
+#: templates/base.html:465 templates/base.html:498
 msgid "Mobile navigation"
 msgstr ""
 
-#: templates/base.html:388
+#: templates/base.html:389
 msgid "Report"
 msgstr ""
 
-#: templates/base.html:392
+#: templates/base.html:393
 msgid "Consume"
 msgstr ""
 
-#: templates/base.html:406 templates/base.html:433 templates/base.html:467
-#: templates/base.html:500
+#: templates/base.html:407 templates/base.html:434 templates/base.html:468
+#: templates/base.html:501
 msgid "Home"
 msgstr ""
 
-#: templates/base.html:415
+#: templates/base.html:416
 msgid "All WO"
 msgstr ""
 
-#: templates/base.html:446
+#: templates/base.html:447
 msgid "Shortages"
 msgstr ""
 
-#: templates/base.html:471
+#: templates/base.html:472
 msgid "Requests"
 msgstr ""
 
-#: templates/base.html:476
+#: templates/base.html:477
 msgid "Orders"
 msgstr ""
 
-#: templates/base.html:484
+#: templates/base.html:485
 msgid "Repairs"
 msgstr ""
 
 #: templates/maintenance/_asset_tree.html:4
 msgid "📍 Asset Tree"
+msgstr ""
+
+#: templates/maintenance/_asset_tree.html:6
+#: templates/maintenance/spare_part_detail.html:12
+#: templates/maintenance/stock_dashboard.html:9
+#: templates/maintenance/stock_lookup.html:29
+msgid "Site:"
 msgstr ""
 
 #: templates/maintenance/_asset_tree.html:63
@@ -3420,72 +4077,96 @@ msgstr ""
 msgid "Click to view this asset"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:19
-#: templates/maintenance/_attachment_uploader.html:189
-#: templates/maintenance/spare_part_detail.html:213
+#: templates/maintenance/_attachment_uploader.html:21
+#: templates/maintenance/_attachment_uploader.html:193
+#: templates/maintenance/spare_part_detail.html:214
 msgid "Loading attachments…"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:37
+#: templates/maintenance/_attachment_uploader.html:39
 msgid "Set as primary"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:42
-#: templates/maintenance/spare_part_detail.html:227
+#: templates/maintenance/_attachment_uploader.html:44
+#: templates/maintenance/spare_part_detail.html:228
 msgid "Product shot"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:43
-#: templates/maintenance/spare_part_detail.html:228
+#: templates/maintenance/_attachment_uploader.html:45
+#: templates/maintenance/spare_part_detail.html:229
 msgid "Manufacturer label"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:45
-#: templates/maintenance/spare_part_detail.html:230
+#: templates/maintenance/_attachment_uploader.html:47
+#: templates/maintenance/spare_part_detail.html:231
 msgid "Installed in machine"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:46
-#: templates/maintenance/spare_part_detail.html:231
+#: templates/maintenance/_attachment_uploader.html:48
+#: templates/maintenance/spare_part_detail.html:232
 msgid "Document / datasheet"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:50
-#: templates/maintenance/spare_part_detail.html:233
+#: templates/maintenance/_attachment_uploader.html:52
+#: templates/maintenance/spare_part_detail.html:234
 msgid "Note (optional)"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:144
-msgid "${escapeHtml(ext)}"
+#: templates/maintenance/_attachment_uploader.html:127
+msgid "Open full size in new tab"
+msgstr ""
+
+#: templates/maintenance/_attachment_uploader.html:134
+msgid "Open video in new tab"
 msgstr ""
 
 #: templates/maintenance/_attachment_uploader.html:148
-msgid "★ primary"
+msgid "${escapeHtml(ext)}"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:176
-#, python-brace-format
-msgid "${filename}"
+#: templates/maintenance/_attachment_uploader.html:152
+msgid "★ primary"
 msgstr ""
 
 #: templates/maintenance/_attachment_uploader.html:180
 #, python-brace-format
+msgid "${filename}"
+msgstr ""
+
+#: templates/maintenance/_attachment_uploader.html:184
+#, python-brace-format
 msgid "${note}"
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:198
+#: templates/maintenance/_attachment_uploader.html:202
 #: templates/maintenance/part_adjust.html:146
-#: templates/maintenance/repair_officer.html:84
-#: templates/maintenance/workorder_detail.html:645
-#: templates/procurement/po_detail.html:147
-#: templates/procurement/po_receive.html:174
-#: templates/procurement/pr_detail.html:159
+#: templates/maintenance/repair_officer.html:88
+#: templates/maintenance/workorder_detail.html:648
+#: templates/procurement/po_detail.html:151
+#: templates/procurement/po_receive.html:178
+#: templates/procurement/pr_detail.html:163
 msgid "No attachments yet."
 msgstr ""
 
-#: templates/maintenance/_attachment_uploader.html:202
-#: templates/maintenance/spare_part_detail.html:299
+#: templates/maintenance/_attachment_uploader.html:206
+#: templates/maintenance/spare_part_detail.html:303
 msgid "Failed to load attachments."
+msgstr ""
+
+#: templates/maintenance/_attachment_uploader.html:217
+#: templates/maintenance/spare_part_detail.html:314
+msgid "Please select a file first."
+msgstr ""
+
+#: templates/maintenance/_attachment_uploader.html:286
+#: templates/maintenance/part_adjust.html:187
+#: templates/maintenance/repair_officer.html:126
+#: templates/maintenance/spare_part_detail.html:372
+#: templates/maintenance/workorder_detail.html:689
+#: templates/procurement/po_detail.html:186
+#: templates/procurement/po_receive.html:213
+#: templates/procurement/pr_detail.html:199
+msgid "Delete this attachment?"
 msgstr ""
 
 #: templates/maintenance/_cost_ledger_table.html:114
@@ -3502,6 +4183,11 @@ msgstr ""
 msgid "REVERSAL"
 msgstr ""
 
+#: templates/maintenance/_cost_ledger_table.html:156
+#, python-format
+msgid "No cost ledger entries yet for WO-%(n)s."
+msgstr ""
+
 #: templates/maintenance/_cost_tab.html:410
 msgid "Maintenance costs"
 msgstr ""
@@ -3510,8 +4196,18 @@ msgstr ""
 msgid "Select time period"
 msgstr ""
 
+#: templates/maintenance/_cost_tab.html:450
+#, python-format
+msgid "No maintenance cost recorded in the last %(d)s days"
+msgstr ""
+
 #: templates/maintenance/_cost_tab.html:451
 msgid "Costs will appear here after work orders are closed."
+msgstr ""
+
+#: templates/maintenance/_cost_tab.html:456
+#, python-format
+msgid "Total cost &middot; last %(d)s days"
 msgstr ""
 
 #: templates/maintenance/_cost_tab.html:463
@@ -3529,14 +4225,14 @@ msgid "no prior comparison"
 msgstr ""
 
 #: templates/maintenance/_cost_tab.html:470
-#: templates/maintenance/_wo_costs.html:353
-#: templates/maintenance/_wo_costs.html:536
+#: templates/maintenance/_wo_costs.html:77
+#: templates/maintenance/_wo_costs.html:260
 msgid "Breakdown by category"
 msgstr ""
 
 #: templates/maintenance/_cost_tab.html:472
-#: templates/maintenance/_wo_costs.html:355
-#: templates/maintenance/_wo_costs.html:538
+#: templates/maintenance/_wo_costs.html:79
+#: templates/maintenance/_wo_costs.html:262
 msgid "Cost distribution across categories"
 msgstr ""
 
@@ -3558,54 +4254,32 @@ msgstr ""
 msgid "' + fmtPct(pct) + ' ' + priorLabel + '"
 msgstr ""
 
-#: templates/maintenance/_part_request_js.html:76
-msgid "' + qty + '"
-msgstr ""
-
-#: templates/maintenance/_part_request_js.html:76
-msgid "but only"
-msgstr ""
-
-#: templates/maintenance/_part_request_js.html:96
-msgid "↻ live"
-msgstr ""
-
-#: templates/maintenance/_part_request_js.html:98
-msgid "' + d.stock_label + '"
-msgstr ""
-
-#: templates/maintenance/_part_request_js.html:110
-msgid "0) hist += 'Used on this asset:"
-msgstr ""
-
-#: templates/maintenance/_part_request_js.html:110
-msgid "' + d.used_on_asset + ' times"
-msgstr ""
-
-#: templates/maintenance/_part_request_js.html:112
-msgid "= 0) hist += ' · Last replaced:"
-msgstr ""
-
-#: templates/maintenance/_part_request_js.html:112
-msgid "' + d.last_replaced_days + ' days ago"
-msgstr ""
-
-#: templates/maintenance/_voice_recorder.html:9
+#: templates/maintenance/_voice_recorder.html:11
 #: templates/maintenance/workorder_part_re_review.html:64
 msgid "🎤 Voice note (optional, 30–60s)"
 msgstr ""
 
-#: templates/maintenance/_voice_recorder.html:15
+#: templates/maintenance/_voice_recorder.html:13
+#: templates/maintenance/workorder_part_re_review.html:72
+msgid "Tap Start to record. Auto-stops at 60s."
+msgstr ""
+
+#: templates/maintenance/_voice_recorder.html:14
+msgid ""
+"Recording auto-stops at 60s. Voice is uploaded and attached to the record."
+msgstr ""
+
+#: templates/maintenance/_voice_recorder.html:17
 #: templates/maintenance/workorder_part_re_review.html:67
 msgid "🎤 Start"
 msgstr ""
 
-#: templates/maintenance/_voice_recorder.html:16
+#: templates/maintenance/_voice_recorder.html:18
 #: templates/maintenance/workorder_part_re_review.html:68
 msgid "⏹ Stop"
 msgstr ""
 
-#: templates/maintenance/_voice_recorder.html:22
+#: templates/maintenance/_voice_recorder.html:24
 #: templates/maintenance/workorder_part_re_review.html:74
 msgid "🗑 Discard"
 msgstr ""
@@ -3623,41 +4297,12 @@ msgid "Direct issue (manager override — bypasses technician request flow)"
 msgstr ""
 
 #: templates/maintenance/_wo_actions_manager.html:22
-#: templates/maintenance/spare_part_detail.html:123
+#: templates/maintenance/spare_part_detail.html:124
 msgid "Issue to WO"
 msgstr ""
 
 #: templates/maintenance/_wo_actions_manager.html:26
 msgid "New purchase request for this WO"
-msgstr ""
-
-#: templates/maintenance/_wo_actions_manager.html:36
-#: templates/maintenance/_wo_actions_manager.html:238
-#: templates/maintenance/_wo_actions_technician.html:109
-#: templates/maintenance/_wo_reservation_history.html:26
-#: templates/maintenance/_wo_reservation_history.html:67
-#: templates/maintenance/consumables.html:51
-#: templates/maintenance/consumables.html:84
-#: templates/maintenance/consumables.html:125
-#: templates/maintenance/consumables.html:157
-#: templates/maintenance/machine_detail.html:293
-#: templates/maintenance/reservations_dashboard.html:43
-#: templates/maintenance/reservations_dashboard.html:69
-#: templates/maintenance/shortage_dashboard.html:84
-#: templates/maintenance/shortage_dashboard.html:124
-#: templates/maintenance/shortage_dashboard.html:170
-#: templates/maintenance/workorder_detail.html:125
-#: templates/maintenance/workorder_detail.html:317
-#: templates/maintenance/workorder_detail.html:355
-#: templates/maintenance/workorder_detail.html:385
-#: templates/maintenance/workorder_part_re_review.html:28
-#: templates/procurement/po_close_short.html:16
-#: templates/procurement/po_detail.html:55
-#: templates/procurement/po_form.html:82
-#: templates/procurement/po_receive.html:48
-#: templates/procurement/pr_detail.html:66
-#: templates/procurement/pr_list.html:15
-msgid "Part"
 msgstr ""
 
 #: templates/maintenance/_wo_actions_manager.html:37
@@ -3732,49 +4377,6 @@ msgstr ""
 msgid "Cancellation reason (min 15 chars — required for audit)"
 msgstr ""
 
-#: templates/maintenance/_wo_actions_manager.html:240
-#: templates/maintenance/_wo_reservation_history.html:70
-#: templates/maintenance/issue_detail.html:28
-#: templates/maintenance/issue_list.html:45
-#: templates/maintenance/machine_detail.html:50
-#: templates/maintenance/machine_detail.html:117
-#: templates/maintenance/machine_detail.html:158
-#: templates/maintenance/machine_detail.html:213
-#: templates/maintenance/machine_detail.html:269
-#: templates/maintenance/machine_detail.html:293
-#: templates/maintenance/machine_form.html:116
-#: templates/maintenance/my_workorders.html:37
-#: templates/maintenance/pm_list.html:24
-#: templates/maintenance/pm_review.html:12
-#: templates/maintenance/pm_review.html:31
-#: templates/maintenance/preventive/mgr_history.html:38
-#: templates/maintenance/preventive/mgr_history.html:63
-#: templates/maintenance/preventive/mgr_plan_detail.html:132
-#: templates/maintenance/preventive/mgr_plans.html:25
-#: templates/maintenance/repair_list.html:14
-#: templates/maintenance/reports.html:27
-#: templates/maintenance/reports_low_stock.html:11
-#: templates/maintenance/reports_work_orders.html:19
-#: templates/maintenance/reports_work_orders.html:42
-#: templates/maintenance/reservations_dashboard.html:72
-#: templates/maintenance/shortage_dashboard.html:126
-#: templates/maintenance/spare_part_detail.html:166
-#: templates/maintenance/spare_part_detail.html:190
-#: templates/maintenance/spare_part_form.html:84
-#: templates/maintenance/supplier_detail.html:24
-#: templates/maintenance/tools.html:84
-#: templates/maintenance/workorder_create_confirm.html:19
-#: templates/maintenance/workorder_detail.html:125
-#: templates/maintenance/workorder_detail.html:385
-#: templates/maintenance/workorder_list.html:9
-#: templates/maintenance/workorder_list.html:20
-#: templates/procurement/po_detail.html:13
-#: templates/procurement/po_form.html:82 templates/procurement/po_list.html:137
-#: templates/procurement/pr_detail.html:78
-#: templates/procurement/pr_list.html:15
-msgid "Status"
-msgstr ""
-
 #: templates/maintenance/_wo_actions_manager.html:253
 msgid "✅ Approve"
 msgstr ""
@@ -3843,8 +4445,8 @@ msgstr ""
 #: templates/maintenance/_wo_actions_technician.html:33
 #: templates/maintenance/_wo_reservation_history.html:72
 #: templates/maintenance/reservations_dashboard.html:77
-#: templates/maintenance/workorder_detail.html:432
-#: templates/maintenance/workorder_detail.html:465
+#: templates/maintenance/workorder_detail.html:433
+#: templates/maintenance/workorder_detail.html:466
 msgid "Reason"
 msgstr ""
 
@@ -3953,6 +4555,10 @@ msgstr ""
 msgid "No past blockers — this WO has no blocker history yet."
 msgstr ""
 
+#: templates/maintenance/_wo_blockers_panel.html:12
+msgid "🚧 Active Blockers ("
+msgstr ""
+
 #: templates/maintenance/_wo_blockers_panel.html:44
 msgid "Pause reason:"
 msgstr ""
@@ -3965,31 +4571,41 @@ msgstr ""
 msgid "✅ No active blockers"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:322
+#: templates/maintenance/_wo_costs.html:30
+#: templates/maintenance/_wo_costs.html:224
+msgid "Costs"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:33
+#: templates/maintenance/_wo_costs.html:227
+msgid "Open cost ledger"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:46
 msgid "No costs posted yet."
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:323
+#: templates/maintenance/_wo_costs.html:47
 msgid ""
 "Costs will appear here after parts are issued, vendor repairs close, or "
 "consumables are logged."
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:328
-#: templates/maintenance/_wo_costs.html:516
+#: templates/maintenance/_wo_costs.html:52
+#: templates/maintenance/_wo_costs.html:240
 msgid "Total cost &middot; all time"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:331
-#: templates/maintenance/_wo_costs.html:374
-#: templates/maintenance/_wo_costs.html:385
-#: templates/maintenance/_wo_costs.html:396
-#: templates/maintenance/_wo_costs.html:407
-#: templates/maintenance/_wo_costs.html:519
-#: templates/maintenance/_wo_costs.html:550
-#: templates/maintenance/_wo_costs.html:561
-#: templates/maintenance/_wo_costs.html:572
-#: templates/maintenance/_wo_costs.html:583
+#: templates/maintenance/_wo_costs.html:55
+#: templates/maintenance/_wo_costs.html:98
+#: templates/maintenance/_wo_costs.html:109
+#: templates/maintenance/_wo_costs.html:120
+#: templates/maintenance/_wo_costs.html:131
+#: templates/maintenance/_wo_costs.html:243
+#: templates/maintenance/_wo_costs.html:274
+#: templates/maintenance/_wo_costs.html:285
+#: templates/maintenance/_wo_costs.html:296
+#: templates/maintenance/_wo_costs.html:307
 #: templates/maintenance/work_order_cost_ledger.html:142
 #: templates/maintenance/work_order_cost_ledger.html:169
 #: templates/maintenance/work_order_cost_ledger.html:178
@@ -3998,48 +4614,85 @@ msgstr ""
 msgid "SAR"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:424
-#: templates/maintenance/_wo_costs.html:600
-msgid "Posted"
-msgstr ""
-
-#: templates/maintenance/_wo_costs.html:441
-#: templates/maintenance/_wo_costs.html:617
-msgid "Avg / txn"
-msgstr ""
-
-#: templates/maintenance/_wo_costs.html:454
-#: templates/maintenance/_wo_costs.html:630
+#: templates/maintenance/_wo_costs.html:63
+#: templates/maintenance/_wo_costs.html:178
+#: templates/maintenance/_wo_costs.html:251
+#: templates/maintenance/_wo_costs.html:354
 msgid "Last reconciled"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:462
-#: templates/maintenance/_wo_costs.html:637
+#: templates/maintenance/_wo_costs.html:63
+#: templates/maintenance/_wo_costs.html:251
+msgid "never"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:71
+msgid "View ledger →"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:81
+#: templates/maintenance/_wo_costs.html:94
+#: templates/maintenance/_wo_costs.html:270
+msgid "Material"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:84
+#: templates/maintenance/_wo_costs.html:127
+#: templates/maintenance/_wo_costs.html:303
+msgid "Adjustments"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:148
+#: templates/maintenance/_wo_costs.html:324
+msgid "Posted"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:165
+#: templates/maintenance/_wo_costs.html:341
+msgid "Avg / txn"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:186
+#: templates/maintenance/_wo_costs.html:361
 msgid "Add a cost adjustment"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:466
-#: templates/maintenance/_wo_costs.html:641
+#: templates/maintenance/_wo_costs.html:190
+#: templates/maintenance/_wo_costs.html:365
 msgid "Amount (SAR) *"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:471
-#: templates/maintenance/_wo_costs.html:646
+#: templates/maintenance/_wo_costs.html:195
+#: templates/maintenance/_wo_costs.html:370
 msgid "Memo *"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:473
-#: templates/maintenance/_wo_costs.html:648
+#: templates/maintenance/_wo_costs.html:197
+#: templates/maintenance/_wo_costs.html:372
 msgid "Min 10 characters. Explains why this adjustment exists."
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:476
-#: templates/maintenance/_wo_costs.html:651
+#: templates/maintenance/_wo_costs.html:200
+#: templates/maintenance/_wo_costs.html:375
 msgid "Post adjustment"
 msgstr ""
 
-#: templates/maintenance/_wo_costs.html:511
+#: templates/maintenance/_wo_costs.html:235
 msgid "No cost recorded yet"
+msgstr ""
+
+#: templates/maintenance/_wo_costs.html:236
+msgid ""
+"Costs will appear here once parts are issued to this work order or a manager "
+"posts an adjustment."
+msgstr ""
+
+#: templates/maintenance/_wo_health_card.html:29
+msgid "Health:"
+msgstr ""
+
+#: templates/maintenance/_wo_health_card.html:31
+msgid "(Phase 3A read-only summary)"
 msgstr ""
 
 #: templates/maintenance/_wo_health_card.html:36
@@ -4074,6 +4727,10 @@ msgstr ""
 msgid "Waiting:"
 msgstr ""
 
+#: templates/maintenance/_wo_health_card.html:74
+msgid "day"
+msgstr ""
+
 #: templates/maintenance/_wo_health_card.html:77
 msgid "Total cost:"
 msgstr ""
@@ -4103,8 +4760,8 @@ msgstr ""
 #: templates/maintenance/stock_dashboard.html:59
 #: templates/maintenance/stock_lookup.html:47
 #: templates/maintenance/supplier_detail.html:70
-#: templates/procurement/po_detail.html:56
-#: templates/procurement/po_receive.html:49
+#: templates/procurement/po_detail.html:58
+#: templates/procurement/po_receive.html:51
 msgid "SKU"
 msgstr ""
 
@@ -4115,9 +4772,9 @@ msgstr ""
 #: templates/maintenance/machine_detail.html:293
 #: templates/maintenance/reports.html:63
 #: templates/maintenance/reservations_dashboard.html:71
-#: templates/maintenance/spare_part_detail.html:190
-#: templates/maintenance/workorder_detail.html:125
-#: templates/maintenance/workorder_detail.html:385
+#: templates/maintenance/spare_part_detail.html:191
+#: templates/maintenance/workorder_detail.html:126
+#: templates/maintenance/workorder_detail.html:386
 #: templates/procurement/po_form.html:82 templates/procurement/pr_list.html:15
 msgid "Qty"
 msgstr ""
@@ -4127,11 +4784,11 @@ msgstr ""
 #: templates/maintenance/preventive/mgr_plan_detail.html:35
 #: templates/maintenance/reports_work_orders.html:42
 #: templates/maintenance/reservations_dashboard.html:75
-#: templates/maintenance/spare_part_detail.html:166
-#: templates/maintenance/spare_part_detail.html:190
-#: templates/procurement/po_detail.html:19
+#: templates/maintenance/spare_part_detail.html:167
+#: templates/maintenance/spare_part_detail.html:191
+#: templates/procurement/po_detail.html:21
 #: templates/procurement/po_list.html:140
-#: templates/procurement/pr_detail.html:83
+#: templates/procurement/pr_detail.html:85
 msgid "Created"
 msgstr ""
 
@@ -4188,6 +4845,10 @@ msgstr ""
 msgid "Return to Technician"
 msgstr ""
 
+#: templates/maintenance/active_blockers_dashboard.html:5
+msgid "Active WorkOrder Blockers"
+msgstr ""
+
 #: templates/maintenance/active_blockers_dashboard.html:14
 msgid "No active blockers. All clear!"
 msgstr ""
@@ -4242,6 +4903,9 @@ msgstr ""
 #: templates/maintenance/active_blockers_dashboard.html:58
 #: templates/maintenance/pm_review.html:11
 #: templates/maintenance/pm_wo_detail.html:27
+#: templates/maintenance/reports_work_orders.html:42
+#: templates/maintenance/technician_report.html:81
+#: templates/procurement/po_form.html:82
 msgid "Work Order"
 msgstr ""
 
@@ -4271,6 +4935,13 @@ msgstr ""
 msgid "&laquo; Previous"
 msgstr ""
 
+#: templates/maintenance/active_blockers_dashboard.html:110
+#: templates/maintenance/audit_log.html:28
+#: templates/maintenance/reconciliation_dashboard.html:88
+#, python-format
+msgid "Page %(n)s of %(t)s"
+msgstr ""
+
 #: templates/maintenance/active_blockers_dashboard.html:112
 #: templates/maintenance/reconciliation_dashboard.html:90
 msgid "Next &raquo;"
@@ -4292,9 +4963,9 @@ msgstr ""
 #: templates/maintenance/shortage_dashboard.html:88
 #: templates/maintenance/shortage_dashboard.html:128
 #: templates/maintenance/shortage_dashboard.html:170
-#: templates/maintenance/workorder_detail.html:202
-#: templates/maintenance/workorder_detail.html:318
-#: templates/maintenance/workorder_detail.html:428
+#: templates/maintenance/workorder_detail.html:203
+#: templates/maintenance/workorder_detail.html:319
+#: templates/maintenance/workorder_detail.html:429
 msgid "Action"
 msgstr ""
 
@@ -4312,6 +4983,10 @@ msgstr ""
 
 #: templates/maintenance/audit_log.html:29
 msgid "Next"
+msgstr ""
+
+#: templates/maintenance/consumables.html:4
+msgid "Daily consumables"
 msgstr ""
 
 #: templates/maintenance/consumables.html:23
@@ -4610,16 +5285,16 @@ msgid ""
 msgstr ""
 
 #: templates/maintenance/emergency_wo.html:14
-#: templates/maintenance/issue_form.html:33
-#: templates/maintenance/pm_form.html:14
+#: templates/maintenance/issue_form.html:35
+#: templates/maintenance/pm_form.html:16
 #: templates/maintenance/repair_form.html:14
 #: templates/procurement/pr_form.html:14
 msgid "🔒 Asset locked:"
 msgstr ""
 
 #: templates/maintenance/emergency_wo.html:17
-#: templates/maintenance/issue_form.html:36
-#: templates/maintenance/pm_form.html:17
+#: templates/maintenance/issue_form.html:38
+#: templates/maintenance/pm_form.html:19
 #: templates/maintenance/repair_form.html:17
 #: templates/procurement/pr_form.html:17
 msgid ""
@@ -4629,7 +5304,7 @@ msgid ""
 msgstr ""
 
 #: templates/maintenance/emergency_wo.html:42
-#: templates/maintenance/issue_form.html:62
+#: templates/maintenance/issue_form.html:64
 #: templates/maintenance/repair_form.html:42
 #: templates/procurement/pr_form.html:42
 msgid "Component:"
@@ -4645,22 +5320,14 @@ msgstr ""
 msgid "Create emergency WO"
 msgstr ""
 
+#: templates/maintenance/failing_assets_report.html:4
+msgid "Failing assets report"
+msgstr ""
+
 #: templates/maintenance/failing_assets_report.html:8
 #: templates/maintenance/failure_mode_report.html:9
 #: templates/maintenance/reporters_report.html:8
 msgid "← Back to KPIs"
-msgstr ""
-
-#: templates/maintenance/failing_assets_report.html:22
-#: templates/maintenance/failure_mode_report.html:22
-#: templates/maintenance/kpi.html:73
-#: templates/maintenance/pm_template_list.html:15
-#: templates/maintenance/preventive/mgr_templates.html:16
-#: templates/maintenance/reports_machines.html:10
-#: templates/maintenance/supplier_detail.html:45
-#: templates/maintenance/supplier_list.html:20
-#: templates/maintenance/tools.html:84
-msgid "Code"
 msgstr ""
 
 #: templates/maintenance/failing_assets_report.html:24
@@ -4681,22 +5348,12 @@ msgstr ""
 #: templates/maintenance/failing_assets_report.html:61
 #: templates/maintenance/machine_cost_report.html:90
 #: templates/maintenance/reporters_report.html:67
-#: templates/procurement/po_detail.html:61
+#: templates/procurement/po_detail.html:63
 msgid "Total"
 msgstr ""
 
-#: templates/maintenance/failure_mode_report.html:23
-#: templates/maintenance/kpi.html:73 templates/maintenance/machine_list.html:38
-#: templates/maintenance/reorder_suggestions.html:15
-#: templates/maintenance/reports.html:75
-#: templates/maintenance/reports_low_stock.html:11
-#: templates/maintenance/reports_parts_issued.html:10
-#: templates/maintenance/stock_dashboard.html:61
-#: templates/maintenance/stock_lookup.html:49
-#: templates/maintenance/supplier_detail.html:70
-#: templates/maintenance/supplier_list.html:21
-#: templates/maintenance/tools.html:84
-msgid "Name"
+#: templates/maintenance/failure_mode_report.html:5
+msgid "Failure mode report"
 msgstr ""
 
 #: templates/maintenance/failure_mode_report.html:25
@@ -4720,23 +5377,6 @@ msgstr ""
 
 #: templates/maintenance/issue_detail.html:32
 msgid "Converted"
-msgstr ""
-
-#: templates/maintenance/issue_detail.html:35
-#: templates/maintenance/issue_list.html:45
-#: templates/maintenance/machine_detail.html:158
-#: templates/maintenance/machine_detail.html:211
-#: templates/maintenance/my_workorders.html:38
-#: templates/maintenance/pm_batch_spawn_confirm.html:20
-#: templates/maintenance/pm_list.html:61
-#: templates/maintenance/pm_spawn_wo.html:16
-#: templates/maintenance/pm_template_detail.html:12
-#: templates/maintenance/pm_template_list.html:15
-#: templates/maintenance/pm_wo_detail.html:49
-#: templates/maintenance/preventive/mgr_plan_detail.html:30
-#: templates/maintenance/workorder_create_confirm.html:20
-#: templates/maintenance/workorder_list.html:20
-msgid "Priority"
 msgstr ""
 
 #: templates/maintenance/issue_detail.html:46
@@ -4765,9 +5405,9 @@ msgstr ""
 
 #: templates/maintenance/issue_detail.html:70
 #: templates/maintenance/part_adjust.html:103
-#: templates/maintenance/repair_officer.html:24
-#: templates/maintenance/repair_officer.html:43
-#: templates/maintenance/workorder_detail.html:520
+#: templates/maintenance/repair_officer.html:26
+#: templates/maintenance/repair_officer.html:45
+#: templates/maintenance/workorder_detail.html:521
 msgid "Loading..."
 msgstr ""
 
@@ -4818,7 +5458,7 @@ msgid "No photos yet."
 msgstr ""
 
 #: templates/maintenance/issue_detail.html:148
-#: templates/maintenance/workorder_detail.html:62
+#: templates/maintenance/workorder_detail.html:63
 msgid "AUDIO"
 msgstr ""
 
@@ -4841,56 +5481,79 @@ msgstr ""
 msgid "PDF"
 msgstr ""
 
-#: templates/maintenance/issue_form.html:7
+#: templates/maintenance/issue_form.html:6
+msgid "Report machine issue"
+msgstr ""
+
+#: templates/maintenance/issue_form.html:9
 #: templates/maintenance/issue_list.html:13
 msgid "Scan machine QR"
 msgstr ""
 
-#: templates/maintenance/issue_form.html:9
+#: templates/maintenance/issue_form.html:11
 msgid "View machines"
 msgstr ""
 
-#: templates/maintenance/issue_form.html:16
+#: templates/maintenance/issue_form.html:18
 msgid "Scanned code:"
 msgstr ""
 
-#: templates/maintenance/issue_form.html:20
+#: templates/maintenance/issue_form.html:22
 msgid "No machine matched this QR code yet. Add it in Machines, then retry."
 msgstr ""
 
-#: templates/maintenance/issue_form.html:64
+#: templates/maintenance/issue_form.html:66
 msgid ""
 "Optional. Pick a specific sub-assembly / component inside the selected "
 "machine."
 msgstr ""
 
-#: templates/maintenance/issue_form.html:69
+#: templates/maintenance/issue_form.html:71
 msgid "Photos &amp; Videos (optional)"
 msgstr ""
 
-#: templates/maintenance/issue_form.html:73
+#: templates/maintenance/issue_form.html:75
 msgid ""
 "Max 10 files. Images/PDF: 5MB each. Videos: 30MB each. JPG, PNG, WEBP, PDF, "
 "MP4, MOV."
 msgstr ""
 
-#: templates/maintenance/issue_form.html:78
-#: templates/maintenance/workorder_detail.html:335
+#: templates/maintenance/issue_form.html:80
+#: templates/maintenance/workorder_detail.html:336
 #: templates/procurement/pr_form.html:52
 msgid "Submit"
 msgstr ""
 
-#: templates/maintenance/issue_form.html:83
+#: templates/maintenance/issue_form.html:85
 msgid "Tip: QR deep link"
 msgstr ""
 
-#: templates/maintenance/issue_form.html:83
+#: templates/maintenance/issue_form.html:85
 msgid "pre-selects the machine, and the scanner page can fill it for you."
 msgstr ""
 
-#: templates/maintenance/issue_form.html:161
-#: templates/maintenance/issue_form.html:164
+#: templates/maintenance/issue_form.html:165
+#: templates/maintenance/issue_form.html:168
+#: templates/maintenance/preventive/mgr_template_form.html:30
+#: templates/maintenance/preventive/mgr_template_form.html:53
+msgid "Remove"
+msgstr ""
+
+#: templates/maintenance/issue_form.html:165
+#: templates/maintenance/issue_form.html:168
 msgid "&times;"
+msgstr ""
+
+#: templates/maintenance/issue_form.html:167
+msgid "Preview"
+msgstr ""
+
+#: templates/maintenance/issue_form.html:351
+msgid "Failed to submit issue. Please try again."
+msgstr ""
+
+#: templates/maintenance/issue_list.html:5
+msgid "Maintenance issues"
 msgstr ""
 
 #: templates/maintenance/issue_list.html:21
@@ -4937,6 +5600,11 @@ msgid "Review / Create WO"
 msgstr ""
 
 #: templates/maintenance/issue_list.html:71
+#, python-format
+msgid "Archive issue #%(n)s? This cannot be undone."
+msgstr ""
+
+#: templates/maintenance/issue_list.html:71
 #: templates/maintenance/preventive/mgr_plan_detail.html:75
 #: templates/maintenance/workorder_list.html:31
 msgid "Archive"
@@ -4960,6 +5628,10 @@ msgstr ""
 
 #: templates/maintenance/issue_validate.html:13
 msgid "Validate &amp; set priority"
+msgstr ""
+
+#: templates/maintenance/kpi.html:4
+msgid "KPIs &amp; reliability"
 msgstr ""
 
 #: templates/maintenance/kpi.html:6
@@ -5059,6 +5731,10 @@ msgid ""
 "maintenance, part, tool, and procurement records in the PDF scope."
 msgstr ""
 
+#: templates/maintenance/legacy_reconciliation.html:5
+msgid "Legacy Work Order Reconciliation"
+msgstr ""
+
 #: templates/maintenance/legacy_reconciliation.html:18
 #: templates/maintenance/reports_work_orders.html:10
 msgid "Total WOs"
@@ -5094,6 +5770,10 @@ msgstr ""
 msgid "No legacy WOs found."
 msgstr ""
 
+#: templates/maintenance/machine_cost_report.html:4
+msgid "Machine Cost Report"
+msgstr ""
+
 #: templates/maintenance/machine_cost_report.html:10
 #: templates/procurement/po_list.html:28
 msgid "Period:"
@@ -5109,15 +5789,6 @@ msgstr ""
 
 #: templates/maintenance/machine_cost_report.html:37
 msgid "Total Inventory Value"
-msgstr ""
-
-#: templates/maintenance/machine_cost_report.html:43
-#: templates/maintenance/machine_cost_report.html:54
-#: templates/maintenance/machine_detail.html:48
-#: templates/maintenance/machine_form.html:61
-#: templates/maintenance/machine_list.html:38
-#: templates/maintenance/part_adjust.html:28
-msgid "Site"
 msgstr ""
 
 #: templates/maintenance/machine_cost_report.html:56
@@ -5168,12 +5839,6 @@ msgstr ""
 msgid "Asset Code"
 msgstr ""
 
-#: templates/maintenance/machine_detail.html:49
-#: templates/maintenance/machine_form.html:43
-#: templates/maintenance/machine_list.html:38
-msgid "Location"
-msgstr ""
-
 #: templates/maintenance/machine_detail.html:53
 msgid "Specifications"
 msgstr ""
@@ -5182,18 +5847,8 @@ msgstr ""
 msgid "Serial"
 msgstr ""
 
-#: templates/maintenance/machine_detail.html:56
-#: templates/maintenance/machine_form.html:90
-msgid "Manufacturer"
-msgstr ""
-
 #: templates/maintenance/machine_detail.html:57
 msgid "Model"
-msgstr ""
-
-#: templates/maintenance/machine_detail.html:58
-#: templates/maintenance/machine_form.html:110
-msgid "Criticality"
 msgstr ""
 
 #: templates/maintenance/machine_detail.html:64
@@ -5226,6 +5881,10 @@ msgstr ""
 
 #: templates/maintenance/machine_detail.html:82
 msgid "📷 Asset Photos"
+msgstr ""
+
+#: templates/maintenance/machine_detail.html:84
+msgid "Asset Photos"
 msgstr ""
 
 #: templates/maintenance/machine_detail.html:90
@@ -5279,23 +5938,6 @@ msgstr ""
 msgid "Compliance (90d)"
 msgstr ""
 
-#: templates/maintenance/machine_detail.html:208
-#: templates/maintenance/pm_batch_spawn_confirm.html:15
-#: templates/maintenance/pm_list.html:56
-#: templates/maintenance/pm_spawn_wo.html:12
-msgid "Template"
-msgstr ""
-
-#: templates/maintenance/machine_detail.html:209
-#: templates/maintenance/pm_batch_spawn_confirm.html:18
-#: templates/maintenance/pm_list.html:58
-#: templates/maintenance/pm_spawn_wo.html:14
-#: templates/maintenance/pm_template_detail.html:38
-#: templates/maintenance/pm_wo_detail.html:71
-#: templates/maintenance/preventive/mgr_plan_detail.html:24
-msgid "Frequency"
-msgstr ""
-
 #: templates/maintenance/machine_detail.html:210
 #: templates/maintenance/pm_batch_spawn_confirm.html:19
 #: templates/maintenance/pm_list.html:59
@@ -5323,28 +5965,9 @@ msgstr ""
 msgid "No PM schedules yet."
 msgstr ""
 
-#: templates/maintenance/machine_detail.html:269
-#: templates/maintenance/pm_template_list.html:15
-#: templates/maintenance/preventive/mgr_templates.html:17
-#: templates/maintenance/repair_list.html:14
-msgid "Title"
-msgstr ""
-
 #: templates/maintenance/machine_detail.html:281
 #: templates/maintenance/machine_detail.html:285
 msgid "No external repairs yet."
-msgstr ""
-
-#: templates/maintenance/machine_detail.html:293
-#: templates/maintenance/reorder_suggestions.html:21
-#: templates/maintenance/spare_part_detail.html:190
-#: templates/maintenance/stock_dashboard.html:68
-#: templates/procurement/po_detail.html:12
-#: templates/procurement/po_list.html:67 templates/procurement/po_list.html:135
-#: templates/procurement/po_receive.html:11
-#: templates/procurement/pr_detail.html:80
-#: templates/procurement/supplier_analytics.html:45
-msgid "Supplier"
 msgstr ""
 
 #: templates/maintenance/machine_detail.html:305
@@ -5475,7 +6098,7 @@ msgid "No machines yet."
 msgstr ""
 
 #: templates/maintenance/machine_list.html:38
-#: templates/maintenance/spare_part_detail.html:68
+#: templates/maintenance/spare_part_detail.html:69
 msgid "QR code"
 msgstr ""
 
@@ -5507,7 +6130,7 @@ msgstr ""
 
 #: templates/maintenance/my_workorders.html:48
 #: templates/maintenance/technician_report.html:92
-#: templates/maintenance/workorder_detail.html:141
+#: templates/maintenance/workorder_detail.html:142
 #: templates/maintenance/workorder_list.html:24
 msgid "EMRG"
 msgstr ""
@@ -5623,31 +6246,35 @@ msgid "Evidence Photo"
 msgstr ""
 
 #: templates/maintenance/part_adjust.html:134
-#: templates/maintenance/repair_officer.html:72
-#: templates/maintenance/spare_part_detail.html:274
-#: templates/procurement/po_detail.html:138
-#: templates/procurement/po_receive.html:165
-#: templates/procurement/pr_detail.html:150
+#: templates/maintenance/repair_officer.html:76
+#: templates/maintenance/spare_part_detail.html:278
+#: templates/procurement/po_detail.html:142
+#: templates/procurement/po_receive.html:169
+#: templates/procurement/pr_detail.html:154
 #, python-brace-format
 msgid "${att.filename}"
 msgstr ""
 
 #: templates/maintenance/part_adjust.html:136
-#: templates/maintenance/repair_officer.html:74
+#: templates/maintenance/repair_officer.html:78
 msgid "${att.filename} (${formatFileSize(att.size)})"
 msgstr ""
 
 #: templates/maintenance/part_adjust.html:137
-#: templates/maintenance/repair_officer.html:75
+#: templates/maintenance/repair_officer.html:79
 #, python-brace-format
 msgid "${att.uploaded_by} - ${att.uploaded_at}"
 msgstr ""
 
 #: templates/maintenance/part_adjust.html:138
-#: templates/maintenance/repair_officer.html:76
-#: templates/maintenance/spare_part_detail.html:281
+#: templates/maintenance/repair_officer.html:80
+#: templates/maintenance/spare_part_detail.html:285
 #, python-brace-format
 msgid "${att.note}"
+msgstr ""
+
+#: templates/maintenance/pm_batch_spawn_confirm.html:4
+msgid "Confirm batch PM spawn"
 msgstr ""
 
 #: templates/maintenance/pm_batch_spawn_confirm.html:6
@@ -5658,20 +6285,38 @@ msgstr ""
 msgid "Estimated"
 msgstr ""
 
-#: templates/maintenance/pm_batch_spawn_confirm.html:59
+#: templates/maintenance/pm_batch_spawn_confirm.html:50
+#, python-format
+msgid "Spawn %(counter)s PM work order?"
+msgid_plural "Spawn %(counter)s PM work orders?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/maintenance/pm_batch_spawn_confirm.html:51
+#, python-format
+msgid "✓ Confirm — Spawn %(counter)s Work Order"
+msgid_plural "✓ Confirm — Spawn %(counter)s Work Orders"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/maintenance/pm_batch_spawn_confirm.html:60
 msgid "No valid schedules to spawn."
 msgstr ""
 
-#: templates/maintenance/pm_batch_spawn_confirm.html:63
+#: templates/maintenance/pm_batch_spawn_confirm.html:64
 msgid "Add"
 msgstr ""
 
-#: templates/maintenance/pm_batch_spawn_confirm.html:63
+#: templates/maintenance/pm_batch_spawn_confirm.html:64
 msgid "to the URL to see a confirmation."
 msgstr ""
 
-#: templates/maintenance/pm_batch_spawn_confirm.html:65
+#: templates/maintenance/pm_batch_spawn_confirm.html:66
 msgid "← Back to PM list"
+msgstr ""
+
+#: templates/maintenance/pm_dashboard.html:4
+msgid "PM Compliance Dashboard"
 msgstr ""
 
 #: templates/maintenance/pm_dashboard.html:27
@@ -5726,21 +6371,29 @@ msgid "Manage templates"
 msgstr ""
 
 #: templates/maintenance/pm_form.html:6
+msgid "PM schedule"
+msgstr ""
+
+#: templates/maintenance/pm_form.html:8
 msgid ""
 "Define preventive task frequency and next due date for a machine or "
 "component."
 msgstr ""
 
-#: templates/maintenance/pm_form.html:44
+#: templates/maintenance/pm_form.html:46
 msgid "Component (optional):"
 msgstr ""
 
-#: templates/maintenance/pm_form.html:45
+#: templates/maintenance/pm_form.html:47
 msgid "— leave blank to apply the PM to the whole machine"
 msgstr ""
 
-#: templates/maintenance/pm_form.html:63
+#: templates/maintenance/pm_form.html:65
 msgid "Reference Photos"
+msgstr ""
+
+#: templates/maintenance/pm_list.html:4
+msgid "Preventive maintenance"
 msgstr ""
 
 #: templates/maintenance/pm_list.html:6
@@ -5794,6 +6447,10 @@ msgstr ""
 
 #: templates/maintenance/pm_list.html:93
 msgid "No PM schedules match the filter."
+msgstr ""
+
+#: templates/maintenance/pm_list.html:102
+msgid "Create PM work orders for all selected schedules?"
 msgstr ""
 
 #: templates/maintenance/pm_list.html:102
@@ -5899,8 +6556,20 @@ msgstr ""
 msgid "Rejection reason (required if rejecting)"
 msgstr ""
 
+#: templates/maintenance/pm_review.html:93
+msgid "What needs to be redone?"
+msgstr ""
+
+#: templates/maintenance/pm_review.html:96
+msgid "Approve this PM and close the work order?"
+msgstr ""
+
 #: templates/maintenance/pm_review.html:96
 msgid "✓ Approve & Close WO"
+msgstr ""
+
+#: templates/maintenance/pm_review.html:97
+msgid "Reject and return to technician?"
 msgstr ""
 
 #: templates/maintenance/pm_review.html:97
@@ -5916,6 +6585,10 @@ msgstr ""
 #: templates/maintenance/pm_template_detail.html:13
 #: templates/maintenance/pm_wo_detail.html:74
 msgid "Estimated duration"
+msgstr ""
+
+#: templates/maintenance/pm_spawn_wo.html:24
+msgid "Create this PM work order now?"
 msgstr ""
 
 #: templates/maintenance/pm_spawn_wo.html:35
@@ -5954,6 +6627,21 @@ msgstr ""
 msgid "← All templates"
 msgstr ""
 
+#: templates/maintenance/pm_template_form.html:3
+#: templates/maintenance/pm_template_form.html:4
+msgid "New PM template"
+msgstr ""
+
+#: templates/maintenance/pm_template_form.html:3
+#, python-format
+msgid "Edit %(c)s"
+msgstr ""
+
+#: templates/maintenance/pm_template_form.html:4
+#, python-format
+msgid "Edit %(c)s — %(t)s"
+msgstr ""
+
 #: templates/maintenance/pm_template_form.html:10
 msgid "Procedure details"
 msgstr ""
@@ -5968,28 +6656,29 @@ msgid ""
 "completed. Use the "
 msgstr ""
 
-#: templates/maintenance/pm_template_form.html:25
-msgid "Order"
+#: templates/maintenance/pm_template_form.html:21
+#: templates/maintenance/pm_template_form.html:40
+msgid "+ Add another item"
 msgstr ""
 
-#: templates/maintenance/pm_template_form.html:25
-msgid "Text"
-msgstr ""
-
-#: templates/maintenance/pm_template_form.html:25
-msgid "Required?"
+#: templates/maintenance/pm_template_form.html:21
+msgid " button to add more rows."
 msgstr ""
 
 #: templates/maintenance/pm_template_form.html:33
 msgid "new"
 msgstr ""
 
-#: templates/maintenance/pm_template_form.html:40
-msgid "+ Add another item"
-msgstr ""
-
 #: templates/maintenance/pm_template_form.html:41
 msgid "(empty rows are ignored on save)"
+msgstr ""
+
+#: templates/maintenance/pm_template_form.html:45
+msgid "Create template"
+msgstr ""
+
+#: templates/maintenance/pm_template_list.html:4
+msgid "PM templates"
 msgstr ""
 
 #: templates/maintenance/pm_template_list.html:6
@@ -6004,8 +6693,8 @@ msgstr ""
 
 #: templates/maintenance/pm_template_list.html:15
 #: templates/maintenance/preventive/mgr_templates.html:18
-#: templates/maintenance/workorder_detail.html:431
-#: templates/maintenance/workorder_detail.html:464
+#: templates/maintenance/workorder_detail.html:432
+#: templates/maintenance/workorder_detail.html:465
 msgid "Duration"
 msgstr ""
 
@@ -6019,6 +6708,12 @@ msgstr ""
 
 #: templates/maintenance/pm_template_list.html:28
 msgid "No PM templates."
+msgstr ""
+
+#: templates/maintenance/pm_wo_detail.html:9
+#: templates/maintenance/work_order_cost_ledger.html:131
+#, python-format
+msgid "← Back to WO-%(n)s"
 msgstr ""
 
 #: templates/maintenance/pm_wo_detail.html:15
@@ -6078,7 +6773,7 @@ msgid "Last submission"
 msgstr ""
 
 #: templates/maintenance/pm_wo_detail.html:201
-#: templates/maintenance/workorder_detail.html:34
+#: templates/maintenance/workorder_detail.html:35
 msgid "⚖️ Review PM"
 msgstr ""
 
@@ -6194,6 +6889,10 @@ msgstr ""
 msgid "Run Now"
 msgstr ""
 
+#: templates/maintenance/preventive/mgr_plan_detail.html:75
+msgid "Archive this plan?"
+msgstr ""
+
 #: templates/maintenance/preventive/mgr_plan_detail.html:78
 msgid "View Machine"
 msgstr ""
@@ -6236,6 +6935,11 @@ msgstr ""
 msgid "No plans in this filter."
 msgstr ""
 
+#: templates/maintenance/preventive/mgr_reviews.html:8
+#: templates/maintenance/shortage_dashboard.html:8
+msgid "pending"
+msgstr ""
+
 #: templates/maintenance/preventive/mgr_reviews.html:43
 msgid "Return reason (required)"
 msgstr ""
@@ -6246,11 +6950,6 @@ msgstr ""
 
 #: templates/maintenance/preventive/mgr_reviews.html:57
 msgid "No pending reviews."
-msgstr ""
-
-#: templates/maintenance/preventive/mgr_template_form.html:30
-#: templates/maintenance/preventive/mgr_template_form.html:53
-msgid "Remove"
 msgstr ""
 
 #: templates/maintenance/preventive/mgr_template_form.html:36
@@ -6290,6 +6989,10 @@ msgstr ""
 msgid "No maintenance scheduled today."
 msgstr ""
 
+#: templates/maintenance/preventive/my.html:5
+msgid "My Maintenance"
+msgstr ""
+
 #: templates/maintenance/preventive/my.html:18
 msgid "Resume"
 msgstr ""
@@ -6303,7 +7006,7 @@ msgid "YOUR TASKS"
 msgstr ""
 
 #: templates/maintenance/preventive/my.html:52
-#: templates/maintenance/workorder_detail.html:462
+#: templates/maintenance/workorder_detail.html:463
 msgid "Start"
 msgstr ""
 
@@ -6333,6 +7036,10 @@ msgstr ""
 
 #: templates/maintenance/preventive/my.html:145
 msgid "No completed maintenance today."
+msgstr ""
+
+#: templates/maintenance/qr_scan.html:4
+msgid "QR scanner"
 msgstr ""
 
 #: templates/maintenance/qr_scan.html:10
@@ -6371,8 +7078,16 @@ msgstr ""
 msgid "Use code"
 msgstr ""
 
+#: templates/maintenance/quick_log.html:4
+msgid "Quick maintenance log"
+msgstr ""
+
 #: templates/maintenance/quick_log.html:6
 msgid "Ad-hoc notes on a machine without opening a full issue or work order."
+msgstr ""
+
+#: templates/maintenance/reconciliation_dashboard.html:5
+msgid "Legacy WorkOrder Reconciliation"
 msgstr ""
 
 #: templates/maintenance/reconciliation_dashboard.html:14
@@ -6433,15 +7148,16 @@ msgid "Last cost"
 msgstr ""
 
 #: templates/maintenance/reorder_suggestions.html:32
-#: templates/maintenance/spare_part_detail.html:34
+#: templates/maintenance/spare_part_detail.html:35
+#: templates/maintenance/spare_part_detail.html:271
 #: templates/maintenance/stock_dashboard.html:83
 #: templates/maintenance/stock_lookup.html:61
-#: templates/maintenance/workorder_detail.html:132
-#: templates/maintenance/workorder_detail.html:190
-#: templates/maintenance/workorder_detail.html:241
-#: templates/maintenance/workorder_detail.html:390
-#: templates/procurement/po_detail.html:70
-#: templates/procurement/pr_detail.html:70
+#: templates/maintenance/workorder_detail.html:133
+#: templates/maintenance/workorder_detail.html:191
+#: templates/maintenance/workorder_detail.html:242
+#: templates/maintenance/workorder_detail.html:391
+#: templates/procurement/po_detail.html:72
+#: templates/procurement/pr_detail.html:72
 msgid "Click to view full size in new tab"
 msgstr ""
 
@@ -6459,6 +7175,10 @@ msgstr ""
 
 #: templates/maintenance/reorder_suggestions.html:50
 msgid "All parts are above minimum stock."
+msgstr ""
+
+#: templates/maintenance/repair_accept.html:4
+msgid "Manager acceptance (UC-20)"
 msgstr ""
 
 #: templates/maintenance/repair_accept.html:6
@@ -6491,6 +7211,10 @@ msgstr ""
 msgid "Verify and close"
 msgstr ""
 
+#: templates/maintenance/repair_form.html:4
+msgid "Create repair request"
+msgstr ""
+
 #: templates/maintenance/repair_form.html:6
 msgid ""
 "Send equipment to an external vendor (UC-19). Supply Officer will progress "
@@ -6499,6 +7223,10 @@ msgstr ""
 
 #: templates/maintenance/repair_form.html:50
 msgid "Create"
+msgstr ""
+
+#: templates/maintenance/repair_list.html:5
+msgid "External repair orders"
 msgstr ""
 
 #: templates/maintenance/repair_list.html:7
@@ -6524,21 +7252,25 @@ msgstr ""
 msgid "None."
 msgstr ""
 
-#: templates/maintenance/repair_officer.html:6
+#: templates/maintenance/repair_officer.html:8
 msgid "Update vendor status, costs, and return workflow."
 msgstr ""
 
-#: templates/maintenance/repair_officer.html:14
-#: templates/procurement/po_detail.html:40
+#: templates/maintenance/repair_officer.html:16
+#: templates/procurement/po_detail.html:42
 msgid "📄 Download PDF"
 msgstr ""
 
-#: templates/maintenance/repair_officer.html:21
+#: templates/maintenance/repair_officer.html:23
 msgid "Before Repair Photos"
 msgstr ""
 
-#: templates/maintenance/repair_officer.html:40
+#: templates/maintenance/repair_officer.html:42
 msgid "After Repair Photos"
+msgstr ""
+
+#: templates/maintenance/reporters_report.html:4
+msgid "Reporters report"
 msgstr ""
 
 #: templates/maintenance/reporters_report.html:24
@@ -6547,6 +7279,10 @@ msgstr ""
 
 #: templates/maintenance/reporters_report.html:25
 msgid "Conversion rate"
+msgstr ""
+
+#: templates/maintenance/reports.html:5
+msgid "Reports &amp; analytics"
 msgstr ""
 
 #: templates/maintenance/reports.html:7
@@ -6628,6 +7364,15 @@ msgstr ""
 msgid "Open machine cost report →"
 msgstr ""
 
+#: templates/maintenance/reports_low_stock.html:4
+msgid "Stock Analysis"
+msgstr ""
+
+#: templates/maintenance/reports_low_stock.html:6
+#, python-format
+msgid "%(low)s of %(all)s active parts are at or below minimum stock level."
+msgstr ""
+
 #: templates/maintenance/reports_low_stock.html:8
 msgid "All active parts"
 msgstr ""
@@ -6652,6 +7397,15 @@ msgstr ""
 msgid "← Previous"
 msgstr ""
 
+#: templates/maintenance/reports_low_stock.html:29
+#: templates/maintenance/reports_machines.html:28
+#: templates/maintenance/reports_parts_issued.html:29
+#: templates/maintenance/reports_technicians.html:30
+#: templates/maintenance/reports_work_orders.html:60
+#, python-format
+msgid "Page %(n)s of %(t)s (%(c)s total)"
+msgstr ""
+
 #: templates/maintenance/reports_low_stock.html:30
 #: templates/maintenance/reports_machines.html:29
 #: templates/maintenance/reports_parts_issued.html:30
@@ -6668,6 +7422,10 @@ msgstr ""
 msgid "← Back to Reports"
 msgstr ""
 
+#: templates/maintenance/reports_machines.html:4
+msgid "Machines by Issue Count"
+msgstr ""
+
 #: templates/maintenance/reports_machines.html:6
 msgid ""
 "All machines ranked by total reported issues. Machines with the most issues "
@@ -6680,6 +7438,10 @@ msgstr ""
 
 #: templates/maintenance/reports_machines.html:20
 msgid "No machines found."
+msgstr ""
+
+#: templates/maintenance/reports_parts_issued.html:4
+msgid "Most Issued Parts"
 msgstr ""
 
 #: templates/maintenance/reports_parts_issued.html:6
@@ -6698,6 +7460,10 @@ msgstr ""
 msgid "No parts issued yet."
 msgstr ""
 
+#: templates/maintenance/reports_technicians.html:4
+msgid "Technician Performance"
+msgstr ""
+
 #: templates/maintenance/reports_technicians.html:6
 msgid "All technicians ranked by closed work orders and average repair time."
 msgstr ""
@@ -6712,6 +7478,10 @@ msgstr ""
 
 #: templates/maintenance/reports_technicians.html:22
 msgid "No technicians found."
+msgstr ""
+
+#: templates/maintenance/reports_work_orders.html:5
+msgid "Work Order Report"
 msgstr ""
 
 #: templates/maintenance/reports_work_orders.html:7
@@ -6784,12 +7554,12 @@ msgstr ""
 msgid "No reservations matching this filter."
 msgstr ""
 
-#: templates/maintenance/shortage_dashboard.html:8
-msgid "Shortage lifecycle overview — every shortage moves from"
+#: templates/maintenance/shortage_dashboard.html:5
+msgid "📊 Shortage Dashboard"
 msgstr ""
 
 #: templates/maintenance/shortage_dashboard.html:8
-msgid "pending"
+msgid "Shortage lifecycle overview — every shortage moves from"
 msgstr ""
 
 #: templates/maintenance/shortage_dashboard.html:8
@@ -6808,9 +7578,28 @@ msgstr ""
 msgid "closed"
 msgstr ""
 
+#: templates/maintenance/shortage_dashboard.html:14
+#, python-format
+msgid "<strong>📦 %(pending)s shortage awaiting your decision.</strong>"
+msgid_plural ""
+"<strong>📦 %(pending)s shortages awaiting your decision.</strong>"
+msgstr[0] ""
+msgstr[1] ""
+
 #: templates/maintenance/shortage_dashboard.html:15
 msgid "Review oldest pending →"
 msgstr ""
+
+#: templates/maintenance/shortage_dashboard.html:20
+#, python-format
+msgid ""
+"<strong>⚠ %(blocked)s shortage blocked</strong> — operational problem "
+"flagged."
+msgid_plural ""
+"<strong>⚠ %(blocked)s shortages blocked</strong> — operational problem "
+"flagged."
+msgstr[0] ""
+msgstr[1] ""
 
 #: templates/maintenance/shortage_dashboard.html:21
 msgid "Review in-fulfillment list →"
@@ -6825,6 +7614,7 @@ msgid "✅ Approved (editable)"
 msgstr ""
 
 #: templates/maintenance/shortage_dashboard.html:44
+#: templates/maintenance/shortage_dashboard.html:116
 msgid "🔄 In fulfillment"
 msgstr ""
 
@@ -6844,8 +7634,12 @@ msgstr ""
 msgid "⚠ Blocked (operational)"
 msgstr ""
 
+#: templates/maintenance/shortage_dashboard.html:76
+msgid "⏳ Oldest pending decisions"
+msgstr ""
+
 #: templates/maintenance/shortage_dashboard.html:85
-#: templates/maintenance/workorder_detail.html:314
+#: templates/maintenance/workorder_detail.html:315
 msgid "Requested"
 msgstr ""
 
@@ -6935,95 +7729,97 @@ msgstr ""
 msgid "Terminal. Line stays PENDING for tech to act on."
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:11
-#: templates/maintenance/stock_dashboard.html:9
-#: templates/maintenance/stock_lookup.html:29
-msgid "Site:"
+#: templates/maintenance/shortage_dashboard.html:223
+msgid "View WOs"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:22
+#: templates/maintenance/shortage_dashboard.html:236
+msgid "📋 WOs with any shortage"
+msgstr ""
+
+#: templates/maintenance/spare_part_detail.html:23
 #: templates/maintenance/spare_part_form.html:16
 msgid "⚠ This part has no primary image."
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:40
+#: templates/maintenance/spare_part_detail.html:41
 msgid "SKU:"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:72
+#: templates/maintenance/spare_part_detail.html:73
 msgid "📋 Print QR"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:97
+#: templates/maintenance/spare_part_detail.html:98
 #: templates/maintenance/stock_dashboard.html:64
 msgid "Reserved"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:101
+#: templates/maintenance/spare_part_detail.html:102
 #: templates/maintenance/stock_dashboard.html:66
 #: templates/maintenance/stock_lookup.html:52
 msgid "Rack"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:105
+#: templates/maintenance/spare_part_detail.html:106
 msgid "Last counted"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:116
+#: templates/maintenance/spare_part_detail.html:117
 msgid "No inventory record at this site."
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:121
+#: templates/maintenance/spare_part_detail.html:122
 #: templates/maintenance/stock_dashboard.html:50
 msgid "+ Stock-in"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:125
+#: templates/maintenance/spare_part_detail.html:126
 msgid "Adjust qty"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:154
+#: templates/maintenance/spare_part_detail.html:155
 msgid "No movements recorded."
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:162
+#: templates/maintenance/spare_part_detail.html:163
 msgid "Recent work orders using this part"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:186
+#: templates/maintenance/spare_part_detail.html:187
 msgid "Pending purchase requests"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:210
+#: templates/maintenance/spare_part_detail.html:211
 msgid "Documents & Attachments"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:224
+#: templates/maintenance/spare_part_detail.html:225
 msgid "Mark as primary image"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:235
-#: templates/maintenance/workorder_detail.html:532
+#: templates/maintenance/spare_part_detail.html:236
+#: templates/maintenance/workorder_detail.html:533
 msgid "Upload"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:271
+#: templates/maintenance/spare_part_detail.html:275
 msgid "${att.filename.split('.').pop().toUpperCase()}"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:284
+#: templates/maintenance/spare_part_detail.html:288
 msgid "★ Primary"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:286
+#: templates/maintenance/spare_part_detail.html:290
 msgid "Set as Primary"
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:295
+#: templates/maintenance/spare_part_detail.html:299
 msgid "No attachments yet. Upload an image to set as the primary part photo."
 msgstr ""
 
-#: templates/maintenance/spare_part_detail.html:402
+#: templates/maintenance/spare_part_detail.html:407
 #: templates/maintenance/spare_part_form.html:10
 msgid "← Back to stock"
 msgstr ""
@@ -7144,6 +7940,10 @@ msgstr ""
 msgid "No parts found."
 msgstr ""
 
+#: templates/maintenance/stock_in.html:4
+msgid "Stock-in spare parts"
+msgstr ""
+
 #: templates/maintenance/stock_in.html:11
 msgid "Receive parts into inventory (goods receipt)."
 msgstr ""
@@ -7167,30 +7967,6 @@ msgstr ""
 
 #: templates/maintenance/supplier_detail.html:12
 msgid "Contact information"
-msgstr ""
-
-#: templates/maintenance/supplier_detail.html:15
-#: templates/maintenance/supplier_form.html:29
-#: templates/maintenance/supplier_list.html:22
-msgid "Contact person"
-msgstr ""
-
-#: templates/maintenance/supplier_detail.html:16
-#: templates/maintenance/supplier_form.html:33
-#: templates/maintenance/supplier_list.html:23
-#: templates/procurement/po_form.html:114
-#: templates/procurement/pr_officer.html:36
-msgid "Phone"
-msgstr ""
-
-#: templates/maintenance/supplier_detail.html:18
-#: templates/maintenance/supplier_form.html:42
-msgid "Address"
-msgstr ""
-
-#: templates/maintenance/supplier_detail.html:36
-#: templates/maintenance/supplier_list.html:26
-msgid "Repair vendor"
 msgstr ""
 
 #: templates/maintenance/supplier_detail.html:39
@@ -7283,7 +8059,7 @@ msgid "Recent closed work orders"
 msgstr ""
 
 #: templates/maintenance/technician_report.html:84
-#: templates/maintenance/workorder_detail.html:81
+#: templates/maintenance/workorder_detail.html:82
 msgid "Labor"
 msgstr ""
 
@@ -7315,6 +8091,10 @@ msgstr ""
 
 #: templates/maintenance/tool_return.html:13
 msgid "Confirm return"
+msgstr ""
+
+#: templates/maintenance/tools.html:4
+msgid "Reusable tools"
 msgstr ""
 
 #: templates/maintenance/tools.html:6
@@ -7362,10 +8142,6 @@ msgid "Open assignments"
 msgstr ""
 
 #: templates/maintenance/tools.html:65
-msgid "Tool"
-msgstr ""
-
-#: templates/maintenance/tools.html:65
 msgid "User"
 msgstr ""
 
@@ -7393,6 +8169,11 @@ msgstr ""
 msgid "Grand total &middot; all time"
 msgstr ""
 
+#: templates/maintenance/workorder_create_confirm.html:5
+#: templates/maintenance/workorder_create_confirm.html:35
+msgid "Create work order"
+msgstr ""
+
 #: templates/maintenance/workorder_create_confirm.html:7
 msgid ""
 "Review the validated issue before converting it into a work order, as "
@@ -7416,7 +8197,7 @@ msgid "Validated at"
 msgstr ""
 
 #: templates/maintenance/workorder_create_confirm.html:28
-#: templates/maintenance/workorder_detail.html:54
+#: templates/maintenance/workorder_detail.html:55
 msgid "Issue description"
 msgstr ""
 
@@ -7426,221 +8207,229 @@ msgid ""
 "order will start in"
 msgstr ""
 
-#: templates/maintenance/workorder_create_confirm.html:35
-msgid "Create work order"
-msgstr ""
-
-#: templates/maintenance/workorder_detail.html:9
+#: templates/maintenance/workorder_detail.html:10
 msgid "Back to work orders"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:35
+#: templates/maintenance/workorder_detail.html:36
 msgid "📋 View PM Work Order"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:42
+#: templates/maintenance/workorder_detail.html:43
 msgid "▶ Execute PM (with checklist)"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:51
+#: templates/maintenance/workorder_detail.html:52
 msgid "Work details"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:56
+#: templates/maintenance/workorder_detail.html:57
 msgid "Issue photos"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:74
+#: templates/maintenance/workorder_detail.html:75
 msgid "Reporter / validator"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:86
+#: templates/maintenance/workorder_detail.html:83
+msgid "Started:"
+msgstr ""
+
+#: templates/maintenance/workorder_detail.html:84
+msgid "Stopped:"
+msgstr ""
+
+#: templates/maintenance/workorder_detail.html:87
 msgid "Pause reason"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:90
+#: templates/maintenance/workorder_detail.html:91
 msgid "Downtime window"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:94
-msgid "Root cause"
-msgstr ""
-
-#: templates/maintenance/workorder_detail.html:95
-msgid "Action taken"
-msgstr ""
-
-#: templates/maintenance/workorder_detail.html:111
+#: templates/maintenance/workorder_detail.html:112
 msgid "You already have an active work order:"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:111
+#: templates/maintenance/workorder_detail.html:112
 msgid ""
 ". Starting this one will pause that task to keep only one active technician "
 "job."
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:122
+#: templates/maintenance/workorder_detail.html:123
 msgid "Parts issued / requested"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:125
+#: templates/maintenance/workorder_detail.html:126
 msgid "Requested by"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:125
+#: templates/maintenance/workorder_detail.html:126
 msgid "Issued / Approved by"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:125
+#: templates/maintenance/workorder_detail.html:126
 msgid "Committed"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:141
+#: templates/maintenance/workorder_detail.html:142
 msgid "Auto-approved due to emergency"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:169
+#: templates/maintenance/workorder_detail.html:170
 msgid "No parts issued or requested."
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:180
+#: templates/maintenance/workorder_detail.html:181
 msgid "read-only"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:204
+#: templates/maintenance/workorder_detail.html:205
 msgid "Approve (deduct stock)"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:205
+#: templates/maintenance/workorder_detail.html:206
 msgid "Edit quantity"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:210
+#: templates/maintenance/workorder_detail.html:211
 msgid "New qty (when editing)"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:214
+#: templates/maintenance/workorder_detail.html:215
 msgid "Rejection reason (required when rejecting)"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:218
+#: templates/maintenance/workorder_detail.html:219
 msgid "Submit decision"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:247
+#: templates/maintenance/workorder_detail.html:248
 msgid "Refused"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:252
+#: templates/maintenance/workorder_detail.html:253
 msgid "Reason:"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:256
+#: templates/maintenance/workorder_detail.html:257
 msgid "✏️ Edit & re-submit"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:272
+#: templates/maintenance/workorder_detail.html:273
 msgid "Request external repair (vendor)"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:297
+#: templates/maintenance/workorder_detail.html:298
 msgid "Submit request"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:316
+#: templates/maintenance/workorder_detail.html:317
 msgid "Diagnosis"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:334
+#: templates/maintenance/workorder_detail.html:335
 msgid "Reason (required on reject)"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:349
+#: templates/maintenance/workorder_detail.html:350
 msgid "External-repair history"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:357
+#: templates/maintenance/workorder_detail.html:358
 msgid "ERO"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:382
+#: templates/maintenance/workorder_detail.html:383
 msgid "Linked procurement requests"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:403
+#: templates/maintenance/workorder_detail.html:404
 msgid "State log"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:411
+#: templates/maintenance/workorder_detail.html:412
 msgid "No transitions yet."
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:423
+#: templates/maintenance/workorder_detail.html:424
 msgid "Assignment History"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:429
+#: templates/maintenance/workorder_detail.html:430
 msgid "Assigned At"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:430
+#: templates/maintenance/workorder_detail.html:431
 msgid "Released At"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:457
+#: templates/maintenance/workorder_detail.html:458
 msgid "Downtime History"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:461
+#: templates/maintenance/workorder_detail.html:462
 msgid "Type"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:463
+#: templates/maintenance/workorder_detail.html:464
 msgid "End"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:473
+#: templates/maintenance/workorder_detail.html:474
 msgid "Still down"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:481
+#: templates/maintenance/workorder_detail.html:482
 msgid "Total Downtime"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:492
-#: templates/procurement/pr_detail.html:42
+#: templates/maintenance/workorder_detail.html:493
+#: templates/procurement/pr_detail.html:44
 msgid "🎤 Add voice note"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:501
-#: templates/procurement/pr_detail.html:50
+#: templates/maintenance/workorder_detail.html:496
+msgid ""
+"Record a verbal note (e.g. supplier update, vendor callback, work log) and "
+"save it as an attachment to this WO."
+msgstr ""
+
+#: templates/maintenance/workorder_detail.html:497
+#, python-format
+msgid ""
+"The recording is auto-stopped at 60s and the file is linked to WO-%(n)s."
+msgstr ""
+
+#: templates/maintenance/workorder_detail.html:502
+#: templates/procurement/pr_detail.html:52
 msgid "Note (optional, shown alongside the recording)"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:503
+#: templates/maintenance/workorder_detail.html:504
 msgid "e.g. 'Called supplier ABC, they will deliver Friday'"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:507
-#: templates/procurement/pr_detail.html:56
+#: templates/maintenance/workorder_detail.html:508
+#: templates/procurement/pr_detail.html:58
 msgid "📤 Save voice note"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:515
+#: templates/maintenance/workorder_detail.html:516
 msgid "Attachments"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:656
+#: templates/maintenance/workorder_detail.html:659
 #, python-brace-format
 msgid "${a.filename}"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:657
+#: templates/maintenance/workorder_detail.html:660
 msgid "${(a.size/1024).toFixed(1)} KB"
 msgstr ""
 
-#: templates/maintenance/workorder_detail.html:658
+#: templates/maintenance/workorder_detail.html:661
 msgid "${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}"
 msgstr ""
 
@@ -7648,6 +8437,14 @@ msgstr ""
 msgid ""
 "Queue is ordered to surface active work first, then emergency and higher-"
 "priority jobs."
+msgstr ""
+
+#: templates/maintenance/workorder_list.html:31
+msgid "Archive this work order?"
+msgstr ""
+
+#: templates/maintenance/workorder_part_re_review.html:5
+msgid "Edit & re-submit refused part request"
 msgstr ""
 
 #: templates/maintenance/workorder_part_re_review.html:37
@@ -7658,8 +8455,8 @@ msgstr ""
 msgid ". Switch to a different part if needed."
 msgstr ""
 
-#: templates/maintenance/workorder_part_re_review.html:72
-msgid "Tap Start to record. Auto-stops at 60s."
+#: templates/maintenance/workorder_part_re_review.html:60
+msgid "Why are you re-requesting? Any new context?"
 msgstr ""
 
 #: templates/maintenance/workorder_part_re_review.html:77
@@ -7668,6 +8465,10 @@ msgstr ""
 
 #: templates/maintenance/workorder_part_re_review.html:82
 msgid "Submit for re-review"
+msgstr ""
+
+#: templates/maintenance/workorder_switch_confirm.html:4
+msgid "Switch active work order"
 msgstr ""
 
 #: templates/maintenance/workorder_switch_confirm.html:6
@@ -7705,7 +8506,7 @@ msgid "This will cancel all remaining undelivered quantities for this PO."
 msgstr ""
 
 #: templates/procurement/po_close_short.html:16
-#: templates/procurement/po_receive.html:50
+#: templates/procurement/po_receive.html:52
 msgid "Ordered"
 msgstr ""
 
@@ -7714,8 +8515,8 @@ msgid "Received"
 msgstr ""
 
 #: templates/procurement/po_close_short.html:16
-#: templates/procurement/po_detail.html:59
-#: templates/procurement/po_receive.html:52
+#: templates/procurement/po_detail.html:61
+#: templates/procurement/po_receive.html:54
 msgid "Remaining"
 msgstr ""
 
@@ -7723,101 +8524,113 @@ msgstr ""
 msgid "Confirm Close Short"
 msgstr ""
 
-#: templates/procurement/po_detail.html:14
-#: templates/procurement/po_receive.html:21
+#: templates/procurement/po_detail.html:16
+#: templates/procurement/po_receive.html:23
 msgid "Supplier Invoice"
 msgstr ""
 
-#: templates/procurement/po_detail.html:15
+#: templates/procurement/po_detail.html:17
 msgid "Internal Ref"
 msgstr ""
 
-#: templates/procurement/po_detail.html:16
+#: templates/procurement/po_detail.html:18
 msgid "Expected Delivery"
 msgstr ""
 
-#: templates/procurement/po_detail.html:17
+#: templates/procurement/po_detail.html:19
 msgid "Handled By"
 msgstr ""
 
-#: templates/procurement/po_detail.html:18
-#: templates/procurement/pr_detail.html:82
+#: templates/procurement/po_detail.html:20
+#: templates/procurement/pr_detail.html:84
 msgid "Created By"
 msgstr ""
 
-#: templates/procurement/po_detail.html:20
+#: templates/procurement/po_detail.html:22
 #: templates/procurement/po_list.html:139
 msgid "Total Value"
 msgstr ""
 
-#: templates/procurement/po_detail.html:21
+#: templates/procurement/po_detail.html:23
 msgid "Received Value"
 msgstr ""
 
-#: templates/procurement/po_detail.html:24
+#: templates/procurement/po_detail.html:26
 msgid "Notes:"
 msgstr ""
 
-#: templates/procurement/po_detail.html:33
+#: templates/procurement/po_detail.html:35
 msgid "This PO is locked."
 msgstr ""
 
-#: templates/procurement/po_detail.html:35
+#: templates/procurement/po_detail.html:37
 msgid "Receive Items"
 msgstr ""
 
-#: templates/procurement/po_detail.html:38
+#: templates/procurement/po_detail.html:40
 msgid "Close Short"
 msgstr ""
 
-#: templates/procurement/po_detail.html:41
+#: templates/procurement/po_detail.html:43
 msgid "← Back"
 msgstr ""
 
-#: templates/procurement/po_detail.html:49
+#: templates/procurement/po_detail.html:51
 #: templates/procurement/po_form.html:65
 msgid "Line Items"
 msgstr ""
 
-#: templates/procurement/po_detail.html:57
+#: templates/procurement/po_detail.html:59
 msgid "Ordered Qty"
 msgstr ""
 
-#: templates/procurement/po_detail.html:58
+#: templates/procurement/po_detail.html:60
 msgid "Received Qty"
 msgstr ""
 
-#: templates/procurement/po_detail.html:60
-#: templates/procurement/pr_detail.html:81
+#: templates/procurement/po_detail.html:62
+#: templates/procurement/pr_detail.html:83
 msgid "Unit Price"
 msgstr ""
 
-#: templates/procurement/po_detail.html:60
+#: templates/procurement/po_detail.html:62
 msgid "(actual / negotiated)"
 msgstr ""
 
-#: templates/procurement/po_detail.html:93
+#: templates/procurement/po_detail.html:95
 msgid "No line items."
 msgstr ""
 
-#: templates/procurement/po_detail.html:93
+#: templates/procurement/po_detail.html:95
+msgid "Add items from PO detail page in Phase 2"
+msgstr ""
+
+#: templates/procurement/po_detail.html:95
 msgid "Add item"
 msgstr ""
 
-#: templates/procurement/po_detail.html:98
+#: templates/procurement/po_detail.html:100
 msgid "To add line items, use "
 msgstr ""
 
-#: templates/procurement/po_detail.html:106
-#: templates/procurement/po_receive.html:131
-#: templates/procurement/pr_detail.html:116
+#: templates/procurement/po_detail.html:100
+msgid "Create from PR"
+msgstr ""
+
+#: templates/procurement/po_detail.html:100
+msgid " or contact admin."
+msgstr ""
+
+#: templates/procurement/po_detail.html:108
+#: templates/procurement/po_receive.html:133
+#: templates/procurement/pr_detail.html:118
 #: templates/procurement/pr_form.html:60
 msgid "Photos & Attachments"
 msgstr ""
 
-#: templates/procurement/po_detail.html:140
-#: templates/procurement/po_receive.html:167
-#: templates/procurement/pr_detail.html:152
+#: templates/procurement/po_detail.html:144
+#: templates/procurement/po_receive.html:171
+#: templates/procurement/pr_detail.html:156
 msgid "${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by}"
 msgstr ""
 
@@ -7848,7 +8661,7 @@ msgid "Add New Supplier"
 msgstr ""
 
 #: templates/procurement/po_form.html:112
-msgid "SUP-001 or مورد-001"
+msgid "SUP-001 or MWRD-001"
 msgstr ""
 
 #: templates/procurement/po_form.html:116
@@ -7924,64 +8737,68 @@ msgstr ""
 msgid "Receive"
 msgstr ""
 
-#: templates/procurement/po_receive.html:12
+#: templates/procurement/po_receive.html:14
 msgid "Current Status"
 msgstr ""
 
-#: templates/procurement/po_receive.html:25
+#: templates/procurement/po_receive.html:27
 msgid "Supplier invoice reference"
 msgstr ""
 
-#: templates/procurement/po_receive.html:32
+#: templates/procurement/po_receive.html:34
 msgid "e.g. INV-2026-0042"
 msgstr ""
 
-#: templates/procurement/po_receive.html:42
+#: templates/procurement/po_receive.html:44
 msgid "Receive Line Items"
 msgstr ""
 
-#: templates/procurement/po_receive.html:51
+#: templates/procurement/po_receive.html:53
 msgid "Already Received"
 msgstr ""
 
-#: templates/procurement/po_receive.html:56
-#: templates/procurement/po_receive.html:123
+#: templates/procurement/po_receive.html:58
+#: templates/procurement/po_receive.html:125
 msgid "Actual Unit Price"
 msgstr ""
 
-#: templates/procurement/po_receive.html:57
+#: templates/procurement/po_receive.html:59
 msgid "Negotiated"
 msgstr ""
 
-#: templates/procurement/po_receive.html:112
+#: templates/procurement/po_receive.html:114
 msgid "Confirm Receipt"
 msgstr ""
 
-#: templates/procurement/pr_detail.html:22
+#: templates/procurement/pr_detail.html:24
 msgid "🎤 Voice notes"
 msgstr ""
 
-#: templates/procurement/pr_detail.html:24
+#: templates/procurement/pr_detail.html:26
 msgid ""
 "All voice recordings attached to this PR (manager's context, officer's "
 "voicemail, etc.)."
 msgstr ""
 
-#: templates/procurement/pr_detail.html:84
+#: templates/procurement/pr_detail.html:86
 msgid "Linked Work Order"
 msgstr ""
 
-#: templates/procurement/pr_detail.html:92
+#: templates/procurement/pr_detail.html:94
 #: templates/procurement/pr_list.html:15
 msgid "Linked PO"
 msgstr ""
 
-#: templates/procurement/pr_detail.html:108
+#: templates/procurement/pr_detail.html:110
 msgid "Create PO from this PR"
 msgstr ""
 
-#: templates/procurement/pr_detail.html:110
+#: templates/procurement/pr_detail.html:112
 msgid "← Back to PR List"
+msgstr ""
+
+#: templates/procurement/pr_form.html:4
+msgid "New purchase request"
 msgstr ""
 
 #: templates/procurement/pr_form.html:6
@@ -7992,6 +8809,10 @@ msgstr ""
 
 #: templates/procurement/pr_form.html:63
 msgid "Attachments can be added after saving the purchase request."
+msgstr ""
+
+#: templates/procurement/pr_list.html:5
+msgid "Purchase requests"
 msgstr ""
 
 #: templates/procurement/pr_list.html:9
@@ -8018,10 +8839,6 @@ msgstr ""
 msgid "SUP-001"
 msgstr ""
 
-#: templates/procurement/pr_officer.html:35
-msgid "Supplier name"
-msgstr ""
-
 #: templates/procurement/supplier_analytics.html:23
 #: templates/procurement/supplier_analytics.html:47
 msgid "Total spend"
@@ -8042,6 +8859,11 @@ msgstr ""
 
 #: templates/procurement/supplier_analytics.html:49
 msgid "Avg cycle (days)"
+msgstr ""
+
+#: templates/procurement/supplier_analytics.html:77
+#, python-format
+msgid "No supplier activity in the last %(d)s days."
 msgstr ""
 
 #: templates/procurement/supplier_analytics.html:78

@@ -1,0 +1,41 @@
+# Untranslated msgids: OTHER_PY (39 entries)
+
+Identification | inventory/admin.py
+Classification | inventory/admin.py
+Stock levels | inventory/admin.py
+Procurement | inventory/admin.py
+Audit | inventory/admin.py
+Quantities | inventory/admin.py
+People | inventory/admin.py
+Decision | inventory/admin.py
+Timestamps | inventory/admin.py
+Video file not found: %(path)s | inventory/services_video.py
+not a video | inventory/services_video.py
+file too small (<5MB) to benefit from compression | inventory/services_video.py
+Phase 2: ffmpeg not yet wired | inventory/services_video.py
+Assignment | maintenance/admin.py
+Execution | maintenance/admin.py
+Vendor & cost | maintenance/admin.py
+People & dates | maintenance/admin.py
+Request | maintenance/admin.py
+Review | maintenance/admin.py
+Maintenance | maintenance/apps.py
+Operational pause | maintenance/services_blocker.py
+Open a new blocker for a new wait episode. | maintenance/services_blocker.py
+Part fully issued | maintenance/services_blocker.py
+Part request rejected | maintenance/services_blocker.py
+Shortage fulfilled | maintenance/services_blocker.py
+Vendor repair accepted | maintenance/services_blocker.py
+Vendor returned part | maintenance/services_blocker.py
+No historical external repairs for this part — defaulting to REPAIR. | maintenance/services_repair_viability.py
+well below threshold; REPAIR is cheaper. | maintenance/services_repair_viability.py
+unknown | maintenance/services_repair_viability.py
+in the borderline band; manager judgment required. | maintenance/services_repair_viability.py
+acceptable MTBF; REPAIR is recommended. | maintenance/services_repair_viability.py
+Dashboard | maintenance/test_i18n.py
+Save | maintenance/test_i18n.py
+Cancel | maintenance/test_i18n.py
+Component requires a machine to be set. | maintenance/validators.py
+(none) | maintenance/validators.py
+Component '%(component)s' does not belong to machine '%(machine)s'. Valid components for this machine: %(valid)s%(more)s | maintenance/validators.py
+ ... | maintenance/validators.py

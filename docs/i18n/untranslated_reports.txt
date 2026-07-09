@@ -1,0 +1,101 @@
+# Untranslated msgids: REPORTS (99 entries)
+
+Failing assets report | templates/maintenance/failing_assets_report.html
+← Back to KPIs | templates/maintenance/failing_assets_report.html
+Code | templates/maintenance/failing_assets_report.html
+Total cost | templates/maintenance/failing_assets_report.html
+Cost / failure | templates/maintenance/failing_assets_report.html
+Last failure | templates/maintenance/failing_assets_report.html
+Total | templates/maintenance/failing_assets_report.html
+Failure mode report | templates/maintenance/failure_mode_report.html
+Name | templates/maintenance/failure_mode_report.html
+Occurrences | templates/maintenance/failure_mode_report.html
+Affected assets | templates/maintenance/failure_mode_report.html
+Share | templates/maintenance/failure_mode_report.html
+Recent | templates/maintenance/failure_mode_report.html
+KPIs &amp; reliability | templates/maintenance/kpi.html
+Executive maintenance metrics — MTTR, MTBF, PM compliance, and more. | templates/maintenance/kpi.html
+MTTR | templates/maintenance/kpi.html
+MTTW | templates/maintenance/kpi.html
+MTBF | templates/maintenance/kpi.html
+PM compliance | templates/maintenance/kpi.html
+Avg. downtime / closed WO | templates/maintenance/kpi.html
+PM work orders closed (90d) | templates/maintenance/kpi.html
+Lost tools | templates/maintenance/kpi.html
+Tool loss rate | templates/maintenance/kpi.html
+PM due now | templates/maintenance/kpi.html
+Failures (90d) | templates/maintenance/kpi.html
+Consumables used (30d) | templates/maintenance/kpi.html
+Vendor repairs accepted (30d) | templates/maintenance/kpi.html
+POs received (30d) | templates/maintenance/kpi.html
+Top failure modes (90d) | templates/maintenance/kpi.html
+View all → | templates/maintenance/kpi.html
+Count | templates/maintenance/kpi.html
+No failure modes recorded in the last 90 days. | templates/maintenance/kpi.html
+Top failing assets (90d) | templates/maintenance/kpi.html
+No closed corrective work orders in the last 90 days. | templates/maintenance/kpi.html
+Top reporters (30d) | templates/maintenance/kpi.html
+No issues reported in the last 30 days. | templates/maintenance/kpi.html
+Definitions used here are practical system KPIs based on available maintenance, part, tool, and procurement records in the PDF scope. | templates/maintenance/kpi.html
+Machine Cost Report | templates/maintenance/machine_cost_report.html
+Period: | templates/maintenance/machine_cost_report.html
+Current Inventory Value | templates/maintenance/machine_cost_report.html
+Total Quantity on Hand | templates/maintenance/machine_cost_report.html
+Total Inventory Value | templates/maintenance/machine_cost_report.html
+Site | templates/maintenance/machine_cost_report.html
+Value | templates/maintenance/machine_cost_report.html
+Level | templates/maintenance/machine_cost_report.html
+WOs | templates/maintenance/machine_cost_report.html
+Parts | templates/maintenance/machine_cost_report.html
+Additional | templates/maintenance/machine_cost_report.html
+GRAND TOTAL | templates/maintenance/machine_cost_report.html
+Reporters report | templates/maintenance/reporters_report.html
+Converted to WO | templates/maintenance/reporters_report.html
+Conversion rate | templates/maintenance/reporters_report.html
+Reports &amp; analytics | templates/maintenance/reports.html
+Operational summaries — preview tables with links to full dedicated reports. Sections are filtered by your role. | templates/maintenance/reports.html
+Machines by issue count | templates/maintenance/reports.html
+No data. | templates/maintenance/reports.html
+View all machines → | templates/maintenance/reports.html
+Work orders by status | templates/maintenance/reports.html
+No work orders. | templates/maintenance/reports.html
+View all work orders → | templates/maintenance/reports.html
+Technician throughput (closed WO count) | templates/maintenance/reports.html
+Closed WOs | templates/maintenance/reports.html
+Drill-down | templates/maintenance/reports.html
+No technicians. | templates/maintenance/reports.html
+View all technicians → | templates/maintenance/reports.html
+View all stock → | templates/maintenance/reports.html
+Total qty | templates/maintenance/reports.html
+No part issues recorded yet. | templates/maintenance/reports.html
+View all parts → | templates/maintenance/reports.html
+Vendor cost, parts cost, consumables, and additional cost per machine over a configurable period. | templates/maintenance/reports.html
+Open machine cost report → | templates/maintenance/reports.html
+Machines by Issue Count | templates/maintenance/reports_machines.html
+All machines ranked by total reported issues. Machines with the most issues may need root-cause analysis or PM schedule review. | templates/maintenance/reports_machines.html
+Open WOs | templates/maintenance/reports_machines.html
+No machines found. | templates/maintenance/reports_machines.html
+Most Issued Parts | templates/maintenance/reports_parts_issued.html
+All spare parts issued against work orders, ranked by total quantity. | templates/maintenance/reports_parts_issued.html
+UOM | templates/maintenance/reports_parts_issued.html
+Total qty issued | templates/maintenance/reports_parts_issued.html
+No parts issued yet. | templates/maintenance/reports_parts_issued.html
+Technician Performance | templates/maintenance/reports_technicians.html
+All technicians ranked by closed work orders and average repair time. | templates/maintenance/reports_technicians.html
+Avg repair hours | templates/maintenance/reports_technicians.html
+Reopened jobs | templates/maintenance/reports_technicians.html
+No technicians found. | templates/maintenance/reports_technicians.html
+Completed WOs | templates/maintenance/technician_report.html
+work orders closed | templates/maintenance/technician_report.html
+actively being worked | templates/maintenance/technician_report.html
+Reopened (rejections) | templates/maintenance/technician_report.html
+total rejected returns | templates/maintenance/technician_report.html
+WOs sent to vendor | templates/maintenance/technician_report.html
+Avg. repair duration | templates/maintenance/technician_report.html
+min | templates/maintenance/technician_report.html
+mean labor time on closed WOs | templates/maintenance/technician_report.html
+Avg. response time | templates/maintenance/technician_report.html
+assignment → first start | templates/maintenance/technician_report.html
+Recent closed work orders | templates/maintenance/technician_report.html
+Rejections | templates/maintenance/technician_report.html
+No closed work orders yet. | templates/maintenance/technician_report.html

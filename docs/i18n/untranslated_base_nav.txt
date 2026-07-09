@@ -1,0 +1,66 @@
+# Untranslated msgids: BASE_NAV (64 entries)
+
+Bawazir MMS | templates/base.html:20
+Maintenance & spare parts | templates/base.html:21
+Overview | templates/base.html:24
+Issues | templates/base.html:30
+Work orders | templates/base.html:35
+My queue | templates/base.html:38
+Quick log | templates/base.html:44
+Inventory | templates/base.html:48
+Stock | templates/base.html:50
+Inventory Lookup | templates/base.html:56
+Suppliers | templates/base.html:59
+Reservations | templates/base.html:60
+Supply | templates/base.html:65
+Purchase Requests | templates/base.html:67
+Purchase Orders | templates/base.html:72
+By Supplier | templates/base.html:76
+Supplier analytics | templates/base.html:80
+External Repairs | templates/base.html:86
+Draft EROs | templates/base.html:87
+Returned EROs | templates/base.html:88
+Reorder Suggestions | templates/base.html:91
+Assets | templates/base.html:99
+Machines | templates/base.html:102
+Preventive Maintenance | templates/base.html:105
+Today's Schedule | templates/base.html:110
+Reviews | templates/base.html:113
+Maintenance Plans | templates/base.html:117
+Templates | templates/base.html:120
+History | templates/base.html:123
+Tools | templates/base.html:133
+External repairs | templates/base.html:136
+System | templates/base.html:141
+Users | templates/base.html:142
+Insights | templates/base.html:145
+Notifications | templates/base.html:147
+KPIs | templates/base.html:151
+Audit log | templates/base.html:154
+Reports | templates/base.html:157
+Machine cost report | templates/base.html:161
+Pending repairs | templates/base.html:164
+Returned EROs awaiting manager acceptance | templates/base.html:165
+Pending approvals | templates/base.html:168
+Work orders awaiting manager review/close | templates/base.html:169
+Shortage dashboard | templates/base.html:173
+Pending shortage reports awaiting decision | templates/base.html:174
+In-fulfillment shortages | templates/base.html:175
+Stuck in fulfillment >7 days | templates/base.html:176
+Legacy reconciliation | templates/base.html:182
+Work orders still on the legacy state model | templates/base.html:183
+Admin | templates/base.html:192
+Sign out | templates/base.html:194
+Close navigation | templates/base.html:198
+Open navigation menu | templates/base.html:202
+%(counter)s open WO | templates/base.html:209
+Language | templates/base.html:212
+Mobile navigation | templates/base.html:382
+Report | templates/base.html:389
+Consume | templates/base.html:393
+Home | templates/base.html:407
+All WO | templates/base.html:416
+Shortages | templates/base.html:447
+Requests | templates/base.html:472
+Orders | templates/base.html:477
+Repairs | templates/base.html:485

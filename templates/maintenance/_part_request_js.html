@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load mms_extras %}
 {% comment %}
 v4.9.3 — Reusable JS for the part-request + re-review forms.
 Provides: live stock badge, voice recorder.
@@ -21,6 +22,7 @@ Required IDs in the calling template:
 Required globals (set by calling template):
   WO_PK — int, the work order's primary key
 {% endcomment %}
+{% i18n_json "voice_tap_to_record" "Tap Start to record. Auto-stops at 60s." "voice_recording" "Recording…" "voice_mic_denied" "Microphone access denied or unavailable." "voice_processing" "Processing recording…" "voice_uploading" "⏳ Uploading…" "voice_attached" "✅ Voice note attached" "voice_upload_failed" "Upload failed: " "voice_unknown_error" "unknown" "voice_note_label" "Voice note" "voice_product_category" "PRODUCT" "stock_live_tag" "↻ live" "stock_reserved_prefix" " · Reserved: " "stock_pending_prefix" " · Pending requests: " "stock_pending_to" " to " "stock_pending_wo_unknown" "WO ?" "stock_used_on_asset" "Used on this asset:" "stock_times_unit" "times" "stock_no_prior_usage" "No prior usage on this asset" "stock_last_replaced" " · Last replaced:" "stock_days_ago" " days ago" "stock_short_suffix" " in stock (short " "stock_qty_warning_prefix" "⚠️ Requested " "stock_qty_warning_mid" " but only " "stock_qty_warning_end" " in stock (short " "stock_qty_warning_tail" "). Lower the qty, switch parts, or use the shortage flow on the WO page." %}
 <script>
 (function() {
   'use strict';
@@ -34,6 +36,8 @@ Required globals (set by calling template):
   {% else %}
   const WO_PK = 0;
   {% endif %}
+  const i18nEl = document.getElementById('i18n-json');
+  const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
   const CSRF = (function() {
     const m = document.cookie.match(/csrftoken=([^;]+)/);
     return m ? decodeURIComponent(m[1]) : '';
@@ -73,9 +77,10 @@ Required globals (set by calling template):
         qtyInput.parentNode.appendChild(warn);
       }
       warn.innerHTML =
-        '⚠️ Requested <strong>{% trans "' + qty + '" %}</strong>{% trans "but only" %}<strong>' +
-        currentUsable + '</strong> in stock (short ' + needed + '). ' +
-        'Lower the qty, switch parts, or use the shortage flow on the WO page.';
+        (T.stock_qty_warning_prefix || '⚠️ Requested ') + '<strong>' + qty + '</strong>' +
+        (T.stock_qty_warning_mid || ' but only ') + '<strong>' + currentUsable + '</strong>' +
+        (T.stock_qty_warning_end || ' in stock (short ') + needed +
+        (T.stock_qty_warning_tail || '). Lower the qty, switch parts, or use the shortage flow on the WO page.');
     } else if (warn) {
       warn.remove();
     }
@@ -93,23 +98,23 @@ Required globals (set by calling template):
         if (d.stock_state === 'low') color = '#fd7e14';
         if (d.stock_state === 'out') color = '#dc3545';
         const refreshedTag = lastFetchedAt
-          ? ' <span style="font-size:.7em;color:#9ca3af;margin-left:.5rem">{% trans "↻ live" %}</span>'
+          ? ' <span style="font-size:.7em;color:#9ca3af;margin-left:.5rem">' + (T.stock_live_tag || '↻ live') + '</span>'
           : '';
-        stockState.innerHTML = '<span style="color:' + color + '">{% trans "' + d.stock_label + '" %}</span> — ' + d.stock_count + refreshedTag;
+        stockState.innerHTML = '<span style="color:' + color + '">' + d.stock_label + '</span> — ' + d.stock_count + refreshedTag;
         let detailText = d.min_label + (d.site ? ' · ' + d.site : '');
-        if (parseFloat(d.reserved) > 0) detailText += ' · Reserved: ' + d.reserved;
+        if (parseFloat(d.reserved) > 0) detailText += (T.stock_reserved_prefix || ' · Reserved: ') + d.reserved;
         if (parseFloat(d.pending_total) > 0 && d.pending_breakdown && d.pending_breakdown.length > 0) {
           const breakdown = d.pending_breakdown.map(function(r) {
-            const woTxt = r.wo_number ? ('WO-' + r.wo_number) : 'WO ?';
-            return r.quantity + ' to ' + woTxt;
+            const woTxt = r.wo_number ? ('WO-' + r.wo_number) : (T.stock_pending_wo_unknown || 'WO ?');
+            return r.quantity + (T.stock_pending_to || ' to ') + woTxt;
           }).join(', ');
-          detailText += ' · Pending requests: ' + breakdown;
+          detailText += (T.stock_pending_prefix || ' · Pending requests: ') + breakdown;
         }
         stockDetail.textContent = detailText;
         let hist = '';
-        if (d.used_on_asset >{% trans "0) hist += 'Used on this asset:" %}<strong>{% trans "' + d.used_on_asset + ' times" %}</strong>';
-        else hist += 'No prior usage on this asset';
-        if (d.last_replaced_days >{% trans "= 0) hist += ' · Last replaced:" %}<strong>{% trans "' + d.last_replaced_days + ' days ago" %}</strong>';
+        if (d.used_on_asset > 0) hist += (T.stock_used_on_asset || 'Used on this asset:') + ' <strong>' + d.used_on_asset + ' ' + (T.stock_times_unit || 'times') + '</strong>';
+        else hist += T.stock_no_prior_usage || 'No prior usage on this asset';
+        if (d.last_replaced_days >= 0) hist += (T.stock_last_replaced || ' · Last replaced:') + ' <strong>' + d.last_replaced_days + (T.stock_days_ago || ' days ago') + '</strong>';
         historyLine.innerHTML = hist;
         lastFetchedAt = new Date();
         currentUsable = parseFloat(d.usable);
@@ -163,7 +168,7 @@ Required globals (set by calling template):
       stopBtn.style.display = 'none';
       voicePulse.style.display = 'none';
       voiceTimer.textContent = '0:00';
-      voiceStatus.textContent = 'Tap Start to record. Auto-stops at 60s.';
+      voiceStatus.textContent = T.voice_tap_to_record || 'Tap Start to record. Auto-stops at 60s.';
       voiceStatus.style.color = '';
       voiceStatus.style.fontWeight = '';
     }
@@ -203,7 +208,7 @@ Required globals (set by calling template):
         stopBtn.style.display = '';
         voicePulse.style.display = '';
         setState('mms-voice-recording');
-        voiceStatus.textContent = 'Recording…';
+        voiceStatus.textContent = T.voice_recording || 'Recording…';
         voiceStatus.style.color = '#dc3545';
         voiceStatus.style.fontWeight = '700';
         timer = setInterval(() => {
@@ -213,7 +218,7 @@ Required globals (set by calling template):
         }, 250);
       } catch (e) {
         setState('mms-voice-error');
-        voiceStatus.textContent = 'Microphone access denied or unavailable.';
+        voiceStatus.textContent = T.voice_mic_denied || 'Microphone access denied or unavailable.';
         voiceStatus.style.color = '#dc3545';
         voiceStatus.style.fontWeight = '700';
         startBtn.style.display = '';
@@ -227,10 +232,10 @@ Required globals (set by calling template):
       startBtn.style.display = 'none';
       stopBtn.style.display = 'none';
       voicePulse.style.display = 'none';
-      voiceStatus.textContent = 'Processing recording…';
+      voiceStatus.textContent = T.voice_processing || 'Processing recording…';
     }
     async function uploadVoiceFile(file) {
-      voiceStatus.textContent = '⏳ Uploading…';
+      voiceStatus.textContent = T.voice_uploading || '⏳ Uploading…';
       voiceStatus.style.color = '';
       voiceStatus.style.fontWeight = '';
       const fd = new FormData();
@@ -238,28 +243,28 @@ Required globals (set by calling template):
       fd.append('entity_type', 'work_order');
       fd.append('entity_id', String(WO_PK));
       fd.append('file', file);
-      fd.append('note', 'Voice note');
-      fd.append('category', 'PRODUCT');
+      fd.append('note', T.voice_note_label || 'Voice note');
+      fd.append('category', T.voice_product_category || 'PRODUCT');
       try {
         const r = await fetch('/attachments/upload/', { method: 'POST', body: fd });
         if (r.ok) {
           const data = await r.json();
           voiceAttachmentId.value = data.id;
           setState('mms-voice-uploaded');
-          voiceStatus.textContent = '✅ Voice note attached';
+          voiceStatus.textContent = T.voice_attached || '✅ Voice note attached';
           startBtn.style.display = '';
           stopBtn.style.display = 'none';
         } else {
           const err = await r.json().catch(() => ({}));
           setState('mms-voice-error');
-          voiceStatus.textContent = 'Upload failed: ' + (err.error || 'unknown');
+          voiceStatus.textContent = (T.voice_upload_failed || 'Upload failed: ') + (err.error || (T.voice_unknown_error || 'unknown'));
           voiceStatus.style.color = '#dc3545';
           voiceStatus.style.fontWeight = '700';
           startBtn.style.display = '';
         }
       } catch (e) {
         setState('mms-voice-error');
-        voiceStatus.textContent = 'Upload failed: ' + e.message;
+        voiceStatus.textContent = (T.voice_upload_failed || 'Upload failed: ') + e.message;
         voiceStatus.style.color = '#dc3545';
         voiceStatus.style.fontWeight = '700';
         startBtn.style.display = '';

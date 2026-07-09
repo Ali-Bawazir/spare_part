@@ -153,7 +153,7 @@
 {% else %}
 <div class="mms-card" style="margin-top: 0; box-shadow: none; border: 1px dashed var(--mms-border)">
   <div class="mms-card-body">
-    <p class="text-muted" style="margin: 0">No cost ledger entries yet for WO-{{ wo.number }}.</p>
+    <p class="text-muted" style="margin: 0">{% blocktrans with n=wo.number %}No cost ledger entries yet for WO-{{ n }}.{% endblocktrans %}</p>
   </div>
 </div>
 {% endif %}

@@ -81,7 +81,7 @@
 <div class="mms-card">
   <div class="mms-card-header">{% trans "📷 Asset Photos" %}</div>
   <div class="mms-card-body">
-    {% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title={% trans "Asset Photos" %} %}
+    {% trans "Asset Photos" as asset_photos_title %}{% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title=asset_photos_title %}
   </div>
 </div>
 

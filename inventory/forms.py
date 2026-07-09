@@ -10,20 +10,20 @@ _SEL = {"class": "form-select"}
 
 
 class StockInForm(forms.Form):
-    part = forms.ModelChoiceField(queryset=SparePart.objects.all(), widget=forms.Select(attrs=_SEL))
-    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL))
-    supplier_name = forms.CharField(max_length=255, widget=forms.TextInput(attrs=_CTRL))
-    unit_cost = forms.DecimalField(min_value=Decimal("0"), max_digits=12, decimal_places=4, widget=forms.NumberInput(attrs=_CTRL))
-    invoice_ref = forms.CharField(max_length=120, widget=forms.TextInput(attrs=_CTRL))
-    note = forms.CharField(required=False, widget=forms.Textarea(attrs={**_CTRL, "rows": 2}))
+    part = forms.ModelChoiceField(queryset=SparePart.objects.all(), widget=forms.Select(attrs=_SEL), label=_("Part"))
+    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL), label=_("Quantity"))
+    supplier_name = forms.CharField(max_length=255, widget=forms.TextInput(attrs=_CTRL), label=_("Supplier name"))
+    unit_cost = forms.DecimalField(min_value=Decimal("0"), max_digits=12, decimal_places=4, widget=forms.NumberInput(attrs=_CTRL), label=_("Unit cost"))
+    invoice_ref = forms.CharField(max_length=120, widget=forms.TextInput(attrs=_CTRL), label=_("Invoice ref"))
+    note = forms.CharField(required=False, widget=forms.Textarea(attrs={**_CTRL, "rows": 2}), label=_("Note"))
 
 
 class IssuePartForm(forms.Form):
-    part = forms.ModelChoiceField(queryset=SparePart.objects.all(), widget=forms.Select(attrs=_SEL))
-    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL))
-    unit_cost = forms.DecimalField(min_value=Decimal("0"), max_digits=12, decimal_places=4, widget=forms.NumberInput(attrs=_CTRL))
-    invoice_ref = forms.CharField(max_length=120, widget=forms.TextInput(attrs=_CTRL))
-    supplier_name = forms.CharField(max_length=255, required=False, widget=forms.TextInput(attrs=_CTRL))
+    part = forms.ModelChoiceField(queryset=SparePart.objects.all(), widget=forms.Select(attrs=_SEL), label=_("Part"))
+    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL), label=_("Quantity"))
+    unit_cost = forms.DecimalField(min_value=Decimal("0"), max_digits=12, decimal_places=4, widget=forms.NumberInput(attrs=_CTRL), label=_("Unit cost"))
+    invoice_ref = forms.CharField(max_length=120, widget=forms.TextInput(attrs=_CTRL), label=_("Invoice ref"))
+    supplier_name = forms.CharField(max_length=255, required=False, widget=forms.TextInput(attrs=_CTRL), label=_("Supplier name"))
 
 
 class PartRequestForm(forms.Form):
@@ -35,16 +35,19 @@ class PartRequestForm(forms.Form):
     part = forms.ModelChoiceField(
         queryset=SparePart.objects.filter(status="active"),
         widget=forms.Select(attrs=_SEL),
+        label=_("Part"),
     )
     quantity = forms.DecimalField(
         min_value=Decimal("0.001"),
         max_digits=14,
         decimal_places=3,
         widget=forms.NumberInput(attrs={**_CTRL, "step": "0.001"}),
+        label=_("Quantity"),
     )
     note = forms.CharField(
         required=False,
         max_length=500,
+        label=_("Note"),
         widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional note for the manager")}),
     )
 
@@ -94,9 +97,10 @@ class ConsumableUseForm(forms.Form):
             status="active",
         ),
         widget=forms.Select(attrs=_SEL),
+        label=_("Part"),
     )
-    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL))
-    machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL))
+    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL), label=_("Quantity"))
+    machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL), label=_("Machine"))
 
 
 class IssueConsumableForm(forms.Form):
@@ -112,10 +116,11 @@ class IssueConsumableForm(forms.Form):
             status="active",
         ),
         widget=forms.Select(attrs=_SEL),
+        label=_("Part"),
     )
-    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL))
-    machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL))
-    note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional note")}))
+    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL), label=_("Quantity"))
+    machine_id = forms.IntegerField(required=False, min_value=1, widget=forms.NumberInput(attrs=_CTRL), label=_("Machine"))
+    note = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional note")}), label=_("Note"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

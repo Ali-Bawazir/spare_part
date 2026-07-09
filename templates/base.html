@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/mms.css' %}">
+  <script src="{% static 'js/mms-confirm.js' %}" defer></script>
 </head>
 <body class="mms-body" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}" data-nav-user="{% if user.is_authenticated %}{{ user.username }}{% else %}anon{% endif %}">
 <div class="mms-app" id="mms-app">
@@ -205,7 +206,7 @@
       </div>
       <div class="mms-user">
         {% if user.role == 'technician' and nav_my_open_wo %}
-        <span class="mms-badge mms-badge--info">{{ nav_my_open_wo }} open WO</span>
+        <span class="mms-badge mms-badge--info">{% blocktrans count counter=nav_my_open_wo %}{{ counter }} open WO{% plural %}{{ counter }} open WOs{% endblocktrans %}</span>
         {% endif %}
       </div>
       <form action="{% url 'set_language' %}" method="post" class="mms-lang-switch" aria-label="{% trans 'Language' %}">

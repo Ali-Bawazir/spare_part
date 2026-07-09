@@ -18,9 +18,9 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 
-# Rules: R1-R10
-ALL_RULES = {f"R{i}" for i in range(1, 11)}
-DEFAULT_RULES = {"R1", "R2", "R3", "R4"}
+# Rules: R1-R13
+ALL_RULES = {f"R{i}" for i in range(1, 14)}
+DEFAULT_RULES = {"R1", "R2", "R3", "R4", "R11", "R12", "R13"}
 
 # HTML tags whose content is skipped (script, style, etc.)
 SKIP_INNER_TAGS = ("script", "style", "pre", "code", "svg", "iframe")
@@ -54,7 +54,8 @@ def get_skip_ranges(content):
     """Return list of (start, end) ranges to skip (script/style/pre/code blocks)."""
     ranges = []
     for tag in SKIP_INNER_TAGS:
-        pattern = re.compile(r'<%s[\s>][^<]*</%s>' % (tag, tag), re.DOTALL | re.IGNORECASE)
+        # Non-greedy match for the open/close pair, allowing < and > inside.
+        pattern = re.compile(r'<%s\b[^>]*>.*?</%s>' % (tag, tag), re.DOTALL | re.IGNORECASE)
         for m in pattern.finditer(content):
             ranges.append((m.start(), m.end()))
     return ranges
@@ -175,9 +176,16 @@ def check_python_form_labels(content):
     """R7: Form labels, help_text, error_messages should be wrapped."""
     errors = []
     # label = "...", help_text = "...", error_messages = {...}
+    # Build docstring ranges to skip false positives in docstring examples.
+    docstring_ranges = []
+    for m in re.finditer(r'"""[\s\S]*?"""', content):
+        docstring_ranges.append((m.start(), m.end()))
+    in_docstring = lambda pos: any(s <= pos < e for s, e in docstring_ranges)
     for kw in ('label=', 'help_text='):
         pattern = re.compile(r'\b' + kw + r'\s*["\']([^"\']+)["\']')
         for m in pattern.finditer(content):
+            if in_docstring(m.start()):
+                continue
             value = m.group(1)
             if not is_translatable_text(value):
                 continue
@@ -188,6 +196,109 @@ def check_python_form_labels(content):
 def check_r10_orphans(content):
     """R10: Comments-only templates (no actual content) — skip, OK."""
     return []
+
+
+def check_r11_po_integrity():
+    """R11: ar.po has no empty msgstrs and no Latin-only msgstrs (English fallback)."""
+    import polib
+    from django.conf import settings
+    po_path = Path(settings.LOCALE_PATHS[0]) / 'ar' / 'LC_MESSAGES' / 'django.po'
+    if not po_path.exists():
+        return [f"ar.po not found: {po_path}"]
+    # Allow-list of msgids where the msgstr is allowed to be Latin-only
+    # (technical codes, KPI abbreviations, file formats, etc.)
+    latin_only_allow = {
+        'BRG-6006', 'A-01-03', 'SUP-001', 'MWRD-001', 'INV-2026-0042',
+        'BRG', 'SAR', 'MTTR', 'MTTW', 'MTBF', 'PDF', 'CSV', 'MMS', 'WO',
+        'SUP-001 or MWRD-001', '📥 CSV', 'Ball bearing 6006',
+        'servomotor', 'maintenance issue', 'Issue submitted for validation',
+    }
+    errors = []
+    try:
+        po = polib.pofile(str(po_path))
+    except Exception as e:
+        return [f"Failed to parse ar.po: {e}"]
+    for entry in po:
+        if not entry.msgid:
+            continue  # header
+        # Skip msgids that are clearly JS expressions or placeholders
+        if entry.msgid.startswith('${') or '${' in entry.msgid:
+            continue
+        # Skip msgids in the latin-only allow-list (codes/identifiers)
+        if entry.msgid in latin_only_allow:
+            continue
+        # Check all msgstr forms
+        msgstrs = []
+        if entry.msgstr:
+            msgstrs.append(('msgstr', entry.msgstr))
+        for k, v in entry.msgstr_plural.items():
+            if v:
+                msgstrs.append((f'msgstr[{k}]', v))
+        for label, v in msgstrs:
+            if not v:
+                errors.append(f"empty {label}: {entry.msgid[:60]!r}")
+                continue
+            # Check if msgstr is Latin-only
+            v_clean = re.sub(r'<[^>]+>', ' ', v)
+            v_clean = re.sub(r'%\([\w_]+\)s', ' ', v_clean)
+            v_clean = re.sub(r'\{[\w_]+(\|[^}]*)?\}', ' ', v_clean)
+            v_clean = re.sub(r'\$\{[^}]+\}', ' ', v_clean)
+            v_clean = re.sub(r"'[^']*'", ' ', v_clean)
+            arabic_chars = sum(1 for c in v_clean if '\u0600' <= c <= '\u06FF')
+            latin_chars = sum(1 for c in v_clean if c.isalpha() and c.isascii())
+            total = arabic_chars + latin_chars
+            if total > 0 and arabic_chars == 0 and latin_chars >= 3:
+                loc = entry.occurrences[0][0] if entry.occurrences else '?'
+                errors.append(f"Latin-only {label} at {loc}: {entry.msgid[:40]!r} -> {v[:60]!r}")
+    return errors
+
+
+def check_r12_msgid_english_only():
+    """R12: All msgids in ar.po must be English-only (no Arabic characters)."""
+    import polib
+    from django.conf import settings
+    po_path = Path(settings.LOCALE_PATHS[0]) / 'ar' / 'LC_MESSAGES' / 'django.po'
+    if not po_path.exists():
+        return []
+    errors = []
+    try:
+        po = polib.pofile(str(po_path))
+    except Exception as e:
+        return [f"Failed to parse ar.po: {e}"]
+    for entry in po:
+        if not entry.msgid:
+            continue
+        if re.search(r'[\u0600-\u06FF]', entry.msgid):
+            errors.append(f"Arabic in msgid: {entry.msgid[:80]!r}")
+        if entry.msgid_plural and re.search(r'[\u0600-\u06FF]', entry.msgid_plural):
+            errors.append(f"Arabic in msgid_plural: {entry.msgid_plural[:80]!r}")
+    return errors
+
+
+def check_r13_po_sync():
+    """R13: ar.po and en.po msgid sets are in sync."""
+    import polib
+    from django.conf import settings
+    errors = []
+    ar_path = Path(settings.LOCALE_PATHS[0]) / 'ar' / 'LC_MESSAGES' / 'django.po'
+    en_path = Path(settings.LOCALE_PATHS[0]) / 'en' / 'LC_MESSAGES' / 'django.po'
+    if not ar_path.exists() or not en_path.exists():
+        return []
+    try:
+        ar_po = polib.pofile(str(ar_path))
+        en_po = polib.pofile(str(en_path))
+    except Exception as e:
+        return [f"Failed to parse po files: {e}"]
+    ar_ids = {e.msgid for e in ar_po if e.msgid}
+    en_ids = {e.msgid for e in en_po if e.msgid}
+    if ar_ids != en_ids:
+        only_ar = ar_ids - en_ids
+        only_en = en_ids - ar_ids
+        for m in sorted(only_ar)[:5]:
+            errors.append(f"msgid only in ar.po: {m[:60]!r}")
+        for m in sorted(only_en)[:5]:
+            errors.append(f"msgid only in en.po: {m[:60]!r}")
+    return errors
 
 
 CHECKERS = {
@@ -201,6 +312,9 @@ CHECKERS = {
     "R8": ("python", None),  # Optional: model verbose_name
     "R9": ("templates", None),  # Optional: orphan detection
     "R10": ("templates", check_r10_orphans),
+    "R11": ("po", check_r11_po_integrity),
+    "R12": ("po", check_r12_msgid_english_only),
+    "R13": ("po", check_r13_po_sync),
 }
 
 
@@ -277,6 +391,18 @@ class Command(BaseCommand):
                     for err in errors:
                         rel_path = pyfile.relative_to(root)
                         all_issues.append((rule_id, str(rel_path), err))
+
+        # PO file checks (R11/R12/R13)
+        for rule_id in active_rules:
+            kind, checker = CHECKERS.get(rule_id, (None, None))
+            if checker is None or kind != "po":
+                continue
+            try:
+                errors = checker()
+            except Exception as e:
+                errors = [f"Checker raised: {e}"]
+            for err in errors:
+                all_issues.append((rule_id, "locale/ar/LC_MESSAGES/django.po", err))
 
         # Group by file
         by_file = {}

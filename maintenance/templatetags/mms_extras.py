@@ -1,4 +1,6 @@
 from django import template
+from django.utils.safestring import mark_safe
+from django.utils.translation import gettext
 
 from accounts.utils import role_display_name
 
@@ -186,3 +188,28 @@ def qty_no_zeros(value):
         except Exception:
             return str(value)
     return str(value)
+
+
+@register.simple_tag
+def i18n_json(*pairs):
+    """Render a JSON object containing translated strings for use by embedded JS.
+
+    Usage:
+        {% i18n_json "recording" "● recording" "uploading" "uploading…" ... %}
+    Renders:
+        <script type="application/json" id="i18n-json">{"recording": "● recording", ...}</script>
+
+    The script tag is hidden (no rendering effect) and is read by JS as:
+        const T = JSON.parse(document.getElementById('i18n-json').textContent);
+    """
+    import json
+    if len(pairs) % 2 != 0:
+        raise template.TemplateSyntaxError(
+            "i18n_json requires an even number of arguments (key, value pairs)."
+        )
+    data = {pairs[i]: gettext(pairs[i + 1]) for i in range(0, len(pairs), 2)}
+    return mark_safe(
+        f'<script type="application/json" id="i18n-json">'
+        f'{json.dumps(data, ensure_ascii=False)}'
+        f'</script>'
+    )

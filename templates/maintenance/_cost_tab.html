@@ -447,13 +447,13 @@ The shape of `cost_periods` is unchanged:
                 <rect x="17" y="14" width="3" height="4" rx="0.5"/>
               </svg>
             </span>
-            <div class="mms-cost-empty-state__title">No maintenance cost recorded in the last {{ days }} days</div>
+            <div class="mms-cost-empty-state__title">{% blocktrans with d=days %}No maintenance cost recorded in the last {{ d }} days{% endblocktrans %}</div>
             <div class="mms-cost-empty-state__sub">{% trans "Costs will appear here after work orders are closed." %}</div>
           </div>
         {% else %}
           {% with total=cost.total %}
           <div class="mms-cost-hero">
-            <div class="mms-cost-hero__label">Total cost &middot; last {{ days }} days</div>
+            <div class="mms-cost-hero__label">{% blocktrans with d=days %}Total cost &middot; last {{ d }} days{% endblocktrans %}</div>
             <div class="mms-cost-hero__amount">
               <span class="mms-cost-hero__value">{{ cost.total|floatformat:2 }}</span>
               <span class="mms-cost-hero__currency">{{ cost.currency }}</span>

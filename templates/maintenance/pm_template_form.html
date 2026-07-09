@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block title %}{% if mode == 'create' %}New PM template{% else %}Edit {{ template.code }}{% endif %}{% endblock %}
-{% block page_heading %}{% if mode == 'create' %}New PM template{% else %}Edit {{ template.code }} — {{ template.title }}{% endif %}{% endblock %}
+{% block title %}{% if mode == 'create' %}{% trans "New PM template" %}{% else %}{% blocktrans with c=template.code %}Edit {{ c }}{% endblocktrans %}{% endif %}{% endblock %}
+{% block page_heading %}{% if mode == 'create' %}{% trans "New PM template" %}{% else %}{% blocktrans with c=template.code t=template.title %}Edit {{ c }} — {{ t }}{% endblocktrans %}{% endif %}{% endblock %}
 {% block content %}
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
@@ -18,7 +18,7 @@
       {% endfor %}
 
       <h5 style="margin-top:1.5rem">{% trans "Checklist items" %}</h5>
-      <p class="text-muted" style="color:#6b7280;font-size:0.9em">{% trans "One line item per inspection step. Mark required items that must be completed. Use the "Add another item" button to add more rows." %}</p>
+      <p class="text-muted" style="color:#6b7280;font-size:0.9em">{% trans "One line item per inspection step. Mark required items that must be completed. Use the " %}<strong>{% trans "+ Add another item" %}</strong>{% trans " button to add more rows." %}</p>
       {{ formset.management_form }}
       {% if formset.non_form_errors %}<div class="mms-field-error">{{ formset.non_form_errors }}</div>{% endif %}
       <table class="mms-table" id="checklist-table" style="margin-bottom:0.5rem">
@@ -42,7 +42,7 @@
       </p>
 
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">{% if mode == 'create' %}Create template{% else %}Save changes{% endif %}</button>
+        <button class="mms-btn mms-btn--primary" type="submit">{% if mode == 'create' %}{% trans "Create template" %}{% else %}{% trans "Save changes" %}{% endif %}</button>
         <a class="mms-btn mms-btn--ghost" href="{% if mode == 'create' %}{% url 'pm_template_list' %}{% else %}{% url 'pm_template_detail' template.pk %}{% endif %}">{% trans "Cancel" %}</a>
       </div>
     </form>

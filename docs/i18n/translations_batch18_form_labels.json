@@ -1,0 +1,13 @@
+{
+  "Summary": "ملخص",
+  "Grace days": "أيام السماح",
+  "Requires photo min count": "الحد الأدنى لعدد الصور",
+  "e.g. Torque wrench": "مثال: مفتاح عزم",
+  "e.g. Line A Press 1": "مثال: مكبس الخط A رقم 1",
+  "e.g. Hall A": "مثال: القاعة A",
+  "e.g. Siemens": "مثال: سيمنز",
+  "e.g. 3650": "مثال: 3650",
+  "Detail": "التفاصيل",
+  "ACME Parts Ltd": "شركة ACME للقطع",
+  "Edit %(c)s": "تعديل %(c)s"
+}

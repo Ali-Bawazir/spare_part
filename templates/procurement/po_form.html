@@ -79,7 +79,7 @@
             {% if pending_prs %}
             <h3>{% trans "Merge from Purchase Requests" %}</h3>
             <table class="mms-table">
-                <thead><tr><th>{% trans "Select" %}</th><th>{% trans "PR#" %}</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "أمر العمل" %}</th><th>{% trans "Status" %}</th></tr></thead>
+                <thead><tr><th>{% trans "Select" %}</th><th>{% trans "PR#" %}</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Work Order" %}</th><th>{% trans "Status" %}</th></tr></thead>
                 <tbody>
                 {% for pr in pending_prs %}
                 <tr>
@@ -109,7 +109,7 @@
     <h3>{% trans "Add New Supplier" %}</h3>
     <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
       {% csrf_token %}
-      <p><input type="text" name="code" placeholder={% trans "SUP-001 or مورد-001" %} required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="code" placeholder={% trans "SUP-001 or MWRD-001" %} required style="width:100%" dir="auto"></p>
       <p><input type="text" name="name" placeholder="{% trans 'Supplier name' %}" required style="width:100%" dir="auto"></p>
       <p><input type="text" name="phone" placeholder={% trans "Phone" %} style="width:100%" dir="auto"></p>
       <p><input type="email" name="email" placeholder={% trans "Email" %} style="width:100%" dir="auto"></p>
