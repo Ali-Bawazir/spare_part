@@ -55,3 +55,4 @@ node_modules/screenshots/
 # Local scratch artifacts (MCP browser screenshots, debug dumps)
 .scratch/
 screenshots/
+.devtools-screenshots/
