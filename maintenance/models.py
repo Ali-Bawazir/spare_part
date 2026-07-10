@@ -1008,7 +1008,25 @@ class ExternalRepairOrder(models.Model):
     )
     title = models.CharField(max_length=255)
     description = models.TextField()
-    vendor_name = models.CharField(max_length=255, blank=True)
+    vendor_name = models.CharField(
+        max_length=255, blank=True,
+        help_text=_(
+            "Immutable audit snapshot of the vendor name at the time the "
+            "ERO was sent. Kept even when `supplier` is renamed or deleted."
+        ),
+    )
+    supplier = models.ForeignKey(
+        "procurement.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="external_repair_orders",
+        help_text=_(
+            "Supplier (vendor) handling the repair. Nullable for legacy EROs "
+            "created before this field was added — see `vendor_name` for the "
+            "immutable snapshot. New EROs should always set this FK."
+        ),
+    )
     estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     actual_cost = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True,
@@ -1020,6 +1038,21 @@ class ExternalRepairOrder(models.Model):
     invoice_ref = models.CharField(
         max_length=120, blank=True,
         help_text=_("Vendor invoice number. Required on UC-20 acceptance."),
+    )
+    invoice_date = models.DateField(
+        null=True, blank=True,
+        help_text=_("Date on the vendor invoice. Mirrors PurchaseOrder.supplier_invoice_date."),
+    )
+    invoice_attachment = models.ForeignKey(
+        "Attachment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ero_invoice_for",
+        help_text=_(
+            "Uploaded scan/photo of the vendor invoice PDF/image. "
+            "Mirrors PurchaseOrder.invoice_attachment."
+        ),
     )
     status = models.CharField(
         max_length=20,
@@ -1047,11 +1080,29 @@ class ExternalRepairOrder(models.Model):
         related_name="repair_orders_closed",
     )
     sent_at = models.DateTimeField(null=True, blank=True)
+    diagnosed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text=_(
+            "Timestamp the vendor reported a diagnosis back (after sending, "
+            "before actual repair). Drives the ERO repair timeline."
+        ),
+    )
+    returned_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text=_(
+            "Timestamp the part physically came back from the vendor. "
+            "Drives the ERO repair timeline; status is RETURNED at this point."
+        ),
+    )
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["supplier", "status"], name="ero_supplier_status_idx"),
+            models.Index(fields=["status", "returned_at"], name="ero_status_returned_idx"),
+        ]
 
     def clean(self):
         super().clean()
