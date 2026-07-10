@@ -3683,6 +3683,23 @@ def repair_officer(request, pk):
 
     tree_node = rwo.component if rwo.component_id else rwo.machine
 
+    # Build repair timeline from explicit timestamp fields (cheap, no
+    # separate event log table needed for MVP).
+    timeline = []
+    if rwo.created_at:
+        timeline.append({"occurred_at": rwo.created_at, "label": _("Created"), "note": ""})
+    if rwo.sent_at:
+        timeline.append({"occurred_at": rwo.sent_at, "label": _("Sent to vendor"), "note": rwo.vendor_name})
+    if rwo.diagnosed_at:
+        timeline.append({"occurred_at": rwo.diagnosed_at, "label": _("Diagnosed by vendor"), "note": ""})
+    if rwo.invoice_date:
+        timeline.append({"occurred_at": rwo.invoice_date, "label": _("Vendor invoice"), "note": rwo.invoice_ref})
+    if rwo.returned_at:
+        timeline.append({"occurred_at": rwo.returned_at, "label": _("Returned from vendor"), "note": ""})
+    if rwo.closed_at:
+        timeline.append({"occurred_at": rwo.closed_at, "label": _("Closed / accepted"), "note": rwo.invoice_ref})
+    timeline.sort(key=lambda e: e["occurred_at"])
+
     return render(
         request,
         "maintenance/repair_officer.html",
@@ -3691,6 +3708,7 @@ def repair_officer(request, pk):
             "form": form,
             "machine": tree_node,
             "ancestors": ancestors,
+            "timeline": timeline,
             "related_issues": MaintenanceIssue.objects.filter(
                 machine=rwo.machine, component=rwo.component
             )[:10],
@@ -3708,6 +3726,50 @@ def repair_officer(request, pk):
             )[:10],
         },
     )
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def repair_mark_diagnosed(request, pk):
+    """Mark an ERO as 'diagnosed' by the vendor — stamps diagnosed_at."""
+    rwo = get_object_or_404(ExternalRepairOrder, pk=pk)
+    if rwo.status not in (
+        ExternalRepairOrder.Status.SENT_TO_VENDOR,
+        ExternalRepairOrder.Status.DRAFT,
+    ):
+        messages.error(
+            request,
+            _("ERO can only be marked diagnosed while in DRAFT or SENT status."),
+        )
+        return redirect("repair_officer", pk=pk)
+    if not rwo.diagnosed_at:
+        rwo.diagnosed_at = timezone.now()
+    rwo.handled_by = request.user
+    rwo.save(update_fields=["diagnosed_at", "handled_by"])
+    messages.success(request, _("Marked as diagnosed by vendor."))
+    return redirect("repair_officer", pk=pk)
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def repair_mark_returned(request, pk):
+    """Mark an ERO as physically returned from vendor — stamps returned_at
+    and transitions status to RETURNED (if it was SENT_TO_VENDOR).
+    """
+    rwo = get_object_or_404(ExternalRepairOrder, pk=pk)
+    if rwo.status != ExternalRepairOrder.Status.SENT_TO_VENDOR:
+        messages.error(
+            request,
+            _("ERO must be SENT_TO_VENDOR before marking returned."),
+        )
+        return redirect("repair_officer", pk=pk)
+    rwo.status = ExternalRepairOrder.Status.RETURNED
+    if not rwo.returned_at:
+        rwo.returned_at = timezone.now()
+    rwo.handled_by = request.user
+    rwo.save(update_fields=["status", "returned_at", "handled_by"])
+    messages.success(request, _("Marked as returned from vendor."))
+    return redirect("repair_officer", pk=pk)
 
 
 @login_required

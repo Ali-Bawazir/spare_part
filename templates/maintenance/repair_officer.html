@@ -27,8 +27,33 @@
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
         <a href="{% url 'repair_order_pdf' rwo.pk %}" class="mms-btn mms-btn--ghost" target="_blank">{% trans "Download PDF" %}</a>
+        {% if rwo.status == "draft" or rwo.status == "sent" %}
+          <a href="{% url 'repair_mark_diagnosed' rwo.pk %}" class="mms-btn mms-btn--ghost">{% trans "Mark diagnosed" %}</a>
+        {% endif %}
+        {% if rwo.status == "sent" %}
+          <a href="{% url 'repair_mark_returned' rwo.pk %}" class="mms-btn mms-btn--ghost">{% trans "Mark returned" %}</a>
+        {% endif %}
       </div>
     </form>
+  </div>
+</div>
+
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">{% trans "Repair Timeline" %}</div>
+  <div class="mms-card-body">
+    {% if timeline %}
+    <ol class="mms-timeline">
+      {% for event in timeline %}
+      <li>
+        <span class="mms-timeline-date">{{ event.occurred_at|date:"d M Y H:i" }}</span>
+        <span class="mms-timeline-label">{{ event.label }}</span>
+        {% if event.note %}<span class="mms-timeline-note text-muted">— {{ event.note }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="text-muted">{% trans "No timeline events yet." %}</p>
+    {% endif %}
   </div>
 </div>
 
