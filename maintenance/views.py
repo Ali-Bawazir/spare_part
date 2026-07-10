@@ -2649,16 +2649,78 @@ def supplier_list(request):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def supplier_detail(request, pk):
-    """Supplier detail with linked parts and recent PRs."""
+    """Supplier detail with linked parts, recent PRs, repair history,
+    and stock-received history.
+
+    Per MVP (locked plan Phase 6+7): two simple chronological tables
+    instead of a complex overview dashboard.
+    """
+    from decimal import Decimal
+    from django.db.models import Sum, Count, Q
+
     supplier = get_object_or_404(Supplier, pk=pk)
+
     linked_parts = supplier.parts.order_by("name")[:50]
     recent_prs = supplier.purchase_requests.filter(
         status=PurchaseRequest.Status.PENDING
     ).order_by("-created_at")[:10]
+
+    # Repair history (FK match; vendor_name snapshot rows with NULL FK
+    # are surfaced too, marked "(legacy)").
+    repair_history = (
+        supplier.external_repair_orders
+        .select_related("machine", "component")
+        .order_by("-created_at")[:50]
+    )
+    legacy_repairs = (
+        ExternalRepairOrder.objects
+        .filter(supplier__isnull=True, vendor_name__iexact=supplier.name)
+        .exclude(pk__in=supplier.external_repair_orders.values_list("pk", flat=True))
+        .select_related("machine", "component")
+        .order_by("-created_at")[:50]
+    )
+
+    # Repair totals (use annotate + aggregate; never load rows for sums).
+    repair_agg = supplier.external_repair_orders.aggregate(
+        total=Sum("actual_cost"),
+        count=Count("id"),
+    )
+    repair_total = repair_agg["total"] or Decimal("0")
+    repair_count = repair_agg["count"] or 0
+    repair_avg = (
+        (repair_total / repair_count) if repair_count else Decimal("0")
+    )
+
+    # Stock-received history (STOCK_IN movements linked via FK).
+    stock_history = (
+        supplier.stock_movements
+        .filter(movement_type=StockMovement.MovementType.STOCK_IN)
+        .select_related("part", "work_order")
+        .order_by("-created_at")[:50]
+    )
+    legacy_stock = (
+        StockMovement.objects
+        .filter(
+            supplier__isnull=True,
+            supplier_name__iexact=supplier.name,
+            movement_type=StockMovement.MovementType.STOCK_IN,
+        )
+        .exclude(pk__in=supplier.stock_movements.values_list("pk", flat=True))
+        .select_related("part", "work_order")
+        .order_by("-created_at")[:50]
+    )
+
     return render(request, "maintenance/supplier_detail.html", {
         "supplier": supplier,
         "linked_parts": linked_parts,
         "recent_prs": recent_prs,
+        "repair_history": repair_history,
+        "legacy_repairs": legacy_repairs,
+        "repair_count": repair_count,
+        "repair_total": repair_total,
+        "repair_avg": repair_avg,
+        "stock_history": stock_history,
+        "legacy_stock": legacy_stock,
     })
 
 
