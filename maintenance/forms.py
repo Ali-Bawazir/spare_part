@@ -472,11 +472,13 @@ class ExternalRepairForm(forms.ModelForm):
 class ExternalRepairOfficerForm(forms.ModelForm):
     """Officer-side repair form: pick vendor, set actual_cost, transition status.
 
-    `supplier` is a Supplier FK (preferred). Filtered to `is_repair_vendor=True`
-    so only suppliers marked as repair vendors appear in the dropdown. The
-    `vendor_name` snapshot is auto-populated from `supplier.name` on save so
-    historical rows always carry the vendor name as it was at the time of
-    the repair, even if the Supplier is later renamed or deleted.
+    `supplier` is a Supplier FK (preferred). Filtered to suppliers whose
+    `supplier_type == 'repair_vendor'` so only true repair vendors appear in
+    the dropdown (parts suppliers never show up here, even if they have
+    related parts). The `vendor_name` snapshot is auto-populated from
+    `supplier.name` on save so historical rows always carry the vendor name
+    as it was at the time of the repair, even if the Supplier is later
+    renamed or deleted.
 
     `vendor_name` stays as a writable free-text field for legacy EROs that
     pre-date the Supplier FK — the snapshot is preserved either way.
@@ -486,7 +488,7 @@ class ExternalRepairOfficerForm(forms.ModelForm):
         required=False,
         widget=forms.Select(attrs=_SEL),
         label=_("Repair vendor"),
-        help_text=_("Only suppliers flagged as external repair vendors."),
+        help_text=_("Only suppliers classified as repair vendors."),
     )
 
     class Meta:
@@ -506,10 +508,10 @@ class ExternalRepairOfficerForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from procurement.models import Supplier
-        # Filter dropdown to active repair vendors; alphabetized.
+        # Filter dropdown to active repair vendors only; alphabetized.
         self.fields["supplier"].queryset = (
             Supplier.objects
-            .filter(is_active=True, is_repair_vendor=True)
+            .filter(is_active=True, supplier_type=Supplier.Type.REPAIR_VENDOR)
             .order_by("code", "name")
         )
         # If instance has supplier FK but no vendor_name yet, pre-fill the

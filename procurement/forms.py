@@ -170,7 +170,14 @@ POItemFormSet = forms.inlineformset_factory(
 
 
 class SupplierForm(forms.ModelForm):
-    """Operational supplier form — used in stock module (not Django admin)."""
+    """Operational supplier form — used in stock module (not Django admin).
+
+    supplier_type is rendered as radio buttons (Parts supplier / Repair vendor)
+    via the supplier_form.html template — see the {% for radio in
+    form.supplier_type %} loop. The deprecated is_repair_vendor boolean is
+    kept in Meta for back-compat with admin import-export but is not exposed
+    in this form; it is auto-synced from supplier_type on save.
+    """
 
     class Meta:
         model = Supplier
@@ -181,7 +188,7 @@ class SupplierForm(forms.ModelForm):
             "phone",
             "email",
             "address",
-            "is_repair_vendor",
+            "supplier_type",
             "is_active",
             "notes",
         )
@@ -192,7 +199,7 @@ class SupplierForm(forms.ModelForm):
             "phone": _("Phone"),
             "email": _("Email"),
             "address": _("Address"),
-            "is_repair_vendor": _("Repair vendor"),
+            "supplier_type": _("Supplier type"),
             "is_active": _("Active"),
             "notes": _("Notes"),
         }
@@ -203,7 +210,7 @@ class SupplierForm(forms.ModelForm):
             "phone": forms.TextInput(attrs={**_CTRL, "placeholder": "+966 11 555 0100"}),
             "email": forms.EmailInput(attrs={**_CTRL, "placeholder": "contact@acme.com"}),
             "address": forms.Textarea(attrs={**_CTRL, "rows": 3}),
-            "is_repair_vendor": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "supplier_type": forms.RadioSelect(),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "notes": forms.Textarea(attrs={**_CTRL, "rows": 2}),
         }

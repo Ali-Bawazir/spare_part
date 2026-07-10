@@ -109,13 +109,16 @@ class EROVendorDropdownTests(TestCase):
             username="ero_form_user", password="x", role=self.User.Role.MANAGER,
         )
         self.repair_vendor = Supplier.objects.create(
-            name="ABC Repair", code="ABC-R", is_active=True, is_repair_vendor=True,
+            name="ABC Repair", code="ABC-R", is_active=True,
+            supplier_type=Supplier.Type.REPAIR_VENDOR,
         )
         self.stock_only = Supplier.objects.create(
-            name="Stock Co", code="STK", is_active=True, is_repair_vendor=False,
+            name="Stock Co", code="STK", is_active=True,
+            supplier_type=Supplier.Type.PARTS_SUPPLIER,
         )
         self.inactive_vendor = Supplier.objects.create(
-            name="Old Repair Co", code="OLD-R", is_active=False, is_repair_vendor=True,
+            name="Old Repair Co", code="OLD-R", is_active=False,
+            supplier_type=Supplier.Type.REPAIR_VENDOR,
         )
         self.machine = Machine.objects.create(name="Test MC", asset_level=3)
         self.ero = ExternalRepairOrder.objects.create(

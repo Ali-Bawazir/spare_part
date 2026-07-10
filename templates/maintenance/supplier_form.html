@@ -42,11 +42,20 @@
       <label for="id_address">{% trans "Address" %}</label>
       {{ form.address }}
     </div>
-    <div class="mms-form-row mms-form-row--checkbox">
-      <div>
-        {{ form.is_repair_vendor }}
-        <label for="id_is_repair_vendor">{% trans "Also handles external repairs" %}</label>
+    <div class="mms-form-row">
+      <label class="mms-label">{% trans "Supplier type" %}</label>
+      <div class="mms-radio-group">
+        {% for radio in form.supplier_type %}
+          <label class="mms-radio">
+            {{ radio.tag }}
+            <span>{{ radio.choice_label }}</span>
+          </label>
+        {% endfor %}
       </div>
+      <span class="mms-form-help">
+        {% trans "Parts supplier: sells spare parts. Repair vendor: fixes damaged parts. Mutual exclusive — create two Supplier records if a vendor does both." %}
+      </span>
+      {% if form.supplier_type.errors %}<span class="mms-field-error">{{ form.supplier_type.errors.0 }}</span>{% endif %}
     </div>
     <div class="mms-form-row mms-form-row--checkbox">
       <div>

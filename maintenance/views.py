@@ -2710,6 +2710,24 @@ def supplier_detail(request, pk):
         .order_by("-created_at")[:50]
     )
 
+    # Parts purchases totals — sum of (qty * unit_cost) for STOCK_IN movements.
+    # Use F() expressions so we don't load every movement into Python.
+    from django.db.models import F, FloatField
+    from django.db.models.functions import Cast
+    parts_purchases_agg = (
+        supplier.stock_movements
+        .filter(movement_type=StockMovement.MovementType.STOCK_IN)
+        .aggregate(
+            total=Sum(
+                F("quantity") * F("unit_cost"),
+                output_field=FloatField(),
+            ),
+            count=Count("id"),
+        )
+    )
+    parts_total = parts_purchases_agg["total"] or Decimal("0")
+    parts_count = parts_purchases_agg["count"] or 0
+
     return render(request, "maintenance/supplier_detail.html", {
         "supplier": supplier,
         "linked_parts": linked_parts,
@@ -2721,6 +2739,8 @@ def supplier_detail(request, pk):
         "repair_avg": repair_avg,
         "stock_history": stock_history,
         "legacy_stock": legacy_stock,
+        "parts_count": parts_count,
+        "parts_total": parts_total,
     })
 
 

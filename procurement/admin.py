@@ -16,12 +16,12 @@ class SupplierAdmin(MMSAdminPermission, admin.ModelAdmin):
         "phone",
         "email",
         "is_active",
-        "is_repair_vendor",
+        "supplier_type",
         "created_at",
     )
-    list_filter = ("is_active", "is_repair_vendor")
+    list_filter = ("is_active", "supplier_type")
     search_fields = ("code", "name", "contact_person", "phone", "email", "notes")
-    readonly_fields = ("created_at", "qr_code_preview")
+    readonly_fields = ("created_at", "is_repair_vendor", "qr_code_preview")
     ordering = ("name",)
     fieldsets = (
         (_("Identification"), {
@@ -31,7 +31,11 @@ class SupplierAdmin(MMSAdminPermission, admin.ModelAdmin):
             "fields": ("contact_person", "phone", "email", "address"),
         }),
         (_("Vendor type"), {
-            "fields": ("is_repair_vendor",),
+            "fields": ("supplier_type", "is_repair_vendor"),
+            "description": _(
+                "supplier_type is the canonical field (Parts supplier / "
+                "Repair vendor). is_repair_vendor is auto-synced."
+            ),
         }),
         (_("Notes"), {
             "fields": ("notes",),

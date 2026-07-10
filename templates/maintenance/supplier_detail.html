@@ -33,12 +33,12 @@
             {% endif %}
           </td>
         </tr>
-        <tr><td class="text-muted small">{% trans "Repair vendor" %}</td>
+        <tr><td class="text-muted small">{% trans "Type" %}</td>
           <td>
-            {% if supplier.is_repair_vendor %}
-              <span class="mms-badge mms-badge--info">{% trans "Yes — handles external repairs" %}</span>
-            {% else %}
-              <span class="mms-badge mms-badge--muted">No</span>
+            {% if supplier.supplier_type == "parts_supplier" %}
+              <span class="mms-badge mms-badge--muted">{% trans "Parts supplier" %}</span>
+            {% elif supplier.supplier_type == "repair_vendor" %}
+              <span class="mms-badge mms-badge--info">{% trans "Repair vendor" %}</span>
             {% endif %}
           </td>
         </tr>
@@ -62,25 +62,47 @@
   <a class="mms-btn mms-btn--ghost" href="{% url 'supplier_export_csv' supplier.pk %}">{% trans "Export CSV" %}</a>
 </div>
 
-{% if repair_count %}
-<div class="mms-card" style="margin-bottom:1rem">
-  <div class="mms-card-header">{% trans "Repair totals" %}</div>
-  <div class="mms-card-body">
-    <div class="mms-grid mms-grid--3">
-      <div>
-        <div class="text-muted small">{% trans "Repairs" %}</div>
-        <div style="font-size:1.5rem;font-weight:600">{{ repair_count }}</div>
-      </div>
-      <div>
-        <div class="text-muted small">{% trans "Total cost" %}</div>
-        <div style="font-size:1.5rem;font-weight:600">{{ repair_total|floatformat:2 }} SAR</div>
-      </div>
-      <div>
-        <div class="text-muted small">{% trans "Average cost" %}</div>
-        <div style="font-size:1.5rem;font-weight:600">{{ repair_avg|floatformat:2 }} SAR</div>
+{% if repair_count or parts_count %}
+<div class="mms-grid mms-grid--2" style="margin-bottom:1rem; gap:1rem">
+  {% if repair_count %}
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Repair totals" %}</div>
+    <div class="mms-card-body">
+      <div class="mms-grid mms-grid--3">
+        <div>
+          <div class="text-muted small">{% trans "Repairs" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ repair_count }}</div>
+        </div>
+        <div>
+          <div class="text-muted small">{% trans "Total cost" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ repair_total|floatformat:2 }} SAR</div>
+        </div>
+        <div>
+          <div class="text-muted small">{% trans "Average cost" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ repair_avg|floatformat:2 }} SAR</div>
+        </div>
       </div>
     </div>
   </div>
+  {% endif %}
+
+  {% if parts_count %}
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Purchases totals" %}</div>
+    <div class="mms-card-body">
+      <div class="mms-grid mms-grid--2">
+        <div>
+          <div class="text-muted small">{% trans "Receipts" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ parts_count }}</div>
+        </div>
+        <div>
+          <div class="text-muted small">{% trans "Total spent" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ parts_total|floatformat:2 }} SAR</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 

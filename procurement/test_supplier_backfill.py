@@ -74,7 +74,8 @@ class ExternalRepairOrderBackfillRuleTests(TestCase):
 
     def test_ero_supplier_fk_persists(self):
         supplier = Supplier.objects.create(
-            name="Vendor X", code="VX", is_active=True, is_repair_vendor=True,
+            name="Vendor X", code="VX", is_active=True,
+            supplier_type=Supplier.Type.REPAIR_VENDOR,
         )
         ero = ExternalRepairOrder.objects.create(
             title="X", description="x", machine=self.machine,
@@ -88,7 +89,8 @@ class ExternalRepairOrderBackfillRuleTests(TestCase):
 
     def test_ero_vendor_name_snapshot_independent_of_rename(self):
         supplier = Supplier.objects.create(
-            name="Original Vendor", code="OV", is_active=True, is_repair_vendor=True,
+            name="Original Vendor", code="OV", is_active=True,
+            supplier_type=Supplier.Type.REPAIR_VENDOR,
         )
         ero = ExternalRepairOrder.objects.create(
             title="X", description="x", machine=self.machine,

@@ -23,7 +23,7 @@
         <th>{% trans "Phone" %}</th>
         <th>{% trans "Email" %}</th>
         <th>{% trans "Active" %}</th>
-        <th>{% trans "Repair vendor" %}</th>
+        <th>{% trans "Type" %}</th>
         <th>QR</th>
       </tr></thead>
       <tbody>
@@ -42,10 +42,10 @@
           {% endif %}
         </td>
         <td>
-          {% if s.is_repair_vendor %}
+          {% if s.supplier_type == "parts_supplier" %}
+            <span class="mms-badge mms-badge--muted">{% trans "Parts" %}</span>
+          {% elif s.supplier_type == "repair_vendor" %}
             <span class="mms-badge mms-badge--info">{% trans "Repair" %}</span>
-          {% else %}
-            <span class="mms-badge mms-badge--muted">—</span>
           {% endif %}
         </td>
         <td>

@@ -9,10 +9,32 @@ from inventory.models import SparePart
 
 
 class Supplier(models.Model):
+    class Type(models.TextChoices):
+        PARTS_SUPPLIER = "parts_supplier", _("Parts supplier")
+        REPAIR_VENDOR = "repair_vendor", _("Repair vendor")
+
     name = models.CharField(max_length=255, unique=True)
     contact = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
-    is_repair_vendor = models.BooleanField(default=False, help_text=_("Also handles external repairs"))
+    supplier_type = models.CharField(
+        max_length=20,
+        choices=Type.choices,
+        default=Type.PARTS_SUPPLIER,
+        db_index=True,
+        help_text=_(
+            "What this supplier does for us: a parts supplier sells spare parts, "
+            "a repair vendor fixes damaged parts. These are mutually exclusive — "
+            "if a supplier does both, create two separate Supplier records."
+        ),
+    )
+    is_repair_vendor = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=_(
+            "DEPRECATED: derived from `supplier_type`. Kept for back-compat in "
+            "queries and admin filters. Will be removed once callers are migrated."
+        ),
+    )
     code = models.CharField(
         max_length=64,
         unique=True,
@@ -41,6 +63,11 @@ class Supplier(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        # Keep the deprecated is_repair_vendor boolean in sync with the
+        # canonical supplier_type field. This lets existing queries that
+        # filter on is_repair_vendor keep working while we migrate callers.
+        self.is_repair_vendor = self.supplier_type == self.Type.REPAIR_VENDOR
+
         is_new = self.pk is None
         old_code = None
         if not is_new and self.__class__.objects.filter(pk=self.pk).exists():
