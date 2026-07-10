@@ -208,7 +208,25 @@ class StockMovement(models.Model):
         on_delete=models.PROTECT,
         related_name="stock_movements",
     )
-    supplier_name = models.CharField(max_length=255, blank=True)
+    supplier = models.ForeignKey(
+        "procurement.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+        help_text=_(
+            "Supplier that provided (or received) the part. Nullable for "
+            "adjustments, consumable self-service, and historical rows. "
+            "See `supplier_name` for the immutable audit snapshot."
+        ),
+    )
+    supplier_name = models.CharField(
+        max_length=255, blank=True,
+        help_text=_(
+            "Immutable audit snapshot of the supplier name at the time of "
+            "the movement. Kept even when `supplier` is renamed or deleted."
+        ),
+    )
     unit_cost = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     invoice_ref = models.CharField(max_length=120, blank=True)
     reference = models.JSONField(default=dict, blank=True)
@@ -231,6 +249,10 @@ class StockMovement(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["supplier", "movement_type"], name="stockmv_supplier_mvmt_idx"),
+            models.Index(fields=["part", "supplier"], name="stockmv_part_supplier_idx"),
+        ]
 
 
 class PartIssueLine(models.Model):
