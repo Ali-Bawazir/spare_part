@@ -10,10 +10,23 @@
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
-      {{ form.as_p }}
+      {% for field in form %}
+        <div class="mms-form-group">
+          <label class="mms-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="mms-form-help">{{ field.help_text }}</span>{% endif %}
+          {% if field.errors %}<div class="mms-form-error">{{ field.errors }}</div>{% endif %}
+          {% if field.name == "supplier" %}
+            <div class="mms-form-help">
+              <a href="{% url 'supplier_create' %}?next={{ request.path }}" target="_blank" rel="noopener">{% trans "+ New repair vendor" %}</a>
+              <span class="text-muted small">{% trans "(opens in new tab; tick 'Repair vendor' in the supplier form)" %}</span>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
-        <a href="{% url 'repair_order_pdf' rwo.pk %}" class="mms-btn mms-btn--ghost" target="_blank">{% trans "📄 Download PDF" %}</a>
+        <a href="{% url 'repair_order_pdf' rwo.pk %}" class="mms-btn mms-btn--ghost" target="_blank">{% trans "Download PDF" %}</a>
       </div>
     </form>
   </div>

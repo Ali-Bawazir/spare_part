@@ -470,11 +470,30 @@ class ExternalRepairForm(forms.ModelForm):
 
 
 class ExternalRepairOfficerForm(forms.ModelForm):
+    """Officer-side repair form: pick vendor, set actual_cost, transition status.
+
+    `supplier` is a Supplier FK (preferred). Filtered to `is_repair_vendor=True`
+    so only suppliers marked as repair vendors appear in the dropdown. The
+    `vendor_name` snapshot is auto-populated from `supplier.name` on save so
+    historical rows always carry the vendor name as it was at the time of
+    the repair, even if the Supplier is later renamed or deleted.
+
+    `vendor_name` stays as a writable free-text field for legacy EROs that
+    pre-date the Supplier FK — the snapshot is preserved either way.
+    """
+    supplier = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        widget=forms.Select(attrs=_SEL),
+        label=_("Repair vendor"),
+        help_text=_("Only suppliers flagged as external repair vendors."),
+    )
+
     class Meta:
         model = ExternalRepairOrder
-        fields = ("vendor_name", "actual_cost", "status")
+        fields = ("supplier", "vendor_name", "actual_cost", "status")
         labels = {
-            "vendor_name": _("Vendor name"),
+            "vendor_name": _("Vendor name (legacy snapshot)"),
             "actual_cost": _("Actual cost"),
             "status": _("Status"),
         }
@@ -483,6 +502,30 @@ class ExternalRepairOfficerForm(forms.ModelForm):
             "actual_cost": forms.NumberInput(attrs=_CTRL),
             "status": forms.Select(attrs=_SEL),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from procurement.models import Supplier
+        # Filter dropdown to active repair vendors; alphabetized.
+        self.fields["supplier"].queryset = (
+            Supplier.objects
+            .filter(is_active=True, is_repair_vendor=True)
+            .order_by("code", "name")
+        )
+        # If instance has supplier FK but no vendor_name yet, pre-fill the
+        # snapshot for display. The clean() also re-syncs on save.
+        if self.instance and self.instance.pk and self.instance.supplier_id:
+            if not self.instance.vendor_name:
+                self.fields["vendor_name"].initial = self.instance.supplier.name
+            self.fields["supplier"].initial = self.instance.supplier_id
+
+    def clean(self):
+        cleaned = super().clean()
+        supplier = cleaned.get("supplier")
+        vendor_name = (cleaned.get("vendor_name") or "").strip()
+        if supplier and not vendor_name:
+            cleaned["vendor_name"] = supplier.name
+        return cleaned
 
 
 class MachineForm(forms.ModelForm):
