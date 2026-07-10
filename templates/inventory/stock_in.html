@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Stock-in" %}{% endblock %}
+{% block page_heading %}{% if page_heading %}{{ page_heading }}{% else %}{% trans "Stock-in spare parts" %}{% endif %}{% endblock %}
+{% block content %}
+{% if part %}
+<a href="/media/qr/parts/PART_{{ part.sku }}.png" target="_blank" class="mms-btn mms-btn--secondary" style="margin-bottom:1rem;display:inline-block">
+  🖨️ {% trans "Print QR Label" %}
+</a>
+{% endif %}
+<p class="mms-page-lead">{% trans "Receive parts into inventory (goods receipt)." %}</p>
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" class="mms-form" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="mms-form-group">
+          <label class="mms-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="mms-form-help">{{ field.help_text }}</span>{% endif %}
+          {% if field.errors %}<div class="mms-form-error">{{ field.errors }}</div>{% endif %}
+          {% if field.name == "supplier" %}
+            <div class="mms-form-help">
+              <a href="{{ new_supplier_url }}" target="_blank" rel="noopener">{% trans "+ New supplier" %}</a>
+              <span class="text-muted small">{% trans "(opens in new tab)" %}</span>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+      <div class="mms-form-group">
+        <label class="mms-label">{% trans "Invoice attachment" %}</label>
+        <input type="file" name="invoice_attachment" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" class="form-control">
+        <span class="mms-form-help">{% trans "Optional: PDF or image of the invoice" %}</span>
+      </div>
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

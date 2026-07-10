@@ -20,6 +20,7 @@ urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("users/", include("accounts.urls")),
     path("procurement/", include("procurement.urls")),
+    path("", include("inventory.urls")),  # stock-in routes (inventory app)
     path("", include("maintenance.urls")),
     path("home/", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
     # Serve media files (works in both DEBUG and production)

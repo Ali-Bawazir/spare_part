@@ -2534,39 +2534,10 @@ def stock_dashboard(request):
     })
 
 
-@login_required
-@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
-def stock_in_view(request):
-    if request.method == "POST":
-        form = StockInForm(request.POST)
-        if form.is_valid():
-            stock_in(
-                part=form.cleaned_data["part"],
-                quantity=form.cleaned_data["quantity"],
-                performed_by=request.user,
-                supplier_name=form.cleaned_data["supplier_name"],
-                unit_cost=form.cleaned_data["unit_cost"],
-                invoice_ref=form.cleaned_data["invoice_ref"],
-                note=form.cleaned_data.get("note") or "",
-            )
-            messages.success(request, _("Stock-in recorded."))
-            uploaded_file = request.FILES.get("invoice_attachment")
-            if uploaded_file:
-                from maintenance.models import Attachment
-                Attachment.objects.create(
-                    entity_type=Attachment.EntityType.SPARE_PART,
-                    entity_id=form.cleaned_data["part"].pk,
-                    file=uploaded_file,
-                    filename=uploaded_file.name,
-                    size_bytes=uploaded_file.size,
-                    mime_type=getattr(uploaded_file, "content_type", "") or "",
-                    uploaded_by=request.user,
-                    note="Invoice attachment from stock-in",
-                )
-            return redirect("stock_dashboard")
-    else:
-        form = StockInForm()
-    return render(request, "maintenance/stock_in.html", {"form": form})
+# NOTE: The stock_in_view and part_stock_in view functions previously lived
+# here. They were moved to inventory.views as part of the supplier-intelligence
+# refactor (Commit 2). The URL name `stock_in` now resolves to
+# inventory.views.stock_in_view via inventory.urls.
 
 
 @login_required
@@ -5054,61 +5025,6 @@ def work_order_archive(request, pk):
     messages.success(request, f"Work order WO-{wo.number} has been archived.")
     return redirect("work_order_list")
 
-
-
-@login_required
-@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
-def part_stock_in(request, pk):
-    """Stock-in form for a specific part — /stock/<pk>/stock-in/"""
-    from inventory.forms import StockInForm
-
-    part = get_object_or_404(SparePart, pk=pk)
-    selected_site_id = request.GET.get("site")
-    from maintenance.models import Site
-    sites = Site.objects.filter(is_active=True).order_by("name")
-    selected_site = sites.filter(is_default=True).first()
-    if selected_site_id:
-        try:
-            selected_site = sites.get(pk=int(selected_site_id))
-        except (ValueError, Site.DoesNotExist):
-            pass
-
-    if request.method == "POST":
-        form = StockInForm(request.POST)
-        if form.is_valid():
-            stock_in(
-                part=form.cleaned_data["part"],
-                quantity=form.cleaned_data["quantity"],
-                performed_by=request.user,
-                supplier_name=form.cleaned_data["supplier_name"],
-                unit_cost=form.cleaned_data["unit_cost"],
-                invoice_ref=form.cleaned_data["invoice_ref"],
-                note=form.cleaned_data.get("note") or "",
-                site=selected_site,
-            )
-            messages.success(request, f"Stock-in recorded for {part.name}.")
-            uploaded_file = request.FILES.get("invoice_attachment")
-            if uploaded_file:
-                from maintenance.models import Attachment
-                Attachment.objects.create(
-                    entity_type=Attachment.EntityType.SPARE_PART,
-                    entity_id=part.pk,
-                    file=uploaded_file,
-                    filename=uploaded_file.name,
-                    size_bytes=uploaded_file.size,
-                    mime_type=getattr(uploaded_file, "content_type", "") or "",
-                    uploaded_by=request.user,
-                    note="Invoice attachment from stock-in",
-                )
-            return redirect("spare_part_detail", pk=part.pk)
-    else:
-        form = StockInForm(initial={"part": part.pk})
-
-    return render(request, "maintenance/stock_in.html", {
-        "form": form,
-        "part": part,
-        "page_heading": f"Stock-in — {part.name}",
-    })
 
 
 @login_required

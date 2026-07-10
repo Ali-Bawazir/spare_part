@@ -32,15 +32,30 @@ def stock_in(
     part: SparePart,
     quantity: Decimal,
     performed_by,
-    supplier_name: str,
+    supplier=None,
+    supplier_name: str = "",
     unit_cost: Decimal,
     invoice_ref: str,
     note: str = "",
     site=None,
 ) -> StockMovement:
+    """Record a stock-in movement.
+
+    `supplier` (Supplier FK) is the canonical reference for new rows. The
+    `supplier_name` snapshot is auto-populated from `supplier.name` when
+    `supplier` is set, so historical rows always carry the name as it was
+    at the time of receipt — even if the Supplier is later renamed or
+    deleted.
+
+    If `supplier` is None, the caller can still pass `supplier_name` (e.g.
+    for back-compat callers); the FK stays NULL but the snapshot is kept.
+    """
     site = site or _get_default_site()
     if not site:
         raise ValueError(_("No default site configured. Please create a Site first."))
+
+    if supplier is not None and not supplier_name:
+        supplier_name = supplier.name
 
     recent = StockMovement.objects.filter(
         part=part, movement_type=StockMovement.MovementType.STOCK_IN,
@@ -69,9 +84,16 @@ def stock_in(
         part.last_purchase_cost = unit_cost
         part.save(update_fields=["last_purchase_cost"])
 
+    # Stamp the part's default supplier once (first touch wins) so the
+    # spare_part_detail page can show a meaningful "Default supplier".
+    if supplier is not None and part.supplier_id is None:
+        part.supplier = supplier
+        part.save(update_fields=["supplier"])
+
     ref = {
         "invoice_number": invoice_ref,
         "supplier": supplier_name,
+        "supplier_id": supplier.pk if supplier is not None else None,
         "cost": str(quantity * unit_cost) if unit_cost else None,
         "attachments": [],
         "notes": note,
@@ -85,6 +107,7 @@ def stock_in(
         quantity_before=quantity_before,
         quantity_after=quantity_after,
         performed_by=performed_by,
+        supplier=supplier,
         supplier_name=supplier_name,
         unit_cost=unit_cost,
         invoice_ref=invoice_ref,
@@ -96,7 +119,7 @@ def stock_in(
         action="stock_in",
         entity="SparePart",
         object_id=str(part.pk),
-        payload={"qty": str(quantity), "invoice": invoice_ref},
+        payload={"qty": str(quantity), "invoice": invoice_ref, "supplier_id": supplier.pk if supplier else None},
     )
     _maybe_notify_low_stock(part, site)
     return movement

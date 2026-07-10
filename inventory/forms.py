@@ -3,6 +3,8 @@ from decimal import Decimal
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+from procurement.models import Supplier
+
 from .models import SparePart
 
 _CTRL = {"class": "form-control"}
@@ -10,12 +12,47 @@ _SEL = {"class": "form-select"}
 
 
 class StockInForm(forms.Form):
-    part = forms.ModelChoiceField(queryset=SparePart.objects.all(), widget=forms.Select(attrs=_SEL), label=_("Part"))
-    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=14, decimal_places=3, widget=forms.NumberInput(attrs=_CTRL), label=_("Quantity"))
-    supplier_name = forms.CharField(max_length=255, widget=forms.TextInput(attrs=_CTRL), label=_("Supplier name"))
-    unit_cost = forms.DecimalField(min_value=Decimal("0"), max_digits=12, decimal_places=4, widget=forms.NumberInput(attrs=_CTRL), label=_("Unit cost"))
-    invoice_ref = forms.CharField(max_length=120, widget=forms.TextInput(attrs=_CTRL), label=_("Invoice ref"))
-    note = forms.CharField(required=False, widget=forms.Textarea(attrs={**_CTRL, "rows": 2}), label=_("Note"))
+    """Stock-in (goods receipt) form.
+
+    `supplier` is a Supplier FK (preferred). `supplier_name` snapshot is
+    auto-populated by the `stock_in()` service when `supplier` is set, so
+    we don't ask the user to type it twice. A `+ New supplier` link in
+    the template opens the supplier-create page in a new tab.
+    """
+    part = forms.ModelChoiceField(
+        queryset=SparePart.objects.all(),
+        widget=forms.Select(attrs=_SEL),
+        label=_("Part"),
+    )
+    supplier = forms.ModelChoiceField(
+        queryset=Supplier.objects.filter(is_active=True).order_by("code", "name"),
+        widget=forms.Select(attrs=_SEL),
+        label=_("Supplier"),
+    )
+    quantity = forms.DecimalField(
+        min_value=Decimal("0.001"),
+        max_digits=14,
+        decimal_places=3,
+        widget=forms.NumberInput(attrs=_CTRL),
+        label=_("Quantity"),
+    )
+    unit_cost = forms.DecimalField(
+        min_value=Decimal("0"),
+        max_digits=12,
+        decimal_places=4,
+        widget=forms.NumberInput(attrs=_CTRL),
+        label=_("Unit cost"),
+    )
+    invoice_ref = forms.CharField(
+        max_length=120,
+        widget=forms.TextInput(attrs=_CTRL),
+        label=_("Invoice ref"),
+    )
+    note = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={**_CTRL, "rows": 2}),
+        label=_("Note"),
+    )
 
 
 class IssuePartForm(forms.Form):
