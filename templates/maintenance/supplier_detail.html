@@ -113,7 +113,7 @@
         <tr class="text-muted">
           <td>{{ ero.created_at|date:"d M Y" }}</td>
           <td>{{ ero.machine.name|default:"—" }}</td>
-          <td>{{ ero.title }} <small>(legacy)</small></td>
+          <td>{{ ero.title }} <small>({% trans "legacy" %})</small></td>
           <td><span class="mms-badge">{{ ero.get_status_display }}</span></td>
           <td>{{ ero.actual_cost|floatformat:2|default:"—" }}</td>
           <td><a href="{% url 'repair_officer' ero.pk %}" class="mms-btn mms-btn--sm">{% trans "Open" %}</a></td>
@@ -154,7 +154,7 @@
         {% for m in legacy_stock %}
         <tr class="text-muted">
           <td>{{ m.created_at|date:"d M Y" }}</td>
-          <td>{{ m.part.sku }} — {{ m.part.name }} <small>(legacy)</small></td>
+          <td>{{ m.part.sku }} — {{ m.part.name }} <small>({% trans "legacy" %})</small></td>
           <td>{{ m.quantity }}</td>
           <td>{{ m.invoice_ref|default:"—" }}</td>
           <td>{{ m.unit_cost|floatformat:4|default:"—" }}</td>
