@@ -42,6 +42,10 @@ RUN groupadd --system --gid 1000 mms \
 # App code
 COPY . /app/
 
+# Arabic font for PDF rendering — pdf_utils._register_arabic_font() looks
+# here as a fallback. Without this, Arabic text in PDFs renders as boxes.
+COPY static/fonts/arabic/ /app/static/fonts/arabic/
+
 # Make sure entrypoint is executable
 RUN chmod +x /app/entrypoint.sh
 
