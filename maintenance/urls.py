@@ -59,6 +59,7 @@ urlpatterns = [
     path("stock/suppliers/new/", views.supplier_create, name="supplier_create"),
     path("stock/suppliers/<int:pk>/", views.supplier_detail, name="supplier_detail"),
     path("stock/suppliers/<int:pk>/edit/", views.supplier_edit, name="supplier_edit"),
+    path("stock/suppliers/<int:pk>/csv/", views.supplier_export_csv, name="supplier_export_csv"),
     path("stock/new/", views.spare_part_create, name="spare_part_create"),
     path("stock/<int:pk>/", views.spare_part_detail, name="spare_part_detail"),
     path("stock/<int:pk>/adjust/", views.part_adjust, name="part_adjust"),

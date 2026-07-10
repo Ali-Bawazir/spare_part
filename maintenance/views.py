@@ -2764,6 +2764,104 @@ def supplier_edit(request, pk):
 
 
 @login_required
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def supplier_export_csv(request, pk):
+    """Sectioned CSV export for a single supplier: header + Repairs + Stock.
+
+    Writes UTF-8 with BOM so Excel auto-detects encoding and renders Arabic
+    supplier names, notes, and part names correctly. Filename uses RFC 5987
+    for non-ASCII filename support.
+    """
+    import csv
+    from urllib.parse import quote
+
+    from django.http import HttpResponse
+    from inventory.models import StockMovement
+    from maintenance.models import ExternalRepairOrder
+
+    supplier = get_object_or_404(Supplier, pk=pk)
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    ascii_name = f"supplier_{supplier.code or supplier.pk}.csv"
+    utf8_name = ascii_name
+    response["Content-Disposition"] = (
+        f'attachment; filename="{ascii_name}"; '
+        f"filename*=UTF-8''{quote(utf8_name)}"
+    )
+    # UTF-8 BOM so Excel detects encoding (Arabic renders correctly).
+    response.write("\ufeff")
+
+    writer = csv.writer(response)
+
+    # Section: Supplier header
+    writer.writerow(["Supplier Information"])
+    writer.writerow(["Code", "Name", "Contact", "Phone", "Email", "Status"])
+    writer.writerow([
+        supplier.code or "",
+        supplier.name,
+        supplier.contact_person or "",
+        supplier.phone or "",
+        supplier.email or "",
+        "Active" if supplier.is_active else "Inactive",
+    ])
+    writer.writerow([])
+
+    # Section: Repairs
+    eros = (
+        ExternalRepairOrder.objects
+        .filter(supplier=supplier)
+        .select_related("machine", "component")
+        .order_by("-created_at")
+    )
+    writer.writerow(["Repair History"])
+    writer.writerow([
+        "Date", "Repair #", "Machine", "Component", "Vendor", "Invoice",
+        "Invoice Date", "Cost", "Status",
+    ])
+    for ero in eros:
+        writer.writerow([
+            ero.created_at.date().isoformat(),
+            f"ERO-{ero.pk}",
+            ero.machine.name if ero.machine_id else "",
+            ero.component.name if ero.component_id else "",
+            ero.vendor_name or supplier.name,
+            ero.invoice_ref or "",
+            ero.invoice_date.isoformat() if ero.invoice_date else "",
+            str(ero.actual_cost) if ero.actual_cost is not None else "",
+            ero.get_status_display(),
+        ])
+    writer.writerow([])
+
+    # Section: Stock received
+    movements = (
+        StockMovement.objects
+        .filter(
+            supplier=supplier,
+            movement_type=StockMovement.MovementType.STOCK_IN,
+        )
+        .select_related("part", "work_order")
+        .order_by("-created_at")
+    )
+    writer.writerow(["Stock Received"])
+    writer.writerow([
+        "Date", "Part SKU", "Part Name", "Qty", "Unit Cost", "Invoice",
+        "Work Order",
+    ])
+    for m in movements:
+        writer.writerow([
+            m.created_at.date().isoformat(),
+            m.part.sku if m.part_id else "",
+            m.part.name if m.part_id else "",
+            str(m.quantity),
+            str(m.unit_cost) if m.unit_cost is not None else "",
+            m.invoice_ref or "",
+            f"WO-{m.work_order.number}" if m.work_order_id else "",
+        ])
+
+    return response
+
+
+@login_required
 @role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def spare_part_detail(request, pk):
     """Operational spare part detail — /stock/<pk>/"""
