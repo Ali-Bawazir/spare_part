@@ -4022,17 +4022,71 @@ def repair_order_pdf(request, pk):
 @login_required
 @role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def quick_log(request):
+    """Legacy standalone Quick Log entry — redirects to the machine list
+    so the user can pick a machine and use the per-machine inline form
+    on the History tab.
+
+    Kept as a 302 instead of a 404 because:
+    - existing bookmarks may point here
+    - the perm_quick_log capability already references it
+    - tests may invoke the URL name
+    - a redirect costs nothing and breaks nothing
+
+    The POST behaviour is preserved for callers that still submit here
+    (e.g. the old form template), but new submissions should come from
+    /machines/<pk>/quick-log/.
+    """
     if request.method == "POST":
-        form = QuickLogForm(request.POST)
+        form = QuickLogForm(request.POST, request.FILES)
         if form.is_valid():
             log = form.save(commit=False)
             log.author = request.user
             log.save()
             messages.success(request, _("Quick log saved."))
-            return redirect("dashboard")
+            return redirect("machine_detail", pk=log.machine.pk)
+        # POST with invalid form — fall through and re-render with errors.
+        messages.error(request, _("Please correct the errors below."))
     else:
-        form = QuickLogForm()
+        messages.info(request, _("Please choose a machine to log against."))
+        return redirect("machine_list")
+
     return render(request, "maintenance/quick_log.html", {"form": form})
+
+
+@login_required
+@role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def machine_quick_log_create(request, pk):
+    """Per-machine Quick Log creation endpoint.
+
+    - GET: render the standalone form page (used when the user clicks
+      "Quick Log" from outside the History tab — e.g. from a context
+      menu). The History tab uses an inline form and POSTs here directly.
+    - POST: validate, save, redirect back to the machine detail page
+      with an anchor to the History tab so the new log is visible at
+      the top of the timeline.
+    """
+    machine = get_object_or_404(Machine, pk=pk)
+
+    if request.method == "POST":
+        form = QuickLogForm(request.POST, request.FILES)
+        if form.is_valid():
+            log = form.save(commit=False)
+            log.machine = machine
+            log.author = request.user
+            log.save()
+            messages.success(request, _("Log added to machine history."))
+            return redirect(f"{reverse('machine_detail', kwargs={'pk': pk})}#history")
+        messages.error(request, _("Please correct the errors below."))
+    else:
+        # Pre-fill default values for GET so the page is meaningful
+        # even before the user starts typing.
+        form = QuickLogForm(initial={"type": QuickMaintenanceLog.Type.OBSERVATION})
+
+    return render(
+        request,
+        "maintenance/machine_quick_log_create.html",
+        {"form": form, "machine": machine},
+    )
 
 
 @login_required

@@ -1,18 +1,19 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}Quick log{% endblock %}
-{% block page_heading %}{% trans "Quick maintenance log" %}{% endblock %}
+{% block page_heading %}{% trans "Quick log" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">{% trans "Ad-hoc notes on a machine without opening a full issue or work order." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
-    <form method="post" class="mms-form">
-      {% csrf_token %}
+    <p class="mms-page-lead">
+      {% trans "Quick Log is now filed per-machine. Pick a machine and add the log from its History tab." %}
+    </p>
+    <a class="mms-btn mms-btn--primary" href="{% url 'machine_list' %}">{% trans "Choose a machine" %}</a>
+    {% if form and form.errors %}
+      <hr>
+      <h3>{% trans "Validation errors" %}</h3>
       {{ form.as_p }}
-      <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
-      </div>
-    </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

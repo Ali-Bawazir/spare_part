@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Add Quick Log" %} — {{ machine.name }}{% endblock %}
+{% block page_heading %}{% trans "Add Quick Log" %} — {{ machine.name }}{% endblock %}
+{% block content %}
+<div class="mms-link-back">
+  <a href="{% url 'machine_detail' machine.pk %}">{% trans "← Back to machine" %}</a>
+</div>
+<p class="mms-page-lead">
+  {% trans "Quick Log is a permanent history entry. It does not create an Issue, Work Order, or PM task." %}
+</p>
+<div class="mms-card mms-form-stack">
+  <div class="mms-card-body">
+    <form method="post" enctype="multipart/form-data" class="mms-form">
+      {% csrf_token %}
+      <div class="mms-form-group">
+        <label class="mms-label">{% trans "Machine" %}</label>
+        <input class="form-control" type="text" value="{{ machine.name }}" disabled>
+      </div>
+      {% for field in form %}
+        <div class="mms-form-group">
+          <label class="mms-label" for="{{ field.id_for_label }}">
+            {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+          </label>
+          {{ field }}
+          {% if field.help_text %}<span class="mms-form-help">{{ field.help_text }}</span>{% endif %}
+          {% if field.errors %}<div class="mms-form-error">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="mms-form-actions">
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'machine_detail' machine.pk %}">{% trans "Cancel" %}</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

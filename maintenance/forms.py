@@ -179,18 +179,39 @@ class WorkOrderPauseForm(forms.Form):
 
 
 class QuickLogForm(forms.ModelForm):
+    """Quick log creation form. Used by:
+    - the old standalone /quick-log/ page (legacy — kept as a redirect
+      to the machine list picker)
+    - the per-machine inline form on the History tab
+
+    The form intentionally has NO machine selector: callers pass
+    `machine=...` via the URL when invoking the per-machine endpoint.
+    """
+
     class Meta:
         model = QuickMaintenanceLog
-        fields = ("machine", "summary", "details")
+        fields = ("type", "summary", "details", "attachment")
         labels = {
-            "machine": _("Machine"),
+            "type": _("Type"),
             "summary": _("Summary"),
             "details": _("Details"),
+            "attachment": _("Attachment (optional)"),
         }
         widgets = {
-            "machine": forms.Select(attrs=_SEL),
-            "summary": forms.TextInput(attrs={**_CTRL, "placeholder": _("Short summary")}),
-            "details": forms.Textarea(attrs={**_CTRL, "rows": 3}),
+            "type": forms.RadioSelect(),
+            "summary": forms.TextInput(attrs={
+                **_CTRL,
+                "placeholder": _("Short summary (e.g. 'Oil leak near pump.')"),
+                "autofocus": True,
+            }),
+            "details": forms.Textarea(attrs={
+                **_CTRL,
+                "rows": 3,
+                "placeholder": _("Optional details — what, where, when."),
+            }),
+            "attachment": forms.ClearableFileInput(attrs={
+                "accept": "image/*,video/*,audio/*,application/pdf",
+            }),
         }
 
 

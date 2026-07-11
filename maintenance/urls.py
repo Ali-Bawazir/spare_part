@@ -97,6 +97,7 @@ urlpatterns = [
     path("repairs/<int:pk>/mark-returned/", views.repair_mark_returned, name="repair_mark_returned"),
     path("repairs/<int:pk>/pdf/", views.repair_order_pdf, name="repair_order_pdf"),
     path("quick-log/", views.quick_log, name="quick_log"),
+    path("machines/<int:pk>/quick-log/", views.machine_quick_log_create, name="machine_quick_log_create"),
     path("reports/", views.reports_view, name="reports"),
     path("reports/parts-issued/", views.reports_parts_issued, name="reports_parts_issued"),
     path("reports/low-stock/", views.reports_low_stock, name="reports_low_stock"),
