@@ -564,16 +564,44 @@ class Downtime(models.Model):
 
 
 class QuickMaintenanceLog(models.Model):
-    """Quick log without full work order (operator/technician)."""
+    """Lightweight machine history entry — a single observation, maintenance
+    action, or operational note attached to a machine.
 
-    machine = models.ForeignKey(Machine, on_delete=models.CASCADE, related_name="quick_logs")
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    summary = models.CharField(max_length=500)
-    details = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    Logs are immutable (no edit, no delete). They never escalate into
+    Issues, Work Orders, PM tasks, or External Repairs — those are
+    separate modules. The History tab on the machine page is the
+    primary consumer; the model is intentionally minimal so it can be
+    extended later (e.g. adding log kinds like Repair, PM Completed) by
+    just adding enum values.
+    """
+
+    class Type(models.TextChoices):
+        OBSERVATION      = "observation",     _("Observation")
+        MAINTENANCE_NOTE = "maintenance_note", _("Maintenance")
+        OPERATION_NOTE   = "operation_note",   _("Operation")
+
+    machine    = models.ForeignKey(Machine, on_delete=models.CASCADE, related_name="quick_logs")
+    author     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    type       = models.CharField(
+        max_length=20, choices=Type.choices,
+        default=Type.OBSERVATION, db_index=True,
+    )
+    summary    = models.CharField(max_length=500)
+    details    = models.TextField(blank=True)
+    attachment = models.ForeignKey(
+        "Attachment",
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="quick_log",
+        help_text=_("Optional single attachment (image, video, audio, or PDF)."),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["machine", "-created_at"],
+                         name="qmlog_machine_recent_idx"),
+        ]
 
 
 class PMTemplate(models.Model):
@@ -1555,6 +1583,7 @@ class Attachment(models.Model):
         REPAIR_ORDER = "repair_order"
         CONSUMABLE_ASSIGNMENT = "consumable_assignment"
         PM_SCHEDULE = "pm_schedule"
+        MACHINE_LOG = "machine_log"
 
     entity_type = models.CharField(max_length=32, choices=EntityType.choices)
     entity_id = models.PositiveIntegerField()
