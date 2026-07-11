@@ -67,19 +67,28 @@ def _make_err(*, work_order: WorkOrder, requested_by: User) -> ExternalRepairReq
 
 
 def _make_ero(*, work_order: WorkOrder, created_by: User,
-               origin_request: ExternalRepairRequest,
+               origin_request: ExternalRepairRequest = None,
                status: str = ExternalRepairOrder.Status.SENT_TO_VENDOR,
                actual_cost: Decimal = None) -> ExternalRepairOrder:
-    return ExternalRepairOrder.objects.create(
+    """Create a test ERO. If `origin_request` is supplied, also set
+    ERR.repair_order = ero to simulate the approve flow (the canonical
+    FK link in production). Note: 'origin_request' is NOT a real
+    ERO field — the parameter exists only to keep callers explicit
+    about which ERR to back-link."""
+    title_id = origin_request.pk if origin_request else "?"
+    ero = ExternalRepairOrder.objects.create(
         work_order=work_order,
-        title=f"ERO for ERR-{origin_request.pk}",
+        title=f"ERO for ERR-{title_id}",
         description="Vendor-fix ERO",
         created_by=created_by,
         handled_by=created_by,
         status=status,
         actual_cost=actual_cost,
-        origin_request=origin_request,
     )
+    if origin_request is not None:
+        origin_request.repair_order = ero
+        origin_request.save(update_fields=["repair_order"])
+    return ero
 
 
 class EroAcceptedFallbackToOriginRequestTests(TestCase):
@@ -92,8 +101,11 @@ class EroAcceptedFallbackToOriginRequestTests(TestCase):
         self.wo = _make_wo(machine=self.machine, created_by=self.manager,
                            assigned_technician=self.tech)
         self.err = _make_err(work_order=self.wo, requested_by=self.tech)
-        self.ero = _make_ero(work_order=self.wo, created_by=self.manager,
-                              origin_request=self.err)
+        self.ero = _make_ero(work_order=self.wo, created_by=self.manager)
+        # Link the ERR to the ERO via the canonical FK so the fix's
+        # reverse-lookup can find it.
+        self.err.repair_order = self.ero
+        self.err.save(update_fields=["repair_order"])
 
         ct_err = ContentType.objects.get_for_model(ExternalRepairRequest)
         self.blocker = WorkOrderBlocker.objects.create(
@@ -333,8 +345,10 @@ class ReconcileOrphanVendorBlockersTests(TestCase):
             WorkOrderBlocker.Status.RESOLVED,
         )
 
-    def test_command_ignores_blockers_with_non_closed_ero(self):
-        self.ero.status = ExternalRepairOrder.Status.RETURNED
+    def test_command_ignores_blockers_with_in_flight_ero(self):
+        # ERO is still in SENT (not yet RETURNED or CLOSED) — the vendor
+        # is processing it. The command should not touch this blocker.
+        self.ero.status = ExternalRepairOrder.Status.SENT_TO_VENDOR
         self.ero.save(update_fields=["status"])
 
         out = StringIO()

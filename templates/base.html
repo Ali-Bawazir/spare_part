@@ -40,9 +40,6 @@
       {% if perm_emergency_wo %}
       <a href="{% url 'emergency_wo_create' %}" class="mms-nav-link{% if current_url_name == 'emergency_wo_create' %} is-active{% endif %}">{% trans "Emergency WO" %}</a>
       {% endif %}
-      {% if perm_quick_log %}
-      <a href="{% url 'quick_log' %}" class="mms-nav-link{% if current_url_name == 'quick_log' %} is-active{% endif %}">{% trans "Quick log" %}</a>
-      {% endif %}
 
       {% if perm_view_stock or perm_view_consumables %}
       <div class="mms-nav-section" data-section="inventory">{% trans "Inventory" %}</div>
@@ -418,10 +415,6 @@
     <a href="{% url 'stock_lookup' %}" class="{% if current_url_name == 'stock_lookup' %}is-active{% endif %}">
         <span class="mms-nav-icon">📦</span>
         <span>{% trans "Stock" %}</span>
-    </a>
-    <a href="{% url 'quick_log' %}" class="{% if current_url_name == 'quick_log' %}is-active{% endif %}">
-        <span class="mms-nav-icon">⚡</span>
-        <span>{% trans "Quick log" %}</span>
     </a>
 </nav>
 {% endif %}

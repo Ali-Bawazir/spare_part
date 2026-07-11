@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-11 00:47+0300\n"
+"POT-Creation-Date: 2026-07-11 03:57+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,7 +97,7 @@ msgstr ""
 #: maintenance/models.py:119 maintenance/models.py:318 procurement/forms.py:203
 #: templates/accounts/mms_user_list.html:11
 #: templates/maintenance/machine_detail.html:50
-#: templates/maintenance/machine_detail.html:248
+#: templates/maintenance/machine_detail.html:254
 #: templates/maintenance/pm_list.html:16
 #: templates/maintenance/pm_template_detail.html:15
 #: templates/maintenance/pm_template_detail.html:38
@@ -254,7 +254,7 @@ msgid "Supervisor"
 msgstr "مشرف"
 
 #: accounts/models.py:12 accounts/utils.py:16 maintenance/notifications.py:356
-#: templates/maintenance/machine_detail.html:120
+#: templates/maintenance/machine_detail.html:126
 #: templates/maintenance/pm_review.html:14
 #: templates/maintenance/pm_wo_detail.html:56
 #: templates/maintenance/preventive/mgr_history.html:20
@@ -399,7 +399,7 @@ msgstr "التصنيف"
 msgid "Stock levels"
 msgstr "مستويات المخزون"
 
-#: inventory/admin.py:85 maintenance/models.py:908 procurement/admin.py:99
+#: inventory/admin.py:85 maintenance/models.py:936 procurement/admin.py:99
 #: procurement/apps.py:8
 msgid "Procurement"
 msgstr "المشتريات"
@@ -436,7 +436,7 @@ msgstr "الطوابع الزمنية"
 #: templates/maintenance/consumables.html:84
 #: templates/maintenance/consumables.html:125
 #: templates/maintenance/consumables.html:157
-#: templates/maintenance/machine_detail.html:293
+#: templates/maintenance/machine_detail.html:299
 #: templates/maintenance/reservations_dashboard.html:43
 #: templates/maintenance/reservations_dashboard.html:69
 #: templates/maintenance/shortage_dashboard.html:84
@@ -458,7 +458,7 @@ msgid "Part"
 msgstr "القطعة"
 
 #: inventory/forms.py:30 procurement/forms.py:100 procurement/forms.py:120
-#: templates/maintenance/machine_detail.html:293
+#: templates/maintenance/machine_detail.html:299
 #: templates/maintenance/reorder_suggestions.html:21
 #: templates/maintenance/spare_part_detail.html:191
 #: templates/maintenance/stock_dashboard.html:68
@@ -471,7 +471,7 @@ msgid "Supplier"
 msgstr "المورّد"
 
 #: inventory/forms.py:37 inventory/forms.py:60 inventory/forms.py:82
-#: inventory/forms.py:139 inventory/forms.py:158 maintenance/views.py:6263
+#: inventory/forms.py:139 inventory/forms.py:158 maintenance/views.py:6363
 #: procurement/forms.py:42 templates/maintenance/_cost_ledger_table.html:118
 #: templates/maintenance/_wo_actions_technician.html:138
 #: templates/maintenance/consumables.html:56
@@ -482,18 +482,18 @@ msgstr "المورّد"
 msgid "Quantity"
 msgstr "الكمية"
 
-#: inventory/forms.py:44 inventory/forms.py:61 maintenance/views.py:6264
+#: inventory/forms.py:44 inventory/forms.py:61 maintenance/views.py:6364
 #: templates/maintenance/_cost_ledger_table.html:119
 #: templates/maintenance/supplier_detail.html:162
 msgid "Unit cost"
 msgstr "سعر الوحدة"
 
-#: inventory/forms.py:49 inventory/forms.py:62 maintenance/forms.py:729
+#: inventory/forms.py:49 inventory/forms.py:62 maintenance/forms.py:750
 msgid "Invoice ref"
 msgstr "الفاتورة"
 
 #: inventory/forms.py:54 inventory/forms.py:87 inventory/forms.py:160
-#: maintenance/forms.py:167 maintenance/forms.py:737
+#: maintenance/forms.py:167 maintenance/forms.py:758
 #: templates/maintenance/_wo_actions_technician.html:41
 #: templates/maintenance/active_blockers_dashboard.html:64
 #: templates/maintenance/consumables.html:97
@@ -514,7 +514,7 @@ msgstr "ملاحظة اختيارية للمدير"
 msgid "Approve"
 msgstr "موافقة"
 
-#: inventory/forms.py:98 maintenance/forms.py:657
+#: inventory/forms.py:98 maintenance/forms.py:678
 #: templates/maintenance/workorder_detail.html:207
 #: templates/maintenance/workorder_detail.html:333
 msgid "Reject"
@@ -538,15 +538,16 @@ msgid "New qty is required when editing."
 msgstr "الكمية الجديدة مطلوبة عند التعديل."
 
 #: inventory/forms.py:140 inventory/forms.py:159 maintenance/forms.py:58
-#: maintenance/forms.py:186 maintenance/forms.py:201 maintenance/forms.py:421
-#: maintenance/forms.py:586 maintenance/models.py:87 maintenance/views.py:599
-#: maintenance/views.py:606 procurement/forms.py:27
+#: maintenance/forms.py:222 maintenance/forms.py:442 maintenance/forms.py:607
+#: maintenance/models.py:87 maintenance/views.py:599 maintenance/views.py:606
+#: procurement/forms.py:27
 #: templates/maintenance/active_blockers_dashboard.html:59
 #: templates/maintenance/consumables.html:127
 #: templates/maintenance/consumables.html:160
 #: templates/maintenance/issue_detail.html:10
 #: templates/maintenance/issue_list.html:45
 #: templates/maintenance/legacy_reconciliation.html:42
+#: templates/maintenance/machine_quick_log_create.html:17
 #: templates/maintenance/my_workorders.html:35
 #: templates/maintenance/pm_batch_spawn_confirm.html:16
 #: templates/maintenance/pm_dashboard.html:66
@@ -697,7 +698,7 @@ msgstr ""
 msgid "Pending"
 msgstr "معلَّق"
 
-#: inventory/models.py:274 maintenance/models.py:324 maintenance/models.py:632
+#: inventory/models.py:274 maintenance/models.py:324 maintenance/models.py:660
 #: templates/maintenance/preventive/mgr_history.html:41
 #: templates/maintenance/workorder_create_confirm.html:32
 #: templates/maintenance/workorder_detail.html:368
@@ -712,7 +713,7 @@ msgstr "مخصص"
 msgid "Issued"
 msgstr "صُدِر"
 
-#: inventory/models.py:277 maintenance/models.py:633 maintenance/models.py:1130
+#: inventory/models.py:277 maintenance/models.py:661 maintenance/models.py:1158
 #: templates/maintenance/workorder_detail.html:369
 #: templates/procurement/po_receive.html:57
 #: templates/procurement/po_receive.html:124
@@ -912,7 +913,7 @@ msgstr "موافقة (إصدار و/أو شراء ملتزم به)"
 msgid "Reject (nothing committed, full qty rejected)"
 msgstr "رفض (لا شيء ملتزم به، رفض كامل للكمية)"
 
-#: inventory/models.py:626 maintenance/views.py:5688 maintenance/views.py:5784
+#: inventory/models.py:626 maintenance/views.py:5788 maintenance/views.py:5884
 msgid "Quantities cannot be negative."
 msgstr "لا يمكن أن تكون الكميات سالبة."
 
@@ -951,7 +952,7 @@ msgstr ""
 msgid "Released"
 msgstr "مُحرَّر"
 
-#: inventory/models.py:667 maintenance/models.py:315 maintenance/models.py:1661
+#: inventory/models.py:667 maintenance/models.py:315 maintenance/models.py:1690
 #: procurement/models.py:90 procurement/models.py:187
 #: templates/maintenance/reservations_dashboard.html:34
 msgid "Cancelled"
@@ -1061,12 +1062,12 @@ msgstr "تم تسجيل %(qty)s × %(name)s."
 msgid "Issued %(qty)s x %(name)s to %(user)s."
 msgstr "تم إصدار %(qty)s × %(name)s إلى %(user)s."
 
-#: inventory/services.py:670 maintenance/views.py:1899
+#: inventory/services.py:670 maintenance/views.py:1945
 msgid "Cannot request parts on a closed work order."
 msgstr "لا يمكن طلب قطع على أمر عمل مغلق."
 
 #: inventory/services.py:944 maintenance/services.py:536
-#: maintenance/views.py:2130
+#: maintenance/views.py:2176
 msgid "Only PENDING requests can be approved."
 msgstr "يمكن الموافقة على الطلبات المعلَّقة فقط."
 
@@ -1347,7 +1348,7 @@ msgstr "طلب"
 msgid "Review"
 msgstr "مراجعة"
 
-#: maintenance/apps.py:8 templates/base.html:28
+#: maintenance/apps.py:8 maintenance/models.py:580 templates/base.html:28
 #: templates/maintenance/preventive/mgr_history.html:60
 #: templates/maintenance/preventive/mgr_plan_detail.html:23
 #: templates/maintenance/preventive/mgr_plans.html:22
@@ -1385,12 +1386,12 @@ msgstr ""
 "P3.3: فعِّل إذا كانت هذه المشكلة طارئة. ستُضبط المشكلة على أولوية حرجة، وأي أمر "
 "عمل يُنشأ منها سيكون أمر عمل طارئ."
 
-#: maintenance/forms.py:59 maintenance/forms.py:207 maintenance/forms.py:427
-#: maintenance/forms.py:593 maintenance/models.py:88 maintenance/views.py:599
+#: maintenance/forms.py:59 maintenance/forms.py:228 maintenance/forms.py:448
+#: maintenance/forms.py:614 maintenance/models.py:88 maintenance/views.py:599
 #: maintenance/views.py:606 procurement/forms.py:33
 #: templates/maintenance/_asset_tree.html:59
 #: templates/maintenance/issue_detail.html:15
-#: templates/maintenance/machine_detail.html:118
+#: templates/maintenance/machine_detail.html:124
 #: templates/maintenance/my_workorders.html:36
 #: templates/maintenance/pm_batch_spawn_confirm.html:17
 #: templates/maintenance/pm_wo_detail.html:45
@@ -1400,9 +1401,9 @@ msgstr ""
 msgid "Component"
 msgstr "مكوّن"
 
-#: maintenance/forms.py:60 maintenance/forms.py:360 maintenance/forms.py:436
-#: maintenance/views.py:3989 templates/maintenance/issue_detail.html:45
-#: templates/maintenance/machine_detail.html:158
+#: maintenance/forms.py:60 maintenance/forms.py:381 maintenance/forms.py:457
+#: maintenance/views.py:4035 templates/maintenance/issue_detail.html:45
+#: templates/maintenance/machine_detail.html:164
 #: templates/maintenance/spare_part_detail.html:400
 #: templates/maintenance/spare_part_form.html:88
 msgid "Description"
@@ -1443,42 +1444,63 @@ msgstr "مطلوب عند اختيار السبب «أخرى»"
 msgid "Note is required when reason is 'Other'."
 msgstr "الملاحظة مطلوبة عند اختيار السبب «أخرى»."
 
-#: maintenance/forms.py:187
+#: maintenance/forms.py:195
+#: templates/maintenance/_partials/_history_timeline.html:39
+#: templates/maintenance/supplier_detail.html:36
+#: templates/maintenance/supplier_list.html:26
+#: templates/maintenance/workorder_detail.html:462
+msgid "Type"
+msgstr "النوع"
+
+#: maintenance/forms.py:196
+#: templates/maintenance/_partials/_history_timeline.html:51
 msgid "Summary"
 msgstr "ملخص"
 
-#: maintenance/forms.py:188
+#: maintenance/forms.py:197
+#: templates/maintenance/_partials/_history_timeline.html:57
 msgid "Details"
 msgstr "تفاصيل العمل"
 
-#: maintenance/forms.py:192
-msgid "Short summary"
-msgstr "ملخص سجل التكاليف"
+#: maintenance/forms.py:198
+#: templates/maintenance/_partials/_history_timeline.html:61
+#, fuzzy
+#| msgid "Note (optional)"
+msgid "Attachment (optional)"
+msgstr "ملاحظة (اختيارية)"
 
-#: maintenance/forms.py:212
+#: maintenance/forms.py:204
+msgid "Short summary (e.g. 'Oil leak near pump.')"
+msgstr ""
+
+#: maintenance/forms.py:210
+msgid "Optional  details  —  what,  where,  when ."
+msgstr "تفاصيل اختيارية — ماذا، أين، متى."
+
+#: maintenance/forms.py:233
 msgid "Due time"
 msgstr "في الوقت المحدد"
 
-#: maintenance/forms.py:213
+#: maintenance/forms.py:234
 msgid "Time-of-day for scheduled occurrences (default 08:00)"
 msgstr "وقت اليوم للتكرارات المجدولة (الافتراضي 08:00)"
 
-#: maintenance/forms.py:217
+#: maintenance/forms.py:238
 msgid "Ends at"
 msgstr "ينتهي"
 
-#: maintenance/forms.py:218 maintenance/models.py:758
+#: maintenance/forms.py:239 maintenance/models.py:786
 msgid "Schedule stops generating occurrences after this date"
 msgstr "يتوقف الجدول عن توليد التكرارات بعد هذا التاريخ"
 
-#: maintenance/forms.py:232 templates/maintenance/machine_detail.html:208
+#: maintenance/forms.py:253 templates/maintenance/machine_detail.html:214
 #: templates/maintenance/pm_batch_spawn_confirm.html:15
 #: templates/maintenance/pm_list.html:56
 #: templates/maintenance/pm_spawn_wo.html:12
 msgid "Template"
 msgstr "القالب"
 
-#: maintenance/forms.py:233 templates/maintenance/machine_detail.html:209
+#: maintenance/forms.py:254 templates/maintenance/machine_detail.html:215
 #: templates/maintenance/pm_batch_spawn_confirm.html:18
 #: templates/maintenance/pm_list.html:58
 #: templates/maintenance/pm_spawn_wo.html:14
@@ -1488,87 +1510,87 @@ msgstr "القالب"
 msgid "Frequency"
 msgstr "التكرار"
 
-#: maintenance/forms.py:234
+#: maintenance/forms.py:255
 msgid "Interval"
 msgstr "المرجع الداخلي"
 
-#: maintenance/forms.py:235
+#: maintenance/forms.py:256
 msgid "Start date"
 msgstr "بدء الكاميرا"
 
-#: maintenance/forms.py:236
+#: maintenance/forms.py:257
 msgid "Next due at"
 msgstr "الاستحقاق التالي"
 
-#: maintenance/forms.py:237
+#: maintenance/forms.py:258
 msgid "Priority override"
 msgstr "الأولوية"
 
-#: maintenance/forms.py:238
+#: maintenance/forms.py:259
 msgid "Estimated duration override"
 msgstr "المدة المقدَّرة"
 
-#: maintenance/forms.py:239
+#: maintenance/forms.py:260
 msgid "Grace days"
 msgstr "أيام السماح"
 
-#: maintenance/forms.py:240
+#: maintenance/forms.py:261
 msgid "Reminder days before"
 msgstr "نفس السابق"
 
-#: maintenance/forms.py:241
+#: maintenance/forms.py:262
 msgid "Trigger type"
 msgstr "الناتج عن:"
 
-#: maintenance/forms.py:242 maintenance/forms.py:364 maintenance/forms.py:543
+#: maintenance/forms.py:263 maintenance/forms.py:385 maintenance/forms.py:564
 msgid "Is active"
 msgstr "نشط"
 
-#: maintenance/forms.py:268
+#: maintenance/forms.py:289
 msgid "Apply to all child machines"
 msgstr "تطبيق على جميع الماكينات الفرعية"
 
-#: maintenance/forms.py:269
+#: maintenance/forms.py:290
 msgid ""
 "If this machine has child machines, create PM work orders for each of them."
 msgstr ""
 "إذا كانت لهذه الماكينة ماكينات فرعية، فأنشئ أوامر عمل صيانة وقائية لكل منها."
 
-#: maintenance/forms.py:295 templates/maintenance/pm_template_form.html:25
+#: maintenance/forms.py:316 templates/maintenance/pm_template_form.html:25
 msgid "Text"
 msgstr "النص"
 
-#: maintenance/forms.py:296
+#: maintenance/forms.py:317
 #: templates/maintenance/preventive/mgr_template_form.html:28
 #: templates/maintenance/preventive/mgr_template_form.html:52
 msgid "Checklist item text"
 msgstr "نص عنصر قائمة المراجعة"
 
-#: maintenance/forms.py:300 templates/maintenance/pm_template_form.html:25
+#: maintenance/forms.py:321 templates/maintenance/pm_template_form.html:25
 msgid "Order"
 msgstr "الترتيب"
 
-#: maintenance/forms.py:308 templates/maintenance/pm_template_form.html:25
+#: maintenance/forms.py:329 templates/maintenance/pm_template_form.html:25
 msgid "Required?"
 msgstr "مطلوب؟"
 
-#: maintenance/forms.py:330
+#: maintenance/forms.py:351
 msgid "Duplicate checklist item text."
 msgstr "نص عنصر قائمة مراجعة مكرر."
 
-#: maintenance/forms.py:333
+#: maintenance/forms.py:354
 msgid "At least one checklist item is required."
 msgstr "مطلوب عنصر واحد على الأقل في قائمة المراجعة."
 
-#: maintenance/forms.py:349
+#: maintenance/forms.py:370
 msgid "Requires photo min count"
 msgstr "الحد الأدنى لعدد الصور"
 
-#: maintenance/forms.py:350
+#: maintenance/forms.py:371
 msgid "Minimum number of photos the technician must attach"
 msgstr "الحد الأدنى لعدد الصور التي يجب على الفني إرفاقها"
 
-#: maintenance/forms.py:358 maintenance/forms.py:406 procurement/forms.py:196
+#: maintenance/forms.py:379 maintenance/forms.py:427 procurement/forms.py:196
 #: templates/maintenance/failing_assets_report.html:22
 #: templates/maintenance/failure_mode_report.html:22
 #: templates/maintenance/kpi.html:73
@@ -1581,8 +1603,8 @@ msgstr "الحد الأدنى لعدد الصور التي يجب على الف�
 msgid "Code"
 msgstr "الكود"
 
-#: maintenance/forms.py:359 maintenance/forms.py:435 maintenance/forms.py:598
-#: templates/maintenance/machine_detail.html:269
+#: maintenance/forms.py:380 maintenance/forms.py:456 maintenance/forms.py:619
+#: templates/maintenance/machine_detail.html:275
 #: templates/maintenance/pm_template_list.html:15
 #: templates/maintenance/preventive/mgr_templates.html:17
 #: templates/maintenance/repair_list.html:14
@@ -1590,14 +1612,14 @@ msgstr "الكود"
 msgid "Title"
 msgstr "العنوان"
 
-#: maintenance/forms.py:361
+#: maintenance/forms.py:382
 msgid "Estimated duration (minutes)"
 msgstr "المدة المقدَّرة"
 
-#: maintenance/forms.py:362 templates/maintenance/issue_detail.html:35
+#: maintenance/forms.py:383 templates/maintenance/issue_detail.html:35
 #: templates/maintenance/issue_list.html:45
-#: templates/maintenance/machine_detail.html:158
-#: templates/maintenance/machine_detail.html:211
+#: templates/maintenance/machine_detail.html:164
+#: templates/maintenance/machine_detail.html:217
 #: templates/maintenance/my_workorders.html:38
 #: templates/maintenance/pm_batch_spawn_confirm.html:20
 #: templates/maintenance/pm_list.html:61
@@ -1611,31 +1633,31 @@ msgstr "المدة المقدَّرة"
 msgid "Priority"
 msgstr "الأولوية"
 
-#: maintenance/forms.py:363
+#: maintenance/forms.py:384
 msgid "Requires manager review"
 msgstr "يتطلب مراجعة المدير"
 
-#: maintenance/forms.py:378 templates/maintenance/tools.html:65
+#: maintenance/forms.py:399 templates/maintenance/tools.html:65
 msgid "Tool"
 msgstr "الأداة"
 
-#: maintenance/forms.py:379
+#: maintenance/forms.py:400
 msgid "Assignee"
 msgstr "مُسنَد"
 
-#: maintenance/forms.py:384
+#: maintenance/forms.py:405
 msgid "Select an available tool"
 msgstr "اختر أداة متاحة"
 
-#: maintenance/forms.py:385
+#: maintenance/forms.py:406
 msgid "Only tools in Available status can be assigned."
 msgstr "يمكن إسناد الأدوات ذات الحالة «متاحة» فقط."
 
-#: maintenance/forms.py:397
+#: maintenance/forms.py:418
 msgid "Condition"
 msgstr "حالة"
 
-#: maintenance/forms.py:407 maintenance/forms.py:540 procurement/forms.py:197
+#: maintenance/forms.py:428 maintenance/forms.py:561 procurement/forms.py:197
 #: templates/maintenance/failure_mode_report.html:23
 #: templates/maintenance/kpi.html:73 templates/maintenance/machine_list.html:38
 #: templates/maintenance/reorder_suggestions.html:15
@@ -1650,18 +1672,18 @@ msgstr "حالة"
 msgid "Name"
 msgstr "الاسم"
 
-#: maintenance/forms.py:408 maintenance/forms.py:500 maintenance/forms.py:554
+#: maintenance/forms.py:429 maintenance/forms.py:521 maintenance/forms.py:575
 #: procurement/forms.py:102 procurement/forms.py:123
 #: templates/maintenance/_wo_actions_manager.html:240
 #: templates/maintenance/_wo_reservation_history.html:70
 #: templates/maintenance/issue_detail.html:28
 #: templates/maintenance/issue_list.html:45
 #: templates/maintenance/machine_detail.html:50
-#: templates/maintenance/machine_detail.html:117
-#: templates/maintenance/machine_detail.html:158
-#: templates/maintenance/machine_detail.html:213
-#: templates/maintenance/machine_detail.html:269
-#: templates/maintenance/machine_detail.html:293
+#: templates/maintenance/machine_detail.html:123
+#: templates/maintenance/machine_detail.html:164
+#: templates/maintenance/machine_detail.html:219
+#: templates/maintenance/machine_detail.html:275
+#: templates/maintenance/machine_detail.html:299
 #: templates/maintenance/machine_form.html:116
 #: templates/maintenance/my_workorders.html:37
 #: templates/maintenance/pm_list.html:24
@@ -1696,48 +1718,48 @@ msgstr "الاسم"
 msgid "Status"
 msgstr "الحالة"
 
-#: maintenance/forms.py:412
+#: maintenance/forms.py:433
 msgid "e.g. Torque wrench"
 msgstr "مثال: مفتاح عزم"
 
-#: maintenance/forms.py:437 maintenance/views.py:6262 procurement/forms.py:41
+#: maintenance/forms.py:458 maintenance/views.py:6362 procurement/forms.py:41
 #: templates/maintenance/supplier_detail.html:163
 msgid "Work order"
 msgstr "أمر العمل"
 
-#: maintenance/forms.py:438
+#: maintenance/forms.py:459
 msgid "Estimated cost"
 msgstr "التكلفة المقدَّرة"
 
-#: maintenance/forms.py:490 procurement/models.py:14
+#: maintenance/forms.py:511 procurement/models.py:14
 #: templates/maintenance/supplier_detail.html:41
 msgid "Repair vendor"
 msgstr "مورّد الإصلاح"
 
-#: maintenance/forms.py:491
+#: maintenance/forms.py:512
 msgid "Only suppliers classified as repair vendors."
 msgstr "المورّدون المُصنَّفون كجهات إصلاح فقط."
 
-#: maintenance/forms.py:498
+#: maintenance/forms.py:519
 msgid "Vendor name (legacy snapshot)"
 msgstr "اسم المورّد (لقطة قديمة)"
 
-#: maintenance/forms.py:499 maintenance/forms.py:720
+#: maintenance/forms.py:520 maintenance/forms.py:741
 msgid "Actual cost"
 msgstr "التكلفة الفعلية"
 
-#: maintenance/forms.py:541 procurement/admin.py:55
+#: maintenance/forms.py:562 procurement/admin.py:55
 #: templates/maintenance/machine_detail.html:45
 msgid "QR Code"
 msgstr "رمز QR"
 
-#: maintenance/forms.py:542 templates/maintenance/machine_detail.html:49
+#: maintenance/forms.py:563 templates/maintenance/machine_detail.html:49
 #: templates/maintenance/machine_form.html:43
 #: templates/maintenance/machine_list.html:38
 msgid "Location"
 msgstr "الموقع"
 
-#: maintenance/forms.py:544 templates/maintenance/machine_cost_report.html:43
+#: maintenance/forms.py:565 templates/maintenance/machine_cost_report.html:43
 #: templates/maintenance/machine_cost_report.html:54
 #: templates/maintenance/machine_detail.html:48
 #: templates/maintenance/machine_form.html:61
@@ -1746,187 +1768,187 @@ msgstr "الموقع"
 msgid "Site"
 msgstr "الموقع"
 
-#: maintenance/forms.py:545
+#: maintenance/forms.py:566
 msgid "Parent machine"
 msgstr "الماكينة الأم"
 
-#: maintenance/forms.py:546
+#: maintenance/forms.py:567
 msgid "Asset level"
 msgstr "مستوى الأصل"
 
-#: maintenance/forms.py:547
+#: maintenance/forms.py:568
 msgid "Asset type"
 msgstr "نوع الأصل"
 
-#: maintenance/forms.py:548
+#: maintenance/forms.py:569
 msgid "Serial number"
 msgstr "الرقم التسلسلي"
 
-#: maintenance/forms.py:549 templates/maintenance/machine_detail.html:56
+#: maintenance/forms.py:570 templates/maintenance/machine_detail.html:56
 #: templates/maintenance/machine_form.html:90
 msgid "Manufacturer"
 msgstr "الشركة المصنعة"
 
-#: maintenance/forms.py:550
+#: maintenance/forms.py:571
 msgid "Model number"
 msgstr "رقم الموديل"
 
-#: maintenance/forms.py:551
+#: maintenance/forms.py:572
 msgid "Install date"
 msgstr "تاريخ التركيب"
 
-#: maintenance/forms.py:552
+#: maintenance/forms.py:573
 msgid "Expected life (days)"
 msgstr "العمر المتوقع (أيام)"
 
-#: maintenance/forms.py:553 templates/maintenance/machine_detail.html:58
+#: maintenance/forms.py:574 templates/maintenance/machine_detail.html:58
 #: templates/maintenance/machine_form.html:110
 msgid "Criticality"
 msgstr "الحرجية"
 
-#: maintenance/forms.py:555
+#: maintenance/forms.py:576
 msgid "Asset code"
 msgstr "كود الأصل"
 
-#: maintenance/forms.py:556
+#: maintenance/forms.py:577
 msgid "Failure category"
 msgstr "فئة العطل"
 
-#: maintenance/forms.py:559
+#: maintenance/forms.py:580
 msgid "e.g. Line A Press 1"
 msgstr "مثال: مكبس الخط A رقم 1"
 
-#: maintenance/forms.py:560
+#: maintenance/forms.py:581
 msgid "e.g. PRESS-01"
 msgstr "مثال: PM-HYD-001"
 
-#: maintenance/forms.py:561
+#: maintenance/forms.py:582
 msgid "e.g. Hall A"
 msgstr "مثال: القاعة A"
 
-#: maintenance/forms.py:566
+#: maintenance/forms.py:587
 msgid "e.g. SN-12345"
 msgstr "مثال: A-01-03"
 
-#: maintenance/forms.py:567
+#: maintenance/forms.py:588
 msgid "e.g. Siemens"
 msgstr "مثال: سيمنز"
 
-#: maintenance/forms.py:568
+#: maintenance/forms.py:589
 msgid "e.g. MDL-X100"
 msgstr "مثال: PM-HYD-001"
 
-#: maintenance/forms.py:570
+#: maintenance/forms.py:591
 msgid "e.g. 3650"
 msgstr "مثال: 3650"
 
-#: maintenance/forms.py:573
+#: maintenance/forms.py:594
 msgid "e.g. FM-01-CONV-BRG-001"
 msgstr "كود الأصل الهرمي (مثال: FM-01-CONV-BRG-001)"
 
-#: maintenance/forms.py:592
+#: maintenance/forms.py:613
 msgid "Optional: Target a specific component (level-5)"
 msgstr "اختياري: استهدف مكوّنًا محددًا (المستوى 5)"
 
-#: maintenance/forms.py:597
+#: maintenance/forms.py:618
 msgid "e.g. Line stop — hydraulic leak"
 msgstr "مثال: توقف خط — تسرب هيدروليكي"
 
-#: maintenance/forms.py:602
+#: maintenance/forms.py:623
 msgid "Detail"
 msgstr "التفاصيل"
 
-#: maintenance/forms.py:616
+#: maintenance/forms.py:637
 msgid "Optional note for the log"
 msgstr "ملاحظة اختيارية للسجل"
 
-#: maintenance/forms.py:631
+#: maintenance/forms.py:652
 msgid "What's wrong with the part? Why does it need an external repair?"
 msgstr "ما المشكلة في القطعة؟ لماذا تحتاج إصلاحًا خارجيًا؟"
 
-#: maintenance/forms.py:638
+#: maintenance/forms.py:659
 msgid "Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1')"
 msgstr "اسم القطعة، رقم القطعة، الكمية (مثال: «سيرفو درايف S7-300، كمية 1»)"
 
-#: maintenance/forms.py:646 maintenance/services.py:476
+#: maintenance/forms.py:667 maintenance/services.py:476
 msgid "Diagnosis note is required."
 msgstr "ملاحظة التشخيص مطلوبة."
 
-#: maintenance/forms.py:648 maintenance/services.py:478
+#: maintenance/forms.py:669 maintenance/services.py:478
 msgid "Part description is required."
 msgstr "وصف القطعة مطلوب."
 
-#: maintenance/forms.py:656 templates/maintenance/workorder_detail.html:332
+#: maintenance/forms.py:677 templates/maintenance/workorder_detail.html:332
 msgid "Approve (create ERO)"
 msgstr "موافقة (إنشاء طلب إصلاح خارجي)"
 
-#: maintenance/forms.py:663
+#: maintenance/forms.py:684
 msgid "Required on reject; optional on approve."
 msgstr "مطلوب عند الرفض؛ اختياري عند الموافقة."
 
-#: maintenance/forms.py:670 maintenance/services.py:606
+#: maintenance/forms.py:691 maintenance/services.py:606
 msgid "A rejection reason is required."
 msgstr "سبب الرفض مطلوب."
 
-#: maintenance/forms.py:682 maintenance/views.py:6263
+#: maintenance/forms.py:703 maintenance/views.py:6363
 #: templates/maintenance/_cost_ledger_table.html:117
 msgid "Amount"
 msgstr "المبلغ"
 
-#: maintenance/forms.py:685
+#: maintenance/forms.py:706
 msgid "Signed: positive adds, negative reduces"
 msgstr "بإشارة: الموجب يضيف، والسالب يخصم"
 
-#: maintenance/forms.py:687
+#: maintenance/forms.py:708
 msgid "Signed amount. Positive adds to the WO total, negative reduces it."
 msgstr "المبلغ بإشارة. الموجب يضيف إلى إجمالي أمر العمل، والسالب يخصم منه."
 
-#: maintenance/forms.py:691 maintenance/views.py:6264
+#: maintenance/forms.py:712 maintenance/views.py:6364
 #: templates/maintenance/_cost_ledger_table.html:120
 msgid "Memo"
 msgstr "مذكرة"
 
-#: maintenance/forms.py:694
+#: maintenance/forms.py:715
 msgid "Why does this adjustment exist? (min 10 chars)"
 msgstr "لماذا توجد هذه التسوية؟ (10 أحرف على الأقل)"
 
-#: maintenance/forms.py:696
+#: maintenance/forms.py:717
 msgid "Required. Min 10 characters. Explains why this adjustment exists."
 msgstr "مطلوب. 10 أحرف على الأقل. يوضح سبب وجود هذه التسوية."
 
-#: maintenance/forms.py:702 maintenance/models.py:1506
+#: maintenance/forms.py:723 maintenance/models.py:1534
 msgid "Memo must be at least 10 characters."
 msgstr "يجب أن تكون المذكرة 10 أحرف على الأقل."
 
-#: maintenance/forms.py:708
+#: maintenance/forms.py:729
 msgid "Amount must be non-zero."
 msgstr "يجب أن يكون المبلغ غير صفر."
 
-#: maintenance/forms.py:723
+#: maintenance/forms.py:744
 msgid "Vendor invoice total"
 msgstr "إجمالي فاتورة المورد"
 
-#: maintenance/forms.py:725
+#: maintenance/forms.py:746
 msgid "Required — final vendor invoice amount."
 msgstr "مطلوب — المبلغ النهائي لفاتورة المورد."
 
-#: maintenance/forms.py:731
+#: maintenance/forms.py:752
 msgid "Vendor invoice number"
 msgstr "رقم فاتورة المورد"
 
-#: maintenance/forms.py:733
+#: maintenance/forms.py:754
 msgid "Required — vendor invoice number (UC-20)."
 msgstr "مطلوب — رقم فاتورة المورد (UC-20)."
 
-#: maintenance/forms.py:740
+#: maintenance/forms.py:761
 msgid "Optional verification note (e.g. condition of returned part)"
 msgstr "ملاحظة تحقق اختيارية (مثال: حالة القطعة المُعادة)"
 
-#: maintenance/forms.py:748
+#: maintenance/forms.py:769
 msgid "Actual cost must be greater than zero."
 msgstr "يجب أن تكون التكلفة الفعلية أكبر من صفر."
 
-#: maintenance/forms.py:751
+#: maintenance/forms.py:772
 msgid "Vendor invoice number is required."
 msgstr "رقم فاتورة المورد مطلوب."
 
@@ -1992,33 +2014,33 @@ msgid "Expected service life in days (level-5 Component)"
 msgstr "العمر التشغيلي المتوقع بالأيام (مكوّن المستوى 5)"
 
 #: maintenance/models.py:113 maintenance/models.py:206
-#: maintenance/models.py:583 maintenance/models.py:959
-#: templates/maintenance/machine_detail.html:167
-#: templates/maintenance/machine_detail.html:237
+#: maintenance/models.py:611 maintenance/models.py:987
+#: templates/maintenance/machine_detail.html:173
+#: templates/maintenance/machine_detail.html:243
 #: templates/maintenance/pm_list.html:85
 #: templates/maintenance/stock_dashboard.html:120
 msgid "Low"
 msgstr "منخفض"
 
 #: maintenance/models.py:113 maintenance/models.py:205
-#: maintenance/models.py:584 templates/maintenance/machine_detail.html:166
-#: templates/maintenance/machine_detail.html:236
+#: maintenance/models.py:612 templates/maintenance/machine_detail.html:172
+#: templates/maintenance/machine_detail.html:242
 #: templates/maintenance/pm_list.html:84
 msgid "Medium"
 msgstr "متوسط"
 
 #: maintenance/models.py:113 maintenance/models.py:204
-#: maintenance/models.py:585 maintenance/models.py:960
-#: templates/maintenance/machine_detail.html:165
-#: templates/maintenance/machine_detail.html:235
+#: maintenance/models.py:613 maintenance/models.py:988
+#: templates/maintenance/machine_detail.html:171
+#: templates/maintenance/machine_detail.html:241
 #: templates/maintenance/pm_list.html:83
 msgid "High"
 msgstr "مرتفع"
 
 #: maintenance/models.py:113 maintenance/models.py:203
-#: maintenance/models.py:586 maintenance/models.py:960
-#: templates/maintenance/machine_detail.html:164
-#: templates/maintenance/machine_detail.html:234
+#: maintenance/models.py:614 maintenance/models.py:988
+#: templates/maintenance/machine_detail.html:170
+#: templates/maintenance/machine_detail.html:240
 #: templates/maintenance/pm_list.html:82
 msgid "Critical"
 msgstr "حرج"
@@ -2028,7 +2050,7 @@ msgid "Criticality rating (level-5 Component)"
 msgstr "تصنيف الحرجية (مكوّن المستوى 5)"
 
 #: maintenance/models.py:119 templates/maintenance/machine_detail.html:50
-#: templates/maintenance/machine_detail.html:248
+#: templates/maintenance/machine_detail.html:254
 #: templates/maintenance/supplier_detail.html:32
 #: templates/maintenance/supplier_list.html:41
 msgid "Inactive"
@@ -2094,7 +2116,7 @@ msgid "Preventive"
 msgstr "وقائي"
 
 #: maintenance/models.py:306 maintenance/models.py:530
-#: maintenance/services.py:232 templates/base.html:454
+#: maintenance/services.py:232 templates/base.html:447
 #: templates/maintenance/workorder_detail.html:20
 msgid "Emergency"
 msgstr "طارئ"
@@ -2103,7 +2125,7 @@ msgstr "طارئ"
 msgid "Repair"
 msgstr "إصلاح"
 
-#: maintenance/models.py:310 maintenance/models.py:981
+#: maintenance/models.py:310 maintenance/models.py:1009
 #: procurement/models.py:182 templates/maintenance/dashboard.html:274
 msgid "Draft"
 msgstr "مسودة"
@@ -2114,7 +2136,7 @@ msgid "Assigned"
 msgstr "مُسنَد"
 
 #: maintenance/models.py:312 maintenance/models.py:326
-#: templates/maintenance/machine_detail.html:131
+#: templates/maintenance/machine_detail.html:137
 #: templates/maintenance/reports_technicians.html:10
 #: templates/maintenance/shortage_dashboard.html:146
 #: templates/maintenance/technician_report.html:30
@@ -2122,13 +2144,13 @@ msgid "In progress"
 msgstr "قيد التنفيذ"
 
 #: maintenance/models.py:313 templates/maintenance/dashboard.html:16
-#: templates/maintenance/machine_detail.html:132
+#: templates/maintenance/machine_detail.html:138
 #: templates/maintenance/pm_dashboard.html:47
 msgid "Pending review"
 msgstr "بانتظار المراجعة"
 
 #: maintenance/models.py:314 maintenance/models.py:331
-#: maintenance/models.py:853 templates/maintenance/machine_detail.html:130
+#: maintenance/models.py:881 templates/maintenance/machine_detail.html:136
 #: templates/maintenance/technician_report.html:83
 msgid "Closed"
 msgstr "مغلق"
@@ -2152,7 +2174,7 @@ msgstr "متوقف"
 msgid "Waiting for vendor"
 msgstr "بانتظار المورد"
 
-#: maintenance/models.py:330 maintenance/models.py:1128
+#: maintenance/models.py:330 maintenance/models.py:1156
 msgid "Pending manager review"
 msgstr "بانتظار مراجعة المدير"
 
@@ -2210,121 +2232,137 @@ msgstr "مجدول"
 msgid "Idle"
 msgstr "خامل"
 
-#: maintenance/models.py:588
+#: maintenance/models.py:579
+#, fuzzy
+#| msgid "Reservations"
+msgid "Observation"
+msgstr "الحجوزات"
+
+#: maintenance/models.py:581
+#, fuzzy
+#| msgid "Operational:"
+msgid "Operation"
+msgstr "تشغيلي:"
+
+#: maintenance/models.py:595
+msgid "Optional  single  attachment   (image,  video,  audio,  or  PDF ) ."
+msgstr "مرفق اختياري واحد (صورة أو فيديو أو صوت أو PDF)."
+
+#: maintenance/models.py:616
 msgid "e.g. PM-HYD-001"
 msgstr "مثال: PM-HYD-001"
 
-#: maintenance/models.py:598
+#: maintenance/models.py:626
 msgid ""
 "Minimum number of photos the technician must attach when completing this PM"
 msgstr ""
 "الحد الأدنى لعدد الصور التي يجب على الفني إرفاقها عند إكمال هذه الصيانة "
 "الوقائية"
 
-#: maintenance/models.py:631 templates/maintenance/workorder_detail.html:354
+#: maintenance/models.py:659 templates/maintenance/workorder_detail.html:354
 msgid "Submitted"
 msgstr "مُرسَل"
 
-#: maintenance/models.py:634 templates/maintenance/pm_dashboard.html:45
+#: maintenance/models.py:662 templates/maintenance/pm_dashboard.html:45
 #: templates/maintenance/pm_dashboard.html:71
 msgid "Missed"
 msgstr "فات"
 
-#: maintenance/models.py:647
+#: maintenance/models.py:675
 msgid "Locks this execution to a specific due occurrence"
 msgstr "يُثبِّت هذا التنفيذ على تكرار استحقاق محدد"
 
-#: maintenance/models.py:650
+#: maintenance/models.py:678
 msgid "Cycle counter per PMSchedule"
 msgstr "عداد الدورات لكل جدول صيانة وقائية"
 
-#: maintenance/models.py:654
+#: maintenance/models.py:682
 msgid "Immutable snapshot of template state at WO spawn time"
 msgstr "لقطة غير قابلة للتغيير لحالة القالب عند إنشاء أمر العمل"
 
-#: maintenance/models.py:712
+#: maintenance/models.py:740
 msgid "Daily"
 msgstr "يومي"
 
-#: maintenance/models.py:713
+#: maintenance/models.py:741
 msgid "Weekly"
 msgstr "أسبوعي"
 
-#: maintenance/models.py:714
+#: maintenance/models.py:742
 msgid "Monthly"
 msgstr "شهري"
 
-#: maintenance/models.py:715
+#: maintenance/models.py:743
 msgid "Yearly"
 msgstr "سنوي"
 
-#: maintenance/models.py:718
+#: maintenance/models.py:746
 msgid "Time-based"
 msgstr "حسب الوقت"
 
-#: maintenance/models.py:719
+#: maintenance/models.py:747
 msgid "Meter-based"
 msgstr "حسب العداد"
 
-#: maintenance/models.py:723
+#: maintenance/models.py:751
 msgid "Reusable procedure applied to this asset"
 msgstr "إجراء قابل لإعادة الاستخدام مطبَّق على هذا الأصل"
 
-#: maintenance/models.py:729
+#: maintenance/models.py:757
 msgid "Level-5 Component this PM targets (optional)"
 msgstr "المكوّن من المستوى 5 الذي تستهدفه هذه الصيانة الوقائية (اختياري)"
 
-#: maintenance/models.py:734
+#: maintenance/models.py:762
 msgid "e.g. MONTHLY × 3 = every 3 months"
 msgstr "مثال: MONTHLY × 3 = كل 3 أشهر"
 
-#: maintenance/models.py:743
+#: maintenance/models.py:771
 msgid "If null, fall back to template.priority"
 msgstr "إذا كان فارغًا، ارجع إلى template.priority"
 
-#: maintenance/models.py:747
+#: maintenance/models.py:775
 msgid "If null, fall back to template.estimated_duration_minutes"
 msgstr "إذا كان فارغًا، ارجع إلى template.estimated_duration_minutes"
 
-#: maintenance/models.py:754
+#: maintenance/models.py:782
 msgid ""
 "Time-of-day for scheduled occurrences (used for grouping Today's Schedule)"
 msgstr "وقت اليوم للتكرارات المجدولة (يُستخدم لتجميع جدول اليوم)"
 
-#: maintenance/models.py:791 templates/maintenance/spare_part_detail.html:88
+#: maintenance/models.py:819 templates/maintenance/spare_part_detail.html:88
 #: templates/maintenance/stock_lookup.html:51
 #: templates/maintenance/tools.html:21
 msgid "Available"
 msgstr "متاحة"
 
-#: maintenance/models.py:792
+#: maintenance/models.py:820
 msgid "In use"
 msgstr "قيد الاستخدام"
 
-#: maintenance/models.py:793
+#: maintenance/models.py:821
 msgid "Out of service"
 msgstr "خارج الخدمة"
 
-#: maintenance/models.py:814 procurement/models.py:286
+#: maintenance/models.py:842 procurement/models.py:286
 #: templates/procurement/po_receive.html:55
 #: templates/procurement/po_receive.html:122
 msgid "Good"
 msgstr "جيدة"
 
-#: maintenance/models.py:815 templates/procurement/po_receive.html:56
+#: maintenance/models.py:843 templates/procurement/po_receive.html:56
 #: templates/procurement/po_receive.html:123
 msgid "Damaged"
 msgstr "تالفة"
 
-#: maintenance/models.py:816
+#: maintenance/models.py:844
 msgid "Lost"
 msgstr "مفقودة"
 
-#: maintenance/models.py:844
+#: maintenance/models.py:872
 msgid "Return condition is required when returning a tool."
 msgstr "حالة الإعادة مطلوبة عند إعادة الأداة."
 
-#: maintenance/models.py:851 maintenance/models.py:1659
+#: maintenance/models.py:879 maintenance/models.py:1688
 #: templates/maintenance/legacy_reconciliation.html:55
 #: templates/maintenance/my_workorders.html:71
 #: templates/maintenance/notifications.html:22
@@ -2335,215 +2373,215 @@ msgstr "حالة الإعادة مطلوبة عند إعادة الأداة."
 msgid "Open"
 msgstr "مفتوح"
 
-#: maintenance/models.py:852
+#: maintenance/models.py:880
 msgid "Investigating"
 msgstr "قيد التحقيق"
 
-#: maintenance/models.py:896
+#: maintenance/models.py:924
 msgid "New issue"
 msgstr "مشكلة جديدة"
 
-#: maintenance/models.py:897
+#: maintenance/models.py:925
 msgid "Issue validated"
 msgstr "تم التحقق من المشكلة"
 
-#: maintenance/models.py:898
+#: maintenance/models.py:926
 msgid "Stale issue (not validated)"
 msgstr "مشكلة قديمة (لم يتم التحقق منها)"
 
-#: maintenance/models.py:899
+#: maintenance/models.py:927
 msgid "Work order created from issue"
 msgstr "أمر عمل أُنشئ من مشكلة"
 
-#: maintenance/models.py:900
+#: maintenance/models.py:928
 msgid "Work order pending review"
 msgstr "أمر عمل بانتظار المراجعة"
 
-#: maintenance/models.py:901
+#: maintenance/models.py:929
 msgid "Work order assigned"
 msgstr "أمر عمل مُسنَد"
 
-#: maintenance/models.py:902
+#: maintenance/models.py:930
 msgid "Work order started"
 msgstr "أمر عمل تم بدؤه"
 
-#: maintenance/models.py:903
+#: maintenance/models.py:931
 msgid "Work order paused / waiting"
 msgstr "أمر عمل مُوقوف / بانتظار"
 
-#: maintenance/models.py:904
+#: maintenance/models.py:932
 msgid "Work order closed"
 msgstr "أمر عمل مُغلق"
 
-#: maintenance/models.py:905 templates/maintenance/emergency_wo.html:4
+#: maintenance/models.py:933 templates/maintenance/emergency_wo.html:4
 msgid "Emergency work order"
 msgstr "أمر عمل طارئ"
 
-#: maintenance/models.py:906 templates/maintenance/reports_low_stock.html:19
+#: maintenance/models.py:934 templates/maintenance/reports_low_stock.html:19
 #: templates/maintenance/stock_dashboard.html:69
 msgid "Low stock"
 msgstr "مخزون منخفض"
 
-#: maintenance/models.py:907
+#: maintenance/models.py:935
 msgid "Part shortage reported"
 msgstr "تم الإبلاغ عن نقص قطعة"
 
-#: maintenance/models.py:909
+#: maintenance/models.py:937
 msgid "PM overdue"
 msgstr "صيانة وقائية متأخرة"
 
-#: maintenance/models.py:910
+#: maintenance/models.py:938
 msgid "PM due in 7 days"
 msgstr "صيانة وقائية مستحقة خلال 7 أيام"
 
-#: maintenance/models.py:911
+#: maintenance/models.py:939
 msgid "PM due in 3 days"
 msgstr "صيانة وقائية مستحقة خلال 3 أيام"
 
-#: maintenance/models.py:912
+#: maintenance/models.py:940
 msgid "PM due tomorrow"
 msgstr "صيانة وقائية مستحقة غدًا"
 
-#: maintenance/models.py:913
+#: maintenance/models.py:941
 msgid "PM due today"
 msgstr "صيانة وقائية مستحقة اليوم"
 
-#: maintenance/models.py:914
+#: maintenance/models.py:942
 msgid "Repair returned from vendor"
 msgstr "إعادة الإصلاح من المورد"
 
-#: maintenance/models.py:915
+#: maintenance/models.py:943
 msgid "External repair requested"
 msgstr "تم طلب إصلاح خارجي"
 
-#: maintenance/models.py:916
+#: maintenance/models.py:944
 msgid "External repair order created (needs vendor)"
 msgstr "تم إنشاء طلب إصلاح خارجي (يحتاج مورّد)"
 
-#: maintenance/models.py:917
+#: maintenance/models.py:945
 msgid "External repair sent to vendor"
 msgstr "تم إرسال الإصلاح الخارجي إلى المورّد"
 
-#: maintenance/models.py:919
+#: maintenance/models.py:947
 msgid "Part received against PO"
 msgstr "تم استلام القطعة بناءً على أمر الشراء"
 
-#: maintenance/models.py:920
+#: maintenance/models.py:948
 msgid "Vendor returned spare part"
 msgstr "أعاد المورّد قطعة الغيار"
 
-#: maintenance/models.py:921
+#: maintenance/models.py:949
 msgid "Shortage follow-up"
 msgstr "متابعة نقص"
 
-#: maintenance/models.py:923
+#: maintenance/models.py:951
 msgid "Part received from supplier (linked to WO)"
 msgstr "تم استلام القطعة من المورّد (مرتبط بأمر العمل)"
 
-#: maintenance/models.py:924
+#: maintenance/models.py:952
 msgid "Part returned from vendor (linked to WO)"
 msgstr "تم إرجاع القطعة من المورّد (مرتبط بأمر العمل)"
 
-#: maintenance/models.py:925
+#: maintenance/models.py:953
 msgid "Part request rejected (linked to WO)"
 msgstr "تم رفض طلب القطعة (مرتبط بأمر العمل)"
 
-#: maintenance/models.py:927
+#: maintenance/models.py:955
 msgid "WO blocker opened"
 msgstr "تم فتح حاجز أمر العمل"
 
-#: maintenance/models.py:928
+#: maintenance/models.py:956
 msgid "WO blocker resolved"
 msgstr "تم حل حاجز أمر العمل"
 
-#: maintenance/models.py:929
+#: maintenance/models.py:957
 msgid "WO blocker cancelled"
 msgstr "تم إلغاء حاجز أمر العمل"
 
-#: maintenance/models.py:930
+#: maintenance/models.py:958
 msgid "Emergency WO interrupted another WO"
 msgstr "أمر العمل الطارئ قاطع أمر عمل آخر"
 
-#: maintenance/models.py:931
+#: maintenance/models.py:959
 msgid "Labor resumed on WO"
 msgstr "استؤنف العمل على أمر العمل"
 
-#: maintenance/models.py:932
+#: maintenance/models.py:960
 msgid "PO received (summary)"
 msgstr "تم استلام أمر الشراء (ملخص)"
 
-#: maintenance/models.py:934
+#: maintenance/models.py:962
 msgid "PM morning summary (technician)"
 msgstr "ملخص الصيانة الصباحي (للفني)"
 
-#: maintenance/models.py:935
+#: maintenance/models.py:963
 msgid "PM manager morning summary"
 msgstr "ملخص الصيانة الصباحي للمدير"
 
-#: maintenance/models.py:936
+#: maintenance/models.py:964
 msgid "PM assigned to you"
 msgstr "تم إسناد صيانة وقائية إليك"
 
-#: maintenance/models.py:937
+#: maintenance/models.py:965
 msgid "PM submission returned"
 msgstr "تم إرجاع إرسال الصيانة الوقائية"
 
-#: maintenance/models.py:938
+#: maintenance/models.py:966
 msgid "PM is overdue"
 msgstr "الصيانة الوقائية متأخرة"
 
-#: maintenance/models.py:939
+#: maintenance/models.py:967
 msgid "PM overdue (manager alert)"
 msgstr "صيانة وقائية متأخرة (تنبيه للمدير)"
 
-#: maintenance/models.py:940
+#: maintenance/models.py:968
 msgid "PM has no technician"
 msgstr "لا يوجد فني للصيانة الوقائية"
 
-#: maintenance/models.py:941
+#: maintenance/models.py:969
 msgid "PM awaiting manager review"
 msgstr "صيانة وقائية بانتظار مراجعة المدير"
 
-#: maintenance/models.py:942
+#: maintenance/models.py:970
 msgid "PM plan paused"
 msgstr "تم إيقاف خطة الصيانة الوقائية"
 
-#: maintenance/models.py:959
+#: maintenance/models.py:987
 msgid "Normal"
 msgstr "عادي"
 
-#: maintenance/models.py:982 maintenance/views.py:3872
+#: maintenance/models.py:1010 maintenance/views.py:3918
 #: templates/maintenance/dashboard.html:279
 msgid "Sent to vendor"
 msgstr "أُرسل إلى المورّد"
 
-#: maintenance/models.py:983 templates/maintenance/dashboard.html:286
+#: maintenance/models.py:1011 templates/maintenance/dashboard.html:286
 #: templates/maintenance/preventive/mgr_history.html:42
 msgid "Returned"
 msgstr "مُعاد"
 
-#: maintenance/models.py:984 maintenance/views.py:3880
+#: maintenance/models.py:1012 maintenance/views.py:3926
 msgid "Closed / accepted"
 msgstr "مغلق / مقبول"
 
-#: maintenance/models.py:985
+#: maintenance/models.py:1013
 msgid "Rejected / re-repair"
 msgstr "مرفوض / إعادة إصلاح"
 
-#: maintenance/models.py:1014
+#: maintenance/models.py:1042
 msgid ""
 "Immutable audit snapshot of the vendor name at the time the ERO was sent. "
 "Kept even when `supplier` is renamed or deleted."
 msgstr ""
 
-#: maintenance/models.py:1025
+#: maintenance/models.py:1053
 msgid ""
 "Supplier (vendor) handling the repair. Nullable for legacy EROs created "
 "before this field was added — see `vendor_name` for the immutable snapshot. "
 "New EROs should always set this FK."
 msgstr ""
 
-#: maintenance/models.py:1034
+#: maintenance/models.py:1062
 msgid ""
 "Final vendor invoice amount. Set by manager on UC-20 acceptance. Required "
 "when status moves to CLOSED."
@@ -2551,62 +2589,62 @@ msgstr ""
 "المبلغ النهائي لفاتورة المورّد. يُضبط من المدير عند قبول UC-20. مطلوب عندما "
 "تنتقل الحالة إلى CLOSED."
 
-#: maintenance/models.py:1040
+#: maintenance/models.py:1068
 msgid "Vendor invoice number. Required on UC-20 acceptance."
 msgstr "رقم فاتورة المورّد. مطلوب عند قبول UC-20."
 
-#: maintenance/models.py:1044
+#: maintenance/models.py:1072
 msgid ""
 "Date on the vendor invoice. Mirrors PurchaseOrder.supplier_invoice_date."
 msgstr ""
 
-#: maintenance/models.py:1053
+#: maintenance/models.py:1081
 msgid ""
 "Uploaded scan/photo of the vendor invoice PDF/image. Mirrors "
 "PurchaseOrder.invoice_attachment."
 msgstr ""
 
-#: maintenance/models.py:1086
+#: maintenance/models.py:1114
 msgid ""
 "Timestamp the vendor reported a diagnosis back (after sending, before actual "
 "repair). Drives the ERO repair timeline."
 msgstr ""
 
-#: maintenance/models.py:1093
+#: maintenance/models.py:1121
 msgid ""
 "Timestamp the part physically came back from the vendor. Drives the ERO "
 "repair timeline; status is RETURNED at this point."
 msgstr ""
 
-#: maintenance/models.py:1129
+#: maintenance/models.py:1157
 msgid "Approved (ERO created)"
 msgstr "موافق عليه (تم إنشاء طلب الإصلاح الخارجي)"
 
-#: maintenance/models.py:1150
+#: maintenance/models.py:1178
 msgid "Technician's diagnosis: what's wrong with the part"
 msgstr "تشخيص الفني: ما المشكلة في القطعة"
 
-#: maintenance/models.py:1153
+#: maintenance/models.py:1181
 msgid "Description of the part being sent out (name, part#, qty)"
 msgstr "وصف القطعة المُرسلة (الاسم، رقم القطعة، الكمية)"
 
-#: maintenance/models.py:1162
+#: maintenance/models.py:1190
 msgid "The level-3 machine whose part is being sent for repair"
 msgstr "الماكينة من المستوى 3 التي تُرسل قطعتها للإصلاح"
 
-#: maintenance/models.py:1167
+#: maintenance/models.py:1195
 msgid "The level-5 component where the part is located"
 msgstr "المكوّن من المستوى 5 الذي توجد فيه القطعة"
 
-#: maintenance/models.py:1177
+#: maintenance/models.py:1205
 msgid "Manager's reason on approve/reject"
 msgstr "سبب المدير في الموافقة/الرفض"
 
-#: maintenance/models.py:1185
+#: maintenance/models.py:1213
 msgid "Set when manager approves — links to the created ERO"
 msgstr "يُضبط عند موافقة المدير — يربط بطلب الإصلاح الخارجي المُنشأ"
 
-#: maintenance/models.py:1208
+#: maintenance/models.py:1236
 msgid ""
 "Sum of StockMovement.unit_cost × qty for ISSUE_TO_WO movements on this WO. "
 "Renamed from parts_cost."
@@ -2614,7 +2652,7 @@ msgstr ""
 "مجموع StockMovement.unit_cost × الكمية لحركات ISSUE_TO_WO على هذا الأمر. "
 "أُعيدت تسميته من parts_cost."
 
-#: maintenance/models.py:1213
+#: maintenance/models.py:1241
 msgid ""
 "Sum of (PartIssueLine.approved_qty × unit_cost) for approved / allocated / "
 "issued lines. Set at approval time. Distinct from material_cost (which is "
@@ -2629,7 +2667,7 @@ msgstr ""
 "الفعلي جنبًا إلى جنب. يستثني السطور المعلَّقة/المرفوضة. يرجع إلى "
 "SparePart.last_purchase_cost أو avg_cost إذا كان line.unit_cost يساوي 0."
 
-#: maintenance/models.py:1223
+#: maintenance/models.py:1251
 msgid ""
 "Sum of ERO.actual_cost for EROs linked via PR/ExternalRepairRequest to this "
 "WO. Renamed from vendor_cost."
@@ -2637,7 +2675,7 @@ msgstr ""
 "مجموع ERO.actual_cost لطلبات الإصلاح الخارجي المرتبطة عبر طلب الشراء/"
 "ExternalRepairRequest بهذا الأمر. أُعيدت تسميته من vendor_cost."
 
-#: maintenance/models.py:1231
+#: maintenance/models.py:1259
 msgid ""
 "Cached count of CostTransaction rows for this WO. Updated by "
 "WorkOrderCost.recalculate_from_ledger()."
@@ -2645,47 +2683,47 @@ msgstr ""
 "عدد مخزَّن لصفوف CostTransaction لهذا الأمر. يُحدَّث بواسطة "
 "WorkOrderCost.recalculate_from_ledger()."
 
-#: maintenance/models.py:1235
+#: maintenance/models.py:1263
 msgid "Work Order Cost"
 msgstr "تكلفة أمر العمل"
 
-#: maintenance/models.py:1236
+#: maintenance/models.py:1264
 msgid "Work Order Costs"
 msgstr "تكاليف أوامر العمل"
 
-#: maintenance/models.py:1367
+#: maintenance/models.py:1395
 msgid "Part Issue Line"
 msgstr "سطر إصدار القطعة"
 
-#: maintenance/models.py:1368
+#: maintenance/models.py:1396
 msgid "External Repair Order"
 msgstr "طلب إصلاح خارجي"
 
-#: maintenance/models.py:1369
+#: maintenance/models.py:1397
 msgid "Stock Movement"
 msgstr "حركة المخزون"
 
-#: maintenance/models.py:1370
+#: maintenance/models.py:1398
 msgid "Cost Adjustment"
 msgstr "تسوية تكلفة"
 
-#: maintenance/models.py:1371
+#: maintenance/models.py:1399
 msgid "Calibration"
 msgstr "معايرة"
 
-#: maintenance/models.py:1372
+#: maintenance/models.py:1400
 msgid "Fuel"
 msgstr "وقود"
 
-#: maintenance/models.py:1373
+#: maintenance/models.py:1401
 msgid "Tool Issue"
 msgstr "إصدار أداة"
 
-#: maintenance/models.py:1388
+#: maintenance/models.py:1416
 msgid "ISO 4217 currency code. SAR default for this deployment."
 msgstr "كود العملة ISO 4217. SAR هو الافتراضي لهذا النشر."
 
-#: maintenance/models.py:1421
+#: maintenance/models.py:1449
 msgid ""
 "True if this transaction reverses a previous one. Net amount for "
 "(source_type, source_id) = SUM(amount) over ALL rows including reversals."
@@ -2693,100 +2731,100 @@ msgstr ""
 "True إذا كانت هذه الحركة تعكس حركة سابقة. المبلغ الصافي لـ (source_type, "
 "source_id) = SUM(amount) لجميع الصفوف بما في ذلك العكس."
 
-#: maintenance/models.py:1427
+#: maintenance/models.py:1455
 msgid "If is_reversal=True, points to the row being reversed. Audit trail."
 msgstr "إذا كان is_reversal=True، يشير إلى الصف الذي يتم عكسه. سجل تدقيق."
 
-#: maintenance/models.py:1479 templates/maintenance/_wo_costs.html:192
+#: maintenance/models.py:1507 templates/maintenance/_wo_costs.html:192
 #: templates/maintenance/_wo_costs.html:367
 msgid "Signed: positive adds, negative reduces."
 msgstr "بإشارة: الموجب يضيف، السالب يخصم."
 
-#: maintenance/models.py:1483
+#: maintenance/models.py:1511
 msgid "Required. Min 10 chars. Explains why this adjustment exists."
 msgstr "مطلوب. 10 أحرف على الأقل. يوضح سبب وجود هذه التسوية."
 
-#: maintenance/models.py:1574
+#: maintenance/models.py:1603
 msgid "Auto-generated 300px thumbnail"
 msgstr "صورة مصغرة 300 بكسل مُولَّدة تلقائيًا"
 
-#: maintenance/models.py:1576
+#: maintenance/models.py:1605
 msgid "Original image width in px"
 msgstr "عرض الصورة الأصلية بالبكسل"
 
-#: maintenance/models.py:1577
+#: maintenance/models.py:1606
 msgid "Original image height in px"
 msgstr "ارتفاع الصورة الأصلية بالبكسل"
 
-#: maintenance/models.py:1578
+#: maintenance/models.py:1607
 msgid "Primary/default image for this entity"
 msgstr "الصورة الرئيسية/الافتراضية لهذا الكيان"
 
-#: maintenance/models.py:1582
+#: maintenance/models.py:1611
 msgid "Product"
 msgstr "منتج"
 
-#: maintenance/models.py:1583
+#: maintenance/models.py:1612
 msgid "Label"
 msgstr "ملصق"
 
-#: maintenance/models.py:1584
+#: maintenance/models.py:1613
 #: templates/maintenance/_attachment_uploader.html:46
 #: templates/maintenance/spare_part_detail.html:230
 msgid "Packaging"
 msgstr "تغليف"
 
-#: maintenance/models.py:1585
+#: maintenance/models.py:1614
 msgid "Installed"
 msgstr "مُثبَّت"
 
-#: maintenance/models.py:1586
+#: maintenance/models.py:1615
 msgid "Document"
 msgstr "وثيقة"
 
-#: maintenance/models.py:1589
+#: maintenance/models.py:1618
 msgid "Category of attachment image"
 msgstr "فئة صورة المرفق"
 
-#: maintenance/models.py:1593
+#: maintenance/models.py:1622
 msgid ""
 "Path to the compressed video file (mp4) — populated by "
 "VideoCompressionService"
 msgstr "مسار ملف الفيديو المضغوط (mp4) — يملؤه VideoCompressionService"
 
-#: maintenance/models.py:1595
+#: maintenance/models.py:1624
 msgid "Path to a 1-second thumbnail of the video"
 msgstr "مسار صورة مصغرة مدتها ثانية واحدة من الفيديو"
 
-#: maintenance/models.py:1653 templates/maintenance/_wo_blockers_panel.html:22
+#: maintenance/models.py:1682 templates/maintenance/_wo_blockers_panel.html:22
 msgid "Awaiting Spare Part"
 msgstr "بانتظار قطعة غيار"
 
-#: maintenance/models.py:1654 templates/maintenance/_wo_blockers_panel.html:24
+#: maintenance/models.py:1683 templates/maintenance/_wo_blockers_panel.html:24
 msgid "Awaiting Procurement"
 msgstr "بانتظار الشراء"
 
-#: maintenance/models.py:1655 templates/maintenance/_wo_blockers_panel.html:26
+#: maintenance/models.py:1684 templates/maintenance/_wo_blockers_panel.html:26
 msgid "Awaiting Vendor Repair"
 msgstr "بانتظار إصلاح المورّد"
 
-#: maintenance/models.py:1656 templates/maintenance/_wo_blockers_panel.html:28
+#: maintenance/models.py:1685 templates/maintenance/_wo_blockers_panel.html:28
 msgid "Operational Pause"
 msgstr "إيقاف تشغيلي"
 
-#: maintenance/models.py:1660
+#: maintenance/models.py:1689
 msgid "Resolved"
 msgstr "تم الحل"
 
-#: maintenance/models.py:1670
+#: maintenance/models.py:1699
 msgid "Cached human-readable summary, e.g. 'BRG-6006 × 2' or 'Servo S7-300'"
 msgstr "ملخص مقروء للبشر مخزَّن، مثل «BRG-6006 × 2» أو «Servo S7-300»"
 
-#: maintenance/models.py:1677
+#: maintenance/models.py:1706
 msgid "'operational' | 'other' | 'emergency' (system-set)"
 msgstr "«تشغيلي» | «أخرى» | «طارئ» (يحدده النظام)"
 
-#: maintenance/models.py:1746 maintenance/models.py:1758
+#: maintenance/models.py:1775 maintenance/models.py:1787
 msgid "Maintenance settings"
 msgstr "إعدادات الصيانة"
 
@@ -2854,7 +2892,7 @@ msgstr "يجب أن يكون أمر العمل قيد التنفيذ."
 msgid "Approved & closed"
 msgstr "موافق عليه ومغلق"
 
-#: maintenance/services.py:421 maintenance/views.py:5264
+#: maintenance/services.py:421 maintenance/views.py:5364
 msgid "Work order is already archived."
 msgstr "أمر العمل مُؤرشف بالفعل."
 
@@ -2862,7 +2900,7 @@ msgstr "أمر العمل مُؤرشف بالفعل."
 msgid "Work order is not archived."
 msgstr "أمر العمل غير مُؤرشف."
 
-#: maintenance/services.py:450 maintenance/views.py:5249
+#: maintenance/services.py:450 maintenance/views.py:5349
 msgid "Issue is already archived."
 msgstr "المشكلة مُؤرشفة بالفعل."
 
@@ -2881,7 +2919,7 @@ msgid "PM execution has no associated work order."
 msgstr "تنفيذ الصيانة الوقائية ليس له أمر عمل مرتبط."
 
 #: maintenance/services.py:779 maintenance/services.py:803
-#: maintenance/views.py:1835
+#: maintenance/views.py:1881
 msgid "Work order is not pending review."
 msgstr "أمر العمل ليس بانتظار المراجعة."
 
@@ -2893,23 +2931,23 @@ msgstr "إيقاف تشغيلي"
 msgid "Open a new blocker for a new wait episode."
 msgstr "افتح حاجزًا جديدًا لحلقة انتظار جديدة."
 
-#: maintenance/services_blocker.py:349
+#: maintenance/services_blocker.py:364
 msgid "Part fully issued"
 msgstr "تم إصدار القطعة بالكامل"
 
-#: maintenance/services_blocker.py:357
+#: maintenance/services_blocker.py:372
 msgid "Part request rejected"
 msgstr "تم رفض طلب القطعة"
 
-#: maintenance/services_blocker.py:364
+#: maintenance/services_blocker.py:379
 msgid "Shortage fulfilled"
 msgstr "تم تنفيذ النقص"
 
-#: maintenance/services_blocker.py:371
+#: maintenance/services_blocker.py:386
 msgid "Vendor repair accepted"
 msgstr "تم قبول إصلاح المورد"
 
-#: maintenance/services_blocker.py:384
+#: maintenance/services_blocker.py:399
 msgid "Vendor returned part"
 msgstr "أعاد المورد القطعة"
 
@@ -3000,16 +3038,17 @@ msgstr "أولوية حرجة"
 msgid "HIGH COST"
 msgstr "تكلفة مرتفعة"
 
-#: maintenance/test_i18n.py:65 templates/base.html:25 templates/base.html:107
-#: templates/base.html:205 templates/maintenance/dashboard.html:4
+#: maintenance/test_i18n.py:65 templates/base.html:25 templates/base.html:104
+#: templates/base.html:202 templates/maintenance/dashboard.html:4
 msgid "Dashboard"
 msgstr "لوحة التحكم"
 
 #: maintenance/test_i18n.py:66 templates/inventory/stock_in.html:36
+#: templates/maintenance/_partials/_history_timeline.html:65
+#: templates/maintenance/machine_quick_log_create.html:31
 #: templates/maintenance/pm_form.html:58
 #: templates/maintenance/preventive/mgr_plan_form.html:24
 #: templates/maintenance/preventive/mgr_template_form.html:41
-#: templates/maintenance/quick_log.html:13
 #: templates/maintenance/repair_officer.html:28
 #: templates/procurement/pr_officer.html:21
 msgid "Save"
@@ -3017,7 +3056,9 @@ msgstr "حفظ"
 
 #: maintenance/test_i18n.py:67 templates/accounts/mms_user_create.html:24
 #: templates/accounts/mms_user_edit.html:24
+#: templates/maintenance/_partials/_history_timeline.html:68
 #: templates/maintenance/issue_detail.html:101
+#: templates/maintenance/machine_quick_log_create.html:32
 #: templates/maintenance/part_adjust.html:94
 #: templates/maintenance/pm_batch_spawn_confirm.html:53
 #: templates/maintenance/pm_review.html:98
@@ -3089,288 +3130,288 @@ msgstr "تم تحديث الماكينة."
 msgid "Edit machine"
 msgstr "تعديل الماكينة"
 
-#: maintenance/views.py:938
+#: maintenance/views.py:984
 msgid "Emergency issue reported. Manager has been paged."
 msgstr "تم الإبلاغ عن مشكلة طارئة. تم إخطار المدير."
 
-#: maintenance/views.py:941
+#: maintenance/views.py:987
 msgid "Issue reported."
 msgstr "تم الإبلاغ عن المشكلة."
 
-#: maintenance/views.py:1061
+#: maintenance/views.py:1107
 msgid "Issue is not in NEW state."
 msgstr "المشكلة ليست في الحالة «جديدة»."
 
-#: maintenance/views.py:1067
+#: maintenance/views.py:1113
 msgid "Issue validated."
 msgstr "تم التحقق من المشكلة."
 
-#: maintenance/views.py:1083
+#: maintenance/views.py:1129
 msgid "Issue is already flagged as emergency."
 msgstr "المشكلة محددة بالفعل كطارئة."
 
-#: maintenance/views.py:1088
+#: maintenance/views.py:1134
 msgid ""
 "Issue escalated to EMERGENCY (priority CRITICAL). Manager has been paged."
 msgstr "تم تصعيد المشكلة إلى طارئة (أولوية حرجة). تم إخطار المدير."
 
-#: maintenance/views.py:1599
+#: maintenance/views.py:1645
 msgid "Issue must be validated first."
 msgstr "يجب التحقق من المشكلة أولًا."
 
-#: maintenance/views.py:1602
+#: maintenance/views.py:1648
 msgid "Work order already exists for this issue."
 msgstr "يوجد أمر عمل بالفعل لهذه المشكلة."
 
-#: maintenance/views.py:1651
+#: maintenance/views.py:1697
 msgid "Work order cannot be assigned in current state."
 msgstr "لا يمكن إسناد أمر العمل في الحالة الحالية."
 
-#: maintenance/views.py:1657
+#: maintenance/views.py:1703
 msgid "Invalid assignment."
 msgstr "إسناد غير صالح."
 
-#: maintenance/views.py:1662
+#: maintenance/views.py:1708
 msgid "Technician assigned"
 msgstr "تم إسناد الفني"
 
-#: maintenance/views.py:1682
+#: maintenance/views.py:1728
 msgid "Technician assigned."
 msgstr "تم إسناد الفني."
 
-#: maintenance/views.py:1692
+#: maintenance/views.py:1738
 msgid "You can only start work orders assigned to you."
 msgstr "يمكنك فقط بدء أوامر العمل المسندة إليك."
 
-#: maintenance/views.py:1704
+#: maintenance/views.py:1750
 msgid "Cannot start work in this state."
 msgstr "لا يمكن بدء العمل في هذه الحالة."
 
-#: maintenance/views.py:1713
+#: maintenance/views.py:1759
 msgid ""
 "You have an active emergency work order. Finish it before starting another "
 "task."
 msgstr "لديك أمر عمل طارئ نشط. أكمله قبل بدء مهمة أخرى."
 
-#: maintenance/views.py:1724
+#: maintenance/views.py:1770
 msgid "Work started."
 msgstr "تم بدء العمل."
 
-#: maintenance/views.py:1736
+#: maintenance/views.py:1782
 msgid "You can only pause work orders assigned to you."
 msgstr "يمكنك فقط إيقاف أوامر العمل المسندة إليك."
 
-#: maintenance/views.py:1739
+#: maintenance/views.py:1785
 msgid "Not in progress."
 msgstr "ليس قيد التنفيذ."
 
-#: maintenance/views.py:1755
+#: maintenance/views.py:1801
 msgid "Paused."
 msgstr "تم الإيقاف."
 
-#: maintenance/views.py:1765
+#: maintenance/views.py:1811
 msgid "You can only submit work orders assigned to you."
 msgstr "يمكنك فقط إرسال أوامر العمل المسندة إليك."
 
-#: maintenance/views.py:1776
+#: maintenance/views.py:1822
 msgid "Submit for review is only available while work is in progress."
 msgstr "الإرسال للمراجعة متاح فقط أثناء العمل."
 
-#: maintenance/views.py:1782
+#: maintenance/views.py:1828
 msgid "Submit for review is not available in this state."
 msgstr "الإرسال للمراجعة غير متاح في هذه الحالة."
 
-#: maintenance/views.py:1787
+#: maintenance/views.py:1833
 msgid "Check completion fields."
 msgstr "تحقق من حقول الإكمال."
 
-#: maintenance/views.py:1826
+#: maintenance/views.py:1872
 msgid "Submitted for manager review."
 msgstr "تم الإرسال لمراجعة المدير."
 
-#: maintenance/views.py:1842
+#: maintenance/views.py:1888
 msgid "Rejection reason is required when returning to technician."
 msgstr "سبب الرفض مطلوب عند الإعادة إلى الفني."
 
-#: maintenance/views.py:1847
+#: maintenance/views.py:1893
 msgid "Work order closed."
 msgstr "تم إغلاق أمر العمل."
 
-#: maintenance/views.py:1849
+#: maintenance/views.py:1895
 msgid "Work order returned to technician."
 msgstr "أُعيد أمر العمل إلى الفني."
 
-#: maintenance/views.py:1864
+#: maintenance/views.py:1910
 msgid "Invalid part issue."
 msgstr "إصدار قطعة غير صالح."
 
-#: maintenance/views.py:1896
+#: maintenance/views.py:1942
 msgid "You can only request parts on work orders assigned to you."
 msgstr "يمكنك فقط طلب قطع على أوامر العمل المسندة إليك."
 
-#: maintenance/views.py:1933
+#: maintenance/views.py:1979
 msgid "Manager will review."
 msgstr "سيراجع المدير."
 
-#: maintenance/views.py:1963
+#: maintenance/views.py:2009
 msgid "You can only re-review your own requests."
 msgstr "يمكنك فقط إعادة مراجعة طلباتك."
 
-#: maintenance/views.py:1965
+#: maintenance/views.py:2011
 msgid "Only rejected lines can be re-reviewed."
 msgstr "يمكن إعادة مراجعة السطور المرفوضة فقط."
 
-#: maintenance/views.py:2075
+#: maintenance/views.py:2121
 msgid "Edits sent to manager"
 msgstr "تم إرسال التعديلات للمدير"
 
-#: maintenance/views.py:2075
+#: maintenance/views.py:2121
 msgid "Same as before"
 msgstr "نفس السابق"
 
-#: maintenance/views.py:2095 procurement/views.py:250
+#: maintenance/views.py:2141 procurement/views.py:250
 msgid "Please record a voice note before submitting."
 msgstr "يرجى تسجيل ملاحظة صوتية قبل الإرسال."
 
-#: maintenance/views.py:2112 procurement/views.py:267
+#: maintenance/views.py:2158 procurement/views.py:267
 msgid "Voice attachment not found or not owned by you."
 msgstr "المرفق الصوتي غير موجود أو لا تملكه."
 
-#: maintenance/views.py:2155 maintenance/views.py:2258
+#: maintenance/views.py:2201 maintenance/views.py:2304
 msgid "Only PENDING requests can be decided."
 msgstr "يمكن اتخاذ قرار فقط بشأن الطلبات المعلَّقة."
 
-#: maintenance/views.py:2245
+#: maintenance/views.py:2291
 msgid "External repair request submitted. Manager has been notified."
 msgstr "تم إرسال طلب الإصلاح الخارجي. تم إخطار المدير."
 
-#: maintenance/views.py:2278
+#: maintenance/views.py:2324
 msgid "can now send the part to the vendor."
 msgstr "يمكنه الآن إرسال القطعة إلى المورد."
 
-#: maintenance/views.py:2284
+#: maintenance/views.py:2330
 msgid "External repair request rejected."
 msgstr "تم رفض طلب الإصلاح الخارجي."
 
-#: maintenance/views.py:2305
+#: maintenance/views.py:2351
 msgid "Emergency WO created"
 msgstr "تم إنشاء أمر عمل طارئ"
 
-#: maintenance/views.py:2393
+#: maintenance/views.py:2439
 msgid "You can only mark parts for work orders assigned to you."
 msgstr "يمكنك فقط تحديد قطع لأوامر العمل المسندة إليك."
 
-#: maintenance/views.py:2399 maintenance/views.py:2421
+#: maintenance/views.py:2445 maintenance/views.py:2467
 msgid "Invalid form."
 msgstr "نموذج غير صالح."
 
-#: maintenance/views.py:2403
+#: maintenance/views.py:2449
 msgid "Work order set to waiting for parts (labor timer stopped)."
 msgstr "تم ضبط أمر العمل على «بانتظار القطع» (توقف مؤقت العمل)."
 
-#: maintenance/views.py:2415
+#: maintenance/views.py:2461
 msgid "You can only mark vendor status for work orders assigned to you."
 msgstr "يمكنك فقط تحديد حالة المورد لأوامر العمل المسندة إليك."
 
-#: maintenance/views.py:2425
+#: maintenance/views.py:2471
 msgid "Work order set to waiting for vendor (labor timer stopped)."
 msgstr "تم ضبط أمر العمل على «بانتظار المورد» (توقف مؤقت العمل)."
 
-#: maintenance/views.py:2580
+#: maintenance/views.py:2626
 msgid "You do not have permission to perform this action."
 msgstr "ليست لديك صلاحية تنفيذ هذا الإجراء."
 
-#: maintenance/views.py:3069
+#: maintenance/views.py:3115
 msgid "PM schedule saved."
 msgstr "تم حفظ جدول الصيانة الوقائية."
 
-#: maintenance/views.py:3177
+#: maintenance/views.py:3223
 msgid "Cannot spawn a WO from an inactive PM schedule."
 msgstr "لا يمكن إنشاء أمر عمل من جدول صيانة وقائية غير نشط."
 
-#: maintenance/views.py:3187
+#: maintenance/views.py:3233
 msgid ""
 "A PM work order for this schedule's current due date is already in progress."
 msgstr ""
 "يوجد بالفعل أمر عمل صيانة وقائية لتاريخ استحقاق هذا الجدول قيد التنفيذ."
 
-#: maintenance/views.py:3200
+#: maintenance/views.py:3246
 msgid "PM work order"
 msgstr "أمر عمل صيانة وقائية"
 
-#: maintenance/views.py:3380 maintenance/views.py:3467
+#: maintenance/views.py:3426 maintenance/views.py:3513
 msgid "This is not a preventive maintenance work order."
 msgstr "هذا ليس أمر عمل صيانة وقائية."
 
-#: maintenance/views.py:3400
+#: maintenance/views.py:3446
 msgid "You can't execute this PM."
 msgstr "لا يمكنك تنفيذ هذه الصيانة الوقائية."
 
-#: maintenance/views.py:3439
+#: maintenance/views.py:3485
 msgid "PM submitted for manager review."
 msgstr "تم إرسال الصيانة الوقائية لمراجعة المدير."
 
-#: maintenance/views.py:3472
+#: maintenance/views.py:3518
 msgid "No PM execution record found for this work order."
 msgstr "لم يُعثر على سجل تنفيذ صيانة وقائية لهذا الأمر."
 
-#: maintenance/views.py:3488
+#: maintenance/views.py:3534
 msgid "PM rejected. Returned to technician."
 msgstr "تم رفض الصيانة الوقائية. أُعيدت إلى الفني."
 
-#: maintenance/views.py:3491
+#: maintenance/views.py:3537
 msgid "Invalid action."
 msgstr "إجراء غير صالح."
 
-#: maintenance/views.py:3572
+#: maintenance/views.py:3618
 msgid "Tool saved."
 msgstr "تم حفظ الأداة."
 
-#: maintenance/views.py:3576 templates/maintenance/tools.html:9
+#: maintenance/views.py:3622 templates/maintenance/tools.html:9
 msgid "Add tool"
 msgstr "إضافة أداة"
 
-#: maintenance/views.py:3588
+#: maintenance/views.py:3634
 msgid "Tool updated."
 msgstr "تم تحديث الأداة."
 
-#: maintenance/views.py:3592
+#: maintenance/views.py:3638
 msgid "Edit tool"
 msgstr "تعديل الأداة"
 
-#: maintenance/views.py:3602
+#: maintenance/views.py:3648
 msgid "Invalid tool assignment."
 msgstr "إسناد أداة غير صالح."
 
-#: maintenance/views.py:3607
+#: maintenance/views.py:3653
 msgid "Tool not available."
 msgstr "الأداة غير متاحة."
 
-#: maintenance/views.py:3613
+#: maintenance/views.py:3659
 msgid "Tool assigned."
 msgstr "تم إسناد الأداة."
 
-#: maintenance/views.py:3625
+#: maintenance/views.py:3671
 msgid "Already returned."
 msgstr "مُعادة بالفعل."
 
-#: maintenance/views.py:3639
+#: maintenance/views.py:3685
 msgid "Return recorded — tool is available."
 msgstr "تم تسجيل الإعادة — الأداة متاحة."
 
-#: maintenance/views.py:3666
+#: maintenance/views.py:3712
 msgid "Return recorded. Lost tool incident created — investigating."
 msgstr "تم تسجيل الإعادة. تم إنشاء حادثة فقدان أداة — قيد التحقيق."
 
-#: maintenance/views.py:3683
+#: maintenance/views.py:3729
 msgid "Repair request created."
 msgstr "تم إنشاء طلب الإصلاح."
 
-#: maintenance/views.py:3851
+#: maintenance/views.py:3897
 msgid "Repair order updated."
 msgstr "تم تحديث طلب الإصلاح."
 
-#: maintenance/views.py:3870
+#: maintenance/views.py:3916
 #: templates/maintenance/_wo_reservation_history.html:29
 #: templates/maintenance/my_workorders.html:40
 #: templates/maintenance/preventive/mgr_plan_detail.html:35
@@ -3384,154 +3425,166 @@ msgstr "تم تحديث طلب الإصلاح."
 msgid "Created"
 msgstr "أُنشئ"
 
-#: maintenance/views.py:3874
+#: maintenance/views.py:3920
 msgid "Diagnosed by vendor"
 msgstr "تم التشخيص بواسطة المورّد"
 
-#: maintenance/views.py:3876
+#: maintenance/views.py:3922
 #, fuzzy
 #| msgid "Vendor invoice total"
 msgid "Vendor invoice"
 msgstr "إجمالي فاتورة المورد"
 
-#: maintenance/views.py:3878 templates/maintenance/dashboard.html:285
+#: maintenance/views.py:3924 templates/maintenance/dashboard.html:285
 msgid "Returned from vendor"
 msgstr "مُعادة من المورد"
 
-#: maintenance/views.py:3922
+#: maintenance/views.py:3968
 msgid "ERO can only be marked diagnosed while in DRAFT or SENT status."
 msgstr "لا يمكن تحديد أمر الإصلاح كمُشخّص إلا في حالتي المسودة أو المُرسلة."
 
-#: maintenance/views.py:3929
+#: maintenance/views.py:3975
 msgid "Marked as diagnosed by vendor."
 msgstr "تم تحديده كمُشخّص بواسطة المورّد."
 
-#: maintenance/views.py:3943
+#: maintenance/views.py:3989
 msgid "ERO must be SENT_TO_VENDOR before marking returned."
 msgstr "يجب أن يكون أمر الإصلاح مُرسلاً إلى المورّد قبل تحديده كمرتجع."
 
-#: maintenance/views.py:3951
+#: maintenance/views.py:3997
 #, fuzzy
 #| msgid "Repair returned from vendor"
 msgid "Marked as returned from vendor."
 msgstr "إعادة الإصلاح من المورد"
 
-#: maintenance/views.py:3981
+#: maintenance/views.py:4027
 msgid "<b>EXTERNAL REPAIR ORDER</b>"
 msgstr "<b>أمر الإصلاح الخارجي</b>"
 
-#: maintenance/views.py:3983
+#: maintenance/views.py:4029
 msgid "Repair Order"
 msgstr "أمر الإصلاح"
 
-#: maintenance/views.py:3985
+#: maintenance/views.py:4031
 msgid "ERO Number"
 msgstr "رقم طلب الإصلاح الخارجي"
 
-#: maintenance/views.py:3986
+#: maintenance/views.py:4032
 #: templates/maintenance/reconciliation_dashboard.html:56
 msgid "WO Number"
 msgstr "رقم أمر العمل"
 
-#: maintenance/views.py:3987
+#: maintenance/views.py:4033
 msgid "Asset / Machine"
 msgstr "الأصل / الماكينة"
 
-#: maintenance/views.py:3988 templates/maintenance/machine_form.html:86
+#: maintenance/views.py:4034 templates/maintenance/machine_form.html:86
 msgid "Serial Number"
 msgstr "الرقم التسلسلي"
 
-#: maintenance/views.py:3992 maintenance/views.py:3994
+#: maintenance/views.py:4038 maintenance/views.py:4040
 #: templates/maintenance/machine_cost_report.html:87
-#: templates/maintenance/machine_detail.html:269
+#: templates/maintenance/machine_detail.html:275
 #: templates/maintenance/repair_list.html:14
 msgid "Vendor"
 msgstr "المورّد"
 
-#: maintenance/views.py:3997
+#: maintenance/views.py:4043
 msgid "Timeline"
 msgstr "الجدول الزمني"
 
-#: maintenance/views.py:3999
+#: maintenance/views.py:4045
 msgid "Sent Date"
 msgstr "تاريخ الإرسال"
 
-#: maintenance/views.py:4002 templates/maintenance/machine_detail.html:121
-#: templates/maintenance/machine_detail.html:269
+#: maintenance/views.py:4048 templates/maintenance/machine_detail.html:127
+#: templates/maintenance/machine_detail.html:275
 #: templates/maintenance/supplier_detail.html:120
 msgid "Cost"
 msgstr "التكلفة"
 
-#: maintenance/views.py:4004
+#: maintenance/views.py:4050
 msgid "Estimated Cost"
 msgstr "التكلفة المقدَّرة"
 
-#: maintenance/views.py:4005
+#: maintenance/views.py:4051
 msgid "Actual Cost"
 msgstr "التكلفة الفعلية"
 
-#: maintenance/views.py:4008
+#: maintenance/views.py:4054
 msgid "Approval"
 msgstr "الموافقة"
 
-#: maintenance/views.py:4009
+#: maintenance/views.py:4055
 msgid "Authorised by Maintenance Manager:"
 msgstr "معتمدة من مدير الصيانة:"
 
-#: maintenance/views.py:4031
+#: maintenance/views.py:4091
 msgid "Quick log saved."
 msgstr "تم حفظ التسجيل السريع."
 
-#: maintenance/views.py:4903
+#: maintenance/views.py:4094 maintenance/views.py:4125
+msgid "Please  correct  the  errors  below ."
+msgstr "الرجاء تصحيح الأخطاء أدناه."
+
+#: maintenance/views.py:4096
+msgid "Please  choose  a  machine  to  log  against ."
+msgstr "الرجاء اختيار آلة لتسجيل الملاحظة عليها."
+
+#: maintenance/views.py:4123
+msgid "Log  added  to  machine  history ."
+msgstr "تمت إضافة الملاحظة إلى سجل الآلة."
+
+#: maintenance/views.py:5003
 msgid "Repair must be in Returned status before manager acceptance (UC-20)."
 msgstr "يجب أن يكون الإصلاح في الحالة «مُعاد» قبل موافقة المدير (UC-20)."
 
-#: maintenance/views.py:5252
+#: maintenance/views.py:5352
 msgid ""
 "Cannot archive a converted issue. Archive the linked work order instead."
 msgstr "لا يمكن أرشفة مشكلة محوَّلة. أرشِف أمر العمل المرتبط بدلًا من ذلك."
 
-#: maintenance/views.py:5338
+#: maintenance/views.py:5438
 msgid "New quantity and reason are required."
 msgstr "الكمية الجديدة والسبب مطلوبان."
 
-#: maintenance/views.py:5616
+#: maintenance/views.py:5716
 msgid "You can only raise shortage requests on work orders assigned to you."
 msgstr "يمكنك فقط تقديم طلبات نقص على أوامر العمل المسندة إليك."
 
-#: maintenance/views.py:5621
+#: maintenance/views.py:5721
 msgid "Missing part_id."
 msgstr "معرّف القطعة مفقود."
 
-#: maintenance/views.py:5664
+#: maintenance/views.py:5764
 msgid "Invalid decision type."
 msgstr "نوع قرار غير صالح."
 
-#: maintenance/views.py:5676
+#: maintenance/views.py:5776
 msgid "Rejection reason is required (min 15 characters)."
 msgstr "سبب الرفض مطلوب (15 حرفًا على الأقل)."
 
-#: maintenance/views.py:5685 maintenance/views.py:5781
+#: maintenance/views.py:5785 maintenance/views.py:5881
 msgid "Quantities must be numbers."
 msgstr "يجب أن تكون الكميات أرقامًا."
 
-#: maintenance/views.py:5699
+#: maintenance/views.py:5799
 msgid "Approve with both 0 makes no sense — use Reject instead."
 msgstr "الموافقة بصفرين لا معنى لها — استخدم الرفض بدلًا من ذلك."
 
-#: maintenance/views.py:5708
+#: maintenance/views.py:5808
 msgid "Invalid expected_availability_date; skipped."
 msgstr "تاريخ التوفر المتوقع غير صالح؛ تم التجاوز."
 
-#: maintenance/views.py:5930
+#: maintenance/views.py:6030
 msgid "Issue qty must be a number."
 msgstr "يجب أن تكون كمية المشكلة رقمًا."
 
-#: maintenance/views.py:6262
+#: maintenance/views.py:6362
 msgid "Occurred at"
 msgstr "حدث في"
 
-#: maintenance/views.py:6262 templates/maintenance/_cost_ledger_table.html:115
+#: maintenance/views.py:6362 templates/maintenance/_cost_ledger_table.html:115
 #: templates/maintenance/failure_mode_report.html:24
 #: templates/maintenance/my_workorders.html:39
 #: templates/maintenance/reorder_suggestions.html:16
@@ -3543,40 +3596,40 @@ msgstr "حدث في"
 msgid "Category"
 msgstr "الفئة"
 
-#: maintenance/views.py:6262
+#: maintenance/views.py:6362
 msgid "Source type"
 msgstr "نوع المصدر"
 
-#: maintenance/views.py:6263
+#: maintenance/views.py:6363
 msgid "Source ID"
 msgstr "معرّف المصدر"
 
-#: maintenance/views.py:6263
+#: maintenance/views.py:6363
 msgid "Currency"
 msgstr "العملة"
 
-#: maintenance/views.py:6264 templates/maintenance/_cost_ledger_table.html:121
+#: maintenance/views.py:6364 templates/maintenance/_cost_ledger_table.html:121
 #: templates/maintenance/audit_log.html:10
 msgid "Actor"
 msgstr "الفاعل"
 
-#: maintenance/views.py:6264
+#: maintenance/views.py:6364
 msgid "Is reversal"
 msgstr "عكسي"
 
-#: maintenance/views.py:6265
+#: maintenance/views.py:6365
 msgid "Supersedes ID"
 msgstr "معرّف الذي يحل محله"
 
-#: maintenance/views.py:6265
+#: maintenance/views.py:6365
 msgid "Adjustment ID"
 msgstr "معرّف التسوية"
 
-#: maintenance/views.py:6428
+#: maintenance/views.py:6528
 msgid "No schedules selected."
 msgstr "لم يتم تحديد أي جداول."
 
-#: maintenance/views.py:6480
+#: maintenance/views.py:6580
 msgid "No work orders created. All schedules were invalid or inactive."
 msgstr "لم يتم إنشاء أي أوامر عمل. كانت جميع الجداول غير صالحة أو غير نشطة."
 
@@ -3725,17 +3778,17 @@ msgid ""
 "vendor fixes damaged parts. These are mutually exclusive — if a supplier "
 "does both, create two separate Supplier records."
 msgstr ""
-"ما يفعله هذا المورّد لنا: مورّد قطع الغيار يبيع قطع الغيار، ومورّد الإصلاح "
-"يُصلح القطع التالفة. النوعان حصريان - إذا كان المورّد يقوم بالأمرين، أنشئ "
-"سجلّين منفصلين."
+"ما يفعله هذا المورّد لنا: مورّد قطع الغيار يبيع قطع الغيار، ومورّد الإصلاح يُصلح "
+"القطع التالفة. النوعان حصريان - إذا كان المورّد يقوم بالأمرين، أنشئ سجلّين "
+"منفصلين."
 
 #: procurement/models.py:34
 msgid ""
 "DEPRECATED: derived from `supplier_type`. Kept for back-compat in queries "
 "and admin filters. Will be removed once callers are migrated."
 msgstr ""
-"مهجور: مشتق من `supplier_type`. محفوظ للتوافق العكسي في الاستعلامات "
-"ومرشحات الإدارة. ستتم إزالته بعد ترحيل جميع المستدعِين."
+"مهجور: مشتق من `supplier_type`. محفوظ للتوافق العكسي في الاستعلامات ومرشحات "
+"الإدارة. ستتم إزالته بعد ترحيل جميع المستدعِين."
 
 #: procurement/models.py:47
 #, python-brace-format
@@ -4035,8 +4088,8 @@ msgstr "الصيانة وقطع الغيار"
 msgid "Overview"
 msgstr "نظرة عامة"
 
-#: templates/base.html:30 templates/base.html:385 templates/base.html:443
-#: templates/base.html:505 templates/maintenance/dashboard.html:206
+#: templates/base.html:30 templates/base.html:382 templates/base.html:436
+#: templates/base.html:498 templates/maintenance/dashboard.html:206
 #: templates/maintenance/machine_list.html:38
 #: templates/maintenance/reports.html:15
 #: templates/maintenance/reports_machines.html:10
@@ -4049,7 +4102,7 @@ msgstr "المشكلات"
 msgid "Work orders"
 msgstr "أوامر العمل"
 
-#: templates/base.html:38 templates/base.html:411
+#: templates/base.html:38 templates/base.html:408
 #: templates/maintenance/my_workorders.html:30
 msgid "My queue"
 msgstr "قائمتي"
@@ -4058,21 +4111,17 @@ msgstr "قائمتي"
 msgid "Emergency WO"
 msgstr "أمر عمل طارئ"
 
-#: templates/base.html:44 templates/base.html:424
-msgid "Quick log"
-msgstr "تسجيل سريع"
-
-#: templates/base.html:48
+#: templates/base.html:45
 msgid "Inventory"
 msgstr "المخزون"
 
-#: templates/base.html:50 templates/base.html:420 templates/base.html:481
+#: templates/base.html:47 templates/base.html:417 templates/base.html:474
 #: templates/maintenance/_wo_actions_manager.html:38
 #: templates/maintenance/dashboard.html:210
 msgid "Stock"
 msgstr "المخزون"
 
-#: templates/base.html:53 templates/maintenance/_wo_costs.html:83
+#: templates/base.html:50 templates/maintenance/_wo_costs.html:83
 #: templates/maintenance/_wo_costs.html:116
 #: templates/maintenance/_wo_costs.html:292
 #: templates/maintenance/dashboard.html:212
@@ -4080,195 +4129,195 @@ msgstr "المخزون"
 msgid "Consumables"
 msgstr "المواد الاستهلاكية"
 
-#: templates/base.html:56
+#: templates/base.html:53
 msgid "Inventory Lookup"
 msgstr "بحث المخزون"
 
-#: templates/base.html:59 templates/base.html:491
+#: templates/base.html:56 templates/base.html:484
 #: templates/maintenance/supplier_list.html:4
 #: templates/procurement/supplier_analytics.html:27
 msgid "Suppliers"
 msgstr "الموردون"
 
-#: templates/base.html:60
+#: templates/base.html:57
 msgid "Reservations"
 msgstr "الحجوزات"
 
-#: templates/base.html:65 templates/maintenance/dashboard.html:213
+#: templates/base.html:62 templates/maintenance/dashboard.html:213
 msgid "Supply"
 msgstr "التوريد"
 
-#: templates/base.html:67 templates/maintenance/dashboard.html:267
+#: templates/base.html:64 templates/maintenance/dashboard.html:267
 msgid "Purchase Requests"
 msgstr "طلبات الشراء"
 
-#: templates/base.html:72 templates/procurement/po_list.html:5
+#: templates/base.html:69 templates/procurement/po_list.html:5
 msgid "Purchase Orders"
 msgstr "أوامر الشراء"
 
-#: templates/base.html:76
+#: templates/base.html:73
 msgid "By Supplier"
 msgstr "حسب المورد"
 
-#: templates/base.html:80 templates/procurement/supplier_analytics.html:9
+#: templates/base.html:77 templates/procurement/supplier_analytics.html:9
 msgid "Supplier analytics"
 msgstr "تحليلات الموردين"
 
-#: templates/base.html:86
+#: templates/base.html:83
 msgid "External Repairs"
 msgstr "الإصلاحات الخارجية"
 
-#: templates/base.html:87 templates/base.html:486
+#: templates/base.html:84 templates/base.html:479
 #: templates/maintenance/dashboard.html:58
 #: templates/maintenance/dashboard.html:273
 msgid "Draft EROs"
 msgstr "طلبات إصلاح خارجية مسودة"
 
-#: templates/base.html:88 templates/base.html:487
+#: templates/base.html:85 templates/base.html:480
 #: templates/maintenance/dashboard.html:61
 msgid "Returned EROs"
 msgstr "طلبات إصلاح خارجية مُعادة"
 
-#: templates/base.html:91 templates/maintenance/reorder_suggestions.html:5
+#: templates/base.html:88 templates/maintenance/reorder_suggestions.html:5
 msgid "Reorder Suggestions"
 msgstr "اقتراحات إعادة الطلب"
 
-#: templates/base.html:99
+#: templates/base.html:96
 msgid "Assets"
 msgstr "الأصول"
 
-#: templates/base.html:102 templates/maintenance/dashboard.html:211
+#: templates/base.html:99 templates/maintenance/dashboard.html:211
 #: templates/maintenance/machine_list.html:4
 msgid "Machines"
 msgstr "الماكينات"
 
-#: templates/base.html:105 templates/base.html:128
+#: templates/base.html:102 templates/base.html:125
 #: templates/maintenance/preventive/mgr_dashboard.html:4
 msgid "Preventive Maintenance"
 msgstr "الصيانة الوقائية"
 
-#: templates/base.html:110 templates/maintenance/preventive/mgr_today.html:4
+#: templates/base.html:107 templates/maintenance/preventive/mgr_today.html:4
 msgid "Today's Schedule"
 msgstr "جدول اليوم"
 
-#: templates/base.html:113 templates/maintenance/preventive/mgr_reviews.html:4
+#: templates/base.html:110 templates/maintenance/preventive/mgr_reviews.html:4
 msgid "Reviews"
 msgstr "المراجعات"
 
-#: templates/base.html:117 templates/maintenance/preventive/mgr_plans.html:4
+#: templates/base.html:114 templates/maintenance/preventive/mgr_plans.html:4
 msgid "Maintenance Plans"
 msgstr "خطط الصيانة"
 
-#: templates/base.html:120
+#: templates/base.html:117
 #: templates/maintenance/preventive/mgr_templates.html:4
 msgid "Templates"
 msgstr "القوالب"
 
-#: templates/base.html:123 templates/maintenance/preventive/mgr_history.html:4
+#: templates/base.html:120 templates/maintenance/preventive/mgr_history.html:4
 msgid "History"
 msgstr "السجل"
 
-#: templates/base.html:133 templates/base.html:397 templates/base.html:514
+#: templates/base.html:130 templates/base.html:394 templates/base.html:507
 msgid "Tools"
 msgstr "الأدوات"
 
-#: templates/base.html:136 templates/maintenance/technician_report.html:47
+#: templates/base.html:133 templates/maintenance/technician_report.html:47
 msgid "External repairs"
 msgstr "إصلاحات خارجية"
 
-#: templates/base.html:141
+#: templates/base.html:138
 msgid "System"
 msgstr "النظام"
 
-#: templates/base.html:142
+#: templates/base.html:139
 msgid "Users"
 msgstr "المستخدمون"
 
-#: templates/base.html:145
+#: templates/base.html:142
 msgid "Insights"
 msgstr "الرؤى"
 
-#: templates/base.html:147 templates/maintenance/dashboard.html:221
+#: templates/base.html:144 templates/maintenance/dashboard.html:221
 #: templates/maintenance/notifications.html:4
 msgid "Notifications"
 msgstr "الإشعارات"
 
-#: templates/base.html:151 templates/maintenance/dashboard.html:215
+#: templates/base.html:148 templates/maintenance/dashboard.html:215
 msgid "KPIs"
 msgstr "مؤشرات الأداء"
 
-#: templates/base.html:154 templates/maintenance/audit_log.html:4
+#: templates/base.html:151 templates/maintenance/audit_log.html:4
 msgid "Audit log"
 msgstr "سجل التدقيق"
 
-#: templates/base.html:157 templates/base.html:458 templates/base.html:518
+#: templates/base.html:154 templates/base.html:451 templates/base.html:511
 #: templates/maintenance/dashboard.html:214 templates/maintenance/kpi.html:135
 #: templates/maintenance/reporters_report.html:23
 msgid "Reports"
 msgstr "التقارير"
 
-#: templates/base.html:161 templates/maintenance/dashboard.html:217
+#: templates/base.html:158 templates/maintenance/dashboard.html:217
 #: templates/maintenance/reports.html:88
 msgid "Machine cost report"
 msgstr "تقرير تكلفة الماكينات"
 
-#: templates/base.html:164
+#: templates/base.html:161
 msgid "Pending repairs"
 msgstr "إصلاحات معلقة"
 
-#: templates/base.html:165
+#: templates/base.html:162
 msgid "Returned EROs awaiting manager acceptance"
 msgstr "طلبات إصلاح خارجية مُعادة بانتظار موافقة المدير"
 
-#: templates/base.html:168
+#: templates/base.html:165
 msgid "Pending approvals"
 msgstr "موافقات معلقة"
 
-#: templates/base.html:169
+#: templates/base.html:166
 msgid "Work orders awaiting manager review/close"
 msgstr "أوامر عمل بانتظار مراجعة/إغلاق المدير"
 
-#: templates/base.html:173
+#: templates/base.html:170
 msgid "Shortage dashboard"
 msgstr "لوحة النقص"
 
-#: templates/base.html:174
+#: templates/base.html:171
 msgid "Pending shortage reports awaiting decision"
 msgstr "تقارير نقص بانتظار القرار"
 
-#: templates/base.html:175
+#: templates/base.html:172
 msgid "In-fulfillment shortages"
 msgstr "نقص قيد التنفيذ"
 
-#: templates/base.html:176
+#: templates/base.html:173
 msgid "Stuck in fulfillment >7 days"
 msgstr "عالقة في التنفيذ لأكثر من 7 أيام"
 
-#: templates/base.html:182
+#: templates/base.html:179
 msgid "Legacy reconciliation"
 msgstr "مطابقة الإصدار القديم"
 
-#: templates/base.html:183
+#: templates/base.html:180
 msgid "Work orders still on the legacy state model"
 msgstr "أوامر عمل لا تزال على نموذج الحالة القديم"
 
-#: templates/base.html:192
+#: templates/base.html:189
 msgid "Admin"
 msgstr "الإدارة"
 
-#: templates/base.html:194
+#: templates/base.html:191
 msgid "Sign out"
 msgstr "تسجيل الخروج"
 
-#: templates/base.html:198
+#: templates/base.html:195
 msgid "Close navigation"
 msgstr "إغلاق القائمة"
 
-#: templates/base.html:202
+#: templates/base.html:199
 msgid "Open navigation menu"
 msgstr "فتح قائمة التنقل"
 
-#: templates/base.html:209
+#: templates/base.html:206
 #, python-format
 msgid "%(counter)s open WO"
 msgid_plural "%(counter)s open WOs"
@@ -4279,45 +4328,45 @@ msgstr[3] "%(counter)s أمر عمل مفتوح"
 msgstr[4] "%(counter)s أمر عمل مفتوح"
 msgstr[5] "%(counter)s أمر عمل مفتوح"
 
-#: templates/base.html:212
+#: templates/base.html:209
 msgid "Language"
 msgstr "اللغة"
 
-#: templates/base.html:382 templates/base.html:404 templates/base.html:431
-#: templates/base.html:465 templates/base.html:498
+#: templates/base.html:379 templates/base.html:401 templates/base.html:424
+#: templates/base.html:458 templates/base.html:491
 msgid "Mobile navigation"
 msgstr "التنقل عبر الجوال"
 
-#: templates/base.html:389
+#: templates/base.html:386
 msgid "Report"
 msgstr "الإبلاغ"
 
-#: templates/base.html:393
+#: templates/base.html:390
 msgid "Consume"
 msgstr "استهلاك"
 
-#: templates/base.html:407 templates/base.html:434 templates/base.html:468
-#: templates/base.html:501
+#: templates/base.html:404 templates/base.html:427 templates/base.html:461
+#: templates/base.html:494
 msgid "Home"
 msgstr "الرئيسية"
 
-#: templates/base.html:416
+#: templates/base.html:413
 msgid "All WO"
 msgstr "كل أوامر العمل"
 
-#: templates/base.html:447
+#: templates/base.html:440
 msgid "Shortages"
 msgstr "حالات النقص"
 
-#: templates/base.html:472
+#: templates/base.html:465
 msgid "Requests"
 msgstr "الطلبات"
 
-#: templates/base.html:477
+#: templates/base.html:470
 msgid "Orders"
 msgstr "الأوامر"
 
-#: templates/base.html:485 templates/maintenance/supplier_detail.html:73
+#: templates/base.html:478 templates/maintenance/supplier_detail.html:73
 msgid "Repairs"
 msgstr "الإصلاحات"
 
@@ -4584,6 +4633,66 @@ msgstr "لم تُسجَّل أعطال"
 #: templates/maintenance/_cost_tab.html:629
 msgid "' + fmtPct(pct) + ' ' + priorLabel + '"
 msgstr "' + fmtPct(pct) + ' ' + priorLabel + '"
+
+#: templates/maintenance/_partials/_history_timeline.html:30
+#, fuzzy
+#| msgid "Quick log"
+msgid "Quick Log"
+msgstr "تسجيل سريع"
+
+#: templates/maintenance/_partials/_history_timeline.html:81
+#: templates/maintenance/preventive/mgr_dashboard.html:8
+#: templates/maintenance/preventive/my.html:9
+msgid "Today"
+msgstr "اليوم"
+
+#: templates/maintenance/_partials/_history_timeline.html:82
+msgid "Yesterday"
+msgstr "أمس"
+
+#: templates/maintenance/_partials/_history_timeline.html:99
+msgid "Newer"
+msgstr "الأحدث"
+
+#: templates/maintenance/_partials/_history_timeline.html:101
+#: templates/maintenance/active_blockers_dashboard.html:110
+#: templates/maintenance/audit_log.html:28
+#: templates/maintenance/reconciliation_dashboard.html:88
+#, python-format
+msgid "Page %(n)s of %(t)s"
+msgstr "الصفحة %(n)s من %(t)s"
+
+#: templates/maintenance/_partials/_history_timeline.html:104
+msgid "Older"
+msgstr "الأقدم"
+
+#: templates/maintenance/_partials/_history_timeline.html:109
+msgid ""
+"No logs yet. Use Quick Log to record observations, maintenance actions, or "
+"operational notes."
+msgstr ""
+
+#: templates/maintenance/_partials/_log_attachment.html:26
+#, fuzzy
+#| msgid "View PMs"
+msgid "View PDF"
+msgstr "عرض الصيانات الوقائية"
+
+#: templates/maintenance/_partials/_log_attachment.html:32
+#, fuzzy
+#| msgid "📄 Download PDF"
+msgid "Download"
+msgstr "📄 تنزيل PDF"
+
+#: templates/maintenance/_partials/_log_row.html:33
+msgid "ago"
+msgstr "مضت"
+
+#: templates/maintenance/_partials/_recent_activity.html:9
+#, fuzzy
+#| msgid "Recent notifications"
+msgid "Recent activity"
+msgstr "الإشعارات الأخيرة"
 
 #: templates/maintenance/_voice_recorder.html:11
 #: templates/maintenance/workorder_part_re_review.html:64
@@ -5105,7 +5214,7 @@ msgstr "الرمز"
 #: templates/maintenance/_wo_reservation_history.html:69
 #: templates/maintenance/consumables.html:126
 #: templates/maintenance/consumables.html:158
-#: templates/maintenance/machine_detail.html:293
+#: templates/maintenance/machine_detail.html:299
 #: templates/maintenance/reports.html:63
 #: templates/maintenance/reservations_dashboard.html:71
 #: templates/maintenance/spare_part_detail.html:191
@@ -5260,13 +5369,6 @@ msgstr "لا توجد حواجز مطابقة للتصفية الحالية."
 #: templates/maintenance/reconciliation_dashboard.html:86
 msgid "&laquo; Previous"
 msgstr "« السابق"
-
-#: templates/maintenance/active_blockers_dashboard.html:110
-#: templates/maintenance/audit_log.html:28
-#: templates/maintenance/reconciliation_dashboard.html:88
-#, python-format
-msgid "Page %(n)s of %(t)s"
-msgstr "الصفحة %(n)s من %(t)s"
 
 #: templates/maintenance/active_blockers_dashboard.html:112
 #: templates/maintenance/reconciliation_dashboard.html:90
@@ -5588,7 +5690,7 @@ msgid "Issues awaiting your validation"
 msgstr "مشكلات بانتظار تحققك"
 
 #: templates/maintenance/dashboard.html:280
-#: templates/maintenance/machine_detail.html:269
+#: templates/maintenance/machine_detail.html:275
 msgid "Sent"
 msgstr "مُرسلة"
 
@@ -5915,7 +6017,7 @@ msgid "Failure Category / Mode"
 msgstr "فئة العطل / النمط"
 
 #: templates/maintenance/issue_list.html:45
-#: templates/maintenance/machine_detail.html:158
+#: templates/maintenance/machine_detail.html:164
 msgid "Reporter"
 msgstr "المُبلِّغ"
 
@@ -6084,7 +6186,7 @@ msgid "All Work Orders are on the blocker system (v1)."
 msgstr "جميع أوامر العمل على نظام الحواجز (v1)."
 
 #: templates/maintenance/legacy_reconciliation.html:41
-#: templates/maintenance/machine_detail.html:116
+#: templates/maintenance/machine_detail.html:122
 msgid "WO#"
 msgstr "رقم الأمر"
 
@@ -6211,32 +6313,32 @@ msgstr "🔩 إنشاء طلب إصلاح خارجي"
 msgid "📦 Create PR"
 msgstr "📦 إنشاء طلب شراء"
 
-#: templates/maintenance/machine_detail.html:82
+#: templates/maintenance/machine_detail.html:85
 msgid "📷 Asset Photos"
 msgstr "📷 صور الأصل"
 
-#: templates/maintenance/machine_detail.html:84
+#: templates/maintenance/machine_detail.html:87
 msgid "Asset Photos"
 msgstr "صور الأصل"
 
-#: templates/maintenance/machine_detail.html:90
+#: templates/maintenance/machine_detail.html:93
 msgid "🔗 Related Records"
 msgstr "🔗 السجلات ذات الصلة"
 
-#: templates/maintenance/machine_detail.html:119
+#: templates/maintenance/machine_detail.html:125
 msgid "Opened"
 msgstr "مفتوحة"
 
-#: templates/maintenance/machine_detail.html:122
+#: templates/maintenance/machine_detail.html:128
 msgid "Days open"
 msgstr "أيام مفتوحة"
 
-#: templates/maintenance/machine_detail.html:144
-#: templates/maintenance/machine_detail.html:149
+#: templates/maintenance/machine_detail.html:150
+#: templates/maintenance/machine_detail.html:155
 msgid "No work orders yet."
 msgstr "لا توجد أوامر عمل بعد."
 
-#: templates/maintenance/machine_detail.html:158
+#: templates/maintenance/machine_detail.html:164
 #: templates/maintenance/preventive/mgr_history.html:58
 #: templates/maintenance/preventive/mgr_plan_detail.html:131
 #: templates/maintenance/supplier_detail.html:116
@@ -6244,23 +6346,23 @@ msgstr "لا توجد أوامر عمل بعد."
 msgid "Date"
 msgstr "التاريخ"
 
-#: templates/maintenance/machine_detail.html:174
-#: templates/maintenance/machine_detail.html:178
+#: templates/maintenance/machine_detail.html:180
+#: templates/maintenance/machine_detail.html:184
 msgid "No issues yet."
 msgstr "لا توجد مشكلات بعد."
 
-#: templates/maintenance/machine_detail.html:186
+#: templates/maintenance/machine_detail.html:192
 #: templates/maintenance/pm_dashboard.html:11
 #: templates/maintenance/pm_dashboard.html:67
 msgid "Active PMs"
 msgstr "الصيانات الوقائية النشطة"
 
-#: templates/maintenance/machine_detail.html:190
+#: templates/maintenance/machine_detail.html:196
 #: templates/maintenance/pm_dashboard.html:19
 msgid "Due This Week"
 msgstr "مستحقة هذا الأسبوع"
 
-#: templates/maintenance/machine_detail.html:194
+#: templates/maintenance/machine_detail.html:200
 #: templates/maintenance/pm_dashboard.html:15
 #: templates/maintenance/pm_dashboard.html:68
 #: templates/maintenance/pm_list.html:27
@@ -6268,11 +6370,11 @@ msgstr "مستحقة هذا الأسبوع"
 msgid "Overdue"
 msgstr "متأخرة"
 
-#: templates/maintenance/machine_detail.html:200
+#: templates/maintenance/machine_detail.html:206
 msgid "Compliance (90d)"
 msgstr "الالتزام (90 يومًا)"
 
-#: templates/maintenance/machine_detail.html:210
+#: templates/maintenance/machine_detail.html:216
 #: templates/maintenance/pm_batch_spawn_confirm.html:19
 #: templates/maintenance/pm_list.html:59
 #: templates/maintenance/pm_spawn_wo.html:15
@@ -6281,31 +6383,31 @@ msgstr "الالتزام (90 يومًا)"
 msgid "Next due"
 msgstr "الاستحقاق التالي"
 
-#: templates/maintenance/machine_detail.html:212
+#: templates/maintenance/machine_detail.html:218
 msgid "Last execution"
 msgstr "آخر تنفيذ"
 
-#: templates/maintenance/machine_detail.html:230
+#: templates/maintenance/machine_detail.html:236
 msgid "OVERDUE"
 msgstr "متأخر"
 
-#: templates/maintenance/machine_detail.html:251
+#: templates/maintenance/machine_detail.html:257
 #: templates/maintenance/pm_list.html:89
 msgid "Create PM WO"
 msgstr "إنشاء أمر عمل صيانة وقائية"
 
-#: templates/maintenance/machine_detail.html:257
-#: templates/maintenance/machine_detail.html:261
+#: templates/maintenance/machine_detail.html:263
+#: templates/maintenance/machine_detail.html:267
 msgid "No PM schedules yet."
 msgstr "لا توجد جداول صيانة وقائية بعد."
 
-#: templates/maintenance/machine_detail.html:281
-#: templates/maintenance/machine_detail.html:285
+#: templates/maintenance/machine_detail.html:287
+#: templates/maintenance/machine_detail.html:291
 msgid "No external repairs yet."
 msgstr "لا توجد إصلاحات خارجية بعد."
 
-#: templates/maintenance/machine_detail.html:305
-#: templates/maintenance/machine_detail.html:309
+#: templates/maintenance/machine_detail.html:311
+#: templates/maintenance/machine_detail.html:315
 msgid "No purchase requests yet."
 msgstr "لا توجد طلبات شراء بعد."
 
@@ -6459,6 +6561,25 @@ msgstr "أمر عمل مفتوح"
 #: templates/procurement/po_list.html:155
 msgid "View"
 msgstr "عرض"
+
+#: templates/maintenance/machine_quick_log_create.html:3
+#: templates/maintenance/machine_quick_log_create.html:4
+#, fuzzy
+#| msgid "Quick log"
+msgid "Add Quick Log"
+msgstr "تسجيل سريع"
+
+#: templates/maintenance/machine_quick_log_create.html:7
+#, fuzzy
+#| msgid "← Back to machines"
+msgid "← Back to machine"
+msgstr "← العودة إلى الماكينات"
+
+#: templates/maintenance/machine_quick_log_create.html:10
+msgid ""
+"Quick Log is a permanent history entry. It does not create an Issue, Work "
+"Order, or PM task."
+msgstr ""
 
 #: templates/maintenance/my_workorders.html:15
 msgid "Open work orders assigned to you"
@@ -7166,11 +7287,6 @@ msgstr "لم تُرفع أي صور بعد."
 msgid "+ Add photo"
 msgstr "+ إضافة صورة"
 
-#: templates/maintenance/preventive/mgr_dashboard.html:8
-#: templates/maintenance/preventive/my.html:9
-msgid "Today"
-msgstr "اليوم"
-
 #: templates/maintenance/preventive/mgr_dashboard.html:15
 msgid "Due Today"
 msgstr "مستحقة اليوم"
@@ -7433,12 +7549,26 @@ msgid "Use code"
 msgstr "استخدام الكود"
 
 #: templates/maintenance/quick_log.html:4
-msgid "Quick maintenance log"
-msgstr "تسجيل صيانة سريع"
+msgid "Quick log"
+msgstr "تسجيل سريع"
 
-#: templates/maintenance/quick_log.html:6
-msgid "Ad-hoc notes on a machine without opening a full issue or work order."
-msgstr "ملاحظات مخصصة على ماكينة بدون فتح مشكلة أو أمر عمل كامل."
+#: templates/maintenance/quick_log.html:9
+msgid ""
+"Quick Log is now filed per-machine. Pick a machine and add the log from its "
+"History tab."
+msgstr ""
+
+#: templates/maintenance/quick_log.html:11
+#, fuzzy
+#| msgid "Asset / Machine"
+msgid "Choose a machine"
+msgstr "الأصل / الماكينة"
+
+#: templates/maintenance/quick_log.html:14
+#, fuzzy
+#| msgid "Validate"
+msgid "Validation errors"
+msgstr "تحقق"
 
 #: templates/maintenance/reconciliation_dashboard.html:5
 msgid "Legacy WorkOrder Reconciliation"
@@ -8351,12 +8481,6 @@ msgstr "← العودة إلى الموردين"
 #: templates/maintenance/supplier_detail.html:12
 msgid "Contact information"
 msgstr "معلومات الاتصال"
-
-#: templates/maintenance/supplier_detail.html:36
-#: templates/maintenance/supplier_list.html:26
-#: templates/maintenance/workorder_detail.html:462
-msgid "Type"
-msgstr "النوع"
 
 #: templates/maintenance/supplier_detail.html:61
 msgid "Edit supplier"
