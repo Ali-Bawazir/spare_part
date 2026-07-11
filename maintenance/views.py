@@ -805,6 +805,20 @@ def machine_detail(request, pk):
     )
     last_activity_days = (timezone.now() - last_activity).days
 
+    # Permission flags for the action buttons. Operator/tech should
+    # see only what they can actually do (Report Issue); manager+
+    # sees the full set including Create WO / PM / ERO / PR.
+    is_manager_plus = request.user.role in (
+        User.Role.MANAGER, User.Role.SUPER_ADMIN,
+    ) or request.user.is_superuser
+    can_create_wo = is_manager_plus
+    can_create_pm = is_manager_plus
+    can_create_ero = is_manager_plus
+    can_create_pr = request.user.role in (
+        User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+    ) or request.user.is_superuser
+    can_edit_machine = is_manager_plus
+
     context = {
         "machine": machine,
         "ancestors": ancestors,
@@ -821,6 +835,11 @@ def machine_detail(request, pk):
             User.Role.MANAGER, User.Role.SUPERVISOR,
             User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
         ),
+        "can_create_wo": can_create_wo,
+        "can_create_pm": can_create_pm,
+        "can_create_ero": can_create_ero,
+        "can_create_pr": can_create_pr,
+        "can_edit_machine": can_edit_machine,
         "hero_stats": {
             "total_wo_count": total_wo_count,
             "cost_90d_total": cost_90d_total,

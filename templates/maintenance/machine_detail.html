@@ -60,7 +60,7 @@
     {% endif %}
   </div>
   <div class="mms-card-footer">
-    <a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">{% trans "Edit" %}</a>
+    {% if can_edit_machine %}<a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">{% trans "Edit" %}</a>{% endif %}
     <a href="{% url 'machine_list' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to machines" %}</a>
   </div>
 </div>
@@ -70,10 +70,10 @@
   <div class="mms-card-header">{% trans "⚡ Quick Actions" %}</div>
   <div class="mms-card-body">
     <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🚨 Report Issue" %}</a>
-    <a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🔧 Create Work Order" %}</a>
-    <a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🛡️ Create PM" %}</a>
-    <a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "🔩 Create ERO" %}</a>
-    <a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "📦 Create PR" %}</a>
+    {% if can_create_wo %}<a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🔧 Create Work Order" %}</a>{% endif %}
+    {% if can_create_pm %}<a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🛡️ Create PM" %}</a>{% endif %}
+    {% if can_create_ero %}<a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "🔩 Create ERO" %}</a>{% endif %}
+    {% if can_create_pr %}<a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "📦 Create PR" %}</a>{% endif %}
   </div>
 </div>
 
@@ -322,8 +322,8 @@
   </div>
 </div>
 
-<!-- COSTS TAB (existing, unchanged) -->
-{% include "maintenance/_cost_tab.html" %}
+<!-- COSTS TAB (visible only to roles with cost visibility) -->
+{% if can_see_cost %}{% include "maintenance/_cost_tab.html" %}{% endif %}
 
 <!-- SUBASSEMBLIES & COMPONENTS GRID -->
 {% if machine.children.exists %}
