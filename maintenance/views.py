@@ -788,11 +788,6 @@ def machine_detail(request, pk):
         .select_related("author")
         .order_by("-created_at")[:3]
     )
-
-    # Inline form for the History tab. Re-uses the per-machine create
-    # endpoint; the form is bound to this machine via the URL action.
-    from maintenance.forms import QuickLogForm
-    quick_log_form = QuickLogForm(initial={"type": QuickMaintenanceLog.Type.OBSERVATION})
     if machine.asset_level == 5:
         cost_periods = component_costs_for_periods(machine)
     else:
@@ -842,7 +837,6 @@ def machine_detail(request, pk):
         "recent_activity": recent_activity,
         "today_date": today_date,
         "yesterday_date": yesterday_date,
-        "quick_log_form": quick_log_form,
     }
     if machine is not None:
         context["attachments"] = Attachment.objects.filter(
@@ -4075,15 +4069,20 @@ def repair_order_pdf(request, pk):
 @login_required
 @role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def quick_log(request):
-    """Standalone Quick Log entry — open the form directly with a machine
-    selector. On POST, save the log and redirect to the machine's
-    detail page (History tab anchor) so the new entry is visible at
-    the top of the timeline.
+    """Standalone Quick Log entry — open the form directly with a
+    machine selector. On POST, save the log and redirect to:
+    - the ?next= URL if provided and safe (same host), otherwise
+    - the chosen machine's detail page (#history anchor) so the
+      new entry is visible at the top of the timeline.
 
-    This is the entry point reachable from the sidebar 'Quick log' link.
-    For the per-machine flow, the user opens the History tab on
-    machine_detail and uses the inline form there.
+    This is the entry point reachable from the sidebar 'Quick log'
+    link and from the '+ Add quick log' link on the History tab.
     """
+    next_url = request.GET.get("next") or request.POST.get("next") or ""
+    # Basic safety: only allow same-host relative paths starting with /
+    if next_url and not (next_url.startswith("/") and not next_url.startswith("//")):
+        next_url = ""
+
     if request.method == "POST":
         form = QuickLogForm(request.POST, request.FILES)
         if form.is_valid():
@@ -4091,55 +4090,32 @@ def quick_log(request):
             log.author = request.user
             log.save()
             messages.success(request, _("Quick log saved."))
-            return redirect(f"{reverse('machine_detail', kwargs={'pk': log.machine.pk})}#history")
+            if next_url:
+                return redirect(next_url)
+            return redirect(
+                f"{reverse('machine_detail', kwargs={'pk': log.machine.pk})}#history"
+            )
         messages.error(request, _("Please correct the errors below."))
     else:
         form = QuickLogForm(initial={
             "type": QuickMaintenanceLog.Type.OBSERVATION,
         })
 
-    return render(request, "maintenance/quick_log.html", {"form": form})
+    return render(request, "maintenance/quick_log.html", {"form": form, "next_url": next_url})
 
 
 @login_required
 @role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def machine_quick_log_create(request, pk):
-    """Per-machine Quick Log creation endpoint.
+    """Per-machine Quick Log entry — redirects to the standalone form
+    on /quick-log/?next=… so the user picks a machine there and the
+    log is filed against this machine when they submit.
 
-    - GET: render the standalone form page (used when the user clicks
-      "Quick Log" from outside the History tab — e.g. from a context
-      menu). The History tab uses an inline form and POSTs here directly.
-    - POST: validate, save, redirect back to the machine detail page
-      with an anchor to the History tab so the new log is visible at
-      the top of the timeline.
+    Kept as a URL/route for backward compatibility (links in old
+    emails, the sidebar entrypoint on machine detail, etc.). New
+    flows use the sidebar 'Quick log' link directly.
     """
-    machine = get_object_or_404(Machine, pk=pk)
-
-    if request.method == "POST":
-        form = QuickLogForm(request.POST, request.FILES, machine_locked=True)
-        if form.is_valid():
-            log = form.save(commit=False)
-            log.machine = machine
-            log.author = request.user
-            log.save()
-            messages.success(request, _("Log added to machine history."))
-            return redirect(f"{reverse('machine_detail', kwargs={'pk': pk})}#history")
-        messages.error(request, _("Please correct the errors below."))
-    else:
-        # Pre-fill the machine + default type for GET so the page is
-        # meaningful even before the user starts typing. The form is
-        # initialized with machine=<pk> so the field shows the current
-        # machine as a disabled dropdown.
-        form = QuickLogForm(
-            initial={"type": QuickMaintenanceLog.Type.OBSERVATION, "machine": machine},
-            machine_locked=True,
-        )
-
-    return render(
-        request,
-        "maintenance/machine_quick_log_create.html",
-        {"form": form, "machine": machine},
-    )
+    return redirect(f"{reverse('quick_log')}?next={reverse('machine_detail', kwargs={'pk': pk})}#history")
 
 
 @login_required

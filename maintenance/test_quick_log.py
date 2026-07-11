@@ -149,7 +149,14 @@ class QuickLogAttachmentTests(TestCase):
 
 
 class QuickLogCreateEndpointTests(TestCase):
-    """Per-machine POST endpoint creates the log + redirects to machine_detail#history."""
+    """Per-machine route is now a redirect helper to /quick-log/.
+
+    The legacy per-machine create endpoint was removed; the sidebar
+    "Quick log" link opens the standalone form. The per-machine
+    route is kept for backward-compat (links from old emails,
+    bookmarks) and redirects to the standalone form with a `next`
+    param so the user lands back on this machine after submit.
+    """
 
     def setUp(self):
         self.user = _make_user("creator", "operator")
@@ -157,46 +164,34 @@ class QuickLogCreateEndpointTests(TestCase):
         self.client = Client(SERVER_NAME="localhost")
         self.client.force_login(self.user)
 
-    def _post(self, **extra):
-        data = {
-            "type": QuickMaintenanceLog.Type.OBSERVATION,
-            "summary": "Slight vibration",
-        }
-        data.update(extra)
-        return self.client.post(
-            reverse("machine_quick_log_create", args=[self.machine.pk]),
-            data,
+    def test_get_redirects_to_standalone_form_with_next(self):
+        resp = self.client.get(
+            reverse("machine_quick_log_create", args=[self.machine.pk])
         )
-
-    def test_post_creates_log_and_redirects(self):
-        before = QuickMaintenanceLog.objects.filter(machine=self.machine).count()
-        resp = self._post()
         self.assertEqual(resp.status_code, 302)
-        after = QuickMaintenanceLog.objects.filter(machine=self.machine).count()
-        self.assertEqual(after, before + 1)
-        self.assertIn("#history", resp.url)
-        self.assertEqual(
+        # The redirect target should include ?next= pointing back to
+        # this machine's detail page (so after submit the user lands
+        # on the History tab).
+        self.assertIn("next=", resp.url)
+        self.assertIn(
+            reverse("machine_detail", args=[self.machine.pk]),
             resp.url,
-            f"{reverse('machine_detail', args=[self.machine.pk])}#history",
         )
+        self.assertIn("#history", resp.url)
 
-    def test_log_belongs_to_correct_machine(self):
-        self._post(summary="Conv-A specific")
-        log = QuickMaintenanceLog.objects.filter(machine=self.machine).first()
-        self.assertIsNotNone(log)
-        self.assertEqual(log.author, self.user)
-        self.assertEqual(log.summary, "Conv-A specific")
-
-    def test_post_without_summary_re_renders_form(self):
-        resp = self._post(summary="")
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "form")
+    def test_post_also_redirects_to_standalone_form(self):
+        resp = self.client.post(
+            reverse("machine_quick_log_create", args=[self.machine.pk]),
+            {"type": "observation", "summary": "x"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        # The POST is not actually saved (we redirect without parsing)
+        self.assertEqual(QuickMaintenanceLog.objects.filter(machine=self.machine).count(), 0)
 
     def test_anonymous_redirected_to_login(self):
         anon = Client(SERVER_NAME="localhost")
-        resp = anon.post(
-            reverse("machine_quick_log_create", args=[self.machine.pk]),
-            {"type": "observation", "summary": "x"},
+        resp = anon.get(
+            reverse("machine_quick_log_create", args=[self.machine.pk])
         )
         self.assertEqual(resp.status_code, 302)
         self.assertIn("login", resp.url)

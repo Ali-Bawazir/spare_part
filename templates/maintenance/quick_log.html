@@ -10,6 +10,7 @@
   <div class="mms-card-body">
     <form method="post" enctype="multipart/form-data" class="mms-form">
       {% csrf_token %}
+      {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
       {% for field in form %}
         <div class="mms-form-group">
           <label class="mms-label" for="{{ field.id_for_label }}">
