@@ -180,24 +180,27 @@ class WorkOrderPauseForm(forms.Form):
 
 class QuickLogForm(forms.ModelForm):
     """Quick log creation form. Used by:
-    - the old standalone /quick-log/ page (legacy — kept as a redirect
-      to the machine list picker)
-    - the per-machine inline form on the History tab
+    - the standalone /quick-log/ page (pick a machine, fill the form)
+    - the per-machine inline form on the History tab (machine is
+      passed via the URL, the field is hidden via __init__)
 
-    The form intentionally has NO machine selector: callers pass
-    `machine=...` via the URL when invoking the per-machine endpoint.
+    The form has a `machine` field that:
+    - is required on the standalone page (default)
+    - is set to a hidden value on the per-machine page (via __init__)
     """
 
     class Meta:
         model = QuickMaintenanceLog
-        fields = ("type", "summary", "details", "attachment")
+        fields = ("machine", "type", "summary", "details", "attachment")
         labels = {
+            "machine": _("Machine"),
             "type": _("Type"),
             "summary": _("Summary"),
             "details": _("Details"),
             "attachment": _("Attachment (optional)"),
         }
         widgets = {
+            "machine": forms.Select(attrs=_SEL),
             "type": forms.RadioSelect(),
             "summary": forms.TextInput(attrs={
                 **_CTRL,
@@ -213,6 +216,20 @@ class QuickLogForm(forms.ModelForm):
                 "accept": "image/*,video/*,audio/*,application/pdf",
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        machine_locked = kwargs.pop("machine_locked", False)
+        super().__init__(*args, **kwargs)
+        # Restrict the dropdown to active machines only
+        self.fields["machine"].queryset = (
+            self.fields["machine"].queryset.filter(is_active=True).order_by("name")
+        )
+        if machine_locked:
+            # Per-machine page: render the machine as a read-only field
+            # (so the user can see which machine they're logging on)
+            # but disable editing.
+            self.fields["machine"].disabled = True
+            self.fields["machine"].required = False
 
 
 class PMScheduleForm(forms.ModelForm):

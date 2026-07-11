@@ -7,7 +7,7 @@
 {% if log.attachment %}
   {% with att=log.attachment %}
     {% if att.mime_type %}
-      {% if att.mime_type.startswith 'image/' %}
+      {% if att.mime_type|slice:":6" == "image/" %}
         <a href="{{ att.file.url }}" target="_blank" rel="noopener"
            style="display:inline-block;margin-top:.4rem">
           <img src="{{ att.thumbnail.url|default:att.file.url }}" alt="{{ att.filename }}"

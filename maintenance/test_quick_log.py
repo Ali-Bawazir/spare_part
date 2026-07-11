@@ -359,21 +359,70 @@ class QuickLogPermissionTests(TestCase):
         self.assertEqual(self._try_create("manager").status_code, 302)
 
 
-class LegacyQuickLogRedirectTests(TestCase):
-    """The old /quick-log/ URL must redirect to the machine list (not 404)."""
+class StandaloneQuickLogTests(TestCase):
+    """The /quick-log/ route opens the form directly (no redirect).
+
+    The user picks a machine from the dropdown, fills the form, and
+    on submit the log is saved against that machine. The user is
+    then redirected to machine_detail#history so the new entry is
+    visible at the top of the timeline.
+    """
 
     def setUp(self):
-        self.user = _make_user("legacy_user", "operator")
+        self.user = _make_user("standalone_user", "operator")
         self.client = Client(SERVER_NAME="localhost")
         self.client.force_login(self.user)
+        self.machine = _make_machine(name="Hyplas", code="HYP")
 
-    def test_get_redirects_to_machine_list(self):
+    def test_get_opens_form_with_machine_selector(self):
         resp = self.client.get(reverse("quick_log"))
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp.url, reverse("machine_list"))
-
-    def test_post_with_invalid_data_renders_picker(self):
-        resp = self.client.post(reverse("quick_log"), {"summary": ""})
-        # Invalid POST → falls through to render the picker (form with errors)
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "Choose a machine")
+        # The form has a machine select with active machines
+        form = resp.context["form"]
+        self.assertIn("machine", form.fields)
+        self.assertIn("type", form.fields)
+        self.assertIn("summary", form.fields)
+        # The machine queryset only includes active machines
+        machine_qs = form.fields["machine"].queryset
+        self.assertIn(self.machine, machine_qs)
+
+    def test_post_with_machine_creates_log_and_redirects(self):
+        before = QuickMaintenanceLog.objects.filter(machine=self.machine).count()
+        resp = self.client.post(reverse("quick_log"), {
+            "machine": str(self.machine.pk),
+            "type": QuickMaintenanceLog.Type.MAINTENANCE_NOTE,
+            "summary": "Replaced air filter",
+            "details": "Old filter was clogged.",
+        })
+        self.assertEqual(resp.status_code, 302)
+        after = QuickMaintenanceLog.objects.filter(machine=self.machine).count()
+        self.assertEqual(after, before + 1)
+        log = QuickMaintenanceLog.objects.filter(machine=self.machine).latest("created_at")
+        self.assertEqual(log.author, self.user)
+        self.assertEqual(log.type, "maintenance_note")
+        self.assertEqual(log.summary, "Replaced air filter")
+        # Redirect target is the machine detail page with #history anchor
+        self.assertIn(reverse("machine_detail", args=[self.machine.pk]), resp.url)
+        self.assertIn("#history", resp.url)
+
+    def test_post_without_machine_re_renders_form_with_error(self):
+        resp = self.client.post(reverse("quick_log"), {
+            "type": "observation",
+            "summary": "test",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "form")
+
+    def test_post_without_summary_re_renders_form_with_error(self):
+        resp = self.client.post(reverse("quick_log"), {
+            "machine": str(self.machine.pk),
+            "type": "observation",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "form")
+
+    def test_anonymous_redirected_to_login(self):
+        anon = Client(SERVER_NAME="localhost")
+        resp = anon.get(reverse("quick_log"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("login", resp.url)

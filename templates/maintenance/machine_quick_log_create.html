@@ -13,19 +13,25 @@
   <div class="mms-card-body">
     <form method="post" enctype="multipart/form-data" class="mms-form">
       {% csrf_token %}
-      <div class="mms-form-group">
-        <label class="mms-label">{% trans "Machine" %}</label>
-        <input class="form-control" type="text" value="{{ machine.name }}" disabled>
-      </div>
       {% for field in form %}
-        <div class="mms-form-group">
-          <label class="mms-label" for="{{ field.id_for_label }}">
-            {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
-          </label>
-          {{ field }}
-          {% if field.help_text %}<span class="mms-form-help">{{ field.help_text }}</span>{% endif %}
-          {% if field.errors %}<div class="mms-form-error">{{ field.errors }}</div>{% endif %}
-        </div>
+        {% if field.name == "machine" %}
+          {# Machine is pre-filled and disabled (machine_locked=True). #}
+          {# Show it read-only so the user can see which machine they're logging on. #}
+          <div class="mms-form-group">
+            <label class="mms-label" for="{{ field.id_for_label }}">{% trans "Machine" %}</label>
+            <input class="form-control" type="text" value="{{ machine.name }}" disabled>
+            {{ field.as_hidden }}
+          </div>
+        {% else %}
+          <div class="mms-form-group">
+            <label class="mms-label" for="{{ field.id_for_label }}">
+              {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.help_text %}<span class="mms-form-help">{{ field.help_text }}</span>{% endif %}
+            {% if field.errors %}<div class="mms-form-error">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endif %}
       {% endfor %}
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>

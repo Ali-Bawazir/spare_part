@@ -4075,19 +4075,14 @@ def repair_order_pdf(request, pk):
 @login_required
 @role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def quick_log(request):
-    """Legacy standalone Quick Log entry — redirects to the machine list
-    so the user can pick a machine and use the per-machine inline form
-    on the History tab.
+    """Standalone Quick Log entry — open the form directly with a machine
+    selector. On POST, save the log and redirect to the machine's
+    detail page (History tab anchor) so the new entry is visible at
+    the top of the timeline.
 
-    Kept as a 302 instead of a 404 because:
-    - existing bookmarks may point here
-    - the perm_quick_log capability already references it
-    - tests may invoke the URL name
-    - a redirect costs nothing and breaks nothing
-
-    The POST behaviour is preserved for callers that still submit here
-    (e.g. the old form template), but new submissions should come from
-    /machines/<pk>/quick-log/.
+    This is the entry point reachable from the sidebar 'Quick log' link.
+    For the per-machine flow, the user opens the History tab on
+    machine_detail and uses the inline form there.
     """
     if request.method == "POST":
         form = QuickLogForm(request.POST, request.FILES)
@@ -4096,12 +4091,12 @@ def quick_log(request):
             log.author = request.user
             log.save()
             messages.success(request, _("Quick log saved."))
-            return redirect("machine_detail", pk=log.machine.pk)
-        # POST with invalid form — fall through and re-render with errors.
+            return redirect(f"{reverse('machine_detail', kwargs={'pk': log.machine.pk})}#history")
         messages.error(request, _("Please correct the errors below."))
     else:
-        messages.info(request, _("Please choose a machine to log against."))
-        return redirect("machine_list")
+        form = QuickLogForm(initial={
+            "type": QuickMaintenanceLog.Type.OBSERVATION,
+        })
 
     return render(request, "maintenance/quick_log.html", {"form": form})
 
@@ -4121,7 +4116,7 @@ def machine_quick_log_create(request, pk):
     machine = get_object_or_404(Machine, pk=pk)
 
     if request.method == "POST":
-        form = QuickLogForm(request.POST, request.FILES)
+        form = QuickLogForm(request.POST, request.FILES, machine_locked=True)
         if form.is_valid():
             log = form.save(commit=False)
             log.machine = machine
@@ -4131,9 +4126,14 @@ def machine_quick_log_create(request, pk):
             return redirect(f"{reverse('machine_detail', kwargs={'pk': pk})}#history")
         messages.error(request, _("Please correct the errors below."))
     else:
-        # Pre-fill default values for GET so the page is meaningful
-        # even before the user starts typing.
-        form = QuickLogForm(initial={"type": QuickMaintenanceLog.Type.OBSERVATION})
+        # Pre-fill the machine + default type for GET so the page is
+        # meaningful even before the user starts typing. The form is
+        # initialized with machine=<pk> so the field shows the current
+        # machine as a disabled dropdown.
+        form = QuickLogForm(
+            initial={"type": QuickMaintenanceLog.Type.OBSERVATION, "machine": machine},
+            machine_locked=True,
+        )
 
     return render(
         request,

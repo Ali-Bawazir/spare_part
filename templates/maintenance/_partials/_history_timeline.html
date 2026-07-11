@@ -35,6 +35,7 @@
               enctype="multipart/form-data"
               class="mms-form">
           {% csrf_token %}
+          {{ form.machine.as_hidden }}
           <div class="mms-form-group" style="margin-top:.7rem">
             <label class="mms-label">{% trans "Type" %} <span class="text-danger">*</span></label>
             <div style="display:flex;gap:1rem;flex-wrap:wrap">
