@@ -1,0 +1,37 @@
+{% load i18n %}
+{% comment %}
+   Renders a single attachment for a Quick Log entry.
+   Mirrors the mime-type dispatch logic from _attachment_uploader.html
+   but for inline display (not a card).
+{% endcomment %}
+{% if log.attachment %}
+  {% with att=log.attachment %}
+    {% if att.mime_type %}
+      {% if att.mime_type.startswith 'image/' %}
+        <a href="{{ att.file.url }}" target="_blank" rel="noopener"
+           style="display:inline-block;margin-top:.4rem">
+          <img src="{{ att.thumbnail.url|default:att.file.url }}" alt="{{ att.filename }}"
+               style="max-width:160px;max-height:160px;border-radius:6px;object-fit:cover;cursor:zoom-in;display:block">
+        </a>
+      {% elif att.mime_type == 'video/mp4' or att.mime_type == 'video/quicktime' %}
+        <video src="{{ att.file.url }}" controls
+               style="max-width:240px;max-height:160px;border-radius:6px;display:block;background:#000;margin-top:.4rem"></video>
+      {% elif att.mime_type == 'audio/mpeg' or att.mime_type == 'audio/mp3' or att.mime_type == 'audio/wav' or att.mime_type == 'audio/ogg' %}
+        <audio src="{{ att.file.url }}" controls
+               style="display:block;margin-top:.4rem;max-width:240px"></audio>
+      {% elif att.mime_type == 'application/pdf' %}
+        <a href="{{ att.file.url }}" target="_blank" rel="noopener"
+           class="mms-btn mms-btn--ghost mms-btn--sm"
+           style="display:inline-block;margin-top:.4rem;font-size:.85em">
+          {% trans "View PDF" %} — {{ att.filename }}
+        </a>
+      {% else %}
+        <a href="{{ att.file.url }}" target="_blank" rel="noopener"
+           class="mms-btn mms-btn--ghost mms-btn--sm"
+           style="display:inline-block;margin-top:.4rem;font-size:.85em">
+          {% trans "Download" %} — {{ att.filename }}
+        </a>
+      {% endif %}
+    {% endif %}
+  {% endwith %}
+{% endif %}

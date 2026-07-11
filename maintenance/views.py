@@ -748,6 +748,44 @@ def machine_detail(request, pk):
     # Cost rollup for the Costs tab (Phase 3). Live aggregation from
     # the CostTransaction ledger. Same shape for machines and components.
     from .cost_views import machine_costs_for_periods, component_costs_for_periods
+
+    # History tab (Quick Maintenance Log) — paginated timeline inside the tab.
+    from django.core.paginator import Paginator
+    from maintenance.models import QuickMaintenanceLog
+
+    logs_qs = (
+        machine.quick_logs
+        .select_related("author", "attachment")
+        .order_by("-created_at")
+    )
+    history_page_size = 10
+    history_paginator = Paginator(logs_qs, history_page_size)
+    try:
+        history_page_num = int(request.GET.get("page", 1))
+    except (TypeError, ValueError):
+        history_page_num = 1
+    if history_page_num < 1:
+        history_page_num = 1
+    if history_page_num > history_paginator.num_pages and history_paginator.num_pages > 0:
+        history_page_num = history_paginator.num_pages
+    history_page = history_paginator.get_page(history_page_num)
+
+    # For "Today" / "Yesterday" day separators (compare by date in local TZ).
+    from datetime import timedelta
+    today_date = timezone.localdate()
+    yesterday_date = today_date - timedelta(days=1)
+
+    # Recent Activity card — last 3 logs only, compact one-line rendering.
+    recent_activity = list(
+        machine.quick_logs
+        .select_related("author")
+        .order_by("-created_at")[:3]
+    )
+
+    # Inline form for the History tab. Re-uses the per-machine create
+    # endpoint; the form is bound to this machine via the URL action.
+    from maintenance.forms import QuickLogForm
+    quick_log_form = QuickLogForm(initial={"type": QuickMaintenanceLog.Type.OBSERVATION})
     if machine.asset_level == 5:
         cost_periods = component_costs_for_periods(machine)
     else:
@@ -790,6 +828,14 @@ def machine_detail(request, pk):
         "pm_stats": pm_stats,
         "pm_last_executions": last_executions_by_schedule,
         "now": timezone.now(),
+        # History tab (Quick Log) data
+        "history_logs": history_page.object_list,
+        "history_page": history_page,
+        "history_total": history_paginator.count,
+        "recent_activity": recent_activity,
+        "today_date": today_date,
+        "yesterday_date": yesterday_date,
+        "quick_log_form": quick_log_form,
     }
     if machine is not None:
         context["attachments"] = Attachment.objects.filter(

@@ -1,0 +1,44 @@
+{% load i18n %}
+{% comment %}
+   Single row in the History timeline. Renders:
+   - Author initials avatar circle (color from username hash)
+   - Type-colored dot
+   - Author username + relative time
+   - Type badge
+   - Summary (truncated)
+   - Details (if present)
+   - Optional attachment thumbnail via _log_attachment.html
+{% endcomment %}
+{% with initial=log.author.username|slice:":1"|upper %}
+  <li class="mms-history-row"
+      id="log-{{ log.pk }}"
+      style="display:flex;gap:.75rem;padding:.65rem 0;border-bottom:1px solid #f1f5f9">
+    <span class="mms-history-avatar"
+          style="display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                 width:36px;height:36px;border-radius:50%;background:#cbd5e1;color:#1e293b;
+                 font-weight:600;font-size:.9em">
+      {{ initial }}
+    </span>
+    <span class="mms-history-dot mms-history-dot--{{ log.type }}"
+          style="display:inline-block;width:10px;height:10px;border-radius:50%;align-self:center;flex-shrink:0;
+                 background:{% if log.type == 'observation' %}#16a34a
+                          {% elif log.type == 'maintenance_note' %}#2563eb
+                          {% else %}#ea580c{% endif %};"
+          title="{{ log.get_type_display }}"></span>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap;
+                  font-size:.85em;color:#475569">
+        <strong style="color:#1e293b">{{ log.author.username }}</strong>
+        <span style="color:#94a3b8">·</span>
+        <span>{{ log.created_at|timesince }} {% trans "ago" %}</span>
+        <span class="mms-badge mms-badge--muted"
+              style="font-size:.75em">{{ log.get_type_display }}</span>
+      </div>
+      <div style="margin-top:.15rem;font-weight:500;color:#0f172a">{{ log.summary }}</div>
+      {% if log.details %}
+        <div style="margin-top:.15rem;color:#475569;white-space:pre-wrap;font-size:.95em">{{ log.details }}</div>
+      {% endif %}
+      {% include "maintenance/_partials/_log_attachment.html" with log=log %}
+    </div>
+  </li>
+{% endwith %}
