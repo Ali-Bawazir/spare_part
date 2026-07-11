@@ -540,8 +540,15 @@ def qr_scan_decode(request):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+@role_required(
+    User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN,
+    User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+)
 def machine_list(request):
+    """Machine list — also acts as the picker for the Quick Log entry
+    point in the sidebar. All roles can view machines (read access) so
+    the /quick-log/ redirect (operator/supervisor/tech/manager) lands
+    on a usable page."""
     view_mode = request.GET.get("view", "list")
     context = {"view_mode": view_mode}
 
