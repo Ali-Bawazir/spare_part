@@ -21,16 +21,13 @@
 {% endcomment %}
 
 <div id="history" class="mms-history-timeline">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
-    <a href="{% url 'quick_log' %}?next={{ request.path }}#history"
-       class="mms-btn mms-btn--ghost mms-btn--sm"
-       style="font-size:.85em">{% trans "+ Add quick log" %}</a>
-    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div style="display:flex;justify-content:flex-end;margin-bottom:.4rem">
       <span style="font-size:.75em;color:#94a3b8">
         {% blocktrans with n=page_obj.number t=page_obj.paginator.num_pages %}Page {{ n }} of {{ t }}{% endblocktrans %}
       </span>
-    {% endif %}
-  </div>
+    </div>
+  {% endif %}
 
   {% if logs %}
     {% regroup logs by log.created_at.date as day_groups %}
@@ -68,7 +65,6 @@
   {% else %}
     <p class="mms-empty text-muted" style="font-size:.85em;margin:.5rem 0">
       {% trans "No logs yet." %}
-      <a href="{% url 'quick_log' %}?next={{ request.path }}#history">{% trans "Add the first one" %}</a>.
     </p>
   {% endif %}
 </div>

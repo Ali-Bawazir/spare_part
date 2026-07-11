@@ -164,7 +164,7 @@ class Command(BaseCommand):
     help = "Load demo users, machines, parts, tools, suppliers. Use --full for issues/WOs/PR/PM sample rows."
 
     def add_arguments(self, parser):
-        parser.add_argument("--password", default="demo123", help="Password for demo users")
+        parser.add_argument("--password", default="demo123", help="Password for demo users (default: demo123 — used by all 8 demo users)")
         parser.add_argument(
             "--full",
             action="store_true",
