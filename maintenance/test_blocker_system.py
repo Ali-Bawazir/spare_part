@@ -924,3 +924,110 @@ class VendorRepairBlockerHookTests(TestCase):
         )
         blocker = WorkOrderBlocker.objects.get(work_order=self.wo, kind=WorkOrderBlocker.Kind.VENDOR_REPAIR)
         self.assertEqual(blocker.related_ero, ero)
+
+    def test_ero_returned_resolves_vendor_repair_blocker(self):
+        """Regression: ERO_RETURNED must resolve the VENDOR_REPAIR blocker.
+
+        The VENDOR_REPAIR blocker is opened against the
+        ExternalRepairRequest (ERR), not the ERO. The repair_officer
+        view passes the ERO to sync_from_external_event(), so the
+        service must reverse-lookup the ERR via the ERO.repair_order
+        FK. Previously the service looked for ERO.origin_request (which
+        doesn't exist), so the blocker never resolved and the WO got
+        stuck at operational='waiting_vendor' forever.
+        """
+        from django.utils import timezone
+        from maintenance.services import request_external_repair, approve_external_repair_request
+        from maintenance.services_blocker import WorkOrderBlockerService
+        from maintenance.models import (
+            ExternalRepairOrder, WorkOrderBlocker, WorkOrder,
+        )
+        from maintenance.services_wo_status import WorkOrderService
+
+        err = request_external_repair(
+            work_order=self.wo,
+            requested_by=self.technician,
+            diagnosis_note="Encoder failure",
+            part_description="Servo drive S7-300",
+        )
+        ero = approve_external_repair_request(
+            err=err, manager=self.manager, manager_note="approved",
+        )
+        blocker = WorkOrderBlocker.objects.get(
+            work_order=self.wo, kind=WorkOrderBlocker.Kind.VENDOR_REPAIR,
+        )
+        self.assertEqual(blocker.status, WorkOrderBlocker.Status.OPEN)
+        # WO is now waiting on the vendor
+        self.assertEqual(
+            WorkOrderService.recompute_operational_status(self.wo),
+            WorkOrder.OperationalStatus.WAITING_VENDOR,
+        )
+
+        # Simulate the officer marking the ERO as SENT, then RETURNED.
+        # The officer view calls sync_from_external_event(ERO, "ERO_RETURNED").
+        ero.status = ExternalRepairOrder.Status.SENT_TO_VENDOR
+        ero.sent_at = timezone.now()
+        ero.save(update_fields=["status", "sent_at"])
+
+        WorkOrderBlockerService.sync_from_external_event(
+            external_obj=ero,
+            event_type="ERO_RETURNED",
+            actor=self.manager,
+            payload={"note": "Vendor returned part"},
+        )
+
+        blocker.refresh_from_db()
+        self.assertEqual(
+            blocker.status,
+            WorkOrderBlocker.Status.RESOLVED,
+            "VENDOR_REPAIR blocker must resolve when ERO returns. "
+            "If this fails, the sync_from_external_event fallback isn't "
+            "resolving the blocker keyed to the ERR (origin_request "
+            "fallback was broken because ERO has no such FK).",
+        )
+
+        # And the WO must leave waiting_vendor.
+        self.assertEqual(
+            WorkOrderService.recompute_operational_status(self.wo),
+            WorkOrder.OperationalStatus.ACTIVE,
+        )
+
+    def test_ero_accepted_resolves_vendor_repair_blocker(self):
+        """Regression: ERO_ACCEPTED (manager close) resolves the blocker too.
+
+        Same as above but via the ERO_ACCEPTED event (manager accepts the
+        returned part and posts vendor_repair cost to the ledger). The
+        blocker must resolve even if the tech's RETURNED transition was
+        skipped (e.g. direct manager accept from SENT).
+        """
+        from maintenance.services import request_external_repair, approve_external_repair_request
+        from maintenance.services_blocker import WorkOrderBlockerService
+        from maintenance.models import ExternalRepairOrder, WorkOrderBlocker
+
+        err = request_external_repair(
+            work_order=self.wo,
+            requested_by=self.technician,
+            diagnosis_note="Encoder failure",
+            part_description="Servo drive S7-300",
+        )
+        ero = approve_external_repair_request(
+            err=err, manager=self.manager, manager_note="approved",
+        )
+
+        # Direct accept without RETURNED in between (admin override path).
+        WorkOrderBlockerService.sync_from_external_event(
+            external_obj=ero,
+            event_type="ERO_ACCEPTED",
+            actor=self.manager,
+            payload={"note": "Manager accepted directly"},
+        )
+
+        blocker = WorkOrderBlocker.objects.get(
+            work_order=self.wo, kind=WorkOrderBlocker.Kind.VENDOR_REPAIR,
+        )
+        self.assertEqual(
+            blocker.status,
+            WorkOrderBlocker.Status.RESOLVED,
+            "ERO_ACCEPTED must also resolve the VENDOR_REPAIR blocker "
+            "via the ERR reverse-lookup fallback.",
+        )

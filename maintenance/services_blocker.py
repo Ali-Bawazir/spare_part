@@ -304,14 +304,29 @@ class WorkOrderBlockerService:
             return None
 
         # ERO_RETURNED / ERO_ACCEPTED special case: the VENDOR_REPAIR blocker is
-        # opened against the ERR (origin_request), not the ERO. Do the fallback
-        # lookup BEFORE the None-guard for both event types.
+        # opened against the ExternalRepairRequest (ERR), not the ERO — the
+        # request_external_repair() service passes `external_obj=err` to
+        # open_blocker(). The caller (repair_officer / repair_manager_accept)
+        # then passes the ERO to sync_from_external_event because that's
+        # the object whose state actually changed.
+        #
+        # Two-step resolution:
+        #   1. Try the ERO-keyed blocker first (in case we ever start
+        #      opening the blocker against the ERO directly).
+        #   2. Fall back to the ERR (current real-world case): look up the
+        #      ERR via `repair_order` FK and re-query.
         if event_type in ("ERO_RETURNED", "ERO_ACCEPTED"):
-            if not isinstance(external_obj, ExternalRepairRequest) \
-                    and hasattr(external_obj, "origin_request"):
-                err_obj = external_obj.origin_request
-                if err_obj is not None:
-                    external_obj = err_obj
+            err_obj = None
+            if isinstance(external_obj, ExternalRepairRequest):
+                err_obj = external_obj
+            elif isinstance(external_obj, ExternalRepairOrder):
+                err_obj = ExternalRepairRequest.objects.filter(
+                    repair_order_id=external_obj.pk
+                ).first()
+            # else: external_obj is neither ERR nor ERO (unexpected) —
+            # leave as-is and let the primary lookup handle it.
+            if err_obj is not None:
+                external_obj = err_obj
 
         ct = ContentType.objects.get_for_model(external_obj)
         object_id = external_obj.pk
