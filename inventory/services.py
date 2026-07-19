@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -1071,27 +1071,43 @@ def cancel_approved_part_request(
         raise ValueError(_("Cancellation reason must be at least 15 characters."))
 
     # Release the inventory reservation if any.
-    # Phase 7.8: cancel the specific InventoryReservation rows attached
-    # to this line. Iterate + save so the post_save signal fires for each
-    # row and recomputes Inventory.quantity_reserved. (A bulk .update() would
-    # bypass the signal and leave the cache stale.) Replaces the previous
-    # approach of decrementing the aggregate directly.
+    # Phase 1: cancel BOTH line-linked reservations AND any legacy reservations
+    # (source_line=None) on the same (part, work_order). Legacy reservations
+    # can exist on lines that were approved via the pre-Phase-1 shortage-decision
+    # path which created source_line=None reservations.
+    # Iterate + save so the post_save signal fires for each row and recomputes
+    # Inventory.quantity_reserved. (A bulk .update() would bypass the signal and
+    # leave the cache stale.)
     from inventory.models import InventoryReservation
     now = timezone.now()
     cancel_reason = _("Line cancelled: %(reason)s") % {"reason": reason[:200]}
+    legacy_reason = _("Line cancelled — releasing legacy reservation: %(reason)s") % {"reason": reason[:200]}
+    released_count = 0
     for res in (
         InventoryReservation.objects
         .select_for_update()
         .filter(
             part=line.part,
-            source_line=line,
+            work_order=line.work_order,
             status=InventoryReservation.Status.ACTIVE,
+        )
+        .filter(
+            models.Q(source_line=line) | models.Q(source_line__isnull=True)
         )
     ):
         res.status = InventoryReservation.Status.CANCELLED
         res.released_at = now
-        res.release_reason = cancel_reason
+        res.release_reason = (
+            legacy_reason if res.source_line_id is None else cancel_reason
+        )
         res.save(update_fields=["status", "released_at", "release_reason"])
+        released_count += 1
+    if released_count:
+        import logging
+        logging.getLogger(__name__).info(
+            f"Released {released_count} reservation(s) on line cancellation "
+            f"(line #{line.pk}, part {line.part.sku}, WO #{line.work_order.number})"
+        )
 
     line.status = PartIssueLine.Status.REJECTED
     line.rejection_reason = reason[:1000]
@@ -1221,7 +1237,7 @@ def edit_part_request_qty(*, line: PartIssueLine, manager, new_quantity: Decimal
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
-def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor) -> Inventory:
+def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor, source_line=None) -> Inventory:
     """Increment Inventory.quantity_reserved by `qty` for `part`.
 
     This is a soft claim — it does not physically remove stock. Used for
@@ -1237,6 +1253,12 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
     Phase 7.8: also creates a corresponding InventoryReservation row so
     the live aggregate (used by `compute_quantity_reserved()`) stays in
     sync. The DB column is kept as a derived cache.
+
+    Phase 1: `source_line` (optional PartIssueLine FK) links the reservation
+    to the originating part line. When provided, the reservation can be
+    tracked and released through the line's lifecycle. Pre-Phase-1 callers
+    that omit `source_line` create "legacy" reservations with source_line=None;
+    the reconcile_legacy_reservations management command cleans those up.
 
     Raises ValueError if (quantity_available - quantity_reserved) < qty.
     """
@@ -1272,13 +1294,18 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
     # recomputes quantity_reserved. Then we don't need to manually
     # increment the field at all.
     from inventory.models import InventoryReservation
+    release_reason = (
+        _("reserve_stock() for PartIssueLine #%(line_id)s") % {"line_id": source_line.pk}
+        if source_line is not None
+        else _("legacy reserve_stock() call (no source_line)")
+    )
     InventoryReservation.objects.create(
         part=part,
         work_order=source_wo,
         quantity=qty,
         status=InventoryReservation.Status.ACTIVE,
-        source_line=None,  # legacy path; no PartIssueLine FK
-        release_reason=_("legacy reserve_stock() call"),
+        source_line=source_line,
+        release_reason=release_reason,
     )
     # Refresh inv from DB to pick up any signal-driven changes
     inv.refresh_from_db()
@@ -1290,6 +1317,7 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor)
             "quantity_available": str(inv.quantity_available),
             "quantity_reserved": str(inv.compute_quantity_reserved()),
             "source_wo": str(source_wo.number) if source_wo else "",
+            "source_line_id": source_line.pk if source_line else None,
         },
     )
     return inv
@@ -1440,38 +1468,54 @@ def transition_shortage_status(report: PartShortageReport, new_status: str, *, a
         payload={"from": old, "to": new_status, "note": note},
     )
 
-    # On CLOSED: release remaining reservation and cancel pending auto-PRs.
+    # On CLOSED: release ALL reservations on this (part, work_order) pair AND
+    # cancel pending auto-PRs.
+    # Phase 1: release both line-linked reservations (source_line__related_shortage_report=report)
+    # AND legacy ones (source_line=None, no PartIssueLine FK). Previously only
+    # line-linked reservations were released (and only when decision.approved_issue_qty > 0),
+    # leaving legacy reservations orphaned and free stock polluted.
     if new_status == PartShortageReport.Status.CLOSED:
-        decision = getattr(report, "decision", None)
-        if decision and decision.approved_issue_qty > 0:
-            released = decision.approved_issue_qty - report.qty_issued
-            if released > 0:
-                # Phase 7.8: cancel the specific InventoryReservation rows
-                # linked to this shortage's lines. Iterate + save so the
-                # post_save signal recomputes the cache.
-                from inventory.models import InventoryReservation
-                from django.utils import timezone as _tz
-                cancel_reason = (
-                    _("Shortage report closed (was %(old)s); releasing %(released).1f unit(s)") % {
-                        "old": old,
-                        "released": released,
-                    }
-                )
-                now = _tz.now()
-                for res in (
-                    InventoryReservation.objects
-                    .select_for_update()
-                    .filter(
-                        part=report.part,
-                        work_order=report.work_order,
-                        source_line__related_shortage_report=report,
-                        status=InventoryReservation.Status.ACTIVE,
-                    )
-                ):
-                    res.status = InventoryReservation.Status.CANCELLED
-                    res.released_at = now
-                    res.release_reason = cancel_reason
-                    res.save(update_fields=["status", "released_at", "release_reason"])
+        from inventory.models import InventoryReservation
+        from django.utils import timezone as _tz
+        legacy_reason = _(
+            "Shortage report closed (was %(old)s); releasing legacy reservation"
+        ) % {"old": old}
+        line_reason = _(
+            "Shortage report closed (was %(old)s); releasing line-linked reservation"
+        ) % {"old": old}
+        now = _tz.now()
+        released_count = 0
+        for res in (
+            InventoryReservation.objects
+            .select_for_update()
+            .filter(
+                part=report.part,
+                work_order=report.work_order,
+                status=InventoryReservation.Status.ACTIVE,
+            )
+            .filter(
+                # line-linked reservations tied to this shortage, OR
+                # legacy reservations with no source_line at all.
+                # We deliberately do NOT release unrelated reservations
+                # on the same (part, work_order) that belong to OTHER
+                # PartIssueLines (e.g. multiple PartIssueLines for the same part).
+                models.Q(source_line__related_shortage_report=report)
+                | models.Q(source_line__isnull=True)
+            )
+        ):
+            res.status = InventoryReservation.Status.CANCELLED
+            res.released_at = now
+            res.release_reason = (
+                legacy_reason if res.source_line_id is None else line_reason
+            )
+            res.save(update_fields=["status", "released_at", "release_reason"])
+            released_count += 1
+        if released_count:
+            import logging
+            logging.getLogger(__name__).info(
+                f"Released {released_count} reservation(s) on shortage CLOSED "
+                f"(report #{report.pk}, part {report.part.sku}, WO #{report.work_order.number})"
+            )
         from procurement.models import PurchaseRequest
         for pr in PurchaseRequest.objects.filter(
             source_shortage_report=report,
@@ -1538,10 +1582,22 @@ def create_shortage_decision(
 
     # Direct side effects
     if decision_type == PartShortageDecision.DecisionType.APPROVE:
+        # Phase 1: look up the originating PartIssueLine (if any) so we can
+        # link the reservation to it. Pre-Phase-1 callers passed source_line=None
+        # implicitly, creating "legacy" reservations that polluted free-stock
+        # until cleaned up by reconcile_legacy_reservations. Linking the
+        # reservation to the line from the start eliminates this pollution.
+        related_line = None
+        try:
+            related_line = report.issue_lines.first()
+        except Exception:
+            related_line = None
+
         if approved_issue_qty > 0:
             reserve_stock(
                 part=report.part, qty=approved_issue_qty,
                 source_wo=report.work_order, actor=decided_by,
+                source_line=related_line,
             )
         if approved_procurement_qty > 0:
             # Local import to avoid circular dependency
