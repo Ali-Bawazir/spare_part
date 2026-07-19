@@ -5,12 +5,12 @@
    Shows last 3 logs only — no details, no pagination, no inline form.
    Single line per log: dot + type + summary + author + relative time.
 {% endcomment %}
-{% if recent_activity %}
+{% if recent_logs %}
   <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-header" style="padding:.4rem .9rem">{% trans "Recent activity" %}</div>
     <div style="padding:0 .9rem .5rem .9rem">
       <ul class="mms-recent-activity-list" style="list-style:none;margin:0;padding:0">
-        {% for log in recent_activity %}
+        {% for log in recent_logs %}
           <li class="mms-recent-activity-item"
               style="display:flex;gap:.5rem;align-items:center;padding:.35rem 0;border-bottom:1px solid #f1f5f9;font-size:.85em">
             <span class="mms-history-dot mms-history-dot--{{ log.type }}"

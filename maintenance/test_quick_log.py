@@ -217,24 +217,24 @@ class QuickLogMachineDetailIntegrationTests(TestCase):
     def test_recent_activity_shows_last_three_only(self):
         resp = self.client.get(reverse("machine_detail", args=[self.machine.pk]))
         self.assertEqual(resp.status_code, 200)
-        # 5 logs total, but only 3 in recent_activity card
-        self.assertEqual(len(resp.context["recent_activity"]), 3)
+        # 5 logs total, but only 3 in recent_logs card
+        self.assertEqual(len(resp.context["recent_logs"]), 3)
         # Newest first
-        self.assertEqual(resp.context["recent_activity"][0].summary, "Log number 4")
-        self.assertEqual(resp.context["recent_activity"][2].summary, "Log number 2")
+        self.assertEqual(resp.context["recent_logs"][0].summary, "Log number 4")
+        self.assertEqual(resp.context["recent_logs"][2].summary, "Log number 2")
 
     def test_recent_activity_card_in_overview(self):
         resp = self.client.get(reverse("machine_detail", args=[self.machine.pk]))
         self.assertContains(resp, "Recent activity")
         # The History tab is also rendered on the same page, so older logs
-        # appear in the tab even though they're NOT in the recent_activity
+        # appear in the tab even though they're NOT in the recent_logs
         # card. We assert the card itself contains only 3 logs by checking
         # the context directly (rendered HTML may include the rest of the
         # timeline in the History tab).
-        self.assertEqual(len(resp.context["recent_activity"]), 3)
+        self.assertEqual(len(resp.context["recent_logs"]), 3)
         # The 3 newest should be in the card; oldest 2 should NOT be in
-        # recent_activity list (even though they appear elsewhere).
-        recent_summaries = [log.summary for log in resp.context["recent_activity"]]
+        # recent_logs list (even though they appear elsewhere).
+        recent_summaries = [log.summary for log in resp.context["recent_logs"]]
         self.assertIn("Log number 4", recent_summaries)
         self.assertIn("Log number 3", recent_summaries)
         self.assertIn("Log number 2", recent_summaries)

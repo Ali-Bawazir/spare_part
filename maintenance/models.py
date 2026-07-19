@@ -320,16 +320,6 @@ class WorkOrder(models.Model):
         WAITING_VENDOR = "waiting_vendor", _("Waiting vendor")
         PAUSED         = "paused",         _("Paused")
 
-    class Status(models.TextChoices):
-        APPROVED = "approved", _("Approved")
-        ASSIGNED = "assigned", _("Assigned")
-        IN_PROGRESS = "in_progress", _("In progress")
-        PAUSED = "paused", _("Paused")
-        WAITING_FOR_VENDOR = "waiting_vendor", _("Waiting for vendor")
-        PENDING_PARTS = "pending_parts", _("Pending parts")
-        PENDING_REVIEW = "pending_review", _("Pending manager review")
-        CLOSED = "closed", _("Closed")
-
     class PauseReason(models.TextChoices):
         """Categorized reason for pausing a work order.
 
@@ -690,7 +680,7 @@ class PMExecution(models.Model):
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="pm_executions_legacy_approved",
+        related_name="pm_executions_approved",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
@@ -704,11 +694,6 @@ class PMExecution(models.Model):
     assigned_at = models.DateTimeField(null=True, blank=True)
     reassignment_count = models.PositiveIntegerField(default=0)
     last_reassignment_reason = models.CharField(max_length=500, blank=True)
-    approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="pm_executions_approved",
-    )
-    approved_at = models.DateTimeField(null=True, blank=True)
     rejected_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name="pm_executions_rejected",

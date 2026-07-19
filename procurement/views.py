@@ -8,6 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_GET, require_POST
 
 from accounts.models import User
 from accounts.permissions import role_required
@@ -907,6 +908,7 @@ def supplier_quick_create(request):
 
 
 @login_required
+@require_POST
 @role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def purchase_order_close_short(request, pk):
     """Close a PO as short (cancel remaining quantities)."""
@@ -923,7 +925,6 @@ def purchase_order_close_short(request, pk):
                 pr.save(update_fields=["status"])
         messages.success(request, _("PO %(po)s closed short.") % {"po": po.po_number})
         return redirect("purchase_order_detail", pk=pk)
-    return render(request, "procurement/po_close_short.html", {"po": po})
 
 
 @login_required

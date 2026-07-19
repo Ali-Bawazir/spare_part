@@ -783,9 +783,12 @@ def machine_detail(request, pk):
     yesterday_date = today_date - timedelta(days=1)
 
     # Recent Activity card — last 3 logs only, compact one-line rendering.
-    recent_activity = list(
+    # Use .only() to avoid loading the heavy summary/notes blob columns and
+    # follow the author FK in one JOIN (no N+1 on author.username).
+    recent_logs = list(
         machine.quick_logs
         .select_related("author")
+        .only("id", "type", "summary", "created_at", "author__username")
         .order_by("-created_at")[:3]
     )
     if machine.asset_level == 5:
@@ -853,7 +856,7 @@ def machine_detail(request, pk):
         "history_logs": history_page.object_list,
         "history_page": history_page,
         "history_total": history_paginator.count,
-        "recent_activity": recent_activity,
+        "recent_logs": recent_logs,
         "today_date": today_date,
         "yesterday_date": yesterday_date,
     }
@@ -1707,6 +1710,7 @@ def work_order_create_from_issue(request, issue_pk):
 
 
 @login_required
+@require_POST
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_assign(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
@@ -1894,6 +1898,7 @@ def work_order_submit(request, pk):
 
 
 @login_required
+@require_POST
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_close(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
@@ -1920,6 +1925,7 @@ def work_order_close(request, pk):
 
 
 @login_required
+@require_POST
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_issue_part(request, pk):
     wo = get_object_or_404(WorkOrder, pk=pk)
@@ -5973,9 +5979,6 @@ def work_order_block_shortage(request, pk, report_id):
 @login_required
 @require_POST
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
-@login_required
-@require_POST
-@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_cancel_part_line(request, pk, line_id):
     """Manager cancels an APPROVED or ALLOCATED part line that was
     never warehouse-issued. Releases the reservation and fires
@@ -6013,6 +6016,9 @@ def work_order_cancel_part_line(request, pk, line_id):
     return redirect("work_order_detail", pk=wo.pk)
 
 
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_warehouse_issue(request, pk, line_id):
     """Warehouse executes the issue against current stock (v4.8).
 
@@ -6237,6 +6243,7 @@ def active_blockers_dashboard(request):
 
 
 @login_required
+@require_POST
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def work_order_adjust_cost(request, pk):
     """Manager creates a manual cost adjustment on a WorkOrder.

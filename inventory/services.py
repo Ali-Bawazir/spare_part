@@ -125,47 +125,6 @@ def stock_in(
     return movement
 
 
-def _create_procurement_for_shortage(
-    *,
-    part: SparePart,
-    quantity: Decimal,
-    work_order: WorkOrder,
-    created_by,
-    note_suffix: str = "",
-):
-    """Create a PurchaseRequest for a parts shortage. Idempotent: if a
-    PENDING PR already exists for the same (work_order, part), skip
-    creation. Manager can edit the existing PR manually if the qty
-    needs to change.
-    """
-    from maintenance.notifications import notify_procurement_request
-    from procurement.models import PurchaseRequest
-
-    if quantity <= 0:
-        return None
-
-    existing = PurchaseRequest.objects.filter(
-        work_order=work_order,
-        part=part,
-        status=PurchaseRequest.Status.PENDING,
-    ).first()
-    if existing is not None:
-        return existing
-
-    pr = PurchaseRequest.objects.create(
-        part=part,
-        work_order=work_order,
-        quantity=quantity,
-        notes=(
-            f"Auto: shortage for WO-{work_order.number}. {note_suffix}"
-        ).strip(),
-        status=PurchaseRequest.Status.PENDING,
-        created_by=created_by,
-    )
-    notify_procurement_request(pr)
-    return pr
-
-
 def _deduct_and_record_issue(
     *, wo, part, quantity, unit_cost, invoice_ref, supplier_name, issued_by, ref, site=None
 ):
@@ -1183,27 +1142,6 @@ def cancel_approved_part_request(
             f"Failed to refresh WO cost cache after cancel for line {line.pk}: {e}"
         )
 
-    return line
-    reason = (reason or "").strip()
-    if not reason:
-        raise ValueError(_("Rejection reason is required."))
-    line.status = PartIssueLine.Status.REJECTED
-    line.rejection_reason = reason[:1000]
-    line.approved_by = manager
-    line.approved_at = timezone.now()
-    line.approved_qty = Decimal("0")
-    line.issued_qty = Decimal("0")
-    line.save(update_fields=[
-        "status", "rejection_reason", "approved_by", "approved_at",
-        "approved_qty", "issued_qty", "updated_at",
-    ])
-    log_audit(
-        actor=manager,
-        action="part_request_rejected",
-        entity="WorkOrder",
-        object_id=str(line.work_order.pk),
-        payload={"line_id": line.pk, "part": line.part.sku, "reason": reason[:200]},
-    )
     return line
 
 

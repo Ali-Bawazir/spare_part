@@ -647,9 +647,9 @@ def technician_stats(technician: User) -> dict:
         wo.rejection_count or 0
         for wo in WorkOrder.objects.filter(assigned_technician=technician)
     )
-    external_repair_count = closed.filter(
-        state_logs__to_status="waiting_vendor"
-    ).distinct().count()
+    external_repair_count = (
+        closed.filter(external_repairs__isnull=False).distinct().count()
+    )
 
     # Average repair duration (labor minutes) on closed WOs
     durations = []
