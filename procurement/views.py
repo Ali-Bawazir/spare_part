@@ -1139,7 +1139,7 @@ def purchase_order_close_short(request, pk):
         # (the line is closed — there's no future shipment expected).
         for item in po.items.all():
             item.backordered_qty = Decimal("0")
-            item.save(update_fields=["backordered_qty", "updated_at"])
+            item.save(update_fields=["backordered_qty"])
     messages.success(request, _("PO %(po)s closed short.") % {"po": po.po_number})
     return redirect("purchase_order_detail", pk=pk)
 
