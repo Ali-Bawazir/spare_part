@@ -4,6 +4,8 @@ Currently hosts the stock-in (goods receipt) workflow, which conceptually
 belongs to inventory rather than maintenance. Migrated from maintenance.views
 as part of the supplier-intelligence refactor.
 """
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -13,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from accounts.models import User
 from accounts.permissions import role_required
 from inventory.forms import StockInForm
-from inventory.models import SparePart
+from inventory.models import Inventory, SparePart
 from inventory.services import stock_in
 from maintenance.models import Site
 
@@ -26,6 +28,17 @@ def _new_supplier_url(next_url: str) -> str:
     return f"{reverse('supplier_create')}?{urlencode({'next': next_url})}"
 
 
+def _build_part_stock_data(form) -> str:
+    """Build a {part_id: quantity_available} dict from the form's part queryset
+    and JSON-serialize it. Used by the live stock badge in stock_in.html.
+    """
+    stock_data = {
+        inv.part_id: float(inv.quantity_available)
+        for inv in Inventory.objects.filter(part__in=form.fields["part"].queryset)
+    }
+    return json.dumps(stock_data)
+
+
 @login_required
 @role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
 def stock_in_view(request):
@@ -33,6 +46,13 @@ def stock_in_view(request):
     next_url = request.path
     if request.method == "POST":
         form = StockInForm(request.POST)
+    else:
+        form = StockInForm()
+    # Live stock badge: build {part_id: quantity_available} for all parts
+    # in the form's queryset. Operator/manager can see current stock before
+    # receiving new quantity.
+    stock_data_json = _build_part_stock_data(form)
+    if request.method == "POST":
         if form.is_valid():
             stock_in(
                 part=form.cleaned_data["part"],
@@ -58,12 +78,11 @@ def stock_in_view(request):
                     note="Invoice attachment from stock-in",
                 )
             return redirect("stock_dashboard")
-    else:
-        form = StockInForm()
 
     return render(request, "inventory/stock_in.html", {
         "form": form,
         "part": None,
+        "stock_data_json": stock_data_json,
         "new_supplier_url": _new_supplier_url(next_url),
     })
 
@@ -86,6 +105,10 @@ def part_stock_in(request, pk):
 
     if request.method == "POST":
         form = StockInForm(request.POST)
+    else:
+        form = StockInForm(initial={"part": part.pk})
+    stock_data_json = _build_part_stock_data(form)
+    if request.method == "POST":
         if form.is_valid():
             stock_in(
                 part=form.cleaned_data["part"],
@@ -115,12 +138,11 @@ def part_stock_in(request, pk):
                     note="Invoice attachment from stock-in",
                 )
             return redirect("spare_part_detail", pk=part.pk)
-    else:
-        form = StockInForm(initial={"part": part.pk})
 
     return render(request, "inventory/stock_in.html", {
         "form": form,
         "part": part,
         "page_heading": _("Stock-in — %(part)s") % {"part": part.name},
+        "stock_data_json": stock_data_json,
         "new_supplier_url": _new_supplier_url(next_url),
     })

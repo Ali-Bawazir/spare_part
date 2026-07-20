@@ -127,6 +127,45 @@ class CostLedgerBasicPostTests(TestCase):
         self.assertEqual(txn.source_type, "external_repair_order")
         self.assertEqual(txn.source_id, ero.pk)
 
+    def test_ero_save_auto_fire_posts_vendor_repair_cost(self):
+        """When an ERO transitions RETURNED → CLOSED via direct .save()
+        (no view involved), the model must auto-post a vendor_repair cost
+        transaction so the WO cost rollup is correct on any save path.
+        """
+        from maintenance.models import ExternalRepairOrder
+        # Build ERO already in RETURNED state (the typical pre-close state).
+        ero = ExternalRepairOrder.objects.create(
+            work_order=self.wo, machine=self.machine,
+            title="ERO for auto-fire test", description="d",
+            actual_cost=Decimal("0"),
+            invoice_ref="",
+            status=ExternalRepairOrder.Status.RETURNED,
+            created_by=self.manager,
+        )
+        # No CostTransaction yet.
+        self.assertFalse(
+            CostTransaction.objects.filter(
+                source_type="external_repair_order", source_id=ero.pk,
+            ).exists()
+        )
+        # Trigger the status transition via direct .save() — no view path.
+        ero.actual_cost = Decimal("275.50")
+        ero.invoice_ref = "INV-AUTO-001"
+        ero.status = ExternalRepairOrder.Status.CLOSED
+        ero.save()
+
+        # The model's auto-fire must have posted the cost.
+        self.assertTrue(
+            CostTransaction.objects.filter(
+                work_order=self.wo,
+                source_type="external_repair_order",
+                source_id=ero.pk,
+                amount=Decimal("275.50"),
+            ).exists(),
+            "ExternalRepairOrder.save() must auto-post vendor_repair cost "
+            "on status transition → CLOSED",
+        )
+
     def test_post_consumable_creates_transaction(self):
         """post_consumable: StockMovement(qty × unit_cost) → one CostTransaction(CONSUMABLE)."""
         from inventory.models import Inventory, StockMovement

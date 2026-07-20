@@ -39,6 +39,12 @@
             {% if po.status == 'partial' or po.status == 'sent' %}
             <a href="{% url 'purchase_order_close_short' po.pk %}" class="mms-btn mms-btn--ghost" style="margin-bottom:0.5rem">{% trans "Close Short" %}</a>
             {% endif %}
+            {% if not po.is_locked %}
+            <a href="{% url 'purchase_order_edit' po.pk %}" class="mms-btn mms-btn--ghost" style="margin-bottom:0.5rem">{% trans "✎ Edit" %}</a>
+            {% endif %}
+            {% if po.status == 'draft' or po.status == 'sent' %}
+            <a href="{% url 'purchase_order_cancel' po.pk %}" class="mms-btn mms-btn--danger" style="margin-bottom:0.5rem">{% trans "✗ Cancel" %}</a>
+            {% endif %}
             <a href="{% url 'purchase_order_pdf' po.pk %}" class="mms-btn mms-btn--primary" target="_blank" style="margin-bottom:0.5rem">{% trans "📄 Download PDF" %}</a>
             <a href="{% url 'purchase_order_list' %}" class="mms-btn mms-btn--ghost" style="margin-bottom:0.5rem">{% trans "← Back" %}</a>
         </div>
@@ -54,8 +60,9 @@
         <table class="mms-table">
             <thead>
                 <tr>
-                    <th>{% trans "Part" %}</th>
-                    <th>{% trans "SKU" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "Item" %}</th>
+                    <th>{% trans "SKU / Code" %}</th>
                     <th>{% trans "Ordered Qty" %}</th>
                     <th>{% trans "Received Qty" %}</th>
                     <th>{% trans "Remaining" %}</th>
@@ -67,15 +74,32 @@
             {% for item in items_with_inventory %}
                 <tr>
                     <td>
-                        {% part_primary_image item.item.part as img %}
-                        {% if img %}
-                        <a href="{{ img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
-                            <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
-                        </a>
-                        {% endif %}
-                        {{ item.item.part.name }}
+                        {% if item.item.part %}
+                            <span class="mms-badge mms-badge--primary">{% trans "Part" %}</span>
+                        {% elif item.item.tool %}
+                            <span class="mms-badge mms-badge--accent">{% trans "Tool" %}</span>
+                        {% else %}—{% endif %}
                     </td>
-                    <td>{{ item.item.part.sku }}</td>
+                    <td>
+                        {% if item.item.part %}
+                            {% part_primary_image item.item.part as img %}
+                            {% if img %}
+                            <a href="{{ img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+                                <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+                            </a>
+                            {% endif %}
+                            {{ item.item.part.name }}
+                        {% elif item.item.tool %}
+                            {{ item.item.tool.name }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if item.item.part %}
+                            {{ item.item.part.sku }}
+                        {% elif item.item.tool %}
+                            {{ item.item.tool.code }}
+                        {% else %}—{% endif %}
+                    </td>
                     <td>{{ item.item.ordered_qty }}</td>
                     <td>{{ item.item.received_qty }}</td>
                     <td>{{ item.item.remaining_qty }}</td>
@@ -92,10 +116,13 @@
                     <td>{{ item.item.total_price }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="7">{% trans "No line items." %}<a href="#" onclick="alert('{% trans 'Add items from PO detail page in Phase 2' %}')">{% trans "Add item" %}</a></td></tr>
+                <tr><td colspan="8">{% trans "No line items." %}<a href="#" onclick="alert('{% trans 'Add items from PO detail page in Phase 2' %}')">{% trans "Add item" %}</a></td></tr>
             {% endfor %}
             </tbody>
         </table>
+        {% if tool_line_count %}
+        <p class="text-muted" style="margin-top:0.5rem"><em>{% blocktrans count tool_line_count as count %}{{ count }} tool-only line in this PO.{% plural %}{{ count }} tool-only lines in this PO.{% endblocktrans %}</em></p>
+        {% endif %}
         {% if not po.is_locked %}
         <p class="text-muted" style="margin-top:0.5rem"><em>{% trans "To add line items, use " %}<strong>{% trans "Create from PR" %}</strong>{% trans " or contact admin." %}</em></p>
         {% endif %}

@@ -741,3 +741,32 @@ def notify_wo_part_rejected(line, reason, actor):
             kind=Notification.Kind.WO_PART_REJECTED,
             title=title, body=body, link=link,
         )
+
+
+def notify_tool_damaged(record) -> None:
+    """Notify managers + supervisors that a tool was reported damaged or lost.
+
+    `record` is a `ToolDamageRecord`. Includes the tool code, supplier snapshot,
+    and the recommended replacement_action.
+    """
+    from maintenance.models import Notification
+
+    supplier_label = record.supplier.name if record.supplier_id else _("(no supplier recorded)")
+    tool_label = f"{record.tool.name} ({record.tool.code})"
+    title = _(f"Tool damaged: {tool_label}")
+    body = _(
+        f"{record.get_damage_kind_display()} • supplier: {supplier_label} "
+        f"• suggested action: {record.get_replacement_action_display()}"
+    )
+    link = reverse("tool_damage_global")
+    try:
+        link = reverse("tool_damage_global")
+    except Exception:
+        link = reverse("tool_list")
+    _notify_users(
+        _managers_supervisors_supers(),
+        kind=Notification.Kind.TOOL_DAMAGED,
+        title=title,
+        body=body,
+        link=link,
+    )

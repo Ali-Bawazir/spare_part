@@ -67,8 +67,11 @@ tr.mms-row--clickable:hover { background-color: var(--mms-hover-bg, #f5f5f5); }
             {% endif %}
           {% endif %}
           {% if perm_issue_archive and i.status != 'converted' and not i.is_archived %}
-            <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_archive' i.pk %}"
-               data-confirm-msg="{% blocktrans with n=i.pk %}Archive issue #{{ n }}? This cannot be undone.{% endblocktrans %}">{% trans "Archive" %}</a>
+            <form method="post" action="{% url 'issue_archive' i.pk %}" style="display:inline"
+                  onsubmit="return confirm('{% blocktrans with n=i.pk %}Archive issue #{{ n }}? This cannot be undone.{% endblocktrans %}')">
+              {% csrf_token %}
+              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">{% trans "Archive" %}</button>
+            </form>
           {% endif %}
         </td>
       </tr>

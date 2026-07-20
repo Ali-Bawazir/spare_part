@@ -16,6 +16,7 @@ urlpatterns = [
     # Manager (6 + 1 detail)
     path("manage/", views_preventive.mgr_dashboard, name="mgr_dashboard"),
     path("manage/today/", views_preventive.mgr_today, name="mgr_today"),
+    path("manage/today/regenerate/", views_preventive.mgr_today_regenerate, name="mgr_today_regenerate"),
     path("manage/reviews/", views_preventive.mgr_reviews, name="mgr_reviews"),
     path("manage/reviews/<int:occurrence_id>/approve/", views_preventive.mgr_review_approve, name="review_approve"),
     path("manage/reviews/<int:occurrence_id>/return/", views_preventive.mgr_review_return, name="review_return"),

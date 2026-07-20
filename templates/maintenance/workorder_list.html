@@ -13,7 +13,21 @@
     <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
     {% endfor %}
   </select>
+  {% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
 </form>
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <span style="color:#6b7280;font-size:0.85rem">{% trans "View:" %}</span>
+    <a href="{% url 'work_order_list' %}"
+       class="mms-btn {% if not show_archived %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">
+       {% trans "Active" %} ({{ active_count }})
+    </a>
+    <a href="{% url 'work_order_list' %}?archived=1"
+       class="mms-btn {% if show_archived %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">
+       {% trans "Archived" %} ({{ archived_count }})
+    </a>
+  </div>
+</div>
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
@@ -28,7 +42,27 @@
         <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">{% trans "n/a" %}</span>{% endif %}</td>
 <td>{{ w.get_category_display }}</td>
         <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
-        <td>{% if not w.is_archived %}<a href="{% url 'work_order_archive' w.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation();return confirm('{% trans 'Archive this work order?' %}')">{% trans "Archive" %}</a>{% else %}<span class="mms-badge mms-badge--archived">{% trans "Archived" %}</span>{% endif %}</td>
+        <td>
+          {% if show_archived and w.is_archived %}
+            <form method="post" action="{% url 'work_order_restore' w.pk %}" style="display:inline"
+                  onsubmit="return confirm('{% blocktrans with n=w.number %}Restore WO-{{ n }} from archive?{% endblocktrans %}')">
+              {% csrf_token %}
+              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
+                {% trans "Restore" %}
+              </button>
+            </form>
+          {% elif not w.is_archived %}
+            <form method="post" action="{% url 'work_order_archive' w.pk %}" style="display:inline"
+                  onsubmit="return confirm('{% trans 'Archive this work order?' %}')">
+              {% csrf_token %}
+              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
+                {% trans "Archive" %}
+              </button>
+            </form>
+          {% else %}
+            <span class="mms-badge mms-badge--archived">{% trans "Archived" %}</span>
+          {% endif %}
+        </td>
       </tr>
       {% empty %}<tr><td colspan="8" class="mms-empty">{% trans "No work orders." %}</td></tr>{% endfor %}
       </tbody>

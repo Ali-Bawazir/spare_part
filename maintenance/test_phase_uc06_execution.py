@@ -242,6 +242,7 @@ class VendorReturnedUnblocksWOTests(TestCase):
     technician can resume work without waiting for manager acceptance."""
 
     def setUp(self):
+        ExternalRepairOrder._disable_auto_fire = True
         self.manager = _make_user("mgr", User.Role.MANAGER)
         self.tech = _make_user("tech", User.Role.TECHNICIAN)
         self.machine = _make_machine(asset_code="V-1")
@@ -270,6 +271,10 @@ class VendorReturnedUnblocksWOTests(TestCase):
         # Vendor returns
         self.ero.status = ExternalRepairOrder.Status.RETURNED
         self.ero.save()
+
+    def tearDown(self):
+        ExternalRepairOrder._disable_auto_fire = False
+        super().tearDown()
 
     def test_ero_returned_resolves_vendor_repair_blocker(self):
         from maintenance.services_blocker import WorkOrderBlockerService

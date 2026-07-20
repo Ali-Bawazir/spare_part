@@ -67,7 +67,9 @@ class PartRequestForm(forms.Form):
     """Phase 2.1: technician-initiated part request.
 
     Only the part and quantity are required; cost/supplier/invoice
-    are filled by the manager at approval time.
+    are filled by the manager at approval time. Phase 5 adds an
+    optional activity_label (display only) — full duplicate-prevention
+    UI lands in Phase 5.5.
     """
     part = forms.ModelChoiceField(
         queryset=SparePart.objects.filter(status="active"),
@@ -86,6 +88,19 @@ class PartRequestForm(forms.Form):
         max_length=500,
         label=_("Note"),
         widget=forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional note for the manager")}),
+    )
+    activity_label = forms.CharField(
+        required=False,
+        max_length=120,
+        label=_("Activity label"),
+        widget=forms.TextInput(attrs={
+            **_CTRL,
+            "placeholder": _("e.g., Bearing replacement — motor 3"),
+        }),
+        help_text=_(
+            "Optional label that groups multiple lines as the same "
+            "maintenance activity. Displayed in the WO detail timeline."
+        ),
     )
 
 

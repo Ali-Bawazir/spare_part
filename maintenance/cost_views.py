@@ -63,6 +63,7 @@ class MachineCost:
     vendor_repair: Decimal
     consumable: Decimal
     adjustment: Decimal
+    procurement: Decimal
     wo_count: int
     failure_count: int
     currency: str = "SAR"
@@ -102,6 +103,7 @@ class MachineCost:
         wo_ids = list(
             WorkOrder.objects.filter(wo_q).values_list("id", flat=True)
         )
+        procurement = _procurement_total_for_wos(wo_ids, since)
         return cls(
             machine=machine,
             period_days=period_days,
@@ -109,6 +111,7 @@ class MachineCost:
             vendor_repair=by_cat.get(CostCategory.VENDOR_REPAIR, Decimal("0")),
             consumable=by_cat.get(CostCategory.CONSUMABLE, Decimal("0")),
             adjustment=by_cat.get(CostCategory.ADJUSTMENT, Decimal("0")),
+            procurement=procurement,
             wo_count=wo_count,
             failure_count=_failure_count(wo_ids, since),
         )
@@ -123,6 +126,7 @@ class ComponentCost:
     vendor_repair: Decimal
     consumable: Decimal
     adjustment: Decimal
+    procurement: Decimal
     wo_count: int
     failure_count: int
     currency: str = "SAR"
@@ -157,6 +161,7 @@ class ComponentCost:
         wo_q = Q(component=component) | Q(machine=component)
         wo_count = WorkOrder.objects.filter(wo_q, updated_at__gte=since).count()
         wo_ids = list(WorkOrder.objects.filter(wo_q).values_list("id", flat=True))
+        procurement = _procurement_total_for_wos(wo_ids, since)
         return cls(
             component=component,
             period_days=period_days,
@@ -164,9 +169,36 @@ class ComponentCost:
             vendor_repair=by_cat.get(CostCategory.VENDOR_REPAIR, Decimal("0")),
             consumable=by_cat.get(CostCategory.CONSUMABLE, Decimal("0")),
             adjustment=by_cat.get(CostCategory.ADJUSTMENT, Decimal("0")),
+            procurement=procurement,
             wo_count=wo_count,
             failure_count=_failure_count(wo_ids, since),
         )
+
+
+# Phase 2d: aggregate helper for Machine/Component rollups. Computes
+# procurement cost (POItem.received_qty × actual_unit_price) for the
+# given WO ids within the time window. Returns Decimal("0") if no PO
+# lines match. Cheap because the join path is fully indexed.
+def _procurement_total_for_wos(wo_ids, since) -> Decimal:
+    if not wo_ids:
+        return Decimal("0")
+    from django.db.models import F, Sum, DecimalField
+    from procurement.models import PurchaseOrderItem
+    result = (
+        PurchaseOrderItem.objects
+        .filter(
+            purchase_order__purchase_requests__work_order_id__in=wo_ids,
+            received_qty__gt=0,
+            purchase_order__purchase_requests__work_order__updated_at__gte=since,
+        )
+        .annotate(
+            line_total=F("received_qty") * F("actual_unit_price"),
+        )
+        .aggregate(
+            total=Sum("line_total", output_field=DecimalField(max_digits=14, decimal_places=2))
+        )["total"]
+    )
+    return result or Decimal("0")
 
 
 # Standard periods shown on every cost tab

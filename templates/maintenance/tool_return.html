@@ -3,7 +3,7 @@
 {% block title %}Return tool{% endblock %}
 {% block page_heading %}Return: {{ assignment.tool }}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">{% trans "Record return condition so the tool goes back to available stock." %}</p>
+<p class="mms-page-lead">{% trans "Record return condition so the tool goes back to available stock. Damaged or lost tools are archived (out of service) — no separate repair work order is created." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
@@ -11,8 +11,30 @@
       {{ form.as_p }}
       <div class="mms-form-actions">
         <button class="mms-btn mms-btn--primary" type="submit">{% trans "Confirm return" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'tool_list' %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>
 </div>
+<script>
+(function(){
+  var condSel = document.getElementById('id_condition');
+  if (!condSel) return;
+  function update(){
+    var v = condSel.value;
+    var reason = document.getElementById('id_damage_reason');
+    var kind = document.getElementById('id_damage_kind');
+    var supplier = document.getElementById('id_supplier');
+    var repl = document.getElementById('id_replacement_action');
+    var show = v === 'damaged' || v === 'lost';
+    [reason, kind, supplier, repl].forEach(function(el){
+      if (!el) return;
+      var row = el.closest('.mms-form-row, p') || el.parentElement;
+      if (row) row.style.display = show ? '' : 'none';
+    });
+  }
+  condSel.addEventListener('change', update);
+  update();
+})();
+</script>
 {% endblock %}

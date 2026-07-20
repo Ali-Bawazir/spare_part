@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -339,6 +340,31 @@ class PartIssueLine(models.Model):
             "emergency. Manager should review the cost and edit the qty if needed."
         ),
     )
+    # Phase 3: emergency post-review state. Set only on lines with
+    # is_emergency_auto_approved=True. Three outcomes — none of them revert
+    # the inventory deduction or the cost posting (the user's emergency
+    # design is one-way: issue → audit → review).
+    emergency_review_status = models.CharField(
+        max_length=16,
+        blank=True,
+        choices=[
+            ("approved", _("Approve")),
+            ("exception", _("Mark as Exception")),
+            ("investigate", _("Investigate Misuse")),
+        ],
+        help_text=_(
+            "Manager post-review on an emergency auto-issued line. "
+            "Empty until reviewed. None of the three outcomes reverts the "
+            "inventory or the cost — stock stays consumed, cost stays posted."
+        ),
+    )
+    emergency_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="part_issues_emergency_reviewed",
+    )
+    emergency_reviewed_at = models.DateTimeField(null=True, blank=True)
+    emergency_review_note = models.CharField(max_length=1000, blank=True)
     requested_qty = models.DecimalField(
         max_digits=14, decimal_places=3, default=0,
         help_text=_(
@@ -385,6 +411,31 @@ class PartIssueLine(models.Model):
             "line it replaces. Preserves the audit trail of the original decision."
         ),
     )
+    # Phase 5: per-line activity_uuid. Stable identity used for grouping
+    # lines of the same maintenance activity (e.g. "Bearing replacement
+    # — motor 3" might later become multiple lines for the same logical
+    # activity). Server-generated; NOT a uniqueness key. Duplicate
+    # prevention is enforced at the service layer in request_part_on_wo().
+    activity_uuid = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        db_index=True,
+        help_text=_(
+            "Stable identity for this line's maintenance activity. "
+            "Not part of any uniqueness constraint — duplicate prevention "
+            "is handled at the service layer. Used for grouping lines of "
+            "the same activity, audit cross-references, and Phase 2.5+ "
+            "Activity model extraction."
+        ),
+    )
+    activity_label = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text=_(
+            "Display label for the activity (free text, optional). Used "
+            "for human readability in lists and the WO detail timeline."
+        ),
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -394,6 +445,21 @@ class PartIssueLine(models.Model):
             raise ValidationError(_("Quantity must be positive."))
         if self.status == self.Status.REJECTED and not self.rejection_reason.strip():
             raise ValidationError(_("Rejection reason is required when status is REJECTED."))
+
+    # Phase 3 BUG-11: canonical shortage_qty computation. Replaces divergent
+    # ad-hoc assignments scattered across request_part_on_wo, approve_part_request,
+    # edit_part_request_qty, create_shortage_decision. The canonical formula
+    # (per CONTEXT.md) is: max(0, requested_qty − approved_qty).
+    def compute_shortage_qty(self) -> Decimal:
+        """Return canonical shortage_qty for this line.
+
+        Formula: max(0, requested_qty − approved_qty). approved_qty defaults to
+        0 while PENDING, in which case shortage = requested_qty.
+        """
+        requested = self.requested_qty or self.quantity
+        approved = self.approved_qty or Decimal("0")
+        diff = requested - approved
+        return diff if diff > Decimal("0") else Decimal("0")
 
 
 class ConsumableAssignment(models.Model):

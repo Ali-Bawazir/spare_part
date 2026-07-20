@@ -3,7 +3,9 @@ from decimal import Decimal
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.validators import MinLengthValidator
 from django.forms.models import inlineformset_factory
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from .models import (
@@ -19,6 +21,7 @@ from .models import (
     QuickMaintenanceLog,
     Tool,
     ToolAssignment,
+    ToolDamageRecord,
     WorkOrder,
 )
 
@@ -295,6 +298,85 @@ class PMScheduleForm(forms.ModelForm):
     def __init__(self, *args, lock_asset=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["template"].queryset = PMTemplate.objects.filter(is_active=True).order_by("code")
+        # Pre-populate sensible defaults so the form is one-click for the
+        # manager (the model has these defaults but Django's ModelForm
+        # doesn't apply them as `initial` for unbound forms).
+        for fname, default in (
+            ("grace_days", 7),
+            ("reminder_days_before", 7),
+            ("trigger_type", "time"),
+            ("frequency_type", "monthly"),
+            ("interval", 1),
+            ("is_active", True),
+        ):
+            if fname in self.fields and not self.fields[fname].initial:
+                self.fields[fname].initial = default
+        # next_due_at defaults to start_date + (frequency × interval) at 08:00.
+        # Frequency-aware: respects the chosen cadence (daily/weekly/monthly/yearly)
+        # so the first occurrence lands where the user expects.
+        from datetime import datetime, time, timedelta
+        if "next_due_at" in self.fields and not self.fields["next_due_at"].initial:
+            now = timezone.now() if hasattr(timezone, "now") else __import__("django.utils.timezone", fromlist=["timezone"]).now()
+            # The form renders next_due_at as datetime-local. Pull the
+            # start_date initial if the user filled it (fallback to today).
+            start = (
+                self.initial.get("start_date")
+                or (
+                    self.fields["start_date"].initial
+                    if self.fields.get("start_date")
+                    else None
+                )
+                or now.date()
+            )
+            if callable(start):
+                start = start()
+            if isinstance(start, str):
+                start = datetime.strptime(start, "%Y-%m-%d").date()
+            elif hasattr(start, "date"):
+                start = start.date()
+            freq = (
+                self.initial.get("frequency_type")
+                or self.fields.get("frequency_type", {}).initial
+                or "monthly"
+            )
+            interval = (
+                self.initial.get("interval")
+                or self.fields.get("interval", {}).initial
+                or 1
+            )
+            try:
+                interval = int(interval)
+            except Exception:
+                interval = 1
+            if freq == "daily":
+                delta = timedelta(days=interval)
+            elif freq == "weekly":
+                delta = timedelta(weeks=interval)
+            elif freq == "monthly":
+                # Calendar-aware: same day-of-month, one month later.
+                # Clamp to last day if the target month is shorter.
+                import calendar
+                target_month = start.month + interval
+                target_year = start.year + (target_month - 1) // 12
+                target_month = ((target_month - 1) % 12) + 1
+                last_day = calendar.monthrange(target_year, target_month)[1]
+                target_day = min(start.day, last_day)
+                next_date = datetime(target_year, target_month, target_day).date()
+                self.fields["next_due_at"].initial = datetime.combine(next_date, time(8, 0))
+            elif freq == "yearly":
+                try:
+                    next_date = start.replace(year=start.year + interval)
+                except ValueError:
+                    # Feb 29 → Feb 28 next year
+                    next_date = start.replace(
+                        year=start.year + interval, day=28,
+                    )
+                self.fields["next_due_at"].initial = datetime.combine(next_date, time(8, 0))
+            else:
+                delta = timedelta(days=7)  # safe fallback
+            # For daily / weekly / fallback, set initial now.
+            if freq in ("daily", "weekly") or self.fields["next_due_at"].initial is None:
+                self.fields["next_due_at"].initial = datetime.combine(start + delta, time(8, 0))
         for fname in ("template", "frequency_type", "interval", "start_date", "next_due_at",
                        "priority_override", "estimated_duration_override",
                        "grace_days", "reminder_days_before", "trigger_type"):
@@ -388,6 +470,12 @@ class PMTemplateForm(forms.ModelForm):
         help_text=_("Minimum number of photos the technician must attach"),
     )
 
+    def clean_requires_photo_min_count(self):
+        val = self.cleaned_data.get("requires_photo_min_count")
+        if val is None or val == "":
+            return 0
+        return int(val)
+
     class Meta:
         model = PMTemplate
         fields = ("code", "title", "description", "estimated_duration_minutes",
@@ -434,22 +522,102 @@ class ToolReturnForm(forms.Form):
         widget=forms.Select(attrs=_SEL),
         label=_("Condition"),
     )
+    damage_kind = forms.ChoiceField(
+        choices=ToolDamageRecord.DamageKind.choices,
+        widget=forms.Select(attrs=_SEL),
+        required=False,
+        label=_("Damage kind"),
+        help_text=_("Required if condition is Damaged or Lost."),
+    )
+    supplier = forms.ModelChoiceField(
+        queryset=None,
+        widget=forms.Select(attrs=_SEL),
+        required=False,
+        label=_("Supplier who supplied this unit"),
+        help_text=_("Auto-set from the tool record. Override only if unknown."),
+    )
+    damage_reason = forms.CharField(
+        widget=forms.Textarea(attrs={**_CTRL, "rows": 3, "minlength": "15", "placeholder": _("Describe what happened — at least 15 characters.")}),
+        required=False,
+        label=_("Reason"),
+        help_text=_("Minimum 15 characters."),
+    )
+    replacement_action = forms.ChoiceField(
+        choices=ToolDamageRecord.ReplacementAction.choices,
+        widget=forms.Select(attrs=_SEL),
+        required=False,
+        initial=ToolDamageRecord.ReplacementAction.BUY_FROM_OTHER,
+        label=_("Recommended replacement action"),
+    )
+
+    def __init__(self, *args, tool=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from procurement.models import Supplier
+        self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True).order_by("name")
+        self.fields["supplier"].empty_label = _("— Select supplier —")
+        if tool is not None and tool.supplier_id:
+            self.fields["supplier"].initial = tool.supplier_id
+            self.fields["supplier"].disabled = True
+        self._tool = tool
+
+    def clean(self):
+        cleaned = super().clean()
+        cond = cleaned.get("condition")
+        if cond in (ToolAssignment.ReturnCondition.DAMAGED, ToolAssignment.ReturnCondition.LOST):
+            if not cleaned.get("damage_kind"):
+                self.add_error("damage_kind", _("Required when condition is damaged or lost."))
+            reason = (cleaned.get("damage_reason") or "").strip()
+            if len(reason) < 15:
+                self.add_error("damage_reason", _("Please provide at least 15 characters explaining what happened."))
+            if not cleaned.get("supplier"):
+                if self._tool is not None and self._tool.supplier_id:
+                    self.add_error("supplier", _("Required — this tool has a recorded supplier."))
+            if not cleaned.get("replacement_action"):
+                cleaned["replacement_action"] = ToolDamageRecord.ReplacementAction.BUY_FROM_OTHER
+        return cleaned
 
 
 class ToolForm(forms.ModelForm):
     class Meta:
         model = Tool
-        fields = ("code", "name", "status")
+        fields = (
+            "code",
+            "name",
+            "status",
+            "supplier",
+            "purchase_cost",
+            "purchase_date",
+            "invoice_ref",
+            "notes",
+        )
         labels = {
             "code": _("Code"),
             "name": _("Name"),
             "status": _("Status"),
+            "supplier": _("Supplier"),
+            "purchase_cost": _("Purchase cost"),
+            "purchase_date": _("Purchase date"),
+            "invoice_ref": _("Invoice ref"),
+            "notes": _("Notes"),
         }
         widgets = {
-            "code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. TOOL-01"}),
-            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Torque wrench")}),
+            "code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. KNF-A-001 (Type-Supplier-Unit)"}),
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Chef knife 8-inch")}),
             "status": forms.Select(attrs=_SEL),
+            "supplier": forms.Select(attrs=_SEL),
+            "purchase_cost": forms.NumberInput(attrs={**_CTRL, "step": "0.01", "min": "0"}),
+            "purchase_date": forms.DateInput(attrs={**_CTRL, "type": "date"}),
+            "invoice_ref": forms.TextInput(attrs={**_CTRL, "placeholder": _("Vendor invoice number (optional)")}),
+            "notes": forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional notes about this tool")}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from procurement.models import Supplier
+        self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True).order_by("name")
+        self.fields["supplier"].required = False
+        self.fields["supplier"].empty_label = _("— No supplier recorded —")
+        self.fields["supplier"].help_text = _("Optional. Use the supplier quick-create button to add a new vendor.")
 
 
 class ExternalRepairForm(forms.ModelForm):
@@ -790,3 +958,41 @@ class RepairManagerAcceptForm(forms.Form):
         else:
             cleaned["invoice_ref"] = inv
         return cleaned
+
+
+class ToolDamageRecordForm(forms.ModelForm):
+    class Meta:
+        model = ToolDamageRecord
+        fields = ("tool", "supplier", "damage_kind", "damage_reason", "quantity_damaged",
+                  "assignment", "replacement_action")
+        widgets = {
+            "tool": forms.Select(attrs=_SEL),
+            "supplier": forms.Select(attrs=_SEL),
+            "damage_kind": forms.Select(attrs=_SEL),
+            "damage_reason": forms.Textarea(attrs={**_CTRL, "rows": 3, "minlength": "15",
+                "placeholder": _("Describe what happened — at least 15 characters.")}),
+            "quantity_damaged": forms.NumberInput(attrs={**_CTRL, "min": "1", "value": "1"}),
+            "assignment": forms.Select(attrs=_SEL),
+            "replacement_action": forms.Select(attrs=_SEL),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["damage_reason"].required = True
+        self.fields["damage_reason"].validators.append(MinLengthValidator(15))
+        self.fields["assignment"].required = False
+        self.fields["assignment"].queryset = self.fields["assignment"].queryset.filter(returned_at__isnull=False) | \
+                                              self.fields["assignment"].queryset.none()
+        if "tool" in self.data or (self.instance and self.instance.pk):
+            tool = None
+            if self.instance and self.instance.pk:
+                tool = self.instance.tool
+            elif "tool" in self.data:
+                try:
+                    tool = Tool.objects.get(pk=self.data.get("tool"))
+                except (Tool.DoesNotExist, ValueError):
+                    tool = None
+            if tool is not None:
+                self.fields["assignment"].queryset = (
+                    self.fields["assignment"].queryset.filter(tool=tool)
+                )

@@ -182,7 +182,7 @@
                   — approved {{ item.line.approved_qty }} / issued {{ item.line.issued_qty }}
                   = <strong>{{ item.remaining }}</strong> remaining
                   <small style="color:var(--mms-muted)">{% trans "· status:" %}<em>{{ item.line.get_status_display }}</em></small>
-                  <small style="color:var(--mms-muted)">{% trans "· free stock:" %}<strong>{{ item.free_stock }}</strong></small>
+                  <small style="color:var(--mms-muted)">{% trans "· on shelf:" %}<strong>{{ item.quantity_available }}</strong>{% if item.quantity_available != item.free_stock %} <span style="color:var(--mms-muted);font-weight:500">({% trans "free:" %} {{ item.free_stock }})</span>{% endif %}</small>
                 </div>
                 {% if item.has_stock %}
                 <form method="post" action="{% url 'work_order_warehouse_issue' wo.pk item.line.pk %}" style="display:inline">
@@ -194,9 +194,20 @@
                   </button>
                 </form>
                 {% else %}
-                <span class="mms-badge mms-badge--warning" title={% trans "Insufficient stock" %}>
-                  ⚠ Out of stock
-                </span>
+                  {% if item.linked_pr %}
+                    <span class="mms-badge mms-badge--info" title={% trans "Stock is on order — will auto-issue when received" %}>
+                      🟡 {% if item.eta_date %}{% trans "On order" %} — ETA {{ item.eta_date|date:"d M Y" }}{% else %}{% trans "On order" %}{% endif %}
+                      {% if item.linked_po %}
+                        · <a href="{% url 'purchase_order_detail' item.linked_po.pk %}" style="color:inherit">PO #{{ item.linked_po.po_number }}</a>
+                      {% else %}
+                        · <a href="{% url 'pr_detail' item.linked_pr.pk %}" style="color:inherit">PR #{{ item.linked_pr.pk }}</a>
+                      {% endif %}
+                    </span>
+                  {% else %}
+                    <span class="mms-badge mms-badge--warning" title={% trans "Insufficient stock" %}>
+                      ⚠ {% trans "Out of stock" %}
+                    </span>
+                  {% endif %}
                 {% endif %}
                 <button class="mms-btn mms-btn--ghost mms-btn--sm" type="button"
                         onclick="document.getElementById('cancel-form-{{ item.line.pk }}').style.display='block'; this.style.display='none';"

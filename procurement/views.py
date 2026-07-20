@@ -1,3 +1,4 @@
+import json
 import logging
 from decimal import Decimal, InvalidOperation
 
@@ -16,6 +17,7 @@ from inventory.models import Inventory, StockMovement
 from inventory.services import stock_in
 from inventory.services_allocation import PartAllocationService
 from maintenance.models import Machine, Site
+from maintenance.services import log_audit
 from maintenance.services_notifications import notify_po_received_summary
 
 from .forms import PurchaseOfficerForm, PurchaseRequestForm, PurchaseOrderForm, SupplierQuickForm
@@ -29,6 +31,15 @@ logger = logging.getLogger(__name__)
 def purchase_request_create(request):
     if request.method == "POST":
         form = PurchaseRequestForm(request.POST)
+        # Live stock badge: build {part_id: quantity_available} from the
+        # form's part queryset (used on re-render after validation failure
+        # and on initial GET below).
+        stock_data = {
+            inv.part_id: float(inv.quantity_available)
+            for inv in Inventory.objects.filter(part__in=form.fields["part"].queryset)
+        }
+        import json
+        stock_data_json = json.dumps(stock_data)
         if form.is_valid():
             pr = form.save(commit=False)
             pr.created_by = request.user
@@ -106,6 +117,15 @@ def purchase_request_create(request):
         lock_asset = has_deep_link
         form = PurchaseRequestForm(initial=initial, lock_asset=lock_asset)
         locked_asset = None
+        # Live stock badge: build {part_id: quantity_available} from the
+        # form's part queryset. Manager/procurement see current stock
+        # before raising a purchase request.
+        stock_data = {
+            inv.part_id: float(inv.quantity_available)
+            for inv in Inventory.objects.filter(part__in=form.fields["part"].queryset)
+        }
+        import json
+        stock_data_json = json.dumps(stock_data)
 
         def _ancestors(node):
             result = []
@@ -132,6 +152,7 @@ def purchase_request_create(request):
             "locked_asset": locked_asset,
             "machine": Machine.objects.filter(pk=resolved_machine_id).first() if resolved_machine_id else Machine.objects.filter(parent__isnull=True, is_active=True).order_by("pk").first(),
             "ancestors": [],
+            "stock_data_json": stock_data_json,
         },
     )
 
@@ -231,6 +252,62 @@ def purchase_request_detail(request, pk):
     if tree_node is not None:
         context["machine"] = tree_node
     return render(request, "procurement/pr_detail.html", context)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+def create_pr_from_shortage(request, shortage_id):
+    """Create a PurchaseRequest from a closed shortage report (one-click manual).
+
+    Auto-creating a PR when a shortage closes is the wrong default: a shortage
+    does not always mean "buy more" (cancelled, retired, alternative part,
+    transfer from another warehouse, another WO already purchasing, etc.).
+    The manager decides. This view is the manual trigger: one click from the
+    WO shortage card, gated to roles that can create a PR.
+    """
+    from inventory.models import PartShortageReport
+
+    shortage = get_object_or_404(PartShortageReport, pk=shortage_id)
+    if shortage.status != PartShortageReport.Status.CLOSED:
+        messages.error(
+            request,
+            _("Shortage must be closed before creating a backorder PR."),
+        )
+        return redirect("work_order_detail", pk=shortage.work_order_id)
+    if shortage.shortage_qty <= 0:
+        messages.error(request, _("No shortage to backorder."))
+        return redirect("work_order_detail", pk=shortage.work_order_id)
+
+    pr = PurchaseRequest.objects.create(
+        part=shortage.part,
+        machine=shortage.work_order.machine if shortage.work_order_id else None,
+        quantity=shortage.shortage_qty,
+        source_shortage_report=shortage,
+        status=PurchaseRequest.Status.PENDING,
+        created_by=request.user,
+        notes=_(
+            "Backorder PR created from shortage #%(shortage)s on WO-%(wo)s."
+        )
+        % {"shortage": shortage.pk, "wo": shortage.work_order.number},
+    )
+    log_audit(
+        actor=request.user,
+        action="pr_created_from_shortage",
+        entity="PurchaseRequest",
+        object_id=pr.pk,
+        payload={
+            "shortage_id": shortage.pk,
+            "quantity": float(pr.quantity),
+            "work_order_id": shortage.work_order_id,
+        },
+    )
+    messages.success(
+        request,
+        _("Purchase Request #%(pk)s created (qty %(qty)s) for shortage #%(shortage)s.")
+        % {"pk": pr.pk, "qty": pr.quantity, "shortage": shortage.pk},
+    )
+    return redirect("pr_detail", pk=pr.pk)
 
 
 @login_required
@@ -442,6 +519,50 @@ def purchase_order_create(request):
     if request.method == "POST":
         form = PurchaseOrderForm(request.POST)
         formset = POItemFormSet(request.POST, prefix="items")
+    else:
+        initial = {}
+        if pr_id:
+            initial["purchase_request"] = pr_id
+        supplier_id = request.GET.get("supplier")
+        if supplier_id:
+            try:
+                from procurement.models import Supplier
+                if Supplier.objects.filter(pk=supplier_id, is_active=True).exists():
+                    initial["supplier"] = int(supplier_id)
+            except (ValueError, TypeError):
+                pass
+        form = PurchaseOrderForm(initial=initial)
+        formset = POItemFormSet(prefix="items", queryset=PurchaseOrderItem.objects.none())
+
+        tool_id = request.GET.get("tool_id")
+        if tool_id:
+            from maintenance.models import Tool
+            tool = get_object_or_404(Tool, pk=tool_id)
+            first_form = formset.forms[0]
+            first_form.initial = {
+                "part": None,
+                "tool": tool.pk,
+                "ordered_qty": "1",
+                "negotiated_unit_price": (
+                    str(tool.purchase_cost) if tool.purchase_cost is not None else "0"
+                ),
+                "line_note": (
+                    f"Replacement for damaged tool: {tool.name} ({tool.code})"
+                ),
+            }
+
+    # Live stock badge: per-row badge needs {row_idx: {part_id: qty}}.
+    # Walk the formset forms and build one dict per row.
+    stock_data_per_row = {}
+    for row_idx, item_form in enumerate(formset.forms):
+        part_ids = list(item_form.fields["part"].queryset.values_list("pk", flat=True))
+        invs = Inventory.objects.filter(part_id__in=part_ids)
+        stock_data_per_row[str(row_idx)] = {
+            inv.part_id: float(inv.quantity_available) for inv in invs
+        }
+    stock_data_json = json.dumps(stock_data_per_row)
+
+    if request.method == "POST":
         if form.is_valid() and formset.is_valid():
             po = form.save(commit=False)
             po.created_by = request.user
@@ -476,12 +597,6 @@ def purchase_order_create(request):
 
             messages.success(request, _("Purchase order %(po)s created.") % {"po": po.po_number})
             return redirect("purchase_order_detail", pk=po.pk)
-    else:
-        initial = {}
-        if pr_id:
-            initial["purchase_request"] = pr_id
-        form = PurchaseOrderForm(initial=initial)
-        formset = POItemFormSet(prefix="items", queryset=PurchaseOrderItem.objects.none())
 
     # Available PENDING PRs for selection
     pending_prs = PurchaseRequest.objects.filter(
@@ -494,6 +609,7 @@ def purchase_order_create(request):
         "po": None,
         "page_heading": _("New purchase order"),
         "pending_prs": pending_prs,
+        "stock_data_json": stock_data_json,
     })
 
 
@@ -536,7 +652,9 @@ def purchase_order_create_from_pr(request, pr_pk):
 def purchase_order_detail(request, pk):
     """View and edit a purchase order."""
     po = get_object_or_404(
-        PurchaseOrder.objects.prefetch_related("items", "items__part", "supplier", "created_by", "handled_by"),
+        PurchaseOrder.objects.prefetch_related(
+            "items", "items__part", "items__tool", "supplier", "created_by", "handled_by",
+        ),
         pk=pk
     )
     sites = Site.objects.filter(is_active=True).order_by("name")
@@ -544,11 +662,16 @@ def purchase_order_detail(request, pk):
 
     items_with_inventory = []
     for item in po.items.all():
-        inv = item.part.inventory_items.filter(site=selected_site).first() if selected_site else None
+        if item.part and selected_site:
+            inv = item.part.inventory_items.filter(site=selected_site).first()
+        else:
+            inv = None
         items_with_inventory.append({
             "item": item,
             "inventory_qty": inv.quantity_available if inv else Decimal("0"),
         })
+
+    tool_line_count = sum(1 for it in po.items.all() if it.tool_id and not it.part_id)
 
     if request.method == "POST":
         if po.is_locked:
@@ -567,6 +690,7 @@ def purchase_order_detail(request, pk):
         "items_with_inventory": items_with_inventory,
         "sites": sites,
         "selected_site": selected_site,
+        "tool_line_count": tool_line_count,
     })
 
 
@@ -649,9 +773,19 @@ def purchase_order_receive(request, pk):
             item.received_qty += arrived
             item.damaged_qty += damaged
             item.rejected_qty += rejected
+            # Phase 4 BUG-5 fix: maintain the backordered_qty invariant
+            # ordered_qty = received_qty + backordered_qty. Previously
+            # backordered_qty was never updated and the invariant was
+            # silently violated on every partial receive.
+            remaining_after = item.ordered_qty - item.received_qty
+            item.backordered_qty = (
+                remaining_after if remaining_after > 0 else Decimal("0")
+            )
             if actual_price and actual_price > 0:
                 item.actual_unit_price = actual_price
-            update_fields = ["received_qty", "damaged_qty", "rejected_qty"]
+            update_fields = [
+                "received_qty", "damaged_qty", "rejected_qty", "backordered_qty",
+            ]
             if actual_price and actual_price > 0:
                 update_fields.append("actual_unit_price")
             item.save(update_fields=update_fields)
@@ -759,6 +893,29 @@ def purchase_order_receive(request, pk):
             )
             auto_fulfill_summary = {"enabled": True, "actions": [], "error": str(e)}
 
+        # Phase 7.9: notify any open SHORTAGE WO Blockers linked to the
+        # WO-bound PRs on this PO that the procurement is fulfilled.
+        # The handler at WorkOrderBlockerService.sync_from_external_event
+        # resolves SHORTAGE blockers matching the source PartShortageReport.
+        try:
+            from procurement.models import PurchaseRequest as _PR
+            from maintenance.services_blocker import WorkOrderBlockerService
+            for _pr in _PR.objects.filter(purchase_order=po, work_order__isnull=False).exclude(work_order=None):
+                _report = getattr(_pr, "source_shortage_report", None)
+                if _report is None:
+                    continue
+                WorkOrderBlockerService.sync_from_external_event(
+                    external_obj=_report,
+                    event_type="SHORTAGE_FULFILLED",
+                    actor=request.user,
+                    payload={"note": _("Auto-fulfilled via PO %s") % po.po_number},
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to emit SHORTAGE_FULFILLED for PO {po.po_number}: {e}"
+            )
+
     # Outside atomic: fire summary notification
     if line_changes:
         notify_po_received_summary(po, request.user)
@@ -841,19 +998,44 @@ def purchase_order_pdf(request, pk):
         Paragraph("<b>Total</b>", styles["Normal"]),
     ]]
     grand_total = Decimal("0")
+    has_discrepancy = False
+
+    # Build delivery location from the default Site (precedence: explicit default >
+    # first active site > fallback "Main Factory"). Computed once and reused below.
+    default_site = (
+        Site.objects.filter(is_default=True, is_active=True).first()
+        or Site.objects.filter(is_active=True).first()
+    )
+    if default_site and default_site.address:
+        delivery_location = f"{default_site.name} — {default_site.address}"
+    elif default_site:
+        delivery_location = default_site.name
+    else:
+        delivery_location = "Main Factory"
+
     for item in po.items.all():
-        total = item.ordered_qty * item.negotiated_unit_price
+        # Prefer actual invoiced price if set, fallback to negotiated price.
+        unit_cost = item.actual_unit_price if item.actual_unit_price is not None else item.negotiated_unit_price
+        total = item.ordered_qty * unit_cost
         grand_total += total
+        if item.actual_unit_price is not None and item.actual_unit_price != item.negotiated_unit_price:
+            has_discrepancy = True
+            cost_cell = Paragraph(
+                f"{unit_cost:.4f} <font color='#b91c1c' size='8'>(was {item.negotiated_unit_price:.4f})</font>",
+                styles["Normal"],
+            )
+        else:
+            cost_cell = f"{unit_cost:.4f}"
         item_data.append([
             item.part.sku,
             _safe_paragraph(item.part.name, styles["Normal"]),
             f"{item.ordered_qty:.3f}",
-            f"{item.negotiated_unit_price:.4f}",
+            cost_cell,
             f"{total:.4f}",
         ])
     item_data.append(["", "", "", "Grand Total", f"{grand_total:.4f}"])
 
-    col_widths = [60, 200, 50, 70, 70]
+    col_widths = [110, 170, 50, 60, 90]  # SKU +50, Part Name -30, Total +20 (more room for "87.5000")
     item_table = Table(item_data, colWidths=col_widths, repeatRows=1)
     item_table.setStyle(TableStyle([
         ("GRID", (0, 0), (-1, -2), 0.5, colors.grey),
@@ -870,9 +1052,17 @@ def purchase_order_pdf(request, pk):
     ]))
     elements.append(item_table)
 
+    if has_discrepancy:
+        elements.append(Spacer(1, 3 * mm))
+        elements.append(Paragraph(
+            "<font color='#b91c1c'><b>Note:</b></font> prices reflect actual invoiced amounts; "
+            "negotiated price shown in parentheses where different.",
+            styles["Normal"],
+        ))
+
     # Delivery & Notes
     elements += _section("Delivery & Notes")
-    elements.append(Paragraph(f"Delivery Location: Main Factory — Stores", styles["Normal"]))
+    elements.append(Paragraph(f"Delivery Location: {delivery_location}", styles["Normal"]))
     elements.append(Spacer(1, 3 * mm))
     if po.notes:
         elements.append(Paragraph("Notes:", styles["Normal"]))
@@ -911,20 +1101,178 @@ def supplier_quick_create(request):
 @require_POST
 @role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def purchase_order_close_short(request, pk):
-    """Close a PO as short (cancel remaining quantities)."""
+    """Phase 4 (BUG-5 fix): close a PO as short (cancel remaining quantities).
+
+    Improvements over the previous version:
+      - Wrapped in transaction.atomic so a mid-loop failure rolls back
+        the PO status change AND PR updates atomically.
+      - Skips PR statuses that should not be touched: FULFILLED,
+        CANCELLED, CONVERTED_TO_PO (the previous version only skipped
+        FULFILLED, so a manager-cancelled PR was silently flipped to
+        PARTIALLY_FULFILLED).
+      - Zeroes backordered_qty on every PO line that wasn't cancelled,
+        matching the invariant ordered_qty = received_qty + backordered_qty.
+    """
     po = get_object_or_404(PurchaseOrder, pk=pk)
     if po.status not in (PurchaseOrder.Status.PARTIAL_RECEIVED, PurchaseOrder.Status.SENT):
         messages.error(request, _("PO cannot be closed short in current status."))
         return redirect("purchase_order_detail", pk=pk)
-    if request.method == "POST":
+    if request.method != "POST":
+        return redirect("purchase_order_detail", pk=pk)
+
+    with transaction.atomic():
         po.status = PurchaseOrder.Status.CLOSED_SHORT
         po.save(update_fields=["status", "updated_at"])
         for pr in po.purchase_requests.all():
-            if pr.status not in (PurchaseRequest.Status.FULFILLED,):
-                pr.status = PurchaseRequest.Status.PARTIALLY_FULFILLED
-                pr.save(update_fields=["status"])
-        messages.success(request, _("PO %(po)s closed short.") % {"po": po.po_number})
+            # Phase 4 BUG-5: skip terminal/converted PRs. Don't touch
+            # FULFILLED, CANCELLED, or CONVERTED_TO_PO — they belong to
+            # other POs or already completed before this close.
+            if pr.status in (
+                PurchaseRequest.Status.FULFILLED,
+                PurchaseRequest.Status.CANCELLED,
+                PurchaseRequest.Status.CONVERTED_TO_PO,
+            ):
+                continue
+            pr.status = PurchaseRequest.Status.PARTIALLY_FULFILLED
+            pr.save(update_fields=["status"])
+        # Phase 4: clear backordered_qty on items that weren't cancelled
+        # (the line is closed — there's no future shipment expected).
+        for item in po.items.all():
+            item.backordered_qty = Decimal("0")
+            item.save(update_fields=["backordered_qty", "updated_at"])
+    messages.success(request, _("PO %(po)s closed short.") % {"po": po.po_number})
+    return redirect("purchase_order_detail", pk=pk)
+
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def purchase_order_edit(request, pk):
+    """Edit PO-level fields + per-line item.negotiated_unit_price.
+
+    Allowed only when not locked (status ∈ {DRAFT, SENT, PARTIAL_RECEIVED}).
+    """
+    from django.db import transaction
+
+    po = get_object_or_404(
+        PurchaseOrder.objects.prefetch_related("items", "items__part", "supplier"),
+        pk=pk,
+    )
+    if po.is_locked:
+        messages.error(request, _("This PO is locked and cannot be edited."))
         return redirect("purchase_order_detail", pk=pk)
+
+    items_with_inventory = []
+    sites = Site.objects.filter(is_active=True).order_by("name")
+    selected_site = sites.filter(is_default=True).first()
+    for item in po.items.all():
+        inv = item.part.inventory_items.filter(site=selected_site).first() if selected_site else None
+        items_with_inventory.append({
+            "item": item,
+            "inventory_qty": inv.quantity_available if inv else Decimal("0"),
+        })
+
+    if request.method == "POST":
+        with transaction.atomic():
+            form = PurchaseOrderForm(request.POST, instance=po)
+            if form.is_valid():
+                form.save()
+                for item in po.items.all():
+                    key = f"unit_price_{item.pk}"
+                    val = request.POST.get(key)
+                    if val not in (None, ""):
+                        try:
+                            new_price = Decimal(val)
+                            if new_price != item.negotiated_unit_price:
+                                item.negotiated_unit_price = new_price
+                                item.save()
+                        except Exception:
+                            pass
+                log_audit(
+                    actor=request.user, action="po_edited",
+                    entity="PurchaseOrder", object_id=str(po.pk),
+                    payload={
+                        "supplier": po.supplier.name if po.supplier_id else None,
+                        "expected_delivery": str(po.expected_delivery),
+                        "notes": (po.notes or "")[:200],
+                    },
+                )
+                messages.success(request, _("PO updated."))
+                return redirect("purchase_order_detail", pk=pk)
+    else:
+        form = PurchaseOrderForm(instance=po)
+
+    return render(request, "procurement/po_edit.html", {
+        "po": po,
+        "form": form,
+        "items_with_inventory": items_with_inventory,
+    })
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def purchase_order_cancel(request, pk):
+    """Cancel a PO with a mandatory reason (min 15 chars).
+
+    Allowed only when status ∈ {DRAFT, SENT}. Releases linked PRs back to PENDING.
+    """
+    from django.db import transaction
+
+    po = get_object_or_404(PurchaseOrder, pk=pk)
+    if po.status not in (PurchaseOrder.Status.DRAFT, PurchaseOrder.Status.SENT):
+        messages.error(request, _("PO can only be cancelled from DRAFT or SENT status."))
+        return redirect("purchase_order_detail", pk=pk)
+
+    if request.method == "POST":
+        reason = (request.POST.get("reason") or "").strip()
+        if len(reason) < 15:
+            messages.error(request, _("Cancellation reason must be at least 15 characters."))
+            return render(request, "procurement/po_cancel.html", {"po": po, "min_chars": 15})
+        with transaction.atomic():
+            po.status = PurchaseOrder.Status.CANCELLED
+            po.cancellation_reason = reason
+            po.save(update_fields=["status", "cancellation_reason", "updated_at"])
+            released = 0
+            for pr in po.purchase_requests.all():
+                if pr.status not in (PurchaseRequest.Status.FULFILLED,
+                                     PurchaseRequest.Status.CANCELLED):
+                    pr.status = PurchaseRequest.Status.PENDING
+                    pr.save(update_fields=["status", "updated_at"])
+                    released += 1
+            log_audit(
+                actor=request.user, action="po_cancelled",
+                entity="PurchaseOrder", object_id=str(po.pk),
+                payload={
+                    "reason": reason[:200],
+                    "released_prs": released,
+                },
+            )
+        messages.success(request, _("PO %(po)s cancelled. %(n)d PR(s) released.") % {
+            "po": po.po_number, "n": released,
+        })
+        return redirect("purchase_order_list")
+
+    return render(request, "procurement/po_cancel.html", {"po": po, "min_chars": 15})
+
+
+@login_required
+@role_required(User.Role.PROCUREMENT, User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def purchase_order_reorder(request, pk):
+    from procurement.services import PurchaseOrderService
+    source_po = get_object_or_404(PurchaseOrder, pk=pk)
+    if request.method != "POST":
+        messages.error(request, _("Use the Reorder button to reorder this PO."))
+        return redirect("purchase_order_detail", pk=pk)
+    try:
+        new_po = PurchaseOrderService.reorder(source_po=source_po, created_by=request.user)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("purchase_order_detail", pk=pk)
+    messages.success(
+        request,
+        _("Reorder created. New PO %(po)s is in Draft — review line items and send.") % {"po": new_po.po_number},
+    )
+    return redirect("purchase_order_detail", pk=new_po.pk)
 
 
 @login_required

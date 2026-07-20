@@ -335,3 +335,101 @@ The MMS is bilingual (English + Arabic) using Django's i18n machinery.
 - RTL is handled via `[dir="rtl"]` CSS rules in `static/css/mms.css`
 - Western digits in both locales (USE_THOUSAND_SEPARATOR=True)
 - Arabic plural forms: msgstr[0] through msgstr[5] all set to same value (Arabic doesn't grammatically distinguish 1 vs many)
+
+---
+
+## Post-Phase-1 Architecture Notes (Phases 0-7)
+
+### Emergency Review (Phase 3)
+Manager post-review on an emergency auto-issued part line. Stored on
+`PartIssueLine.emergency_review_status ∈ {approved, exception, investigate, None}`.
+Three outcomes — none of them revert the inventory deduction or the
+cost posting. The user's emergency design is one-way: issue → audit →
+review. Access via the dedicated panel at
+`POST /work-orders/<pk>/line/<line_id>/emergency-review/`.
+
+### activity_uuid (Phase 5)
+Stable per-line `UUIDField` on `PartIssueLine`. Used for:
+- Grouping lines of the same maintenance activity in the WO timeline.
+- Audit cross-references between lines.
+- Future Phase 2.5+ Activity model extraction (where one Activity has
+  many PartIssueLines).
+**NOT a uniqueness key.** Duplicate prevention is enforced at the
+service layer in `request_part_on_wo()` via `select_for_update(WorkOrder)`
+plus an ACTIVE-line check. The activity_uuid is auto-generated per
+request and stable for the line's lifetime.
+
+### activity_label (Phase 5)
+Free-text display label (max 120 chars, optional). Human-readable only.
+Surfaced in the PartRequestForm as an optional input next to qty.
+
+### Duplicate Detection Rule (Phase 5)
+A PartIssueLine is considered ACTIVE (eligible for duplicate
+prevention) when its status is one of:
+`PENDING`, `APPROVED`, `ALLOCATED`.
+Statuses `ISSUED`, `REJECTED`, `CANCELLED` are not ACTIVE and are
+ignored. The constant `ACTIVE_REQUEST_STATUSES` in
+`inventory/results.py` is the single source of truth.
+
+### Free-Stock Correctness Invariant (Phase 1)
+Reservation math:
+`Inventory.quantity_available` (physical on-hand) is always reduced by
+the sum of ACTIVE `InventoryReservation.quantity` rows.
+`Inventory.compute_quantity_reserved()` aggregates this live. The
+legacy `Inventory.quantity_reserved` column was dropped in migration
+0017. `free_stock = quantity_available - sum(ACTIVE reservations)`.
+
+When a shortage transitions to CLOSED, all reservations on the
+(part, work_order) pair are released — both line-linked ones
+(`source_line__related_shortage_report=report`) AND legacy ones
+(`source_line=None`). Legacy reservations created by the pre-Phase-1
+shortage-decision path can be cleaned up via
+`manage.py reconcile_legacy_reservations`.
+
+### Cost Card Composition (Phase 2)
+WO cost card exposes (all `WorkOrderCost` properties):
+- `material_cost` — ledger sum of `CostTransaction(category="material")`
+- `vendor_repair_cost` — sum of `CostTransaction(category="vendor_repair")`
+- `consumables_cost` — sum of `CostTransaction(category="consumable")`
+- `additional_cost` — sum of `CostTransaction(category="adjustment")`
+- `procurement_cost` (derived property, cached on instance) —
+  `sum(POItem.received_qty × POItem.actual_unit_price where PO is linked
+  via PR to this WO)`. NOT stored as a column.
+
+### Future: Activity Extraction (Phase 2.5+)
+Long-term, the activity concept graduates to its own model:
+```
+Activity(id, uuid, label)
+PartIssueLine.activity_id → Activity
+```
+This enables multi-line activities (one bearing-replacement activity
+covering bearing + seal + circlip lines), per-activity cost rollups,
+and group-level approval workflows. Phase 5 ships `activity_uuid`
+inline on `PartIssueLine` as the seed for this evolution; the migration
+to a dedicated `Activity` model is non-breaking.
+
+### Future: Cost Card Evolution (Phase 2.5+)
+Replace the current `material_cost / vendor_repair_cost /
+consumables_cost / additional_cost / procurement_cost` breakdown with
+the manager-facing 5-bucket model:
+- **Committed Cost** = ordered but not yet received (PR + non-received PO lines)
+- **Consumed Cost** = `material_cost` (as today)
+- **External Service Cost** = `vendor_repair_cost` (as today)
+- **Pipeline Cost** = received but not yet issued (`procurement_cost − material_cost`)
+- **Total Operational Cost** = `Consumed + External Service + adjustments`
+
+Phase 2 ships the building blocks (`procurement_cost` derivation,
+ledger strict rollback, ERO single-post guard) needed to compute
+`Pipeline Cost` correctly. Phase 2.5 will rebuild the cost card UI
+around the 5-bucket model.
+
+---
+
+## Implementation Status (snapshot, this branch)
+
+| Component | State |
+|---|---|
+| `manage.py check` | OK |
+| Migrations needed | 4 migrations pending apply (apply before push) |
+| Test pass rate | 244/247 across maintenance + inventory + procurement blocks (3 pre-existing failures from in-flight working tree: 1 decimal format + 2 PostgreSQL `SUBSTRING FROM n` on SQLite) |
+

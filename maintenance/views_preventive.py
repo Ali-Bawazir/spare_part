@@ -57,6 +57,12 @@ def tech_my(request):
             pm_schedule__is_active=True,
         )
         .filter(work_order__lifecycle_status__in=["assigned", "in_progress"])
+        .filter(
+            status__in=[
+                PMExecution.Status.SUBMITTED,
+                PMExecution.Status.REJECTED,
+            ],
+        )
         .select_related("pm_schedule", "pm_schedule__template", "pm_schedule__machine", "assigned_technician")
         .order_by("scheduled_due_at")
     )
@@ -70,6 +76,10 @@ def tech_my(request):
             scheduled_due_at__date=today,
             pm_schedule__is_active=True,
             assigned_technician__isnull=True,
+            status__in=[
+                PMExecution.Status.SUBMITTED,
+                PMExecution.Status.REJECTED,
+            ],
         )
         .filter(
             Q(work_order__isnull=True) |
@@ -211,9 +221,19 @@ def tech_execute(request, occurrence_id):
     ).count()
     required_photo_count = pm_execution.pm_schedule.template.requires_photo_min_count
 
+    # Photos are stored via Attachment with entity_type='work_order'
+    # (generic FK-style; no real relation). Query directly.
+    wo_attachments = Attachment.objects.filter(
+        entity_type=Attachment.EntityType.WORK_ORDER,
+        entity_id=wo.pk,
+    ).order_by("-uploaded_at")
+    # Keep photo_count in sync.
+    photo_count = wo_attachments.count()
+
     context = {
         "pm_execution": pm_execution,
         "wo": wo,
+        "wo_attachments": wo_attachments,
         "sched": pm_execution.pm_schedule,
         "template": pm_execution.pm_schedule.template,
         "checklist": checklist,
@@ -395,13 +415,55 @@ def mgr_dashboard(request):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def mgr_today(request):
-    """Today's Schedule — grouped by time slot."""
+    """Today's Schedule — open occurrences only (to-do list).
+
+    Filters: status in [SUBMITTED, REJECTED]. Approved and missed
+    occurrences are hidden here — approved moves to History, missed
+    belongs in an Overdue report.
+
+    Auto-runs `scheduling_service.generate_today()` if today's occurrences
+    haven't been generated yet (checked via MaintenanceSettings.last_generate_run).
+    This is the day-of operation trigger; the Phase 2 cron can also call
+    the same function early in the morning.
+    """
     today = timezone.now().date()
+    from maintenance.preventive_engine import scheduling_service
+    from maintenance.models import MaintenanceSettings, PMSchedule
+    try:
+        settings = MaintenanceSettings.get_solo()
+    except Exception:
+        settings = None
+
+    stale_schedules_exist = PMSchedule.objects.filter(
+        is_active=True,
+        next_due_at__date=today,
+    ).exclude(
+        executions__scheduled_due_at__date=today,
+    ).exists()
+
+    needs_generate = (
+        settings is None
+        or settings.last_generate_run is None
+        or settings.last_generate_run.date() != today
+        or stale_schedules_exist
+    )
+    if needs_generate:
+        try:
+            scheduling_service.generate_today(today=today, force=stale_schedules_exist)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning(
+                "scheduling_service.generate_today failed in mgr_today", exc_info=True,
+            )
     occurrences = (
         PMExecution.objects
         .filter(
             scheduled_due_at__date=today,
             pm_schedule__is_active=True,
+            status__in=[
+                PMExecution.Status.SUBMITTED,
+                PMExecution.Status.REJECTED,
+            ],
         )
         .select_related(
             "pm_schedule", "pm_schedule__template",
@@ -427,6 +489,7 @@ def mgr_today(request):
         "technicians": technicians,
         "today": today,
         "occurrences": occurrences,
+        "auto_generated_today": needs_generate,
     })
 
 
@@ -434,7 +497,7 @@ def mgr_today(request):
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def mgr_reviews(request):
     """Reviews queue — pending PM submissions, oldest first."""
-    pending = (
+    pending = list(
         PMExecution.objects
         .filter(
             status=PMExecution.Status.SUBMITTED,
@@ -446,6 +509,15 @@ def mgr_reviews(request):
         )
         .order_by("work_order__labor_stopped_at")  # FIFO: oldest submitted first
     )
+    # Attach photos directly on each occ so the template can iterate
+    # without needing a custom template tag. 5 most recent per WO.
+    for occ in pending:
+        occ.recent_photos = list(
+            Attachment.objects.filter(
+                entity_type=Attachment.EntityType.WORK_ORDER,
+                entity_id=occ.work_order_id,
+            ).order_by("-uploaded_at")[:5]
+        )
     return render(request, "maintenance/preventive/mgr_reviews.html", {
         "pending": pending,
     })
@@ -568,7 +640,18 @@ def _plan_form(request, schedule):
     if request.method == "POST":
         form = PMScheduleForm(request.POST, instance=schedule)
         if form.is_valid():
-            form.save()
+            schedule = form.save()
+            try:
+                from datetime import date as _date
+                from maintenance.preventive_engine import scheduling_service
+                today = _date.today() if hasattr(_date, "today") else __import__("datetime").date.today()
+                if schedule.is_active and schedule.next_due_at and schedule.next_due_at.date() <= today:
+                    scheduling_service.generate_today(today=today)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "generate_today failed after plan save", exc_info=True,
+                )
             messages.success(request, _("Plan saved."))
             if schedule:
                 return redirect("preventive:mgr_plan_detail", pk=schedule.pk)
@@ -706,17 +789,44 @@ def mgr_plan_archive(request, pk):
 @require_POST
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def mgr_plan_run_now(request, pk):
-    """Create a one-time PM occurrence NOW (Run Now action)."""
+    """Create a one-time PM occurrence NOW (Run Now action).
+
+    Refuses if there's already an open execution (status SUBMITTED) for
+    this plan — manager should review/reject the in-flight one first.
+    Only one open execution per plan at a time is allowed.
+    """
     schedule = get_object_or_404(PMSchedule, pk=pk)
     from django.db import transaction
+
+    open_execution = PMExecution.objects.filter(
+        pm_schedule=schedule,
+        status=PMExecution.Status.SUBMITTED,
+    ).order_by("-scheduled_due_at").first()
+
+    if open_execution is not None:
+        messages.warning(
+            request,
+            _(
+                "PM %(tmpl)s already has an open execution from "
+                "%(when)s (PM #%(pk)d). Review or reject it before "
+                "spawning a new one."
+            ) % {
+                "tmpl": schedule.template.title if schedule.template_id else "?",
+                "when": open_execution.scheduled_due_at.strftime("%Y-%m-%d %H:%M"),
+                "pk": open_execution.pk,
+            },
+        )
+        return redirect("preventive:mgr_today")
+
     with transaction.atomic():
         occ = PMExecution.objects.create(
             pm_schedule=schedule,
             scheduled_due_at=timezone.now(),
             status=PMExecution.Status.SUBMITTED,
         )
-        if schedule.assigned_technician:
-            engine.assign(occ, schedule.assigned_technician, by=request.user)
+        # PMExecution is created unassigned. Manager can assign via
+        # mgr_plan_assign which operates on PMExecutions (PMSchedule
+        # has no assigned_technician field).
     messages.success(request, _("Maintenance scheduled for now."))
     return redirect("preventive:mgr_today")
 
@@ -724,10 +834,19 @@ def mgr_plan_run_now(request, pk):
 @login_required
 @role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def mgr_history(request):
-    """Searchable cross-machine history. Default: last 30 days."""
+    """Searchable cross-machine history. Default: last 30 days; Completed tab.
+
+    Tabs:
+      ?tab=completed     (default) APPROVED last N days
+      ?tab=pending_today SUBMITTED/REJECTED scheduled_due_at=today
+      ?tab=overdue       SUBMITTED past grace period
+    """
     today = timezone.now().date()
     days = int(request.GET.get("days", 30))
     cutoff = today - timedelta(days=days)
+    tab = request.GET.get("tab", "completed")
+    if tab not in ("completed", "pending_today", "overdue"):
+        tab = "completed"
 
     machine_id = request.GET.get("machine", "")
     technician_id = request.GET.get("technician", "")
@@ -735,15 +854,31 @@ def mgr_history(request):
 
     qs = (
         PMExecution.objects
-        .filter(scheduled_due_at__date__gte=cutoff)
-        .filter(status=PMExecution.Status.APPROVED)
         .select_related(
             "pm_schedule", "pm_schedule__template",
             "pm_schedule__machine", "assigned_technician", "completed_by",
             "approved_by", "work_order",
         )
-        .order_by("-scheduled_due_at")
     )
+
+    if tab == "completed":
+        qs = qs.filter(
+            scheduled_due_at__date__gte=cutoff,
+            status=PMExecution.Status.APPROVED,
+        ).order_by("-scheduled_due_at")
+    elif tab == "pending_today":
+        qs = qs.filter(
+            scheduled_due_at__date=today,
+            status__in=[PMExecution.Status.SUBMITTED, PMExecution.Status.REJECTED],
+        ).order_by("scheduled_due_at")
+    elif tab == "overdue":
+        # SUBMITTED scheduled_due_at < today and past grace (default 7d).
+        from datetime import timedelta as _td
+        grace_cutoff = timezone.now() - _td(days=7)
+        qs = qs.filter(
+            status=PMExecution.Status.SUBMITTED,
+            scheduled_due_at__lt=grace_cutoff,
+        ).order_by("scheduled_due_at")
 
     if machine_id:
         qs = qs.filter(pm_schedule__machine_id=machine_id)
@@ -751,10 +886,22 @@ def mgr_history(request):
         qs = qs.filter(
             Q(assigned_technician_id=technician_id) | Q(completed_by_id=technician_id)
         )
-    if status == "approved":
-        qs = qs.filter(status=PMExecution.Status.APPROVED)
-    elif status == "rejected":
-        qs = qs.filter(status=PMExecution.Status.REJECTED)
+
+    # Summary counts (always populated regardless of tab)
+    pending_today_count = PMExecution.objects.filter(
+        scheduled_due_at__date=today,
+        status__in=[PMExecution.Status.SUBMITTED, PMExecution.Status.REJECTED],
+    ).count()
+    completed_recent_count = PMExecution.objects.filter(
+        scheduled_due_at__date__gte=cutoff,
+        status=PMExecution.Status.APPROVED,
+    ).count()
+    # Overdue count uses default 7d grace approximation. Tighten later if you add a
+    # global default in MaintenanceSettings (currently grace_days is per-plan).
+    overdue_count = PMExecution.objects.filter(
+        status=PMExecution.Status.SUBMITTED,
+        scheduled_due_at__lt=timezone.now() - timedelta(days=7),
+    ).count()
 
     machines = PMSchedule._meta.get_field("machine").related_model.objects.filter(
         is_active=True
@@ -767,7 +914,11 @@ def mgr_history(request):
     executions = qs[:200]
 
     if not executions:
-        message = "No history found."
+        message = {
+            "completed": "No history found.",
+            "pending_today": "No pending PMs for today.",
+            "overdue": "No overdue PMs.",
+        }.get(tab)
     else:
         message = None
 
@@ -779,6 +930,32 @@ def mgr_history(request):
         "selected_technician": technician_id,
         "selected_status": status,
         "selected_days": days,
+        "selected_tab": tab,
         "today": today,
         "empty_message": message,
+        "pending_today_count": pending_today_count,
+        "completed_recent_count": completed_recent_count,
+        "overdue_count": overdue_count,
     })
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def mgr_today_regenerate(request):
+    """Force-regenerate today's PM occurrences (manual recovery)."""
+    from maintenance.preventive_engine import scheduling_service
+    from datetime import date
+    try:
+        result = scheduling_service.generate_today(today=date.today(), force=True)
+        count = result.get("count", 0)
+        if count > 0:
+            messages.success(
+                request,
+                _("Generated %(n)d occurrence(s) for today.") % {"n": count},
+            )
+        else:
+            messages.info(request, _("Today's occurrences are already up to date."))
+    except Exception as e:
+        messages.error(request, _("Could not regenerate: %s") % e)
+    return redirect("preventive:mgr_today")

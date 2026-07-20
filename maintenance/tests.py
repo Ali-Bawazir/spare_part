@@ -1302,7 +1302,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         approve_part_request(line=line, manager=self.manager)
         line.refresh_from_db()
         # Phase 2B: approval reserves stock via InventoryReservation; physical
@@ -1339,7 +1339,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("4"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         reject_part_request(line=line, manager=self.manager, reason="Already in stock")
         line.refresh_from_db()
         self.assertEqual(line.status, PartIssueLine.Status.REJECTED)
@@ -1353,7 +1353,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("1"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         with self.assertRaises(ValueError):
             reject_part_request(line=line, manager=self.manager, reason="")
 
@@ -1363,46 +1363,70 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         edit_part_request_qty(line=line, manager=self.manager, new_quantity=Decimal("2"))
         line.refresh_from_db()
         self.assertEqual(line.status, PartIssueLine.Status.PENDING)
         self.assertEqual(line.quantity, Decimal("2"))
 
-    def test_emergency_request_stays_pending_under_v7(self):
-        # Plan v7: preserve the manager approval gate for ALL inventory
-        # movements. Even on an emergency WO, request_part_on_wo creates
-        # a PENDING line; the manager must approve for the deduction.
+    def test_emergency_request_with_full_stock_auto_approves_and_issues(self):
+        # Phase 3 BUG-8 fix: emergency WO with full stock available triggers
+        # immediate issue — no manager pre-approval gate. Production is
+        # stopped; waiting defeats the purpose. Stock is deducted, cost is
+        # posted, audit is fired, manager is notified for post-review.
         from inventory.services import request_part_on_wo
+        from inventory.models import Inventory, StockMovement, PartIssueLine
+        from maintenance.models import WorkOrder
+        self.assertEqual(self.inv.quantity_available, Decimal("10"))
         wo = self._make_wo(is_emergency=True)
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech,
         )
-        line = result["line"]
-        self.assertEqual(line.status, PartIssueLine.Status.PENDING)
-        self.assertFalse(line.is_emergency_auto_approved)
-        self.assertEqual(line.issued_qty, Decimal("0"))
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
+        # Line is auto-approved AND auto-issued (terminal state).
+        self.assertTrue(line.is_emergency_auto_approved)
+        self.assertIn(
+            line.status,
+            (PartIssueLine.Status.APPROVED, PartIssueLine.Status.ISSUED),
+        )
+        self.assertEqual(line.issued_qty, Decimal("2"))
+        # Stock IS deducted at request time.
         self.inv.refresh_from_db()
-        # Stock is NOT deducted at request time.
-        self.assertEqual(self.inv.quantity_available, Decimal("10"))
+        self.assertEqual(self.inv.quantity_available, Decimal("8"))
+        # A StockMovement and CostTransaction must exist.
+        self.assertTrue(
+            StockMovement.objects.filter(
+                part=self.part, work_order=wo,
+                quantity=Decimal("2"),
+            ).exists()
+        )
+        # emergency_auto_approved is True on the returning dict.
+        self.assertTrue(result.get("emergency_auto_approved"))
 
-    def test_emergency_request_with_insufficient_stock_stays_pending(self):
-        # Plan v7: emergency WOs do NOT auto-approve, even with partial stock.
-        # The line stays PENDING with shortage_qty set; manager decides.
+    def test_emergency_request_with_insufficient_stock_stays_pending_for_procurement(self):
+        # Phase 3 BUG-8 fix: emergency WO with insufficient stock DOES NOT
+        # auto-issue (no stock to deduct), but DOES mark the line as
+        # emergency_auto_approved so the post-review panel surfaces it.
+        # The shortage-report flow handles procurement.
         from inventory.services import request_part_on_wo
+        from inventory.models import PartShortageReport
         self.inv.quantity_available = Decimal("1")
         self.inv.save()
         wo = self._make_wo(is_emergency=True)
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        line = result["line"]
-        self.assertEqual(line.status, PartIssueLine.Status.PENDING)
-        self.assertFalse(line.is_emergency_auto_approved)
-        self.assertEqual(line.shortage_qty, Decimal("4"))
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
+        # Emergency auto-approved flag set for post-review tracking,
+        # but no stock was deducted.
+        self.assertTrue(line.is_emergency_auto_approved)
         self.assertEqual(line.issued_qty, Decimal("0"))
+        # Shortage report created so the manager can procure.
+        report = PartShortageReport.objects.get(work_order=wo, part=self.part)
+        self.assertEqual(report.shortage_qty, Decimal("4"))
+        # Line stays PENDING — manager must still procure.
+        self.assertEqual(line.status, PartIssueLine.Status.PENDING)
         self.inv.refresh_from_db()
-        # Stock is untouched.
         self.assertEqual(self.inv.quantity_available, Decimal("1"))
 
     def test_approval_with_insufficient_stock_creates_shortage(self):
@@ -1419,7 +1443,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Approval must not raise and must not deduct stock.
         approve_part_request(line=line, manager=self.manager)
         line.refresh_from_db()
@@ -1514,7 +1538,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         self.client.force_login(self.manager)
         response = self.client.post(
             reverse("work_order_decide_part", args=[wo.pk, line.pk]),
@@ -1552,7 +1576,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         self.client.force_login(self.manager)
         response = self.client.post(
             reverse("work_order_decide_part", args=[wo.pk, line.pk]),
@@ -1568,7 +1592,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         self.client.force_login(self.manager)
         response = self.client.post(
             reverse("work_order_decide_part", args=[wo.pk, line.pk]),
@@ -1585,7 +1609,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         self.client.force_login(self.manager)
         response = self.client.post(
             reverse("work_order_decide_part", args=[wo.pk, line.pk]),
@@ -1602,7 +1626,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Tech tries to approve their own request — should be denied
         self.client.force_login(self.tech)
         response = self.client.post(
@@ -1620,7 +1644,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("3"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         self.client.force_login(self.manager)
         response = self.client.get(reverse("work_order_detail", args=[wo.pk]))
         self.assertEqual(response.status_code, 200)
@@ -1706,11 +1730,11 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        first = result["line"]
+        first = result["line"]  # compat shim
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        second = result["line"]
+        second = result["line"]  # compat shim
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(
             PurchaseRequest.objects.filter(work_order=wo, part=self.part).count(), 0,
@@ -1727,11 +1751,11 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        first = result["line"]
+        first = result["line"]  # compat shim
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        second = result["line"]
+        second = result["line"]  # compat shim
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(PurchaseRequest.objects.count(), 0)
 
@@ -1746,7 +1770,7 @@ class PartRequestWorkflowTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("15"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # No auto-PR is created — manager handles procurement manually
         self.assertEqual(
             PurchaseRequest.objects.filter(work_order=wo, part=self.part).count(), 0,
@@ -1875,22 +1899,27 @@ class PartRequestWorkflowTests(TestCase):
         self.assertEqual(line.issued_qty, Decimal("4"))
         self.assertEqual(line.shortage_qty, Decimal("0"))
 
-    def test_emergency_request_stays_pending_no_emergency_flag(self):
-        # Plan v7: emergency WOs do NOT trigger auto-approval or set
-        # is_emergency_auto_approved at request time. That flag is only
-        # set by approve_part_request(is_emergency_auto=True), which is
-        # no longer called from request_part_on_wo.
+    def test_emergency_request_with_shortage_marks_auto_approved_for_postreview(self):
+        # Phase 3 BUG-8 fix: emergency WO with insufficient stock DOES mark
+        # the line as emergency_auto_approved (so the post-review panel sees
+        # it) but stays PENDING because stock wasn't deducted. The flag
+        # signals "this is an emergency issue that the manager must review
+        # post-hoc" — independent of whether stock was available.
         from inventory.services import request_part_on_wo
+        from inventory.models import PartIssueLine
         self.inv.quantity_available = Decimal("1")
         self.inv.save()
         wo = self._make_wo(is_emergency=True)
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         line.refresh_from_db()
         self.assertEqual(line.status, PartIssueLine.Status.PENDING)
-        self.assertFalse(line.is_emergency_auto_approved)
+        # Flag is set so the post-review panel surfaces it. Stock is NOT
+        # deducted (no stock to deduct); the procurement flow handles the
+        # rest.
+        self.assertTrue(line.is_emergency_auto_approved)
         self.assertEqual(line.issued_qty, Decimal("0"))
 
 
@@ -3692,7 +3721,7 @@ class V48ShortageDecisionTests(TestCase):
             approved_issue_qty=Decimal("2"), approved_procurement_qty=Decimal("3"),
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Phase 7.x: simulate the post-approval state.
         line.approved_qty = Decimal("2")
         line.status = "approved"
@@ -3765,7 +3794,7 @@ class V48ShortageDecisionTests(TestCase):
             technician=self.technician,
         )
         report = result["shortage_report"]
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
 
         create_shortage_decision(
             report=report, decision_type="reject",
@@ -3803,7 +3832,7 @@ class V48ShortageDecisionTests(TestCase):
         # Simulate another WO consuming 1 unit (stock now 1, reservation still 2)
         self.inventory.quantity_available = Decimal("1")
         self.inventory.save()
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Phase 7.x: the new flow requires approve_part_request between the
         # shortage decision and the warehouse issue. Set the line state
         # directly to mirror the post-approval state so this legacy test
@@ -3835,7 +3864,7 @@ class V48ShortageDecisionTests(TestCase):
             approved_issue_qty=Decimal("2"), approved_procurement_qty=Decimal("3"),
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Phase 7.x: simulate the post-approval state the new flow would set
         # before warehouse issue (line.status=approved, line.approved_qty=2).
         line.approved_qty = Decimal("2")
@@ -3872,7 +3901,7 @@ class V48ShortageDecisionTests(TestCase):
             approved_issue_qty=Decimal("2"), approved_procurement_qty=Decimal("3"),
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Phase 7.x: simulate the post-approval state.
         line.approved_qty = Decimal("2")
         line.status = "approved"
@@ -3986,7 +4015,7 @@ class V48ShortageDecisionTests(TestCase):
             approved_issue_qty=Decimal("2"), approved_procurement_qty=Decimal("3"),
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Phase 7.x: simulate the post-approval state.
         line.approved_qty = Decimal("2")
         line.status = "approved"
@@ -4031,7 +4060,7 @@ class V48ShortageDecisionTests(TestCase):
             wo=self.wo, part=self.part, quantity=Decimal("5"),
             technician=self.technician,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         self.assertIsNotNone(line.related_shortage_report)
         self.assertEqual(line.related_shortage_report, result["shortage_report"])
 
@@ -4056,7 +4085,7 @@ class V48ShortageDecisionTests(TestCase):
             approved_issue_qty=Decimal("2"), approved_procurement_qty=Decimal("3"),
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Phase 7.x: simulate the post-approval state.
         line.approved_qty = Decimal("2")
         line.status = "approved"
@@ -4124,7 +4153,7 @@ class V49FixesAndFeaturesTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("5"), technician=self.tech,
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         # Approval must not raise.
         approve_part_request(line=line, manager=self.manager)
         line.refresh_from_db()
@@ -4232,7 +4261,7 @@ class V49FixesAndFeaturesTests(TestCase):
         from inventory.models import PartIssueLine
         wo = self._make_wo()
         result = request_part_on_wo(wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech)
-        old_line = result["line"]
+        old_line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         old_line.status = PartIssueLine.Status.REJECTED
         old_line.rejection_reason = "Wrong part"
         old_line.save()
@@ -4267,7 +4296,7 @@ class V49FixesAndFeaturesTests(TestCase):
         )
         wo = self._make_wo()
         result = request_part_on_wo(wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech)
-        old_line = result["line"]
+        old_line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         old_line.status = PartIssueLine.Status.REJECTED
         old_line.rejection_reason = "Wrong part"
         old_line.save()
@@ -4295,7 +4324,7 @@ class V49FixesAndFeaturesTests(TestCase):
         from inventory.models import PartIssueLine
         wo = self._make_wo()
         result = request_part_on_wo(wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech)
-        old_line = result["line"]
+        old_line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         old_line.status = PartIssueLine.Status.REJECTED
         old_line.rejection_reason = "Wrong qty"
         old_line.save()
@@ -4324,7 +4353,7 @@ class V49FixesAndFeaturesTests(TestCase):
         from inventory.services import request_part_on_wo
         wo = self._make_wo()
         result = request_part_on_wo(wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech)
-        old_line = result["line"]
+        old_line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         old_line.status = PartIssueLine.Status.REJECTED
         old_line.rejection_reason = "Wrong part"
         old_line.save()
@@ -4348,7 +4377,7 @@ class V49FixesAndFeaturesTests(TestCase):
         from inventory.services import request_part_on_wo
         wo = self._make_wo()
         result = request_part_on_wo(wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech)
-        old_line = result["line"]
+        old_line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         old_line.status = PartIssueLine.Status.REJECTED
         old_line.rejection_reason = "Wrong part"
         old_line.save()
@@ -4580,7 +4609,7 @@ class V49FixesAndFeaturesTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech
         )
-        old_line = result["line"]
+        old_line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         old_line.status = PartIssueLine.Status.REJECTED
         old_line.rejection_reason = "Out of stock"
         old_line.save()
@@ -4613,7 +4642,7 @@ class V49FixesAndFeaturesTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech
         )
-        old_line = result["line"]
+        old_line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         old_line.status = PartIssueLine.Status.REJECTED
         old_line.rejection_reason = "Try a different qty"
         old_line.save()
@@ -4698,7 +4727,7 @@ class V49FixesAndFeaturesTests(TestCase):
         result = request_part_on_wo(
             wo=wo, part=self.part, quantity=Decimal("2"), technician=self.tech
         )
-        line = result["line"]
+        line = result["line"]  # Compatibility shim: __getitem__ fetches the line
         line.status = PartIssueLine.Status.REJECTED
         line.rejection_reason = "Out of stock, use shortage flow"
         line.save()

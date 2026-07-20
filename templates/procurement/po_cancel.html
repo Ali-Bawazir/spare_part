@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Cancel PO {{ po.po_number }}{% endblock %}
+{% block page_heading %}{% trans "Cancel" %} — PO {{ po.po_number }}{% endblock %}
+{% block content %}
+
+<div class="mms-card">
+    <div class="mms-card-body">
+        <p>
+            {% trans "You are about to" %}
+            <strong style="color:#b91c1c">{% trans "cancel" %}</strong>
+            PO {{ po.po_number }}.
+        </p>
+        <p>
+            {% trans "Current status:" %}
+            <span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span>
+        </p>
+        <p>
+            {% trans "Cancelling will release any linked Purchase Requests back to" %}
+            <strong>{% trans "Pending status" %}</strong>
+            {% trans "so they can be re-issued against a different PO." %}
+        </p>
+
+        <table class="mms-table" style="margin:1rem 0">
+            <thead>
+                <tr>
+                    <th>{% trans "Part" %}</th>
+                    <th>{% trans "Ordered" %}</th>
+                    <th>{% trans "Received" %}</th>
+                    <th>{% trans "Remaining" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in po.items.all %}
+                <tr>
+                    <td>{{ item.part.name }}</td>
+                    <td>{{ item.ordered_qty }}</td>
+                    <td>{{ item.received_qty }}</td>
+                    <td>{{ item.remaining_qty }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:#6b7280;padding:1rem">{% trans "No line items on this PO." %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mms-form-row">
+                <label for="cancellation-reason" style="display:block;margin-bottom:0.25rem;font-weight:600">
+                    {% trans "Cancellation reason" %} <span style="color:#b91c1c">*</span>
+                </label>
+                <textarea name="reason" id="cancellation-reason" minlength="15" required
+                          rows="3" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:4px"
+                          placeholder="{% trans 'Explain why this PO is being cancelled (minimum 15 characters).' %}"></textarea>
+                <small class="text-muted" style="font-size:0.75rem">
+                    {% trans "Minimum" %} {{ min_chars }} {% trans "characters." %}
+                </small>
+            </div>
+
+            <div class="mms-form-actions">
+                <button class="mms-btn mms-btn--danger" type="submit">{% trans "Confirm Cancel" %}</button>
+                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">{% trans "← Back" %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

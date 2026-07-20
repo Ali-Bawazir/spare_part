@@ -19,6 +19,11 @@
           {{ field }}
           {% if field.help_text %}<span class="mms-form-help">{{ field.help_text }}</span>{% endif %}
           {% if field.errors %}<div class="mms-form-error">{{ field.errors }}</div>{% endif %}
+          {% if field.name == "part" %}
+            <span id="stock-in-stock-badge" class="mms-badge mms-badge--info" style="display:none; margin-left:.5rem">
+              {% trans "In stock" %}: <strong id="stock-in-stock-qty">0</strong>
+            </span>
+          {% endif %}
           {% if field.name == "supplier" %}
             <div class="mms-form-help">
               <a href="{{ new_supplier_url }}" target="_blank" rel="noopener">{% trans "+ New supplier" %}</a>
@@ -38,4 +43,21 @@
     </form>
   </div>
 </div>
+<script>
+(function() {
+    var stockData = {{ stock_data_json|safe }};
+    var partSelect = document.getElementById('{{ form.part.id_for_label }}');
+    var badge = document.getElementById('stock-in-stock-badge');
+    var qtyEl = document.getElementById('stock-in-stock-qty');
+    if (!partSelect || !badge || !qtyEl) return;
+    function update() {
+        var q = stockData[partSelect.value];
+        if (q === undefined || q === null) { badge.style.display = 'none'; return; }
+        qtyEl.textContent = q;
+        badge.style.display = 'inline';
+    }
+    partSelect.addEventListener('change', update);
+    update();
+})();
+</script>
 {% endblock %}

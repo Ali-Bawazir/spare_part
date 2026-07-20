@@ -21,6 +21,7 @@ from .models import (
     QuickMaintenanceLog,
     Tool,
     ToolAssignment,
+    ToolDamageRecord,
     WorkOrder,
     WorkOrderStateLog,
 )
@@ -201,6 +202,14 @@ class IncidentAdmin(MMSAdminPermission, admin.ModelAdmin):
     readonly_fields = ("created_at",)
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
+
+
+@admin.register(ToolDamageRecord)
+class ToolDamageRecordAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("id", "tool", "supplier", "damage_kind", "replacement_action", "reported_by", "created_at")
+    list_filter = ("damage_kind", "replacement_action", "tool__status")
+    search_fields = ("tool__code", "tool__name", "supplier__name", "damage_reason")
+    autocomplete_fields = ("tool", "supplier", "assignment", "reported_by")
 
 
 @admin.register(Notification)

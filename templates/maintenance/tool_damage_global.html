@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Tool damage archive" %}{% endblock %}
+{% block page_heading %}{% trans "Tool damage archive" %}{% endblock %}
+{% block content %}
+<p class="mms-page-lead">{% trans "All damage and loss incidents across every tool. Use this to track which suppliers are reliable for which tools, and which tool categories fail more often." %}</p>
+<div class="mms-actions" style="margin-bottom:1rem">
+  <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'tool_dashboard' %}">{% trans "Tools dashboard" %}</a>
+  <span style="margin-left:1rem;color:#6b7280;font-size:0.85rem">{% blocktrans with days=days %}Showing last {{ days }} days{% endblocktrans %}</span>
+</div>
+
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header"><strong>{% trans "Damage by supplier" %}</strong></div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>{% trans "Supplier" %}</th><th>{% trans "Damage count" %}</th></tr></thead>
+      <tbody>
+        {% for s in by_supplier %}
+          <tr><td>{% if s.supplier__name %}{{ s.supplier__name }}{% else %}<em>{% trans "(no supplier recorded)" %}</em>{% endif %}</td><td>{{ s.damage_count }}</td></tr>
+        {% empty %}
+          <tr><td colspan="2" class="mms-empty">{% trans "No data." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mms-card">
+  <div class="mms-card-header"><strong>{% trans "All damage records" %}</strong>
+    <span style="color:#6b7280;font-size:0.85rem;margin-left:0.5rem">{% trans "Total cost of damaged tools YTD:" %} <strong>{{ total_damaged_cost_ytd|floatformat:2 }} SAR</strong></span>
+  </div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead>
+        <tr>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Tool" %}</th>
+          <th>{% trans "Kind" %}</th>
+          <th>{% trans "Reason" %}</th>
+          <th>{% trans "Supplier" %}</th>
+          <th>{% trans "Reported by" %}</th>
+          <th>{% trans "Replacement" %}</th>
+          <th>{% trans "Action" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+          <tr>
+            <td>{{ r.created_at|date:"Y-m-d" }}</td>
+            <td><a href="{% url 'tool_damage_list' r.tool.pk %}">{{ r.tool }}</a></td>
+            <td><span class="mms-badge mms-badge--warn">{{ r.get_damage_kind_display }}</span></td>
+            <td>{{ r.damage_reason|truncatechars:60 }}</td>
+            <td>{% if r.supplier %}{{ r.supplier.name }}{% else %}—{% endif %}</td>
+            <td>{{ r.reported_by }}</td>
+            <td><span class="mms-badge mms-badge--muted">{{ r.get_replacement_action_display }}</span></td>
+            <td>
+              {% if r.supplier_id %}
+                <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_order_create' %}?supplier={{ r.supplier_id }}&tool_id={{ r.tool_id }}">{% trans "Reorder replacement" %}</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="mms-empty">{% trans "No damage records yet." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

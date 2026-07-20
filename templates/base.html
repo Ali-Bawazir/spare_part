@@ -131,6 +131,11 @@
       {% endif %}
       {% if perm_tool_page %}
       <a href="{% url 'tool_list' %}" class="mms-nav-link{% if current_url_name and 'tool' in current_url_name %} is-active{% endif %}">{% trans "Tools" %}</a>
+      {% if user.role == 'manager' or user.role == 'super_admin' %}
+      <a href="{% url 'tool_dashboard' %}" class="mms-nav-link{% if current_url_name == 'tool_dashboard' %} is-active{% endif %}">
+        {% trans "Tools dashboard" %}
+      </a>
+      {% endif %}
       {% endif %}
       {% if perm_repair_list and user.role != 'procurement' %}
       <a href="{% url 'repair_list' %}" class="mms-nav-link{% if current_url_name and 'repair' in current_url_name %} is-active{% endif %}">{% trans "External repairs" %}</a>
@@ -188,9 +193,9 @@
     <div class="mms-sidebar-footer">
       {% if user.is_authenticated %}
       <div style="margin-bottom:.5rem"><strong>{{ user.username }}</strong><br><span style="opacity:.85">{{ user|user_role }}</span></div>
-      {% if user.is_staff %}
-      <a href="{% url 'admin:index' %}" class="mms-nav-link">{% trans "Admin" %}</a>
-      {% endif %}
+       {% if user.is_superuser or user.role == 'super_admin' %}
+       <a href="{% url 'admin:index' %}" class="mms-nav-link">{% trans "Admin" %}</a>
+       {% endif %}
       <a href="{% url 'logout' %}" class="mms-nav-link">{% trans "Sign out" %}</a>
       {% endif %}
     </div>

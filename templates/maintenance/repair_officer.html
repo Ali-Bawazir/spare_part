@@ -57,135 +57,91 @@
   </div>
 </div>
 
-<div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">{% trans "Before Repair Photos" %}</div>
-  <div class="mms-card-body">
-    <div id="attachment-list-repair_order-before-{{ rwo.pk }}">
-      <span class="text-muted">{% trans "Loading..." %}</span>
-    </div>
-    <div class="mt-2">
-      <input type="file" id="attachment-file-input-repair_order-before-{{ rwo.pk }}"
-             accept="image/jpeg,image/png,image/webp,application/pdf"
-             class="d-none" multiple
-             onchange="handleAttachmentSelect(this)">
-      <button type="button" class="btn btn-sm btn-outline-primary"
-              onclick="document.getElementById('attachment-file-input-repair_order-before-{{ rwo.pk }}').click()">
-        <i class="bi bi-paperclip"></i> Add Before Photo
-      </button>
-    </div>
+<section class="mms-section mms-attachments">
+  <h3>{% trans "Repair Photos" %}</h3>
+  <div id="attachment-list"
+       data-entity="repair_order"
+       data-id="{{ rwo.pk }}"
+       data-perm-upload="true">
+    <div class="mms-loading">{% trans "Loading..." %}</div>
   </div>
-</div>
+  <form class="mms-attachment-upload" method="post"
+        enctype="multipart/form-data" action="{% url 'attachment_upload' %}">
+    {% csrf_token %}
+    <input type="hidden" name="entity_type" value="repair_order">
+    <input type="hidden" name="entity_id" value="{{ rwo.pk }}">
+    <input type="hidden" name="category" value="DOCUMENT">
+    <div class="mms-form-row">
+      <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" required>
+      <input type="text" name="note" placeholder={% trans "Optional note (e.g. 'before repair' or 'after repair')" %} maxlength="500">
+      <button type="submit" class="btn btn-sm btn-primary">{% trans "Upload" %}</button>
+    </div>
+  </form>
+</section>
 
-<div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">{% trans "After Repair Photos" %}</div>
-  <div class="mms-card-body">
-    <div id="attachment-list-repair_order-after-{{ rwo.pk }}">
-      <span class="text-muted">{% trans "Loading..." %}</span>
-    </div>
-    <div class="mt-2">
-      <input type="file" id="attachment-file-input-repair_order-after-{{ rwo.pk }}"
-             accept="image/jpeg,image/png,image/webp,application/pdf"
-             class="d-none" multiple
-             onchange="handleAttachmentSelect(this)">
-      <button type="button" class="btn btn-sm btn-outline-primary"
-              onclick="document.getElementById('attachment-file-input-repair_order-after-{{ rwo.pk }}').click()">
-        <i class="bi bi-paperclip"></i> Add After Photo
-      </button>
-    </div>
-  </div>
-</div>
+<style>
+.mms-attachments { margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+.mms-attachment-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+.mms-attachment-item:last-child { border-bottom: none; }
+.mms-attachment-info { display: flex; align-items: center; gap: 0.5rem; }
+.mms-form-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+.mms-form-row input[type="file"] { flex: 1; min-width: 200px; }
+</style>
 
 <script>
-const i18nEl = document.getElementById('i18n-json');
-const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
-async function loadAttachments(entityType, entityId, containerId) {
-    try {
-        const response = await fetch(`/attachments/${entityType}/${entityId}/`);
-        const data = await response.json();
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        if (data.attachments && data.attachments.length > 0) {
-            container.innerHTML = data.attachments.map(att => `
-                <div class="attachment-item mb-2 p-2 border rounded" data-att-id="${att.id}">
-                    ${att.mime_type && att.mime_type.startsWith('image/')
-                        ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}"
-                             style="max-width:200px; max-height:150px; object-fit:cover;"
-                             class="mb-2">`
-                        : `<div class="file-icon mb-2"><i class="bi bi-file-earmark"></i>{% trans "${att.filename}" %}</div>`
-                    }
-                    <div class="small text-muted">{% trans "${att.filename} (${formatFileSize(att.size)})" %}</div>
-                    <div class="small text-muted">{% trans "${att.uploaded_by} - ${att.uploaded_at}" %}</div>
-                    ${att.note ? `<div class="small">{% trans "${att.note}" %}</div>` : ''}
-                    <button type="button" class="btn btn-sm btn-outline-danger mt-1"
-                            onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">
-                        Delete
-                    </button>
-                </div>
-            `).join('');
-        } else {
-            container.innerHTML = '<p class="text-muted mb-0">{% trans "No attachments yet." %}</p>';
-        }
-    } catch (e) {
-        console.error('Failed to load attachments:', e);
-    }
-}
-
-async function handleAttachmentSelect(input) {
-    const files = input.files;
-    if (!files.length) return;
-    const parts = input.id.replace('attachment-file-input-', '').split('-');
-    const entityType = parts.slice(0, -1).join('-');
-    const entityId = parts[parts.length - 1];
-    for (const file of files) {
-        await uploadAttachment(file, entityType, entityId);
-    }
-    loadAttachments(entityType, entityId, `attachment-list-${entityType}-${entityId}`);
-    input.value = '';
-}
-
-async function uploadAttachment(file, entityType, entityId) {
-    const formData = new FormData();
-    formData.append('entity_type', entityType);
-    formData.append('entity_id', entityId);
-    formData.append('file', file);
-    const response = await fetch('/attachments/upload/', {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-CSRFToken': getCSRFToken() }
-    });
-    if (!response.ok) {
-        const err = await response.json();
-        alert((T.upload_failed_prefix || 'Upload failed: ') + (err.error || (T.unknown_error || 'Unknown error')));
-    }
-    return response.json();
-}
-
-async function deleteAttachment(attId, containerId, entityType, entityId) {
-    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
-    const response = await fetch(`/attachments/${attId}/delete/`, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCSRFToken() }
-    });
-    if (response.ok) {
-        loadAttachments(entityType, entityId, containerId);
-    }
-}
-
-function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function getCSRFToken() {
-    return document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-  loadAttachments('repair_order', {{ rwo.pk }}, 'attachment-list-repair_order-before-{{ rwo.pk }}');
-  loadAttachments('repair_order', {{ rwo.pk }}, 'attachment-list-repair_order-after-{{ rwo.pk }}');
+  const listEl = document.getElementById('attachment-list');
+  if (!listEl) return;
+  const entity = listEl.dataset.entity;
+  const id = listEl.dataset.id;
+  fetch(`/attachments/${entity}/${id}/`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.attachments.length) {
+        listEl.innerHTML = '<p class="mms-empty">{% trans "No attachments yet." %}</p>';
+        return;
+      }
+      listEl.innerHTML = data.attachments.map(a => {
+        const isAudio = a.mime_type && a.mime_type.startsWith('audio/');
+        const player = isAudio
+          ? `<audio controls style="width:100%;max-width:400px;margin-top:4px"><source src="${a.url}" type="${a.mime_type}"></audio>`
+          : '';
+        return `
+        <div class="mms-attachment-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+          <div class="mms-attachment-info" style="width:100%">
+            <a href="${a.url}" target="_blank">${a.filename}</a>
+            <span class="mms-meta">${(a.size/1024).toFixed(1)} KB</span>
+            <span class="mms-meta">${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}</span>
+          </div>
+          ${player}
+          ${listEl.dataset.permUpload === 'true' ? `<button class="btn btn-sm btn-danger" onclick="deleteAtt(${a.id})">×</button>` : ''}
+        </div>
+        `;
+      }).join('');
+    });
+  const form = document.querySelector('.mms-attachment-upload');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fd = new FormData(form);
+      fetch(form.action, { method: 'POST', body: fd, headers: {'X-CSRFToken': fd.get('csrfmiddlewaretoken')} })
+        .then(r => r.json())
+        .then(data => {
+          if (data.id) {
+            listEl.querySelector('.mms-empty')?.remove();
+            location.reload();
+          }
+        });
+    });
+  }
 });
+
+function deleteAtt(id) {
+  if (!confirm('{% trans 'Delete this attachment?' %}')) return;
+  fetch(`/attachments/${id}/delete/`, { method: 'POST', headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''} })
+    .then(r => r.json())
+    .then(() => location.reload());
+}
 </script>
 
 {% include "maintenance/_asset_tree.html" %}

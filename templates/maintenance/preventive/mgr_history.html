@@ -4,9 +4,43 @@
 {% block page_heading %}{% trans "History" %}{% endblock %}
 {% block content %}
 
+<div class="mms-tiles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.75rem;margin-bottom:1rem">
+    <a href="?tab=pending_today{% if selected_machine %}&machine={{ selected_machine }}{% endif %}{% if selected_technician %}&technician={{ selected_technician }}{% endif %}{% if selected_days and selected_days != 30 %}&days={{ selected_days }}{% endif %}" class="mms-card" style="text-decoration:none;color:inherit;display:block">
+        <div class="mms-card-body">
+            <div class="mms-kpi-label">{% trans "Pending today" %}</div>
+            <div class="mms-kpi-value" style="color:#dc2626">{{ pending_today_count }}</div>
+            <small class="text-muted">{% trans "Open occurrences scheduled for today" %}</small>
+        </div>
+    </a>
+    <a href="?tab=overdue{% if selected_machine %}&machine={{ selected_machine }}{% endif %}{% if selected_technician %}&technician={{ selected_technician }}{% endif %}{% if selected_days and selected_days != 30 %}&days={{ selected_days }}{% endif %}" class="mms-card" style="text-decoration:none;color:inherit;display:block">
+        <div class="mms-card-body">
+            <div class="mms-kpi-label">{% trans "Overdue" %}</div>
+            <div class="mms-kpi-value" style="color:#ea580c">{{ overdue_count }}</div>
+            <small class="text-muted">{% trans "Past grace period, not started" %}</small>
+        </div>
+    </a>
+    <a href="?tab=completed{% if selected_machine %}&machine={{ selected_machine }}{% endif %}{% if selected_technician %}&technician={{ selected_technician }}{% endif %}{% if selected_days and selected_days != 30 %}&days={{ selected_days }}{% endif %}" class="mms-card" style="text-decoration:none;color:inherit;display:block">
+        <div class="mms-card-body">
+            <div class="mms-kpi-label">{% trans "Completed (last 30 days)" %}</div>
+            <div class="mms-kpi-value" style="color:#16a34a">{{ completed_recent_count }}</div>
+            <small class="text-muted">{% trans "Approved PMs in selected window" %}</small>
+        </div>
+    </a>
+</div>
+
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
+    <strong style="font-size:0.85rem;color:#6b7280">{% trans "View:" %}</strong>
+    <a href="?tab=completed{% if selected_machine %}&machine={{ selected_machine }}{% endif %}{% if selected_technician %}&technician={{ selected_technician }}{% endif %}{% if selected_days and selected_days != 30 %}&days={{ selected_days }}{% endif %}" class="mms-btn {% if selected_tab == 'completed' %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">{% trans "Completed" %}</a>
+    <a href="?tab=pending_today{% if selected_machine %}&machine={{ selected_machine }}{% endif %}{% if selected_technician %}&technician={{ selected_technician }}{% endif %}{% if selected_days and selected_days != 30 %}&days={{ selected_days }}{% endif %}" class="mms-btn {% if selected_tab == 'pending_today' %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">{% trans "Pending today" %} ({{ pending_today_count }})</a>
+    <a href="?tab=overdue{% if selected_machine %}&machine={{ selected_machine }}{% endif %}{% if selected_technician %}&technician={{ selected_technician }}{% endif %}{% if selected_days and selected_days != 30 %}&days={{ selected_days }}{% endif %}" class="mms-btn {% if selected_tab == 'overdue' %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">{% trans "Overdue" %} ({{ overdue_count }})</a>
+  </div>
+</div>
+
 <div class="mms-card" style="margin-bottom:1rem">
     <div class="mms-card-body">
         <form method="get" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;align-items:end">
+            <input type="hidden" name="tab" value="{{ selected_tab }}">
             <div>
                 <label for="f-machine">{% trans "Machine" %}</label>
                 <select name="machine" id="f-machine" class="form-select">
@@ -69,7 +103,15 @@
                     <td>{{ occ.scheduled_due_at|date:"Y-m-d" }}</td>
                     <td>{{ occ.pm_schedule.machine.name }}</td>
                     <td>{{ occ.pm_schedule.template.title }}</td>
-                    <td>{{ occ.completed_by.username|default_if_none:"—"|default:"—" }}{% if not occ.completed_by %}{{ occ.assigned_technician.username|default_if_none:"—" }}{% endif %}</td>
+                    <td>
+                      {% if occ.completed_by %}
+                        {{ occ.completed_by.username }}
+                      {% elif occ.assigned_technician %}
+                        <span title="Assigned to (not yet completed)">—</span> {{ occ.assigned_technician.username }}
+                      {% else %}
+                        <span title="Unassigned">—</span>
+                      {% endif %}
+                    </td>
                     <td>
                         {% if occ.work_order.labor_started_at and occ.work_order.labor_stopped_at %}
                             {{ occ.work_order.labor_started_at|timesince:occ.work_order.labor_stopped_at }}

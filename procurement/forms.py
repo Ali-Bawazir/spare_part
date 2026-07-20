@@ -70,7 +70,12 @@ class PurchaseRequestForm(forms.ModelForm):
         # Bind the rendered dropdown to the first 500 WOs so very large
         # factories don't render thousands of <option> tags. The form
         # validation still accepts any WO in the un-sliced queryset.
+        # Prepend a blank ("") option so the user can save a stock-only PR
+        # without selecting a work_order — direct assignment to widget.choices
+        # would otherwise strip Django's auto-prepended empty option.
         self.fields["work_order"].widget.choices = [
+            ("", "---------"),  # blank: no specific work order (stock replenishment)
+        ] + [
             (wo.pk, str(wo)) for wo in work_order_qs[:500]
         ]
         if lock_asset:
@@ -140,16 +145,20 @@ class PurchaseOrderItemForm(forms.ModelForm):
 
     class Meta:
         model = PurchaseOrderItem
-        fields = ["part", "ordered_qty", "negotiated_unit_price"]
+        fields = ["part", "tool", "ordered_qty", "negotiated_unit_price", "line_note"]
         labels = {
             "part": _("Part"),
+            "tool": _("Tool"),
             "ordered_qty": _("Ordered qty"),
             "negotiated_unit_price": _("Unit price"),
+            "line_note": _("Line note"),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["negotiated_unit_price"].label = _("Unit price")
+        self.fields["part"].required = False
+        self.fields["tool"].required = False
 
     def clean(self):
         cleaned = super().clean()
@@ -157,13 +166,23 @@ class PurchaseOrderItemForm(forms.ModelForm):
         price = cleaned.get("negotiated_unit_price")
         if qty and price:
             cleaned["total_price"] = qty * price
+        part = cleaned.get("part")
+        tool = cleaned.get("tool")
+        if part and tool:
+            raise forms.ValidationError(
+                _("A line item must reference either a part or a tool, not both.")
+            )
+        if not part and not tool:
+            raise forms.ValidationError(
+                _("A line item must reference a part or a tool.")
+            )
         return cleaned
 
 
 POItemFormSet = forms.inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderItem,
-    fields=["part", "ordered_qty", "negotiated_unit_price"],
+    fields=["part", "tool", "ordered_qty", "negotiated_unit_price", "line_note"],
     extra=1,
     can_delete=True,
 )
@@ -225,12 +244,19 @@ class SupplierForm(forms.ModelForm):
 
 
 class SupplierQuickForm(forms.ModelForm):
-    """Quick supplier create — name + code only (used for rapid entry)."""
+    """Quick supplier create — name + code (and optional phone/email) used for rapid entry."""
 
     class Meta:
         model = Supplier
-        fields = ("code", "name")
+        fields = ("code", "name", "phone", "email")
         widgets = {
             "code": forms.TextInput(attrs={**_CTRL, "placeholder": "SUP-001"}),
             "name": forms.TextInput(attrs={**_CTRL, "placeholder": "Supplier name"}),
+            "phone": forms.TextInput(attrs=_CTRL),
+            "email": forms.EmailInput(attrs=_CTRL),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["phone"].required = False
+        self.fields["email"].required = False

@@ -7,7 +7,7 @@
 
 <div class="mms-page-lead">{% trans "Track every PO from creation through receiving. Filter by status, jump to detail, or open a new one." %}</div>
 
-{% if perms.procurement.add_purchaseorder %}
+{% if request.user.is_superuser or request.user.role == 'manager' or request.user.role == 'procurement' or request.user.role == 'super_admin' or perms.procurement.add_purchaseorder %}
 <div class="mms-actions" style="margin-bottom:1rem">
     <a href="{% url 'purchase_order_create' %}" class="mms-btn mms-btn--primary">{% trans "+ New PO" %}</a>
 </div>
@@ -144,7 +144,11 @@
     <tbody>
     {% for po in pos %}
         <tr>
-            <td><a href="{% url 'purchase_order_detail' po.pk %}">{{ po.po_number }}</a></td>
+            <td><a href="{% url 'purchase_order_detail' po.pk %}">{{ po.po_number }}</a>
+                {% if po.reorder_source %}
+                <a href="{% url 'purchase_order_detail' po.reorder_source.pk %}" class="mms-badge mms-badge--muted" title="{% trans 'Reordered from' %} {{ po.reorder_source.po_number }}" style="margin-left:0.25rem">↻ {{ po.reorder_source.po_number }}</a>
+                {% endif %}
+            </td>
             <td>{{ po.supplier.name|default:"—" }}</td>
             <td>{{ po.supplier_invoice_number|default:"—" }}</td>
             <td><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></td>
@@ -156,7 +160,22 @@
                 {% if po.status == 'draft' or po.status == 'sent' or po.status == 'partial' %}
                 | <a href="{% url 'purchase_order_receive' po.pk %}">{% trans "Receive" %}</a>
                 {% endif %}
+                {% if po.status == 'sent' or po.status == 'partial' %}
+                | <a href="{% url 'purchase_order_close_short' po.pk %}">{% trans "Close Short" %}</a>
+                {% endif %}
+                {% if not po.is_locked %}
+                | <a href="{% url 'purchase_order_edit' po.pk %}">{% trans "Edit" %}</a>
+                {% endif %}
+                {% if po.status == 'draft' or po.status == 'sent' %}
+                | <a href="{% url 'purchase_order_cancel' po.pk %}">{% trans "Cancel" %}</a>
+                {% endif %}
                 | <a href="{% url 'purchase_order_pdf' po.pk %}" target="_blank">{% trans "PDF" %}</a>
+                {% if po.status == 'received' or po.status == 'closed_short' or po.status == 'cancelled' %}
+                <form method="post" action="{% url 'purchase_order_reorder' po.pk %}" style="display:inline;margin-left:0.25rem" onsubmit="return confirm('{% trans 'Create a new draft PO copying supplier + line items + last actual price from this PO?' %}')">
+                    {% csrf_token %}
+                    <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" style="border:1px solid #16a34a;color:#16a34a">{% trans "Reorder" %}</button>
+                </form>
+                {% endif %}
             </td>
         </tr>
     {% empty %}

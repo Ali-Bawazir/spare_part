@@ -8,6 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from maintenance.services import log_audit
@@ -60,4 +61,111 @@ def auto_create_pr_for_shortage(*, report, decision, actor) -> PurchaseRequest |
             "source_wo": str(report.work_order.number) if report.work_order_id else "",
         },
     )
+    # Phase 7.9: open a SHORTAGE WO Blocker so the WO page shows the
+    # "Awaiting Procurement" badge distinctly from the PART blocker.
+    # The SHORTAGE blocker resolves when the PR transitions to FULFILLED
+    # (see procurement/views.py purchase_order_receive and the SHORTAGE_FULFILLED
+    # event emitter wired there).
+    if pr.work_order_id and report is not None:
+        try:
+            from maintenance.models import WorkOrderBlocker
+            from maintenance.services_blocker import WorkOrderBlockerService
+            WorkOrderBlockerService.open_blocker(
+                work_order=pr.work_order,
+                kind=WorkOrderBlocker.Kind.SHORTAGE,
+                external_obj=report,
+                opened_by=actor,
+                note=decision.decision_note or "",
+                external_label=(
+                    f"{report.part.name} (SKU {report.part.sku}) × "
+                    f"{decision.approved_procurement_qty}"
+                ),
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to open SHORTAGE blocker for PR #{pr.pk}: {e}"
+            )
     return pr
+
+
+import logging
+log = logging.getLogger(__name__)
+
+
+class PurchaseOrderService:
+    """Domain services for PurchaseOrder workflows."""
+
+    @staticmethod
+    @transaction.atomic
+    def reorder(*, source_po, created_by):
+        """Create a new draft PurchaseOrder by cloning a terminal source PO.
+
+        Copies: supplier, all line items (part, ordered_qty, negotiated_unit_price),
+        any linked PRs.
+        Source PO must be in a terminal state (RECEIVED, CLOSED_SHORT, or CANCELLED).
+        Active POs are rejected with `ValueError` — caller should catch and render
+        a message.
+
+        Returns the new `PurchaseOrder` instance (not yet saved — caller decides
+        where to redirect).
+        """
+        from procurement.models import PurchaseOrder, PurchaseOrderItem
+
+        if source_po.status not in (
+            PurchaseOrder.Status.RECEIVED,
+            PurchaseOrder.Status.CLOSED_SHORT,
+            PurchaseOrder.Status.CANCELLED,
+        ):
+            raise ValueError(
+                f"Cannot reorder PO-{source_po.po_number}: "
+                f"status is {source_po.status}, must be RECEIVED, CLOSED_SHORT, or CANCELLED."
+            )
+
+        new_po = PurchaseOrder(
+            supplier=source_po.supplier,
+            created_by=created_by,
+            reorder_source=source_po,
+            notes=(
+                f"Reordered from PO-{source_po.po_number} on "
+                f"{timezone.now().strftime('%Y-%m-%d')}."
+            ),
+        )
+        # Trigger the auto-generated `po_number` save logic from the model.
+        new_po.save()
+
+        for src_line in source_po.items.all():
+            # Prefer the last actual_unit_price if the source was RECEIVED or CLOSED_SHORT
+            # (those are the terminal states where the actual invoice price is locked in),
+            # else fall back to the negotiated price.
+            unit_price = src_line.actual_unit_price or src_line.negotiated_unit_price or Decimal("0")
+            qty = src_line.ordered_qty
+            PurchaseOrderItem.objects.create(
+                purchase_order=new_po,
+                part=src_line.part,
+                ordered_qty=qty,
+                negotiated_unit_price=unit_price,
+                total_price=qty * unit_price,
+            )
+
+        # Audit log
+        try:
+            from maintenance.services import log_audit
+            log_audit(
+                actor=created_by,
+                action="po_reorder_created",
+                entity="PurchaseOrder",
+                object_id=new_po.pk,
+                payload={
+                    "source_po_id": source_po.pk,
+                    "source_po_number": source_po.po_number,
+                    "new_po_id": new_po.pk,
+                    "new_po_number": new_po.po_number,
+                    "supplier_id": source_po.supplier_id,
+                    "lines_cloned": new_po.items.count(),
+                },
+            )
+        except Exception:
+            log.warning("Failed to write audit log for po_reorder_created", exc_info=True)
+
+        return new_po

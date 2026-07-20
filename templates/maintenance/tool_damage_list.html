@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Damage history" %}{% blocktrans with tool_code=tool.code %}: {{ tool_code }}{% endblocktrans %}{% endblock %}
+{% block page_heading %}{% blocktrans with tool_name=tool.name %}{{ tool_name }} — damage history{% endblocktrans %}{% endblock %}
+{% block content %}
+<p class="mms-page-lead">{% trans "All damage and loss incidents for this specific tool, in reverse-chronological order. The supplier snapshot is preserved even if the original supplier is renamed or deleted." %}</p>
+<div class="mms-actions" style="margin-bottom:1rem">
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_list' %}">← {% trans "All tools" %}</a>
+  <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'tool_dashboard' %}">{% trans "Tools dashboard" %}</a>
+</div>
+
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead>
+        <tr>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Kind" %}</th>
+          <th>{% trans "Reason" %}</th>
+          <th>{% trans "Reported by" %}</th>
+          <th>{% trans "Supplier" %}</th>
+          <th>{% trans "Assignment" %}</th>
+          <th>{% trans "Replacement" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+          <tr>
+            <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+            <td><span class="mms-badge mms-badge--warn">{{ r.get_damage_kind_display }}</span></td>
+            <td>{{ r.damage_reason|truncatechars:80 }}</td>
+            <td>{{ r.reported_by }}</td>
+            <td>{% if r.supplier %}{{ r.supplier.name }}{% else %}—{% endif %}</td>
+            <td>{% if r.assignment %}{{ r.assignment.user }}{% else %}—{% endif %}</td>
+            <td><span class="mms-badge mms-badge--muted">{{ r.get_replacement_action_display }}</span></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="mms-empty">{% trans "No damage records for this tool. Tool is in" %} <strong>{{ tool.get_status_display }}</strong>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

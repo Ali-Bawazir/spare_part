@@ -48,8 +48,11 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="consume">
             <div class="mms-form-row">
-                <label for="id_part">{% trans "Part" %}</label>
+                <label for="id_consume_part">{% trans "Part" %}</label>
                 {{ consume_form.part }}
+                <span id="consume-stock-badge" class="mms-badge mms-badge--info" style="display:none; margin-left: .5rem">
+                  {% trans "In stock" %}: <strong id="consume-stock-qty">0</strong>
+                </span>
                 {% if consume_form.part.errors %}<div class="mms-field-error">{{ consume_form.part.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-row">
@@ -83,6 +86,9 @@
             <div class="mms-form-row">
                 <label for="{{ issue_form.part.id_for_label }}">{% trans "Part" %}</label>
                 {{ issue_form.part }}
+                <span id="issue-stock-badge" class="mms-badge mms-badge--info" style="display:none; margin-left: .5rem">
+                  {% trans "In stock" %}: <strong id="issue-stock-qty">0</strong>
+                </span>
                 {% if issue_form.part.errors %}<div class="mms-field-error">{{ issue_form.part.errors }}</div>{% endif %}
             </div>
             <div class="mms-form-row">
@@ -179,18 +185,21 @@
 
 <script>
 (function() {
-    var partSelect = document.getElementById('id_part');
+    var partSelect = document.getElementById('id_consume_part');
     var unitHint = document.getElementById('unit-hint');
     var partOptions = {};
 
     // Build part -> unit map from select options' text
-    Array.from(partSelect.options).forEach(function(opt) {
-        if (!opt.value) return;
-        // Expected format: "Name (SKU)" — extract unit from data attribute if available
-        // Fallback: leave hint empty unless we have per-part unit info
-    });
+    if (partSelect) {
+        Array.from(partSelect.options).forEach(function(opt) {
+            if (!opt.value) return;
+            // Expected format: "Name (SKU)" — extract unit from data attribute if available
+            // Fallback: leave hint empty unless we have per-part unit info
+        });
+    }
 
     function updateUnitHint() {
+        if (!unitHint || !partSelect) return;
         var selectedOption = partSelect.options[partSelect.selectedIndex];
         if (!selectedOption || !selectedOption.value) {
             unitHint.textContent = '';
@@ -201,8 +210,63 @@
         unitHint.textContent = '';
     }
 
-    partSelect.addEventListener('change', updateUnitHint);
-    updateUnitHint();
+    if (partSelect) {
+        partSelect.addEventListener('change', updateUnitHint);
+        updateUnitHint();
+    }
+})();
+
+// Live stock badge for the "Self-consumption" part selector.
+(function() {
+    var stockData = {{ consume_stock_data_json|safe }};
+    var partSelect = document.getElementById('id_consume_part');
+    var badge = document.getElementById('consume-stock-badge');
+    var qtyEl = document.getElementById('consume-stock-qty');
+    if (!partSelect || !badge || !qtyEl) {
+        return;
+    }
+
+    function updateConsumeBadge() {
+        var partId = partSelect.value;
+        var qty = stockData[partId];
+        if (qty === undefined || qty === null) {
+            badge.style.display = 'none';
+            return;
+        }
+        qtyEl.textContent = qty;
+        badge.style.display = 'inline';
+    }
+
+    partSelect.addEventListener('change', updateConsumeBadge);
+    updateConsumeBadge();
+})();
+
+// Live stock badge for the "Issue to operator" part selector.
+// Shows current quantity_available next to the part field as soon as
+// the user picks a part. Data is injected from the view as a JSON
+// mapping {part_id: quantity_available}.
+(function() {
+    var stockData = {{ stock_data_json|safe }};
+    var partSelect = document.getElementById('id_issue_part');
+    var badge = document.getElementById('issue-stock-badge');
+    var qtyEl = document.getElementById('issue-stock-qty');
+    if (!partSelect || !badge || !qtyEl) {
+        return;
+    }
+
+    function updateStockBadge() {
+        var partId = partSelect.value;
+        var qty = stockData[partId];
+        if (qty === undefined || qty === null) {
+            badge.style.display = 'none';
+            return;
+        }
+        qtyEl.textContent = qty;
+        badge.style.display = 'inline';
+    }
+
+    partSelect.addEventListener('change', updateStockBadge);
+    updateStockBadge();
 })();
 </script>
 {% endblock %}

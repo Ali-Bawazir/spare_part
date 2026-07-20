@@ -84,7 +84,7 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
     issue_archive = role_in(User.Role.MANAGER, User.Role.SUPER_ADMIN)
 
     # --- Work orders (matrix: queue = technician + manager + supervisor (read-only)) ---
-    view_work_orders = role_in(User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPERVISOR)
+    view_work_orders = role_in(User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.PROCUREMENT)
     create_work_order = role_in(User.Role.MANAGER)
     assign_technician = role_in(User.Role.MANAGER)
     issue_parts_to_wo = role_in(User.Role.MANAGER)
@@ -131,9 +131,9 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
     # --- PM schedules (manager creates) ---
     pm_schedule_manage = role_in(User.Role.MANAGER)
 
-    # --- Tools: manager/supervisor assign; technician/operator return own ---
+    # --- Tools: manager/supervisor assign to anyone; technician/operator self-assign ---
     tool_page = role_in(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.OPERATOR)
-    tool_assign = role_in(User.Role.MANAGER, User.Role.SUPERVISOR)
+    tool_assign = role_in(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.OPERATOR)
     tool_return = role_in(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.OPERATOR)
 
     # --- Emergency / repairs ---

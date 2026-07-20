@@ -199,11 +199,10 @@ class AutoFulfillmentTests(TestCase):
         # No auto-issued actions (no WO lines to match)
         self.assertEqual(summary["actions"], [])
 
-    def test_auto_fulfill_partial_qty(self):
-        """Partial receive: PO is partial, line is NOT auto-issued.
-
-        The auto-fulfill guard checks `received_qty < ordered_qty` and
-        skips lines that aren't fully received."""
+    def test_auto_fulfill_partial_qty_issues_received(self):
+        """Partial receive: PO is partial; auto-fulfill issues
+        `min(received, remaining)` from the received stock. The remainder
+        of the line stays awaiting-warehouse-issue."""
         line = _create_open_line(self.wo, self.part, 10, self.tech, self.mgr, status="allocated")
         pr = PurchaseRequest.objects.create(
             part=self.part, quantity=10, work_order=self.wo,
@@ -215,10 +214,18 @@ class AutoFulfillmentTests(TestCase):
         summary = auto_fulfill_wo_lines_from_po(po=po, actor=self.mgr)
 
         line.refresh_from_db()
-        self.assertEqual(line.issued_qty, 0,
-                         f"line should NOT be auto-issued on partial, got {line.issued_qty}")
+        self.assertEqual(line.issued_qty, 3,
+                         f"line should be auto-issued 3 (the received qty), got {line.issued_qty}")
+        self.assertIn(line.status, ("approved", "allocated"),
+                      f"line status should remain approved/allocated on partial, got {line.status}")
+        remaining = line.approved_qty - line.issued_qty
+        self.assertEqual(remaining, 7,
+                         f"remaining should be 7 (10 - 3), got {remaining}")
         issued = [a for a in summary["actions"] if a.get("type") == "auto_issued"]
-        self.assertEqual(issued, [])
+        self.assertEqual(len(issued), 1,
+                         f"expected exactly 1 auto_issued action, got {issued}")
+        self.assertEqual(Decimal(issued[0]["qty"]), Decimal("3"),
+                         f"auto_issued action qty should be 3, got {issued[0].get('qty')}")
 
     def test_auto_fulfill_respects_settings_toggle(self):
         """When settings.PO_AUTO_ISSUE is False, stock is added but

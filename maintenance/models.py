@@ -432,11 +432,33 @@ class WorkOrder(models.Model):
 
     def save(self, *args, **kwargs):
         is_create = self.pk is None
-        if not self.number:
-            last = WorkOrder.objects.order_by("-number").values_list("number", flat=True).first()
-            self.number = (last or 0) + 1
-        if is_create:
-            self.blocker_system_version = 1
+        # Race-safe auto-numbering. SELECT-MAX-then-INSERT is not atomic — two
+        # concurrent inserts can pick the same `number`. Wrap the generation +
+        # insert in a transaction and retry on IntegrityError, refreshing max
+        # between attempts. Caller may pass an explicit number to bypass.
+        # IMPORTANT: query via `all_objects` (the base Manager) — the default
+        # `objects` is an ActiveManager that hides archived rows, so its MAX
+        # would skip archived numbers and the next INSERT would collide with
+        # the UNIQUE constraint on archived rows.
+        from django.db import IntegrityError, transaction
+        from django.db.models import Max
+        for _attempt in range(5):
+            if not self.number:
+                last = (
+                    WorkOrder.all_objects.aggregate(m=Max("number"))["m"] or 0
+                )
+                self.number = last + 1
+            if is_create:
+                self.blocker_system_version = 1
+            try:
+                with transaction.atomic():
+                    super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                # Another transaction grabbed our number. Refresh and retry.
+                self.number = None
+                continue
+        # Fallback: re-raise after exhausting retries.
         super().save(*args, **kwargs)
 
     def clean(self):
@@ -814,12 +836,31 @@ class Tool(models.Model):
         db_index=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    supplier = models.ForeignKey(
+        "procurement.Supplier",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tools_supplied",
+        help_text=_("Vendor who supplied this tool. Optional for legacy tools."),
+    )
+    purchase_cost = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text=_("What we paid for this tool. Used for cost-of-damaged reporting."),
+    )
+    purchase_date = models.DateField(null=True, blank=True)
+    invoice_ref = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
 
     class Meta:
         ordering = ["name"]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.code})"
+
+    @property
+    def is_available(self) -> bool:
+        return self.status == self.Status.AVAILABLE
 
 
 class ToolAssignment(models.Model):
@@ -902,6 +943,91 @@ class Incident(models.Model):
         return self.title
 
 
+class ToolDamageRecord(models.Model):
+    """Immutable archive entry for a tool that was returned DAMAGED or LOST, or worn-out.
+    Captures the supplier (snapshot from Tool.supplier at time of damage), the user
+    who was holding it, the reason, and the recommended replacement action.
+    The Tool itself transitions to OUT_OF_SERVICE but is NOT removed. No auto-WorkOrder
+    is created — this is the canonical record.
+    """
+
+    class DamageKind(models.TextChoices):
+        DAMAGED = "damaged", _("Damaged")
+        LOST = "lost", _("Lost")
+        WORN_OUT = "worn_out", _("Worn out / end of life")
+        INHERITED_DEFECT = "inherited_defect", _("Defective on arrival")
+
+    class ReplacementAction(models.TextChoices):
+        BUY_FROM_OTHER = "buy_from_other", _("Buy from a different supplier")
+        BUY_FROM_SAME = "buy_from_same", _("Buy from same supplier")
+        PENDING = "pending", _("Replacement pending")
+        REPLACED_FROM_STOCK = "replaced_from_stock", _("Replaced from existing stock")
+        NO_REPLACEMENT_NEEDED = "no_replacement", _("No replacement needed")
+
+    tool = models.ForeignKey(
+        Tool,
+        on_delete=models.PROTECT,
+        related_name="damage_records",
+        help_text=_("The specific unit that was damaged."),
+    )
+    # Snapshot FK — value preserved even if supplier is renamed/deleted.
+    supplier = models.ForeignKey(
+        "procurement.Supplier",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tool_damage_records",
+        help_text=_("Snapshot of the supplier who supplied THIS unit. Null for legacy unbranded tools."),
+    )
+    assignment = models.ForeignKey(
+        "ToolAssignment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="damage_records",
+        help_text=_("The assignment that ended in damage. Null for outages not tied to an open assignment."),
+    )
+    damage_kind = models.CharField(max_length=20, choices=DamageKind.choices)
+    damage_reason = models.TextField(
+        help_text=_("Why the tool was damaged or lost. Minimum 15 characters."),
+    )
+    quantity_damaged = models.PositiveIntegerField(default=1)
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="tool_damage_records_reported",
+    )
+    replacement_action = models.CharField(
+        max_length=30,
+        choices=ReplacementAction.choices,
+        default=ReplacementAction.BUY_FROM_OTHER,
+    )
+    tool_status_after = models.CharField(
+        max_length=32,
+        default="out_of_service",
+        help_text=_("Tool's status after this incident. Always 'out_of_service' for now."),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["tool", "-created_at"], name="tdr_tool_created_idx"),
+            models.Index(fields=["supplier"], name="tdr_supplier_idx"),
+            models.Index(fields=["damage_kind"], name="tdr_kind_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Damage #{self.pk} — {self.tool.code} ({self.get_damage_kind_display()})"
+
+    def save(self, *args, **kwargs):
+        # Force at least 15 characters on save (defence-in-depth — form also validates).
+        if self.damage_reason and len(self.damage_reason.strip()) < 15:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({"damage_reason": _("Reason must be at least 15 characters.")})
+        super().save(*args, **kwargs)
+
+
 class Notification(models.Model):
     """In-app alerts (PDF: low stock, emergency, PM due, pending WO, etc.)."""
 
@@ -953,6 +1079,7 @@ class Notification(models.Model):
         PM_UNASSIGNED = "pm_unassigned", _("PM has no technician")
         PM_WAITING_REVIEW = "pm_waiting_review", _("PM awaiting manager review")
         PM_PLAN_PAUSED = "pm_plan_paused", _("PM plan paused")
+        TOOL_DAMAGED = "tool_damaged", _("Tool damaged / archived")
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -989,6 +1116,16 @@ class Notification(models.Model):
 
 class ExternalRepairOrder(models.Model):
     """Repair work order sent to vendor (UC-19/20)."""
+
+    # Class-level flag: when True, the save() override skips auto-firing
+    # ERO_RETURNED / ERO_ACCEPTED. Production code leaves this False so
+    # status transitions always notify the blocker subsystem. Tests that
+    # need to control blocker resolution explicitly (e.g. asserting on
+    # the return value of sync_from_external_event) can opt out for the
+    # duration of a setUp/test using:
+    #   ExternalRepairOrder._disable_auto_fire = True
+    # and restore in tearDown.
+    _disable_auto_fire = False
 
     class Status(models.TextChoices):
         DRAFT = "draft", _("Draft")
@@ -1116,6 +1253,93 @@ class ExternalRepairOrder(models.Model):
             models.Index(fields=["supplier", "status"], name="ero_supplier_status_idx"),
             models.Index(fields=["status", "returned_at"], name="ero_status_returned_idx"),
         ]
+
+    def save(self, *args, **kwargs):
+        """Save and auto-fire ERO_RETURNED / ERO_ACCEPTED on status transitions.
+
+        The events drive the VENDOR_REPAIR blocker lifecycle. They are
+        normally fired from views (e.g. repair_manager_accept) but we
+        also fire them here as a safety net so any code path that
+        changes the ERO status triggers blocker resolution. The model
+        is the source of truth for the ERO state.
+
+        Triggers (only when status actually changes):
+          * -> RETURNED  -> ERO_RETURNED  (resolves the VENDOR_REPAIR blocker)
+          * -> CLOSED    -> ERO_ACCEPTED  (resolves the VENDOR_REPAIR blocker)
+
+        Skipped:
+          - When the status didn't change (re-save)
+          - When work_order is null (event would no-op anyway)
+          - When in a non-status-changing state transition
+
+        Wrapped in try/except so a save never breaks because of a
+        notify hiccup. sync_from_external_event is now self-atomic
+        (see WorkOrderBlockerService), so this call is safe in any
+        context.
+        """
+        old_status = None
+        if self.pk:
+            try:
+                old_status = (
+                    ExternalRepairOrder.objects
+                    .only("status")
+                    .get(pk=self.pk)
+                    .status
+                )
+            except ExternalRepairOrder.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+        if getattr(self.__class__, "_disable_auto_fire", False):
+            return
+        if old_status == self.status:
+            return
+        if not self.work_order_id:
+            return
+        event_type = None
+        if self.status == ExternalRepairOrder.Status.RETURNED:
+            event_type = "ERO_RETURNED"
+        elif self.status == ExternalRepairOrder.Status.CLOSED:
+            event_type = "ERO_ACCEPTED"
+        if event_type is None:
+            return
+        try:
+            from maintenance.services_blocker import WorkOrderBlockerService
+            WorkOrderBlockerService.sync_from_external_event(
+                external_obj=self,
+                event_type=event_type,
+                actor=None,
+                payload={
+                    "ero_id": self.pk,
+                    "old_status": old_status,
+                    "source": "model_save",
+                },
+            )
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"ExternalRepairOrder.save() auto-fire failed for "
+                f"ERO#{self.pk} status={self.status}: {_e}"
+            )
+
+        # After firing the blocker event, also post the cost ledger entry
+        # so the WO cost rollup is correct regardless of which path closed
+        # the ERO (manager_accept view, Django admin, or direct ORM save).
+        # Without this, EROs closed via non-view paths were missing their
+        # vendor_repair cost in the WorkOrderCost cache.
+        if event_type == "ERO_ACCEPTED" and self.actual_cost:
+            try:
+                from maintenance.cost_ledger import CostLedgerService
+                actor = self.closed_by or self.created_by
+                CostLedgerService.post_vendor_repair(
+                    external_repair_order=self,
+                    actor=actor,
+                    memo=f"ERO #{self.pk} closed (cost ledger auto-posted)",
+                )
+            except Exception as _e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"post_vendor_repair auto-fire failed for ERO {self.pk}: {_e}"
+                )
 
     def clean(self):
         super().clean()
@@ -1255,6 +1479,37 @@ class WorkOrderCost(models.Model):
     def total_cost(self) -> Decimal:
         return (self.material_cost + self.vendor_repair_cost
                 + self.consumables_cost + self.additional_cost)
+
+    # Phase 2d: procurement_cost as a derived property (no stored column).
+    # Cost = sum(POItem.received_qty × POItem.actual_unit_price) for PO items
+    # linked through PRs to this WO. Distinct from material_cost (what was
+    # physically issued) — this represents "what we paid / committed to pay
+    # via procurement". Cached on the instance (not request-scoped) so
+    # templates calling it multiple times in one render don't repeat
+    # the SQL aggregate.
+    @property
+    def procurement_cost(self) -> Decimal:
+        if hasattr(self, "_cached_procurement_cost"):
+            return self._cached_procurement_cost
+
+        from django.db.models import F, Sum, DecimalField
+        from procurement.models import PurchaseOrderItem
+
+        result = (
+            PurchaseOrderItem.objects
+            .filter(
+                purchase_order__purchase_requests__work_order_id=self.work_order_id,
+                received_qty__gt=0,
+            )
+            .annotate(
+                line_total=F("received_qty") * F("actual_unit_price"),
+            )
+            .aggregate(
+                total=Sum("line_total", output_field=DecimalField(max_digits=14, decimal_places=2))
+            )["total"]
+        )
+        self._cached_procurement_cost = result or Decimal("0")
+        return self._cached_procurement_cost
 
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -1630,7 +1885,9 @@ class Attachment(models.Model):
         from PIL import Image
 
         try:
-            file_path = self.file.path
+            # self.file.path may be a Path (Django 4+) or str (older).
+            # Force str so .replace() works on all versions.
+            file_path = str(self.file.path)
             img = Image.open(file_path)
 
             self.width = img.width
@@ -1638,17 +1895,19 @@ class Attachment(models.Model):
 
             img.thumbnail((300, 300), Image.LANCZOS)
 
-            dir_name = os.path.dirname(file_path)
             base_name = os.path.splitext(os.path.basename(file_path))[0]
             thumb_name = f"{base_name}_300.jpg"
+            # Replace /originals/ with /thumbs/ in the path string.
             thumb_dir = file_path.replace('/originals/', '/thumbs/').rsplit('/', 1)[0]
             os.makedirs(thumb_dir, exist_ok=True)
             thumb_path = os.path.join(thumb_dir, thumb_name)
 
-            thumb_img = img.convert('RGB')
-            thumb_img.save(thumb_path, 'JPEG', quality=85, optimize=True)
+            # Skip regeneration if file already exists (idempotent).
+            if not os.path.exists(thumb_path):
+                thumb_img = img.convert('RGB')
+                thumb_img.save(thumb_path, 'JPEG', quality=85, optimize=True)
 
-            self.thumbnail = thumb_path.replace(settings.MEDIA_ROOT, '').lstrip('/')
+            self.thumbnail = thumb_path.replace(str(settings.MEDIA_ROOT), '').lstrip('/')
             self.width = img.width
             self.height = img.height
 
@@ -1735,6 +1994,11 @@ class WorkOrderBlockerEvent(models.Model):
         ERO_ACCEPTED          = "ero_accepted"
         EMERGENCY_INTERRUPTED = "emergency_interrupted"
         LABOR_RESUMED         = "labor_resumed"
+        # Phase 3: emergency post-review events. Three outcomes — none
+        # of them reverse inventory or cost.
+        EMERGENCY_REVIEW_APPROVED  = "emergency_review_approved"
+        EMERGENCY_REVIEW_EXCEPTION = "emergency_review_exception"
+        EMERGENCY_REVIEW_INVESTIGATE = "emergency_review_investigate"
 
     blocker      = models.ForeignKey(WorkOrderBlocker, on_delete=models.CASCADE, related_name="events")
     event_type   = models.CharField(max_length=32, choices=EventType.choices, db_index=True)

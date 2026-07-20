@@ -138,7 +138,9 @@ def complete(
     if wo is None:
         return CompleteResult(False, "Work order not started yet.")
 
-    # Build structured action_taken
+    # Build structured action_taken. On re-submission (PM is currently
+    # REJECTED), APPEND instead of overwriting so the audit trail of
+    # earlier attempts is preserved.
     lines = []
     for r in checklist_results:
         marker = "✓" if r.get("checked") else "✗"
@@ -148,15 +150,45 @@ def complete(
     if notes:
         lines.append("")
         lines.append(f"Notes: {notes}")
+    attempt_block = "\n".join(lines)
 
-    wo.action_taken = "\n".join(lines)
+    is_resubmit = pm_execution.status == PMExecution.Status.REJECTED
+    if is_resubmit:
+        # This is a re-submission of a previously returned PM.
+        # Preserve the prior action_taken and append the new attempt,
+        # labelled with attempt number + who submitted.
+        # The "attempt number" is the new count after bumping.
+        wo.rejection_count = (wo.rejection_count or 0) + 1
+        attempt_n = wo.rejection_count + 1  # the attempt we're saving now
+        submitted_at = timezone.now().strftime("%Y-%m-%d %H:%M")
+        prefix = (
+            f"--- Attempt {attempt_n} "
+            f"(re-submitted by {technician} at {submitted_at}) ---\n"
+        )
+        if wo.action_taken:
+            wo.action_taken = wo.action_taken + "\n\n" + prefix + attempt_block
+        else:
+            wo.action_taken = prefix + attempt_block
+        # Flip back to SUBMITTED so the manager's reviews queue
+        # (which filters status=SUBMITTED) sees this re-submission.
+        # The original rejection metadata is kept on the WO so the
+        # history remains intact; only the PM status moves.
+        pm_execution.status = PMExecution.Status.SUBMITTED
+        pm_execution.rejected_at = None
+        pm_execution.rejected_by = None
+        # rejection_reason is preserved on WO but cleared on PM so the
+        # manager isn't confused — the next review pass starts fresh.
+        pm_execution.rejection_reason = ""
+        pm_execution.save(update_fields=["status", "rejected_at", "rejected_by", "rejection_reason"])
+    else:
+        wo.action_taken = attempt_block
     if root_cause:
         wo.root_cause = root_cause
     wo.photo_count = photo_count
     if wo.lifecycle_status != WorkOrder.LifecycleStatus.PENDING_REVIEW:
         wo.lifecycle_status = WorkOrder.LifecycleStatus.PENDING_REVIEW
         wo.labor_stopped_at = timezone.now()
-    wo.save(update_fields=["action_taken", "root_cause", "photo_count", "lifecycle_status", "labor_stopped_at", "updated_at"])
+    wo.save(update_fields=["action_taken", "root_cause", "photo_count", "lifecycle_status", "labor_stopped_at", "rejection_count", "updated_at"])
 
     if wo.lifecycle_status == WorkOrder.LifecycleStatus.PENDING_REVIEW:
         WorkOrderStateLog.objects.create(
@@ -192,8 +224,9 @@ def return_to_technician(
     wo.rejected_at = timezone.now()
     wo.rejected_by = manager
     wo.rejection_reason = reason
+    wo.rejection_count = (wo.rejection_count or 0) + 1
     wo.save(update_fields=[
-        "lifecycle_status", "rejected_at", "rejected_by", "rejection_reason", "updated_at",
+        "lifecycle_status", "rejected_at", "rejected_by", "rejection_reason", "rejection_count", "updated_at",
     ])
 
     WorkOrderStateLog.objects.create(
@@ -215,6 +248,14 @@ def approve(pm_execution: PMExecution, manager) -> WorkOrder:
     pm_execution.approved_by = manager
     pm_execution.approved_at = timezone.now()
     pm_execution.save(update_fields=["status", "approved_by", "approved_at"])
+
+    # Backfill completed_by from assigned_technician if a technician
+    # did the work but the submit flow didn't record it on the
+    # PMExecution row. Keeps the History table clean (no "— technician"
+    # with em-dash when the work actually was completed).
+    if pm_execution.completed_by_id is None and pm_execution.assigned_technician_id is not None:
+        pm_execution.completed_by = pm_execution.assigned_technician
+        pm_execution.save(update_fields=["completed_by"])
 
     if wo is not None:
         wo.lifecycle_status = WorkOrder.LifecycleStatus.CLOSED

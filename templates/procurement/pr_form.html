@@ -32,10 +32,32 @@
         <div class="mms-form-row">
           {{ field.label_tag }}
           {{ field }}
+          {% if field.name == "part" %}
+            <span id="pr-stock-badge" class="mms-badge mms-badge--info" style="display:none; margin-left:.5rem">
+              {% trans "In stock" %}: <strong id="pr-stock-qty">0</strong>
+            </span>
+          {% endif %}
           {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
         </div>
         {% endif %}
       {% endfor %}
+      <script>
+      (function() {
+          var stockData = {{ stock_data_json|safe }};
+          var partSelect = document.getElementById('{{ form.part.id_for_label }}');
+          var badge = document.getElementById('pr-stock-badge');
+          var qtyEl = document.getElementById('pr-stock-qty');
+          if (!partSelect || !badge || !qtyEl) return;
+          function update() {
+              var q = stockData[partSelect.value];
+              if (q === undefined || q === null) { badge.style.display = 'none'; return; }
+              qtyEl.textContent = q;
+              badge.style.display = 'inline';
+          }
+          partSelect.addEventListener('change', update);
+          update();
+      })();
+      </script>
 
       {% if not locked_asset %}
       <div class="mms-form-row" id="component-row" style="display:none">

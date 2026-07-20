@@ -95,6 +95,7 @@ class EroAcceptedFallbackToOriginRequestTests(TestCase):
     """ERO_ACCEPTED must resolve a blocker keyed to the ERR (origin_request)."""
 
     def setUp(self):
+        ExternalRepairOrder._disable_auto_fire = True
         self.manager = _make_user("mgr_vf", User.Role.MANAGER)
         self.tech = _make_user("tech_vf", User.Role.TECHNICIAN)
         self.machine = _make_machine("VF-1")
@@ -117,6 +118,10 @@ class EroAcceptedFallbackToOriginRequestTests(TestCase):
             related_ero=self.ero,
             opened_by=self.tech,
         )
+
+    def tearDown(self):
+        ExternalRepairOrder._disable_auto_fire = False
+        super().tearDown()
 
     def test_ero_accepted_falls_back_to_origin_request(self):
         """ERO_ACCEPTED with external_obj=ERO resolves the ERR-keyed blocker."""

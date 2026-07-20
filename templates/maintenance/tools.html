@@ -34,6 +34,7 @@
 {% endif %}
 
 <h2 class="mms-subheading">{% trans "Assign tool" %}</h2>
+{# Operator / technician can only self-assign — show their username as a locked field instead of the Assignee picker. #}
 {% if perm_tool_assign %}
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
@@ -45,7 +46,12 @@
       {% for field in assign_form %}
       <div class="mms-form-row">
         {{ field.label_tag }}
-        {{ field }}
+        {% if field.name == "assignee" and not can_assign_to_others %}
+          <input type="text" value="{{ user.username }}" disabled class="form-control">
+          <input type="hidden" name="assignee" value="{{ user.pk }}">
+        {% else %}
+          {{ field }}
+        {% endif %}
         {% if field.help_text %}<div class="mms-form-tip">{{ field.help_text }}</div>{% endif %}
         {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
       </div>

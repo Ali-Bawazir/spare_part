@@ -214,22 +214,20 @@ def issue_part_to_work_order(
             payload={"part": part.sku, "qty": str(quantity), "mode": "full"},
         )
         _maybe_notify_low_stock(part, site)
-        # Phase 1+2 Cost Ledger: post the material cost for this issue.
-        try:
-            from maintenance.cost_ledger import CostLedgerService
-            CostLedgerService.post_material(
-                part_issue_line=pil,
-                actor=issued_by,
-                memo=_("Part issued: %(name)s x %(qty)s") % {
-                "name": part.name,
-                "qty": pil.issued_qty,
+        # Phase 2 Cost Ledger: post the material cost for this issue.
+        # Phase 2 STRICT: do NOT swallow exceptions. If post_material raises,
+        # the outer @transaction.atomic rolls back the entire issue path
+        # including inventory deduction. Stock stays, cost not posted.
+        # Silent ledger loss is unacceptable (was the bug).
+        from maintenance.cost_ledger import CostLedgerService
+        CostLedgerService.post_material(
+            part_issue_line=pil,
+            actor=issued_by,
+            memo=_("Part issued: %(name)s x %(qty)s") % {
+            "name": part.name,
+            "qty": pil.issued_qty,
             },
-            )
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(
-                f"Cost ledger post_material failed for line {pil.pk}: {e}"
-            )
+        )
         # Phase 7.4: fire PART_ISSUED so the WO Blocker resolves
         # (keystone rule: issued == approved → PART blocker resolved).
         # The manager direct-issue path used to skip this event, leaving
@@ -274,22 +272,17 @@ def issue_part_to_work_order(
             payload={"part": part.sku, "issued": str(available), "shortage": str(short)},
         )
         _maybe_notify_low_stock(part, site)
-        # Phase 1+2 Cost Ledger: post the material cost for this partial issue.
-        try:
-            from maintenance.cost_ledger import CostLedgerService
-            CostLedgerService.post_material(
-                part_issue_line=pil,
-                actor=issued_by,
-                memo=_("Part issued (partial): %(name)s x %(qty)s") % {
-                "name": part.name,
-                "qty": pil.issued_qty,
+        # Phase 2 Cost Ledger: post the material cost for this partial issue.
+        # Phase 2 STRICT: do NOT swallow exceptions (see full-issue branch above).
+        from maintenance.cost_ledger import CostLedgerService
+        CostLedgerService.post_material(
+            part_issue_line=pil,
+            actor=issued_by,
+            memo=_("Part issued (partial): %(name)s x %(qty)s") % {
+            "name": part.name,
+            "qty": pil.issued_qty,
             },
-            )
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(
-                f"Cost ledger post_material failed for line {pil.pk}: {e}"
-            )
+        )
         # Phase 7.4: fire PART_ISSUED so the WO Blocker resolves
         # (partial issue means approved_qty > issued_qty → blocker
         # stays open; the event handler decides per keystone rule).
@@ -585,6 +578,24 @@ def issue_consumable(
         payload={"qty": str(quantity), "assignment_id": assignment.pk, "consumed_by": consumed_by.username},
     )
 
+    # Phase 2b: post the consumable cost to the ledger. Without this,
+    # supervisor-issued consumables never reach the WO cost card. The
+    # post_consumable service attaches the CostTransaction to the active
+    # WO on the same machine (matching consumable_use() behavior), falling
+    # back to UNASSIGNED if no WO matches. Phase 2 STRICT: do NOT swallow
+    # exceptions — failures roll back the outer @transaction.atomic and
+    # the stock deduction is reversed.
+    from maintenance.cost_ledger import CostLedgerService
+    CostLedgerService.post_consumable(
+        stock_movement=stock_movement,
+        actor=issued_by,
+        memo=_("Supervisor issued: %(name)s x %(qty)s to %(user)s") % {
+            "name": part.name,
+            "qty": quantity,
+            "user": consumed_by.username,
+        },
+    )
+
     _maybe_notify_low_stock(part, site)
     return True, _("Issued %(qty)s x %(name)s to %(user)s.") % {
         "qty": quantity,
@@ -606,8 +617,14 @@ def request_part_on_wo(
     quantity: Decimal,
     technician,
     note: str = "",
+    activity_label: str = "",
 ) -> dict:
     """Technician adds a PENDING part request to their own assigned WO.
+
+    Phase 5 NOTE: kept the dict-shaped return so existing callers and
+    tests continue to work. The active_line check returns the existing
+    line (legacy idempotency). Future Phase 5.5 work will migrate this
+    to a RequestPartResult and surface DUPLICATE_FOUND to the UI.
 
     Three outcomes, all PENDING (manager approval gate is preserved for
     every flow — no auto-issue even when stock is fully available):
@@ -616,27 +633,33 @@ def request_part_on_wo(
       B. 0 < usable < qty     -> PENDING, shortage_qty = qty - usable
       C. usable == 0         -> PENDING, shortage_qty = qty
 
-    Inventory is NEVER deducted here. The deduction happens inside
+    Inventory is NEVER deducted here UNLESS the WO is emergency (see
+    Phase 3 emergency path below). The deduction happens inside
     approve_part_request() after the manager approves. The technician
     sees the stock badge in the UI to know what they're requesting,
     but the system's authoritative action happens at manager-approval
-    time. This preserves the audit principle that every inventory
-    movement has an explicit approver.
+    time.
     """
+    from .results import ACTIVE_REQUEST_STATUSES
+
     if quantity <= 0:
         raise ValueError(_("Quantity must be positive."))
     if wo.lifecycle_status == WorkOrder.LifecycleStatus.CLOSED:
         raise ValueError(_("Cannot request parts on a closed work order."))
 
-    # Idempotency: one PENDING line per (WO, part)
+    # Phase 5 concurrency: row-lock the WO for the existing-line
+    # check so two simultaneous POSTs can't both create a line.
+    WorkOrder.objects.select_for_update().get(pk=wo.pk)
+
+    # Idempotency: one ACTIVE line per (WO, part). ACTIVE = PENDING|APPROVED|ALLOCATED.
     existing = PartIssueLine.objects.filter(
-        work_order=wo, part=part, status=PartIssueLine.Status.PENDING
-    ).first()
+        work_order=wo, part=part,
+        status__in=ACTIVE_REQUEST_STATUSES,
+    ).select_related("requested_by").order_by("-created_at").first()
     if existing is not None:
         site = _get_default_site()
         inv = Inventory.objects.filter(part=part, site=site).first()
         on_hand   = (inv.quantity_available if inv else Decimal("0"))
-        # Phase 7.8: use live aggregate instead of deprecated quantity_reserved.
         reserved  = (inv.compute_quantity_reserved() if inv else Decimal("0"))
         return {
             "line": existing,
@@ -676,7 +699,7 @@ def request_part_on_wo(
         work_order=wo, part=part, quantity=quantity,
         unit_cost=Decimal("0"), invoice_ref="", supplier_name="",
         status=PartIssueLine.Status.PENDING,
-        is_emergency_auto_approved=False,  # NEVER auto-approve; manager gate is preserved
+        is_emergency_auto_approved=False,  # Set to True below if emergency path
         requested_by=technician, issued_by=technician,
         requested_qty=quantity,
         issued_qty=Decimal("0"),  # No deduction yet
@@ -733,6 +756,115 @@ def request_part_on_wo(
             "is_emergency": wo.is_emergency,
         },
     )
+
+    # Phase 3 BUG-8 fix: emergency WO auto-approve flow.
+    # Production is stopped → no manager pre-approval gate → issue immediately
+    # (if stock is available) and flag for manager post-review. Manager
+    # will use the dedicated review panel (work_order_emergency_review) to
+    # mark Approve / Exception / Investigate. NO path in the codebase reverts
+    # the inventory deduction or the cost posting — this preserves the audit
+    # principle that emergency actions are visible and traceable.
+    if wo.is_emergency:
+        if usable >= quantity:
+            # Stock available — auto-issue immediately.
+            effective_unit_cost = part.last_purchase_cost or part.avg_cost or Decimal("0")
+            if effective_unit_cost <= 0:
+                effective_unit_cost = Decimal("10.00")
+            line.status = PartIssueLine.Status.APPROVED
+            line.approved_qty = quantity
+            line.issued_qty = quantity
+            line.is_emergency_auto_approved = True
+            line.approved_by = technician
+            line.approved_at = timezone.now()
+            line.unit_cost = effective_unit_cost
+            line.manager_note = (
+                line.manager_note +
+                f"\n[EMERGENCY AUTO-APPROVED at {timezone.now().isoformat(timespec='seconds')}. "
+                f"Awaiting manager post-review.]"
+            )
+            line.save(update_fields=[
+                "status", "approved_qty", "issued_qty",
+                "is_emergency_auto_approved", "approved_by", "approved_at",
+                "unit_cost", "manager_note", "updated_at",
+            ])
+
+            # Deduct stock + create StockMovement in the same atomic block.
+            ref = {"work_order_id": str(wo.number), "emergency": True}
+            _deduct_and_record_issue(
+                wo=wo, part=part, quantity=quantity,
+                unit_cost=effective_unit_cost,
+                invoice_ref="EMERGENCY_AUTO",
+                supplier_name="EMERGENCY_AUTO",
+                issued_by=technician,
+                ref=ref,
+                site=site,
+            )
+
+            # Phase 2 STRICT: post the material cost. Failure rolls back
+            # the entire emergency issue path including stock deduction.
+            from maintenance.cost_ledger import CostLedgerService
+            CostLedgerService.post_material(
+                part_issue_line=line,
+                actor=technician,
+                memo=_("EMERGENCY auto-issued: %(name)s x %(qty)s to WO-%(wo)s") % {
+                    "name": part.name,
+                    "qty": quantity,
+                    "wo": wo.number,
+                },
+            )
+
+            # Notify the manager that an emergency review is pending.
+            try:
+                from maintenance.notifications import (
+                    notify_manager_emergency_part_issued,
+                )
+                notify_manager_emergency_part_issued(
+                    work_order=wo, line=line,
+                )
+            except Exception:
+                pass  # Best-effort notification; failure must not break the issue
+
+            log_audit(
+                actor=technician, action="emergency_auto_issued",
+                entity="WorkOrder", object_id=str(wo.pk),
+                payload={
+                    "part": part.sku,
+                    "qty": str(quantity),
+                    "unit_cost": str(effective_unit_cost),
+                    "is_emergency": True,
+                },
+            )
+
+            # Mark the line ISSUED if the unit cost was effective.
+            line.status = PartIssueLine.Status.ISSUED
+            line.save(update_fields=["status", "updated_at"])
+            return {
+                "line": line,
+                "shortage_qty": Decimal("0"),
+                "shortage": False,
+                "already_pending": False,
+                "emergency_auto_approved": True,
+                "issued_qty": quantity,
+                "available_qty_snapshot": on_hand,
+                "reserved_qty_snapshot": reserved,
+                "usable_qty_snapshot": usable,
+                "shortage_report": None,
+            }
+        # else: emergency + shortage → falls through to normal
+        # PENDING + shortage-report flow. The manager still needs to
+        # procure, but the emergency auto-approve is recorded via
+        # line.is_emergency_auto_approved=True so the post-review panel
+        # surfaces it.
+        else:
+            line.is_emergency_auto_approved = True
+            line.manager_note = (
+                line.manager_note +
+                "\n[EMERGENCY AUTO-APPROVED but stock insufficient. "
+                "Manager must procure before issue.]"
+            )
+            line.save(update_fields=[
+                "is_emergency_auto_approved", "manager_note", "updated_at",
+            ])
 
     # Phase 2B: open a PART WO Blocker for this request, attempt allocation,
     # and recompute the WO's operational status. Best-effort: any failure
@@ -903,6 +1035,10 @@ def approve_part_request(
         raise ValueError(_("Only PENDING requests can be approved."))
     if line.quantity <= 0:
         raise ValueError(_("Quantity must be positive."))
+
+    # Phase 5 concurrency: row-lock the line so two managers approving
+    # the same PENDING line concurrently cannot both succeed.
+    PartIssueLine.objects.select_for_update().get(pk=line.pk)
 
     site = _get_default_site()
     if not site:
@@ -1157,6 +1293,112 @@ def cancel_approved_part_request(
         logging.getLogger(__name__).warning(
             f"Failed to refresh WO cost cache after cancel for line {line.pk}: {e}"
         )
+
+    return line
+
+
+@transaction.atomic
+def emergency_review_part_line(
+    *, line: PartIssueLine, manager, decision: str, note: str = ""
+) -> PartIssueLine:
+    """Phase 3: manager post-review on an emergency auto-issued line.
+
+    Three outcomes (decision ∈ {approved, exception, investigate}) — none
+    of them revert the inventory deduction or the cost posting. The user's
+    emergency design is one-way: issue → audit → review.
+
+    Decision semantics:
+      - "approve":     acknowledgment. No further action. Sets the flag.
+      - "exception":   something went wrong (wrong spec, wrong part) but
+                       accepted as an operational loss. Notifies super_admin.
+      - "investigate": escalation. Notifies super_admin + audit log.
+
+    Raises ValueError if the line wasn't auto-approved (i.e. is_emergency_auto_approved
+    is False) — review is only valid for emergency-issued lines.
+    """
+    VALID = {"approved", "exception", "investigate"}
+    if decision not in VALID:
+        raise ValueError(
+            _("Invalid decision %(decision)s. Must be one of %(valid)s.") % {
+                "decision": decision, "valid": sorted(VALID),
+            }
+        )
+    if not line.is_emergency_auto_approved:
+        raise ValueError(
+            _("Only lines with is_emergency_auto_approved=True can be reviewed here.")
+        )
+    if (note or "").strip():
+        # Phase 3: ≥10 char note required for non-approve decisions so
+        # the manager explains their call. Matches the rejection reason
+        # requirement elsewhere.
+        if decision != "approved" and len((note or "").strip()) < 10:
+            raise ValueError(
+                _("Decision note must be at least 10 characters for non-approve reviews.")
+            )
+
+    now = timezone.now()
+    line.emergency_review_status = decision
+    line.emergency_reviewed_by = manager
+    line.emergency_reviewed_at = now
+    line.emergency_review_note = (note or "").strip()[:1000]
+    line.save(update_fields=[
+        "emergency_review_status", "emergency_reviewed_by",
+        "emergency_reviewed_at", "emergency_review_note", "updated_at",
+    ])
+
+    # Audit log entry for traceability.
+    log_audit(
+        actor=manager,
+        action=f"emergency_review_{decision}",
+        entity="PartIssueLine",
+        object_id=str(line.pk),
+        payload={
+            "line_id": line.pk,
+            "wo_id": line.work_order_id,
+            "decision": decision,
+            "note": (note or "")[:200],
+        },
+    )
+
+    # Fire the corresponding WorkOrderBlockerEvent for traceability.
+    try:
+        from maintenance.models import WorkOrderBlocker, WorkOrderBlockerEvent
+        blocker = WorkOrderBlocker.objects.filter(
+            work_order=line.work_order,
+            kind=WorkOrderBlocker.Kind.PART,
+            status__in=[WorkOrderBlocker.Status.OPEN, WorkOrderBlocker.Status.RESOLVED],
+        ).first()
+        if blocker is not None:
+            event_type = {
+                "approved":     "EMERGENCY_REVIEW_APPROVED",
+                "exception":    "EMERGENCY_REVIEW_EXCEPTION",
+                "investigate": "EMERGENCY_REVIEW_INVESTIGATE",
+            }[decision]
+            WorkOrderBlockerEvent.objects.create(
+                blocker=blocker,
+                event_type=event_type,
+                actor=manager,
+                payload={"line_id": line.pk, "decision": decision, "note": (note or "")[:200]},
+            )
+    except Exception as _e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to fire {event_type} for line {line.pk}: {_e}"
+        )
+
+    # For "exception" or "investigate", notify super_admin (best-effort,
+    # failure here MUST NOT raise — the review has already been recorded).
+    if decision in ("exception", "investigate"):
+        try:
+            from maintenance.notifications import notify_super_admin_emergency_review
+            notify_super_admin_emergency_review(
+                work_order=line.work_order,
+                line=line,
+                decision=decision,
+                note=line.emergency_review_note,
+            )
+        except Exception:
+            pass
 
     return line
 
@@ -1580,31 +1822,150 @@ def create_shortage_decision(
         report.expected_availability_date = expected_availability_date
     report.save()
 
+    # Phase 3 BUG-9 fix: REJECT branch must clean up the PART blocker that
+    # request_part_on_wo() opened when this shortage was raised. Without this,
+    # the WO stays stuck on operational_status=PENDING_PARTS indefinitely
+    # because the open blocker keeps the keystone rule satisfied.
+    # We fire PART_REJECTED on the related PartIssueLine (if any) so the
+    # blocker subsystem cancels it. If no line exists (shortage raised via
+    # shortcut path without a line), the blocker itself is queried directly.
+    if decision_type == PartShortageDecision.DecisionType.REJECT:
+        try:
+            from maintenance.models import WorkOrderBlocker
+            from maintenance.services_blocker import WorkOrderBlockerService
+            from maintenance.services_wo_status import WorkOrderService
+
+            related_line = None
+            try:
+                related_line = report.issue_lines.first()
+            except Exception:
+                related_line = None
+
+            if related_line is not None:
+                # Fire PART_REJECTED on the line so the blocker subsystem
+                # cancels any open PART blocker keyed to it.
+                WorkOrderBlockerService.sync_from_external_event(
+                    external_obj=related_line, event_type="PART_REJECTED",
+                    actor=decided_by,
+                    payload={
+                        "line_id": related_line.pk,
+                        "reason": rejection_reason or "shortage rejected",
+                    },
+                )
+            else:
+                # Fallback: directly cancel any open PART blocker on this WO
+                # that was opened against this shortage report.
+                blocker = WorkOrderBlocker.objects.filter(
+                    work_order=report.work_order,
+                    kind=WorkOrderBlocker.Kind.PART,
+                    status=WorkOrderBlocker.Status.OPEN,
+                    object_id=report.pk,
+                ).first()
+                if blocker is not None:
+                    WorkOrderBlockerService.cancel_blocker(
+                        blocker=blocker, actor=decided_by,
+                        note=f"Shortage #{report.pk} rejected",
+                    )
+
+            # Recompute the WO operational status — PENDING_PARTS should
+            # downgrade now that the blocker is gone.
+            WorkOrderService.recompute_operational_status(report.work_order)
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to clean up blockers on shortage REJECT "
+                f"(report #{report.pk}): {_e}"
+            )
+
     # Direct side effects
     if decision_type == PartShortageDecision.DecisionType.APPROVE:
-        # Phase 1: look up the originating PartIssueLine (if any) so we can
-        # link the reservation to it. Pre-Phase-1 callers passed source_line=None
-        # implicitly, creating "legacy" reservations that polluted free-stock
-        # until cleaned up by reconcile_legacy_reservations. Linking the
-        # reservation to the line from the start eliminates this pollution.
+        # Phase 7.7: transition the related PartIssueLine to APPROVED so the
+        # auto-fulfill loop (auto_fulfill_wo_lines_from_po) can pick it up at
+        # PO receive. Idempotent: only acts on PENDING lines and never
+        # downgrades. Skipped silently if no line is linked to this report
+        # (edge case: PR/PO manually created without going through the
+        # request_part_on_wo path).
         related_line = None
         try:
             related_line = report.issue_lines.first()
         except Exception:
             related_line = None
 
+        # Phase 1: single reservation source. Reserve once, link to related_line.
+        # Previously this function called reserve_stock() AND PartAllocationService.
+        # allocate_one(related_line), creating two reservations for the same qty
+        # when free stock >= approved_issue_qty. The duplicate is removed; the
+        # reservation is now linked to the originating PartIssueLine.
         if approved_issue_qty > 0:
             reserve_stock(
                 part=report.part, qty=approved_issue_qty,
                 source_wo=report.work_order, actor=decided_by,
-                source_line=related_line,
+                source_line=related_line,  # ← Phase 1: link reservation to line
             )
+
         if approved_procurement_qty > 0:
             # Local import to avoid circular dependency
             from procurement.services import auto_create_pr_for_shortage
             auto_create_pr_for_shortage(
                 report=report, decision=decision, actor=decided_by,
             )
+
+        if related_line is not None and related_line.status == PartIssueLine.Status.PENDING:
+            related_line.status = PartIssueLine.Status.APPROVED
+            related_line.approved_qty = approved_issue_qty
+            related_line.shortage_qty = approved_procurement_qty
+            related_line.approved_by = decided_by
+            related_line.approved_at = timezone.now()
+            related_line.save(update_fields=[
+                "status", "approved_qty", "shortage_qty",
+                "approved_by", "approved_at", "updated_at",
+            ])
+
+            # Fire PART_APPROVED event on the open PART blocker
+            try:
+                from maintenance.models import WorkOrderBlocker
+                from maintenance.services_blocker import WorkOrderBlockerEventService
+                blocker = WorkOrderBlocker.objects.filter(
+                    work_order=related_line.work_order,
+                    kind=WorkOrderBlocker.Kind.PART,
+                    status=WorkOrderBlocker.Status.OPEN,
+                ).first()
+                if blocker:
+                    WorkOrderBlockerEventService.record(
+                        blocker=blocker,
+                        event_type="PART_APPROVED",
+                        actor=decided_by,
+                        payload={
+                            "line_id": related_line.pk,
+                            "approved_qty": str(related_line.approved_qty),
+                        },
+                    )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Failed to fire PART_APPROVED event for shortage decision line {related_line.pk}: {e}"
+                )
+
+            # Recompute WO operational status
+            try:
+                from maintenance.services_wo_status import WorkOrderService
+                WorkOrderService.recompute_operational_status(related_line.work_order)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Failed to recompute WO operational status for shortage decision line {related_line.pk}: {e}"
+                )
+
+            # Refresh WO cost cache so committed_material_cost reflects
+            # the newly-approved line (matches approve_part_request pattern)
+            try:
+                from maintenance.cost_ledger import CostLedgerService
+                CostLedgerService._refresh_wo_cache(related_line.work_order_id)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Failed to refresh WO cost cache for shortage decision line {related_line.pk}: {e}"
+                )
 
     return decision
 
@@ -1967,6 +2328,15 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
     effective_uc = _effective_unit_cost(line)
     if (line.unit_cost or Decimal("0")) <= 0 and effective_uc > 0:
         line.unit_cost = effective_uc
+    # Phase 3 BUG-6 fix: when the warehouse has fully issued the line (issued_qty
+    # meets or exceeds approved_qty), transition status to ISSUED. The enum
+    # defined ISSUED from the start but no code path set it. The keystone rule
+    # in services_blocker.py already keys off issued_qty >= approved_qty, so
+    # this transition is cosmetic for blocker resolution but semantically
+    # correct — analytics filtering on status="issued" should now return rows.
+    if line.issued_qty >= (line.approved_qty or Decimal("0")) and line.approved_qty and line.approved_qty > 0:
+        if line.status != PartIssueLine.Status.ISSUED:
+            line.status = PartIssueLine.Status.ISSUED
     line.save(update_fields=["issued_qty", "status", "issued_by", "unit_cost", "updated_at"])
 
     # v4.8 Fix 2: use the explicit FK link, not the implicit (wo, part) lookup.
@@ -1974,13 +2344,25 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
     if report is not None and is_first_execution:
         report.qty_issued = (report.qty_issued or Decimal("0")) + qty
         report.save(update_fields=["qty_issued"])
-        transition_shortage_status(
-            report, PartShortageReport.Status.IN_FULFILLMENT, actor=actor,
-            note=_("Warehouse issued %(qty).1f × %(sku)s") % {
-                "qty": qty,
-                "sku": line.part.sku,
-            },
-        )
+        # Edge case: if the shortage has already been CLOSED (terminal —
+        # typically because the manager pre-emptively closed it after the
+        # first issue committed), skip the IN_FULFILLMENT transition.
+        # The issue still goes through, the PART blocker still resolves,
+        # but the shortage state machine is left alone.
+        try:
+            if report.status != PartShortageReport.Status.CLOSED:
+                transition_shortage_status(
+                    report, PartShortageReport.Status.IN_FULFILLMENT, actor=actor,
+                    note=_("Warehouse issued %(qty).1f × %(sku)s") % {
+                        "qty": qty,
+                        "sku": line.part.sku,
+                    },
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to transition shortage report {report.pk} to IN_FULFILLMENT: {e}"
+            )
     elif report is not None:
         report.qty_issued = (report.qty_issued or Decimal("0")) + qty
         report.save(update_fields=["qty_issued"])
@@ -2114,9 +2496,13 @@ def auto_fulfill_wo_lines_from_po(*, po, actor) -> dict:
       - Each auto-issue goes through the existing `execute_warehouse_issue`
         service, so cost ledger posting, blocker resolution, and
         reservation release all work as usual.
-      - If a line is partial (received qty < approved qty), only
-        `min(received, remaining)` is auto-issued. The line stays
-        awaiting-warehouse-issue for the remainder.
+      - Fires on BOTH full and partial PO receives. If the supplier
+        delivers less than ordered (received_qty < ordered_qty), only
+        `min(received_qty, sum of line remainings)` is issued to the WO;
+        the remainder of the PO line waits for a future receive. The
+        same rule applies when received < approved per line: only
+        `min(received, remaining)` is auto-issued and the line stays
+        awaiting-warehouse-issue for the balance.
       - After each auto-issue, the related PartShortageReport is checked
         and auto-marked `fulfilled` if `qty_issued >= approved_issue_qty`.
 
@@ -2138,10 +2524,6 @@ def auto_fulfill_wo_lines_from_po(*, po, actor) -> dict:
     # For each PO line item, find matching PRs (by part) and process.
     po_items = list(po.items.select_related("part").all())
     for item in po_items:
-        # Item is fully received (qty issued = qty ordered) before we act
-        if (item.received_qty or Decimal("0")) < (item.ordered_qty or Decimal("0")):
-            continue
-
         # Find PRs for this part on the linked WOs.
         matching_prs = [pr for pr in linked_prs if pr.part_id == item.part_id]
         if not matching_prs:

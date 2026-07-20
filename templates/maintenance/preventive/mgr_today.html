@@ -6,7 +6,21 @@
 
 <div class="mms-banner" style="margin-bottom:1rem">
     <strong>{{ today|date:"l · j F Y" }}</strong>
+    <form method="post" action="{% url 'preventive:mgr_today_regenerate' %}" style="display:inline;margin-left:0.5rem">
+        {% csrf_token %}
+        <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Refresh today's occurrences" %}</button>
+    </form>
 </div>
+
+{% if auto_generated_today %}
+<div class="mms-card" style="border-left:3px solid #16a34a;margin-bottom:1rem">
+    <div class="mms-card-body" style="font-size:0.9rem">
+        {% trans "Today's occurrences were just generated. If you just created a new plan, click" %}
+        <strong>{% trans "Run Now" %}</strong>
+        {% trans "on its detail page to spawn an occurrence immediately." %}
+    </div>
+</div>
+{% endif %}
 
 {% if by_slot %}
     {% for slot, occs in by_slot.items %}

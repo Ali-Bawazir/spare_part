@@ -31,13 +31,65 @@
     <h3>{% trans "Add New Supplier" %}</h3>
     <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
       {% csrf_token %}
-      <p><input type="text" name="code" placeholder={% trans "SUP-001" %} required style="width:100%"></p>
-      <p><input type="text" name="name" placeholder={% trans "Supplier name" %} required style="width:100%"></p>
-      <p><input type="text" name="phone" placeholder={% trans "Phone" %} style="width:100%"></p>
-      <p><input type="email" name="email" placeholder={% trans "Email" %} style="width:100%"></p>
+      <p><input type="text" name="code" placeholder="{% trans 'SUP-001' %}" required style="width:100%"></p>
+      <p><input type="text" name="name" placeholder="{% trans 'Supplier name' %}" required style="width:100%"></p>
+      <p><input type="text" name="phone" placeholder="{% trans 'Phone' %}" style="width:100%"></p>
+      <p><input type="email" name="email" placeholder="{% trans 'Email' %}" style="width:100%"></p>
       <button type="submit">{% trans "Save Supplier" %}</button>
       <button type="button" onclick="document.getElementById('addSupplierModal').style.display='none'">{% trans "Cancel" %}</button>
     </form>
   </div>
 </div>
+<script>
+(function() {
+    var form = document.getElementById('quickSupplierForm');
+    var modal = document.getElementById('addSupplierModal');
+    if (!form || !modal) return;
+
+    function showError(msg) {
+        var existing = modal.querySelector('.quick-supplier-error');
+        if (existing) existing.remove();
+        var box = document.createElement('div');
+        box.className = 'quick-supplier-error mms-field-error';
+        box.style.marginTop = '0.5rem';
+        box.textContent = msg;
+        form.appendChild(box);
+    }
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        var action = form.getAttribute('action');
+        var csrfInput = form.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfInput) { showError('CSRF token missing'); return; }
+        var errorBox = modal.querySelector('.quick-supplier-error');
+        if (errorBox) errorBox.remove();
+
+        fetch(action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {'X-CSRFToken': csrfInput.value}
+        }).then(function(response) {
+            return response.json().then(function(data) { return {ok: response.ok, data: data}; });
+        }).then(function(result) {
+            if (!result.ok || result.data.error) {
+                showError(result.data.error || 'Failed to save supplier');
+                return;
+            }
+            var supplier = result.data;
+            var parentSelect = document.querySelector('select[name="supplier"]');
+            if (parentSelect) {
+                var opt = document.createElement('option');
+                opt.value = supplier.id;
+                opt.textContent = supplier.name + ' (' + supplier.code + ')';
+                opt.selected = true;
+                parentSelect.appendChild(opt);
+            }
+            form.reset();
+            modal.style.display = 'none';
+        }).catch(function() {
+            showError('Network error saving supplier');
+        });
+    });
+})();
+</script>
 {% endblock %}

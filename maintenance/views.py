@@ -98,6 +98,7 @@ from .models import (
     Site,
     Tool,
     ToolAssignment,
+    ToolDamageRecord,
     WorkOrder,
     WorkOrderAssignmentHistory,
     WorkOrderCost,
@@ -649,7 +650,7 @@ def machine_edit(request, pk):
 
 
 @login_required
-@role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN)
+@role_required(User.Role.SUPERVISOR, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def machine_detail(request, pk):
     """Asset detail page — handles Machine (level 3), Subassembly (level 4), and Component (level 5).
 
@@ -1177,11 +1178,17 @@ def _technician_queue_queryset(user):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN, User.Role.TECHNICIAN)
 def work_order_list(request):
-    wos = WorkOrder.objects.select_related("machine", "assigned_technician", "issue").annotate(
-        queue_rank=_queue_priority_and_status_rank(),
-    )
+    show_archived = request.GET.get("archived") == "1"
+    if show_archived:
+        wos = WorkOrder.all_objects.select_related(
+            "machine", "assigned_technician", "issue"
+        ).annotate(queue_rank=_queue_priority_and_status_rank())
+    else:
+        wos = WorkOrder.objects.select_related(
+            "machine", "assigned_technician", "issue"
+        ).annotate(queue_rank=_queue_priority_and_status_rank())
     if request.user.role == User.Role.TECHNICIAN and not request.user.is_super_admin_role():
         wos = _technician_queue_queryset(request.user)
     st = request.GET.get("status")
@@ -1206,11 +1213,21 @@ def work_order_list(request):
     # v4.8: WOs that have any shortage report
     if request.GET.get("has_pending_shortage") == "1":
         wos = wos.filter(shortage_reports__isnull=False).distinct()
+    if show_archived:
+        wos = wos.filter(is_archived=True)
     wos = wos.order_by("queue_rank", "created_at")[:400]
     return render(
         request,
         "maintenance/workorder_list.html",
-        {"work_orders": wos, "status_filter": st or "", "status_choices": WorkOrder.LifecycleStatus.choices, "operational_status_choices": WorkOrder.OperationalStatus.choices},
+        {
+            "work_orders": wos,
+            "status_filter": st or "",
+            "status_choices": WorkOrder.LifecycleStatus.choices,
+            "operational_status_choices": WorkOrder.OperationalStatus.choices,
+            "show_archived": show_archived,
+            "archived_count": WorkOrder.all_objects.filter(is_archived=True).count(),
+            "active_count": WorkOrder.objects.count(),
+        },
     )
 
 
@@ -1237,7 +1254,7 @@ def my_work_orders(request):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
 def work_order_detail(request, pk):
     # Sprint 1 (Step 6): pop the stashed result from the part-request redirect
     # so the alert block in the template can show the outcome.
@@ -1289,6 +1306,10 @@ def work_order_detail(request, pk):
     assign_form = AssignTechnicianForm()
     complete_form = WorkOrderCompleteForm(instance=wo)
     issue_part_form = IssuePartForm()
+    issue_part_form.fields["part"].widget.attrs = {
+        **issue_part_form.fields["part"].widget.attrs,
+        "id": "id_manager_issue_part",
+    }
     part_request_form = PartRequestForm()
     part_decision_form = PartRequestDecisionForm()
     external_repair_request_form = ExternalRepairRequestForm()
@@ -1475,6 +1496,34 @@ def work_order_detail(request, pk):
     # annotation a few lines further down.
     _default_site = Site.objects.filter(is_default=True).first()
 
+    # Prefetch in-flight PurchaseRequests for the PartIssueLines we are
+    # about to render so the "Lines Awaiting Warehouse Issue" panel can
+    # show "On order — ETA <date>" badges alongside free-stock rows.
+    # Single query keyed by part_id; keeps the loop body query-free.
+    _candidate_part_ids = list(
+        part_issues.filter(
+            status__in=[PartIssueLine.Status.APPROVED, PartIssueLine.Status.ALLOCATED],
+        ).values_list("part_id", flat=True)
+    )
+    _pr_by_part: dict = {}
+    if _candidate_part_ids:
+        _pr_qs = (
+            PurchaseRequest.objects
+            .filter(
+                work_order_id=wo.pk,
+                part_id__in=_candidate_part_ids,
+                status__in=[
+                    PurchaseRequest.Status.PENDING,
+                    PurchaseRequest.Status.CONVERTED_TO_PO,
+                    PurchaseRequest.Status.PARTIALLY_FULFILLED,
+                ],
+            )
+            .select_related("purchase_order")
+            .order_by("-created_at")
+        )
+        for _pr in _pr_qs:
+            _pr_by_part.setdefault(_pr.part_id, _pr)
+
     # Phase 7.5: All PartIssueLines on this WO that are awaiting
     # warehouse execution (status=APPROVED or ALLOCATED, issued_qty <
     # approved_qty, with stock available). Includes lines that came
@@ -1489,20 +1538,52 @@ def work_order_detail(request, pk):
         if approved <= 0 or issued >= approved:
             continue
         remaining = approved - issued
-        # Only show if there's stock available (free_stock >= remaining).
-        # Phase 7.8: use PartAllocationService.free_stock_for_part (live
-        # aggregate of ACTIVE reservations) instead of the deprecated
-        # `quantity_reserved` DB field.
+        # Compute both `free_stock` (without reservations, for badge display)
+        # and `quantity_available` (physical stock, used for the has_stock
+        # check so the Issue button shows when the stock is reserved for
+        # THIS very line).
+        #
+        # Phase 7.9: has_stock is `True` when EITHER free_stock OR
+        # quantity_available covers `remaining`. The reservation
+        # release in execute_warehouse_issue happens FIFO, so issuing
+        # against reserved stock for this line is safe and doesn't
+        # double-allocate.
+        quantity_available = Decimal("0")
         if _default_site:
             from inventory.services_allocation import PartAllocationService
+            from inventory.models import Inventory as _Inv
             free = PartAllocationService.free_stock_for_part(line.part)
+            _inv = _Inv.objects.filter(part=line.part, site=_default_site).first()
+            if _inv is not None:
+                quantity_available = _inv.quantity_available or Decimal("0")
         else:
             free = Decimal("0")
+        # Resolve linked PR / PO / ETA from the prefetched dict so the
+        # warehouse-issue panel can render an "On order — ETA <date>"
+        # badge when free stock is zero but a PO is already in flight.
+        linked_pr = _pr_by_part.get(line.part_id)
+        linked_po = (
+            linked_pr.purchase_order
+            if linked_pr and getattr(linked_pr, "purchase_order_id", None)
+            else None
+        )
+        eta_date = (
+            getattr(linked_po, "expected_delivery", None)
+            if linked_po
+            else None
+        )
         lines_awaiting_issue.append({
             "line": line,
             "remaining": remaining,
             "free_stock": free,
-            "has_stock": free >= remaining,
+            "quantity_available": quantity_available,
+            # Show the Issue button whenever physical stock on the shelf
+            # covers the remaining qty (releasing the FIFO reservation
+            # in execute_warehouse_issue keeps this safe).
+            "has_stock": max(quantity_available, free) >= remaining,
+            "linked_pr": linked_pr,
+            "linked_po": linked_po,
+            "eta_date": eta_date,
         })
 
     # Annotate free_stock = on-hand minus reserved so the dropdown shows
@@ -1539,6 +1620,11 @@ def work_order_detail(request, pk):
         )
     else:
         active_parts = SparePart.objects.filter(status="active").order_by("name")
+
+    # Live stock badge for Manager Direct Issue form: reuse the existing
+    # free_stock annotation. Map {part_id: free_stock}.
+    stock_data = {p.pk: float(getattr(p, "free_stock", 0) or 0) for p in active_parts}
+    stock_data_json = json.dumps(stock_data)
 
     # Phase 3A: Health card + active blockers + blocker history.
     # The HealthCard is a frozen dataclass produced by WorkOrderHealthService;
@@ -1604,6 +1690,7 @@ def work_order_detail(request, pk):
             "active_conflict": active_conflict,
             "emergency_blocks_resume": emergency_blocks_resume,
             "last_prices_json": last_prices_json,
+            "stock_data_json": stock_data_json,
             "ancestors": ancestors,
             "machine": tree_node,
             "related_issues": related_issues,
@@ -1625,6 +1712,19 @@ def work_order_detail(request, pk):
             "decided_shortage_reports": decided_shortage_reports,
             "pending_warehouse_issues": pending_warehouse_issues,
             "lines_awaiting_issue": lines_awaiting_issue,
+            # Phase 12: outstanding shortages — closed reports with shortage_qty > 0
+            # that have no Purchase Request yet. These need manual action from
+            # the manager (buy, transfer, alternative part, etc.) — the
+            # reconciliation card surfaces them with a "Create PR" button.
+            "outstanding_shortages": PartShortageReport.objects.filter(
+                work_order=wo,
+                status=PartShortageReport.Status.CLOSED,
+                shortage_qty__gt=0,
+                purchase_requests__isnull=True,
+            ).distinct().select_related("part").order_by("-reviewed_at"),
+            "can_create_pr_from_shortage": request.user.role in (
+                User.Role.MANAGER, User.Role.PROCUREMENT, User.Role.SUPER_ADMIN,
+            ),
             "active_parts": active_parts,
             "last_request_result": last_request_result,
             # Inline PM checklist (rendered in _wo_actions_technician.html
@@ -1985,6 +2085,7 @@ def work_order_request_part(request, pk):
             quantity=form.cleaned_data["quantity"],
             technician=request.user,
             note=form.cleaned_data.get("note") or "",
+            activity_label=form.cleaned_data.get("activity_label") or "",
         )
         line = result["line"]
     except ValueError as e:
@@ -2613,13 +2714,39 @@ def stock_dashboard(request):
 
 
 @login_required
+@transaction.atomic
 @role_required(User.Role.OPERATOR, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.MANAGER, User.Role.SUPER_ADMIN)
 def consumables_view(request):
     from inventory.forms import IssueConsumableForm
     from inventory.services import issue_consumable
     caps = get_mms_capabilities(request.user)
     consume_form = ConsumableUseForm()
+    consume_form.fields["part"].widget.attrs = {
+        **consume_form.fields["part"].widget.attrs,
+        "id": "id_consume_part",
+    }
     issue_form = IssueConsumableForm() if caps.get("issue_consumables") else None
+    if issue_form:
+        issue_form.fields["part"].widget.attrs = {
+            **issue_form.fields["part"].widget.attrs,
+            "id": "id_issue_part",
+        }
+
+    import json
+    from inventory.models import Inventory
+    default_site = None
+    stock_data = {}
+    consume_parts = consume_form.fields["part"].queryset
+    consume_part_ids = set()
+    if consume_parts:
+        for inv in Inventory.objects.filter(part__in=consume_parts).select_related("part"):
+            stock_data[inv.part_id] = float(inv.quantity_available)
+            consume_part_ids.add(inv.part_id)
+    consume_stock_data = {pk: stock_data[pk] for pk in consume_part_ids if pk in stock_data}
+    if issue_form:
+        issue_parts = issue_form.fields["part"].queryset
+        for inv in Inventory.objects.filter(part__in=issue_parts).select_related("part"):
+            stock_data[inv.part_id] = float(inv.quantity_available)
 
     if request.method == "POST":
         action = request.POST.get("action", "")
@@ -2698,6 +2825,8 @@ def consumables_view(request):
         "my_30d_count": my_30d.count(),
         "my_30d_qty": my_30d.aggregate(total=Sum("quantity"))["total"] or 0,
         "top_part_30d": top_part_30d,
+        "stock_data_json": json.dumps(stock_data),
+        "consume_stock_data_json": json.dumps(consume_stock_data),
     })
 
 
@@ -3618,6 +3747,14 @@ def tool_list(request):
     )
     assign_initial = {"tool": matched_tool.pk} if matched_tool and matched_tool.status == Tool.Status.AVAILABLE else {}
     assign_form = ToolAssignForm(initial=assign_initial)
+    # Operators / technicians can only assign tools to themselves; managers /
+    # supervisors / super admins can assign to anyone. The template uses this to
+    # swap the Assignee dropdown for a locked "your username" field on
+    # self-assign pages.
+    can_assign_to_others = (
+        request.user.role in (User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+        or request.user.is_super_admin_role()
+    )
     return render(
         request,
         "maintenance/tools.html",
@@ -3629,6 +3766,7 @@ def tool_list(request):
             "matched_tool": matched_tool,
             "matched_assignment": matched_assignment,
             "available_tools_count": available_tools.count(),
+            "can_assign_to_others": can_assign_to_others,
         },
     )
 
@@ -3640,7 +3778,10 @@ def tool_create(request):
         form = ToolForm(request.POST)
         if form.is_valid():
             tool = form.save()
-            log_audit(actor=request.user, action="tool_created", entity="Tool", object_id=tool.pk)
+            log_audit(
+                actor=request.user, action="tool_created", entity="Tool", object_id=tool.pk,
+                payload={"supplier_id": tool.supplier_id},
+            )
             messages.success(request, _("Tool saved."))
             return redirect("tool_list")
     else:
@@ -3656,7 +3797,10 @@ def tool_edit(request, pk):
         form = ToolForm(request.POST, instance=tool)
         if form.is_valid():
             tool = form.save()
-            log_audit(actor=request.user, action="tool_updated", entity="Tool", object_id=tool.pk)
+            log_audit(
+                actor=request.user, action="tool_updated", entity="Tool", object_id=tool.pk,
+                payload={"supplier_id": tool.supplier_id, "status": tool.status},
+            )
             messages.success(request, _("Tool updated."))
             return redirect("tool_list")
     else:
@@ -3665,7 +3809,7 @@ def tool_edit(request, pk):
 
 
 @login_required
-@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+@role_required(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.OPERATOR, User.Role.TECHNICIAN, User.Role.SUPER_ADMIN)
 def tool_assign(request):
     if request.method != "POST":
         return redirect("tool_list")
@@ -3674,14 +3818,26 @@ def tool_assign(request):
         messages.error(request, _("Invalid tool assignment."))
         return redirect("tool_list")
     tool = form.cleaned_data["tool"]
-    assignee = form.cleaned_data["assignee"]
-    if tool.status != Tool.Status.AVAILABLE:
-        messages.error(request, _("Tool not available."))
+    submitted_assignee = form.cleaned_data["assignee"]
+    # Operators and technicians can only assign tools to themselves; managers,
+    # supervisors and super admins can assign to anyone.
+    can_assign_to_others = (
+        request.user.role in (User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.SUPER_ADMIN)
+        or request.user.is_super_admin_role()
+    )
+    assignee = submitted_assignee if can_assign_to_others else request.user
+    from maintenance.services import ToolAvailabilityService
+    ok, reason = ToolAvailabilityService.can_assign(tool)
+    if not ok:
+        messages.error(request, reason or _("Tool not available."))
         return redirect("tool_list")
     tool.status = Tool.Status.IN_USE
     tool.save(update_fields=["status"])
     ToolAssignment.objects.create(tool=tool, user=assignee, assigned_by=request.user)
-    log_audit(actor=request.user, action="tool_assigned", entity="Tool", object_id=tool.pk, payload={"to": assignee.username})
+    log_audit(
+        actor=request.user, action="tool_assigned", entity="Tool", object_id=tool.pk,
+        payload={"to": assignee.username, "self_assign": not can_assign_to_others},
+    )
     messages.success(request, _("Tool assigned."))
     return redirect("tool_list")
 
@@ -3697,7 +3853,7 @@ def tool_return(request, assignment_pk):
         messages.info(request, _("Already returned."))
         return redirect("tool_list")
     if request.method == "POST":
-        form = ToolReturnForm(request.POST)
+        form = ToolReturnForm(request.POST, tool=ta.tool)
         if form.is_valid():
             cond = form.cleaned_data["condition"]
             ta.return_condition = cond
@@ -3713,34 +3869,180 @@ def tool_return(request, assignment_pk):
             elif cond == ToolAssignment.ReturnCondition.DAMAGED:
                 ta.tool.status = Tool.Status.OUT_OF_SERVICE
                 ta.tool.save(update_fields=["status"])
-                wo = WorkOrder(
-                    category=WorkOrder.Category.REPAIR,
-                    lifecycle_status=WorkOrder.LifecycleStatus.PENDING_REVIEW,
+                supplier_snapshot = ta.tool.supplier
+                damage_record = ToolDamageRecord.objects.create(
                     tool=ta.tool,
-                    created_by=request.user,
-                    notes=f"Tool returned damaged: {ta.tool.name} (code: {ta.tool.code})",
+                    supplier=supplier_snapshot,
+                    assignment=ta,
+                    damage_kind=form.cleaned_data["damage_kind"],
+                    damage_reason=form.cleaned_data["damage_reason"],
+                    quantity_damaged=1,
+                    reported_by=request.user,
+                    replacement_action=form.cleaned_data.get("replacement_action") or ToolDamageRecord.ReplacementAction.BUY_FROM_OTHER,
+                    tool_status_after=Tool.Status.OUT_OF_SERVICE,
                 )
-                wo.save()
-                log_audit(actor=request.user, action="tool_returned_damaged", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond, "wo_pk": wo.pk})
-                messages.success(request, _(f"Return recorded. Damaged tool flagged — repair work order WO-{wo.number} created for manager review."))
+                log_audit(
+                    actor=request.user, action="tool_returned_damaged",
+                    entity="ToolDamageRecord", object_id=damage_record.pk,
+                    payload={
+                        "tool_id": ta.tool.pk,
+                        "tool_code": ta.tool.code,
+                        "supplier_id": supplier_snapshot.pk if supplier_snapshot else None,
+                        "damage_kind": form.cleaned_data["damage_kind"],
+                        "replacement_action": form.cleaned_data.get("replacement_action") or "buy_from_other",
+                    },
+                )
+                try:
+                    from maintenance.notifications import notify_tool_damaged
+                    notify_tool_damaged(damage_record)
+                except Exception:
+                    import logging
+                    logging.getLogger(__name__).warning("notify_tool_damaged failed", exc_info=True)
+                messages.success(
+                    request,
+                    _("Return recorded. Tool is archived as out-of-service; damage history saved."),
+                )
 
             else:  # LOST
                 ta.tool.status = Tool.Status.OUT_OF_SERVICE
                 ta.tool.save(update_fields=["status"])
+                supplier_snapshot = ta.tool.supplier
+                damage_record = ToolDamageRecord.objects.create(
+                    tool=ta.tool,
+                    supplier=supplier_snapshot,
+                    assignment=ta,
+                    damage_kind=ToolDamageRecord.DamageKind.LOST,
+                    damage_reason=form.cleaned_data["damage_reason"] or _("Tool reported lost (no detailed reason)."),
+                    quantity_damaged=1,
+                    reported_by=request.user,
+                    replacement_action=form.cleaned_data.get("replacement_action") or ToolDamageRecord.ReplacementAction.BUY_FROM_OTHER,
+                    tool_status_after=Tool.Status.OUT_OF_SERVICE,
+                )
                 Incident.objects.create(
                     title=f"Lost Tool: {ta.tool.name}",
-                    description=f"Tool {ta.tool.name} (code: {ta.tool.code}) reported lost by user {request.user.username}.",
+                    description=(
+                        f"Tool {ta.tool.name} (code: {ta.tool.code}) reported lost by user {request.user.username}. "
+                        f"Damage record #{damage_record.pk}."
+                    ),
                     reported_by=request.user,
                     tool=ta.tool,
                     status=Incident.Status.OPEN,
                 )
-                log_audit(actor=request.user, action="tool_returned_lost", entity="Tool", object_id=ta.tool.pk, payload={"condition": cond})
+                log_audit(
+                    actor=request.user, action="tool_returned_lost",
+                    entity="ToolDamageRecord", object_id=damage_record.pk,
+                    payload={"tool_id": ta.tool.pk, "supplier_id": supplier_snapshot.pk if supplier_snapshot else None},
+                )
+                try:
+                    from maintenance.notifications import notify_tool_damaged
+                    notify_tool_damaged(damage_record)
+                except Exception:
+                    pass
                 messages.warning(request, _("Return recorded. Lost tool incident created — investigating."))
 
             return redirect("tool_list")
     else:
-        form = ToolReturnForm()
+        form = ToolReturnForm(tool=ta.tool)
     return render(request, "maintenance/tool_return.html", {"assignment": ta, "form": form})
+
+
+@login_required
+def tool_damage_list(request, pk):
+    tool = get_object_or_404(Tool, pk=pk)
+    records = tool.damage_records.select_related("supplier", "assignment__user", "reported_by").order_by("-created_at")
+    return render(request, "maintenance/tool_damage_list.html", {"tool": tool, "records": records})
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def tool_damage_global(request):
+    from django.db.models import Count
+    from datetime import date
+    qs = ToolDamageRecord.objects.select_related("tool", "supplier", "reported_by", "assignment__user").order_by("-created_at")
+    days = int(request.GET.get("days") or 90)
+    cutoff = timezone.now() - timezone.timedelta(days=days)
+    qs = qs.filter(created_at__gte=cutoff)
+    by_supplier = (
+        ToolDamageRecord.objects.values("supplier__id", "supplier__name")
+        .annotate(damage_count=Count("id"))
+        .order_by("-damage_count")[:25]
+    )
+    year_start = timezone.make_aware(timezone.datetime(date.today().year, 1, 1))
+    damaged_tools = ToolDamageRecord.objects.filter(
+        created_at__gte=year_start,
+        tool__purchase_cost__isnull=False,
+    ).values("tool__code", "tool__purchase_cost", "tool__supplier__name")
+    total_damaged_cost = sum(float(d["tool__purchase_cost"]) for d in damaged_tools)
+    return render(request, "maintenance/tool_damage_global.html", {
+        "records": qs[:200],
+        "by_supplier": by_supplier,
+        "total_damaged_cost_ytd": total_damaged_cost,
+        "days": days,
+    })
+
+
+@login_required
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def tool_dashboard(request):
+    from django.db.models import Count, Sum, Q, F
+    from datetime import date
+
+    tools = Tool.objects.all()
+    by_status = {
+        s: tools.filter(status=s).count() for s in [Tool.Status.AVAILABLE, Tool.Status.IN_USE, Tool.Status.OUT_OF_SERVICE]
+    }
+    year_start = timezone.make_aware(timezone.datetime(date.today().year, 1, 1))
+    damage_qs = ToolDamageRecord.objects.filter(created_at__gte=year_start)
+    damaged_ytd = damage_qs.count()
+    lost_ytd = damage_qs.filter(damage_kind=ToolDamageRecord.DamageKind.LOST).count()
+
+    cost_qs = damage_qs.exclude(tool__purchase_cost__isnull=True).aggregate(
+        total=Sum("tool__purchase_cost")
+    )
+    damaged_cost_ytd = float(cost_qs["total"] or 0)
+
+    # Grand total cost = SUM(purchase_cost) across every tool (NULLs treated as 0).
+    grand_total_cost = float(Tool.objects.aggregate(t=Sum("purchase_cost"))["t"] or 0)
+
+    # Per-tool cost breakdown — each tool's purchase cost (NULL = 0).
+    tool_breakdown_qs = tools.order_by(
+        F("purchase_cost").desc(nulls_last=True), "code"
+    )
+    tool_breakdown_rows = [
+        {"tool": t, "purchase_cost": float(t.purchase_cost or 0)}
+        for t in tool_breakdown_qs
+    ]
+    tool_breakdown_total = sum(r["purchase_cost"] for r in tool_breakdown_rows)
+
+    by_supplier = (
+        tools.exclude(supplier__isnull=True)
+        .values("supplier__id", "supplier__name")
+        .annotate(
+            total=Count("id"),
+            available=Count("id", filter=Q(status=Tool.Status.AVAILABLE)),
+            in_use=Count("id", filter=Q(status=Tool.Status.IN_USE)),
+            out=Count("id", filter=Q(status=Tool.Status.OUT_OF_SERVICE)),
+        )
+        .order_by("-total")[:25]
+    )
+
+    recent_damages = damage_qs.select_related("tool", "supplier", "reported_by")[:10]
+    open_assignments = ToolAssignment.objects.filter(returned_at__isnull=True).select_related("tool", "user")[:25]
+    out_of_service = tools.filter(status=Tool.Status.OUT_OF_SERVICE).select_related("supplier")[:25]
+
+    return render(request, "maintenance/tool_dashboard.html", {
+        "by_status": by_status,
+        "damaged_ytd": damaged_ytd,
+        "lost_ytd": lost_ytd,
+        "damaged_cost_ytd": damaged_cost_ytd,
+        "grand_total_cost": grand_total_cost,
+        "tool_breakdown_rows": tool_breakdown_rows,
+        "tool_breakdown_total": tool_breakdown_total,
+        "by_supplier": by_supplier,
+        "recent_damages": recent_damages,
+        "open_assignments": open_assignments,
+        "out_of_service": out_of_service,
+    })
 
 
 @login_required
@@ -5070,25 +5372,13 @@ def repair_manager_accept(request, pk):
                 logging.getLogger(__name__).warning(
                     f"_refresh_wo_cache failed for WO {rwo.work_order_id}: {_e}"
                 )
-        # Phase 1+2 Cost Ledger: post the vendor_repair cost for this closed ERO.
-        # Bug fix: surface ledger failures as messages.error instead of swallowing.
-        try:
-            from maintenance.cost_ledger import CostLedgerService
-            CostLedgerService.post_vendor_repair(
-                external_repair_order=rwo,
-                actor=request.user,
-                memo=f"ERO #{rwo.pk} closed: {rwo.invoice_ref or 'no invoice ref'}",
-            )
-        except Exception as _ledger_err:
-            import logging
-            logging.getLogger(__name__).exception(
-                f"Cost ledger post_vendor_repair failed for ERO {rwo.pk}: {_ledger_err}"
-            )
-            messages.error(
-                request,
-                f"ERO closed, but cost ledger post failed: {_ledger_err}. "
-                f"Re-run from the cost ledger page.",
-            )
+        # Phase 2c: post_vendor_repair is now auto-fired by ExternalRepairOrder
+        # save() on status=CLOSED transition (model.py:1329-1342). The post
+        # is idempotent via delta-based _post(), so this view no longer needs
+        # to call it explicitly — saving once is sufficient. The view used to
+        # call post_vendor_repair itself, but with the model's auto-fire
+        # that would have been a redundant no-op (current_net == amount).
+        # Keeping this comment as documentation for future readers.
         messages.success(
             request,
             f"Repair verified and closed. Cost {rwo.actual_cost} added to WO cost rollup.",
@@ -5373,6 +5663,20 @@ def work_order_archive(request, pk):
         return redirect("work_order_list")
     archive_work_order(wo, request.user)
     messages.success(request, f"Work order WO-{wo.number} has been archived.")
+    return redirect("work_order_list")
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_restore(request, pk):
+    from maintenance.services import restore_work_order
+    wo = get_object_or_404(WorkOrder.all_objects, pk=pk)
+    if not wo.is_archived:
+        messages.info(request, f"WO-{wo.number} is not archived.")
+        return redirect("work_order_detail", pk=pk)
+    restore_work_order(wo, request.user)
+    messages.success(request, f"WO-{wo.number} has been restored and is now active.")
     return redirect("work_order_list")
 
 
@@ -5973,6 +6277,44 @@ def work_order_block_shortage(request, pk, report_id):
         return redirect("work_order_detail", pk=wo.pk)
 
     messages.warning(request, f"⚠ Shortage blocked for {report.part.name}.")
+    return redirect("work_order_detail", pk=wo.pk)
+
+
+@login_required
+@require_POST
+@role_required(User.Role.MANAGER, User.Role.SUPER_ADMIN)
+def work_order_emergency_review(request, pk, line_id):
+    """Phase 3: manager post-review on an emergency auto-issued part line.
+
+    Three outcomes (no undo): approve / exception / investigate. Stock
+    stays consumed and the cost stays posted regardless of the outcome.
+    """
+    from inventory.models import PartIssueLine
+    from inventory.services import emergency_review_part_line
+
+    wo = get_object_or_404(WorkOrder, pk=pk)
+    line = get_object_or_404(PartIssueLine, pk=line_id, work_order=wo)
+
+    if not line.is_emergency_auto_approved:
+        messages.error(request, _("This line was not emergency auto-issued."))
+        return redirect("work_order_detail", pk=wo.pk)
+
+    if request.method == "POST":
+        decision = (request.POST.get("decision") or "").strip()
+        note = (request.POST.get("note") or "").strip()
+        try:
+            emergency_review_part_line(
+                line=line, manager=request.user,
+                decision=decision, note=note,
+            )
+        except ValueError as _e:
+            messages.error(request, str(_e))
+            return redirect("work_order_detail", pk=wo.pk)
+        messages.success(
+            request,
+            _("Emergency review recorded (decision: %(d)s). Inventory and cost are unchanged.") % {"d": decision},
+        )
+        return redirect("work_order_detail", pk=wo.pk)
     return redirect("work_order_detail", pk=wo.pk)
 
 

@@ -94,6 +94,9 @@
                     {% else %}
                         · <span style="color:#dc3545">{% trans "Unassigned" %}</span>
                     {% endif %}
+                {% elif schedule.next_due_at %}
+                    {{ schedule.next_due_at|date:"Y-m-d H:i" }}
+                    <small class="text-muted">{% trans "(scheduled — occurrence not generated yet)" %}</small>
                 {% else %}
                     —
                 {% endif %}

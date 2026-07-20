@@ -68,9 +68,16 @@
                 {% for item_form in formset.forms %}
                 <div class="item-row" style="display:flex; gap:0.5rem; align-items:end; margin-bottom:0.5rem">
                     {{ item_form.id }}
-                    <div>{{ item_form.part.label_tag }}{{ item_form.part }}</div>
+                    <div>
+                      {{ item_form.part.label_tag }}{{ item_form.part }}
+                      <span id="po-items-stock-badge-{{ forloop.counter0 }}" class="mms-badge mms-badge--info" style="display:none; margin-left:.5rem">
+                        {% trans "In stock" %}: <strong id="po-items-stock-qty-{{ forloop.counter0 }}">0</strong>
+                      </span>
+                    </div>
+                    <div>{{ item_form.tool.label_tag }}{{ item_form.tool }}</div>
                     <div>{{ item_form.ordered_qty.label_tag }}{{ item_form.ordered_qty }}</div>
                     <div>{{ item_form.negotiated_unit_price.label_tag }}{{ item_form.negotiated_unit_price }}</div>
+                    <div>{{ item_form.line_note.label_tag }}{{ item_form.line_note }}</div>
                     {% if item_form.DELETE %}<label>{{ item_form.DELETE }} Delete</label>{% endif %}
                 </div>
                 {% endfor %}
@@ -109,13 +116,98 @@
     <h3>{% trans "Add New Supplier" %}</h3>
     <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
       {% csrf_token %}
-      <p><input type="text" name="code" placeholder={% trans "SUP-001 or MWRD-001" %} required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="code" placeholder="{% trans 'SUP-001 or MWRD-001' %}" required style="width:100%" dir="auto"></p>
       <p><input type="text" name="name" placeholder="{% trans 'Supplier name' %}" required style="width:100%" dir="auto"></p>
-      <p><input type="text" name="phone" placeholder={% trans "Phone" %} style="width:100%" dir="auto"></p>
-      <p><input type="email" name="email" placeholder={% trans "Email" %} style="width:100%" dir="auto"></p>
+      <p><input type="text" name="phone" placeholder="{% trans 'Phone' %}" style="width:100%" dir="auto"></p>
+      <p><input type="email" name="email" placeholder="{% trans 'Email' %}" style="width:100%" dir="auto"></p>
       <button type="submit">{% trans "Save Supplier" %}</button>
       <button type="button" onclick="document.getElementById('addSupplierModal').style.display='none'">{% trans "Cancel" %}</button>
     </form>
   </div>
 </div>
+<script>
+(function() {
+    var stockData = {{ stock_data_json|safe }};
+    if (!stockData) return;
+    // Find all part selectors in the items formset. Their IDs look like
+    // "id_items-N-part" (one per row). Match each to its row's data dict.
+    var selects = document.querySelectorAll('select[name="items-N-part"]'.replace(/N/g, '\\d+'));
+    // Fallback: scan all selects in the items-formset container.
+    var formsetContainer = document.getElementById('items-formset');
+    if (formsetContainer) {
+        selects = formsetContainer.querySelectorAll('select[name="items-0-part"], select[name="items-1-part"], select[name="items-2-part"], select[name="items-3-part"]');
+    }
+    selects.forEach(function(select) {
+        var name = select.name;
+        var m = name.match(/^items-(\d+)-part$/);
+        if (!m) return;
+        var rowIdx = m[1];
+        var rowData = stockData[rowIdx];
+        if (!rowData) return;
+        var badge = document.getElementById('po-items-stock-badge-' + rowIdx);
+        var qtyEl = document.getElementById('po-items-stock-qty-' + rowIdx);
+        if (!badge || !qtyEl) return;
+        function update() {
+            var q = rowData[select.value];
+            if (q === undefined || q === null) { badge.style.display = 'none'; return; }
+            qtyEl.textContent = q;
+            badge.style.display = 'inline';
+        }
+        select.addEventListener('change', update);
+        update();
+    });
+})();
+</script>
+<script>
+(function() {
+    var form = document.getElementById('quickSupplierForm');
+    var modal = document.getElementById('addSupplierModal');
+    if (!form || !modal) return;
+
+    function showError(msg) {
+        var existing = modal.querySelector('.quick-supplier-error');
+        if (existing) existing.remove();
+        var box = document.createElement('div');
+        box.className = 'quick-supplier-error mms-field-error';
+        box.style.marginTop = '0.5rem';
+        box.textContent = msg;
+        form.appendChild(box);
+    }
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        var action = form.getAttribute('action');
+        var csrfInput = form.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfInput) { showError('CSRF token missing'); return; }
+        var errorBox = modal.querySelector('.quick-supplier-error');
+        if (errorBox) errorBox.remove();
+
+        fetch(action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {'X-CSRFToken': csrfInput.value}
+        }).then(function(response) {
+            return response.json().then(function(data) { return {ok: response.ok, data: data}; });
+        }).then(function(result) {
+            if (!result.ok || result.data.error) {
+                showError(result.data.error || 'Failed to save supplier');
+                return;
+            }
+            var supplier = result.data;
+            var parentSelect = document.querySelector('select[name="supplier"]');
+            if (parentSelect) {
+                var opt = document.createElement('option');
+                opt.value = supplier.id;
+                opt.textContent = supplier.name + ' (' + supplier.code + ')';
+                opt.selected = true;
+                parentSelect.appendChild(opt);
+            }
+            form.reset();
+            modal.style.display = 'none';
+        }).catch(function() {
+            showError('Network error saving supplier');
+        });
+    });
+})();
+</script>
 {% endblock %}

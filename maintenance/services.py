@@ -61,6 +61,80 @@ def transition_work_order(
             f"Failed to recompute operational_status for WO #{wo.number}: {e}"
         )
 
+    # Phase 12 (Reconciliation sweep): when the WO closes, release any
+    # stale ACTIVE inventory reservations on it. Catches:
+    #   1. Legacy reservations (no source_line) — created by reserve_stock()
+    #      with no PartIssueLine link.
+    #   2. Line-linked reservations whose line is already fully issued.
+    # These would otherwise hold stock in limbo after the WO is reviewed.
+    if to_status == WorkOrder.LifecycleStatus.CLOSED:
+        try:
+            release_stale_reservations_for_wo(wo, actor)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to release stale reservations for WO #{wo.number}: {e}"
+            )
+
+
+def release_stale_reservations_for_wo(wo, actor) -> int:
+    """Release ACTIVE InventoryReservation rows that are no longer needed.
+
+    Criteria (each row checked independently):
+      - Legacy reservation (source_line is NULL) → always release.
+      - Line-linked reservation whose source line is already fully issued
+        (issued_qty >= approved_qty) → release.
+
+    Returns the count of reservations released. Wired into
+    `transition_work_order` so closing a WO cleans up any leftover claims.
+    Each release is recorded in the audit log for traceability.
+    """
+    from inventory.models import InventoryReservation
+    from django.utils import timezone as _tz
+
+    active_qs = (
+        InventoryReservation.objects
+        .filter(work_order=wo, status=InventoryReservation.Status.ACTIVE)
+        .select_related("source_line", "part")
+        .order_by("created_at", "pk")
+    )
+    now = _tz.now()
+    released = 0
+    for res in active_qs:
+        if (
+            res.source_line_id
+            and res.source_line.issued_qty is not None
+            and res.source_line.approved_qty is not None
+            and res.source_line.issued_qty < res.source_line.approved_qty
+        ):
+            # Line still has unmet demand — leave the reservation in place.
+            continue
+        if res.source_line_id:
+            res.release_reason = _(
+                "Auto-released: source line fully issued (issued_qty >= approved_qty)"
+            )
+        else:
+            res.release_reason = _(
+                "Auto-released on WO closure (legacy reserve)"
+            )
+        res.status = InventoryReservation.Status.RELEASED
+        res.released_at = now
+        res.save(update_fields=["status", "released_at", "release_reason"])
+        log_audit(
+            actor=actor,
+            action="reservation_auto_released",
+            entity="WorkOrder",
+            object_id=wo.pk,
+            payload={
+                "reservation_id": res.pk,
+                "part_id": res.part_id,
+                "qty": float(res.quantity),
+                "reason": res.release_reason,
+            },
+        )
+        released += 1
+    return released
+
 
 def pause_other_in_progress(
     technician: User,
@@ -857,3 +931,65 @@ def compute_compliance(*, window_days: int = 90, grace_days: int = 7, machine=No
         "window_days": window_days,
         "grace_days": grace_days,
     }
+
+
+class ToolAvailabilityService:
+    """Centralized availability / reuse check for `Tool`.
+
+    Used by:
+      - `tool_assign` view (block bad assignments with explicit reason)
+      - `tools.html` template (red banner showing why a tool is unavailable)
+      - QR scan handler (preview before showing the assign form)
+
+    Returns a tuple `(ok: bool, reason: str)`.
+    """
+
+    @staticmethod
+    def can_assign(tool) -> "tuple[bool, str]":
+        """Return (ok, reason) for whether `tool` can be assigned right now.
+
+        ok=True:  tool.status == AVAILABLE. reason = "".
+        ok=False: tool.status in {IN_USE, OUT_OF_SERVICE}; reason is a translated
+                  human-readable string for UI display.
+        """
+        # Localised imports keep this module decoupled at import time.
+        from django.utils.translation import gettext_lazy as _
+
+        if tool.status == tool.Status.AVAILABLE:
+            return True, ""
+
+        if tool.status == tool.Status.IN_USE:
+            # Try to surface the current holder's name + since date.
+            from maintenance.models import ToolAssignment
+            ta = (
+                ToolAssignment.objects.filter(tool=tool, returned_at__isnull=True)
+                .select_related("user")
+                .order_by("-assigned_at")
+                .first()
+            )
+            holder = ta.user.get_full_name() or ta.user.username if ta else "?"
+            since = ta.assigned_at.strftime("%Y-%m-%d") if ta else "?"
+            return False, _(
+                "Currently assigned to %(holder)s since %(date)s."
+            ) % {"holder": holder, "date": since}
+
+        if tool.status == tool.Status.OUT_OF_SERVICE:
+            from maintenance.models import ToolDamageRecord
+            rec = (
+                ToolDamageRecord.objects.filter(tool=tool)
+                .order_by("-created_at")
+                .first()
+            )
+            if rec is not None:
+                supplier_label = rec.supplier.name if rec.supplier_id else _("unknown supplier")
+                return False, _(
+                    "Out of service — damaged %(date)s (supplier: %(supplier)s). "
+                    "Replacement status: %(action)s."
+                ) % {
+                    "date": rec.created_at.strftime("%Y-%m-%d"),
+                    "supplier": supplier_label,
+                    "action": rec.get_replacement_action_display(),
+                }
+            return False, _("Out of service.")
+
+        return False, _("Unknown status — cannot assign.")

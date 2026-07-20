@@ -20,6 +20,7 @@ from typing import Optional, Any
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from decimal import Decimal
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -274,6 +275,7 @@ class WorkOrderBlockerService:
         return blocker
 
     @classmethod
+    @transaction.atomic
     def sync_from_external_event(
         cls,
         *,
@@ -374,6 +376,21 @@ class WorkOrderBlockerService:
             )
 
         if event_type == "SHORTAGE_FULFILLED":
+            # Phase 3 BUG-10 fix: gate on the preconditions enforced by
+            # mark_shortage_fulfilled() — only resolve the SHORTAGE blocker
+            # when the report is actually in IN_FULFILLMENT with qty_issued
+            # >= approved_issue_qty. Otherwise (e.g. partial receive), this
+            # is a no-op so the blocker stays OPEN until full issuance.
+            external_obj = kwargs.get("external_obj")
+            if external_obj is not None:
+                decision = getattr(external_obj, "decision", None)
+                approved = getattr(decision, "approved_issue_qty", None) or Decimal("0")
+                qty_issued = getattr(external_obj, "qty_issued", None) or Decimal("0")
+                if (
+                    external_obj.status != "in_fulfillment"
+                    or qty_issued < approved
+                ):
+                    return None
             return cls.resolve_blocker(
                 blocker=open_blocker,
                 resolution_note=payload.get("note", _("Shortage fulfilled")),

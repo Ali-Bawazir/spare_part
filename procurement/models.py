@@ -1,7 +1,10 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.expressions import RawSQL
+from django.db.models import Max
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -186,7 +189,7 @@ class PurchaseOrder(models.Model):
         CLOSED_SHORT = "closed_short", _("Closed short")
         CANCELLED = "cancelled", _("Cancelled")
 
-    po_number = models.CharField(max_length=12, unique=True, editable=False)
+    po_number = models.CharField(max_length=20, unique=True, editable=False)
     supplier = models.ForeignKey(
         Supplier,
         on_delete=models.PROTECT,
@@ -200,6 +203,7 @@ class PurchaseOrder(models.Model):
         default=Status.DRAFT,
         db_index=True,
     )
+    cancellation_reason = models.TextField(blank=True, default="")
     notes = models.TextField(blank=True)
 
     # Supplier invoice (captured at receive time, distinct from PO-level invoice_ref)
@@ -235,6 +239,16 @@ class PurchaseOrder(models.Model):
         on_delete=models.SET_NULL,
         related_name="purchase_orders_handled",
     )
+    reorder_source = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reorders",
+        db_index=True,
+        help_text=_("If this PO was created by reordering an earlier PO, the source PO's id. "
+                  "Lets the manager trace the lineage and view the original pricing."),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -246,17 +260,18 @@ class PurchaseOrder(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.po_number:
-            last = PurchaseOrder.objects.order_by("-po_number").values_list("po_number", flat=True).first()
-            if last:
-                parts = last.split("-")
-                year = timezone.now().year
-                if len(parts) == 3 and parts[0] == "PO" and parts[1] == str(year):
-                    next_num = int(parts[2]) + 1
-                else:
-                    next_num = 1
-            else:
-                next_num = 1
-            self.po_number = f"PO-{timezone.now().year}-{next_num:04d}"
+            year = timezone.now().year
+            prefix = f"PO-{year}-"
+            last_suffix = PurchaseOrder.objects.filter(
+                po_number__startswith=prefix
+            ).annotate(
+                suffix=RawSQL(
+                    "CAST(SUBSTRING(po_number FROM %s) AS INTEGER)",
+                    (len(prefix) + 1,),
+                )
+            ).aggregate(m=Max("suffix"))["m"]
+            next_num = (last_suffix or 0) + 1
+            self.po_number = f"PO-{year}-{next_num:04d}"
         super().save(*args, **kwargs)
 
     @property
@@ -275,7 +290,8 @@ class PurchaseOrder(models.Model):
     def total_received_value(self) -> Decimal:
         total = Decimal("0")
         for item in self.items.all():
-            total += item.received_qty * item.negotiated_unit_price
+            price = item.actual_unit_price if item.actual_unit_price is not None else item.negotiated_unit_price
+            total += item.received_qty * price
         return total
 
 
@@ -296,6 +312,20 @@ class PurchaseOrderItem(models.Model):
         SparePart,
         on_delete=models.PROTECT,
         related_name="po_items",
+        null=True,
+        blank=True,
+    )
+    tool = models.ForeignKey(
+        "maintenance.Tool",
+        on_delete=models.PROTECT,
+        related_name="po_items",
+        null=True,
+        blank=True,
+        help_text=_(
+            "Set when this PO line is for a tool (e.g. a damaged tool being "
+            "reordered). Mutually exclusive with `part` — exactly one of "
+            "`part` or `tool` must be set."
+        ),
     )
     ordered_qty = models.DecimalField(max_digits=14, decimal_places=3)
     received_qty = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
@@ -307,7 +337,11 @@ class PurchaseOrderItem(models.Model):
     damaged_qty       = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     rejected_qty      = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     backordered_qty   = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"),
-        help_text=_("Units the supplier owes but hasn't delivered. ordered_qty = received_qty + backordered_qty + cancelled_qty."))
+        help_text=_(
+            "Units the supplier owes but hasn't delivered. "
+            "Phase 4 invariant: ordered_qty = received_qty + backordered_qty "
+            "(maintained on every receive + on close_short)."
+        ))
     condition         = models.CharField(max_length=16, choices=Condition.choices, default=Condition.GOOD)
     line_note         = models.CharField(max_length=500, blank=True)
 
@@ -315,13 +349,28 @@ class PurchaseOrderItem(models.Model):
         verbose_name_plural = _("purchase order items")
 
     def __str__(self) -> str:
-        return f"{self.part.sku} x{self.ordered_qty} (recv {self.received_qty})"
+        label = self.part.sku if self.part_id else (self.tool.code if self.tool_id else "?")
+        return f"{label} x{self.ordered_qty} (recv {self.received_qty})"
+
+    def clean(self):
+        super().clean()
+        has_part = bool(self.part_id)
+        has_tool = bool(self.tool_id)
+        if has_part and has_tool:
+            raise ValidationError(
+                _("A PO line item must reference either a part or a tool, not both.")
+            )
+        if not has_part and not has_tool:
+            raise ValidationError(
+                _("A PO line item must reference a part or a tool.")
+            )
 
     @property
     def remaining_qty(self) -> Decimal:
         return self.ordered_qty - self.received_qty
 
     def save(self, *args, **kwargs):
-        if self.ordered_qty and self.negotiated_unit_price:
-            self.total_price = self.ordered_qty * self.negotiated_unit_price
+        price = self.actual_unit_price if self.actual_unit_price is not None else self.negotiated_unit_price
+        if self.ordered_qty and price:
+            self.total_price = self.ordered_qty * price
         super().save(*args, **kwargs)

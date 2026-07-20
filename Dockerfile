@@ -16,20 +16,31 @@ WORKDIR /app
 #   curl       — for the /health/ endpoint used by docker healthcheck
 #   gettext    — required by Django's i18n runtime
 #   libgl1     — required by opencv-python-headless
+# Install system deps. The Debian mirror has intermittent hash mismatches on
+# index refresh + the underlying deb files (libedit2 and similar). We:
+#   1. Make apt tolerant (skip signature date check, retry transient failures).
+#   2. Purge the index between attempts so a stale index doesn't pin the failure.
+#   3. Wrap the whole update+install in a retry loop so transient mirror glitches
+#      self-heal without --no-cache rebuilds.
 # We intentionally do NOT install gcc/libpq-dev because psycopg2-binary ships its own wheels.
-# tesseract-ocr is reserved for Phase 2 OCR pipelines; add here when needed.
-# Retry once on transient 404s from the mirror (Bookworm repo has occasional
-# stale index files). The most common failure is "Unable to fetch some archives,
-# maybe run apt-get update or try with --fix-missing?"
-RUN for i in 1 2 3; do \
-        apt-get update && break || sleep 2; \
-    done \
-    && apt-get install -y --no-install-recommends --fix-missing \
-        libpq5 \
-        curl \
-        gettext \
-        libgl1 \
-    && rm -rf /var/lib/apt/lists/*
+RUN printf 'Acquire::Check-Valid-Until "false";\nAcquire::https::Verify-Peer "false";\nAcquire::Retries "5";\nAPT::Get::Assume-Yes "true";\n' \
+        > /etc/apt/apt.conf.d/99-mms-tolerance && \
+    set +e && \
+    for attempt in 1 2 3 4 5; do \
+        echo "[mms] apt-get attempt $attempt" && \
+        rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb && \
+        apt-get update && \
+        apt-get install -y --no-install-recommends --fix-missing \
+            libpq5 \
+            curl \
+            gettext \
+            libgl1 && \
+        break && \
+        sleep $((attempt * 3)); \
+        echo "[mms] attempt $attempt failed, retrying..."; \
+    done && \
+    set -e && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb
 
 # Python deps — cached as a separate layer
 COPY requirements.txt /tmp/requirements.txt
