@@ -1218,18 +1218,30 @@ def cancel_approved_part_request(
     now = timezone.now()
     cancel_reason = _("Line cancelled: %(reason)s") % {"reason": reason[:200]}
     legacy_reason = _("Line cancelled — releasing legacy reservation: %(reason)s") % {"reason": reason[:200]}
+    # Phase 1: split into two passes (line-linked + legacy-with-null-source) to
+    # avoid PostgreSQL's FOR UPDATE cannot be applied to the nullable side of
+    # an outer join error when Q(source_line__isnull=True) is combined with
+    # SELECT FOR UPDATE against a join.
+    ids_to_release = set(
+        InventoryReservation.objects.filter(
+            part=line.part,
+            work_order=line.work_order,
+            status=InventoryReservation.Status.ACTIVE,
+            source_line=line,
+        ).values_list("id", flat=True)
+    ) | set(
+        InventoryReservation.objects.filter(
+            part=line.part,
+            work_order=line.work_order,
+            status=InventoryReservation.Status.ACTIVE,
+            source_line__isnull=True,
+        ).values_list("id", flat=True)
+    )
     released_count = 0
     for res in (
         InventoryReservation.objects
         .select_for_update()
-        .filter(
-            part=line.part,
-            work_order=line.work_order,
-            status=InventoryReservation.Status.ACTIVE,
-        )
-        .filter(
-            models.Q(source_line=line) | models.Q(source_line__isnull=True)
-        )
+        .filter(pk__in=ids_to_release)
     ):
         res.status = InventoryReservation.Status.CANCELLED
         res.released_at = now
@@ -1726,24 +1738,30 @@ def transition_shortage_status(report: PartShortageReport, new_status: str, *, a
             "Shortage report closed (was %(old)s); releasing line-linked reservation"
         ) % {"old": old}
         now = _tz.now()
+        # Two passes: line-linked (inner join — safe to lock) and legacy
+        # (no join — also safe). Splitting avoids PostgreSQL's
+        # FOR UPDATE cannot be applied to nullable side of an outer join error
+        # when Q(source_line__isnull=True) is combined with SELECT FOR UPDATE.
+        ids_to_release = set(
+            InventoryReservation.objects.filter(
+                part=report.part,
+                work_order=report.work_order,
+                status=InventoryReservation.Status.ACTIVE,
+                source_line__related_shortage_report=report,
+            ).values_list("id", flat=True)
+        ) | set(
+            InventoryReservation.objects.filter(
+                part=report.part,
+                work_order=report.work_order,
+                status=InventoryReservation.Status.ACTIVE,
+                source_line__isnull=True,
+            ).values_list("id", flat=True)
+        )
         released_count = 0
         for res in (
             InventoryReservation.objects
             .select_for_update()
-            .filter(
-                part=report.part,
-                work_order=report.work_order,
-                status=InventoryReservation.Status.ACTIVE,
-            )
-            .filter(
-                # line-linked reservations tied to this shortage, OR
-                # legacy reservations with no source_line at all.
-                # We deliberately do NOT release unrelated reservations
-                # on the same (part, work_order) that belong to OTHER
-                # PartIssueLines (e.g. multiple PartIssueLines for the same part).
-                models.Q(source_line__related_shortage_report=report)
-                | models.Q(source_line__isnull=True)
-            )
+            .filter(pk__in=ids_to_release)
         ):
             res.status = InventoryReservation.Status.CANCELLED
             res.released_at = now
