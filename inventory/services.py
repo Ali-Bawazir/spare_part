@@ -1792,6 +1792,58 @@ def transition_shortage_status(report: PartShortageReport, new_status: str, *, a
             pr.status = PurchaseRequest.Status.CANCELLED
             pr.save(update_fields=["status"])
 
+    # Phase UC-06: when the PSR reaches a terminal state, close the SHORTAGE
+    # WO Blocker keyed to this report. Without this, the WO page shows a
+    # stale "Awaiting Procurement" badge and WorkOrderService keeps the
+    # WO on operational_status=pending_parts even after manager-verified
+    # closure (clone of the PART_REJECTED cleanup pattern in
+    # create_shortage_decision's REJECT branch).
+    if new_status in {
+        PartShortageReport.Status.FULFILLED,
+        PartShortageReport.Status.CLOSED,
+        PartShortageReport.Status.REJECTED,
+    }:
+        try:
+            from maintenance.models import WorkOrderBlocker
+            from maintenance.services_blocker import WorkOrderBlockerService
+            from django.contrib.contenttypes.models import ContentType
+            blocker_ct = ContentType.objects.get_for_model(PartShortageReport)
+            blocker = (
+                WorkOrderBlocker.objects
+                .select_for_update()
+                .filter(
+                    work_order=report.work_order,
+                    kind=WorkOrderBlocker.Kind.SHORTAGE,
+                    content_type=blocker_ct,
+                    object_id=report.pk,
+                    status=WorkOrderBlocker.Status.OPEN,
+                )
+                .first()
+            )
+            if blocker is not None:
+                if new_status == PartShortageReport.Status.REJECTED:
+                    WorkOrderBlockerService.cancel_blocker(
+                        blocker=blocker,
+                        cancel_reason=_(
+                            "PartShortageReport #%(pk)s rejected"
+                        ) % {"pk": report.pk},
+                        cancelled_by=actor,
+                    )
+                else:
+                    WorkOrderBlockerService.resolve_blocker(
+                        blocker=blocker,
+                        resolution_note=_(
+                            "PartShortageReport #%(pk)s reached %(status)s"
+                        ) % {"pk": report.pk, "status": new_status},
+                        resolved_by=actor,
+                    )
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to close SHORTAGE blocker on PSR #{report.pk} "
+                f"terminal transition to {new_status}: {_e}"
+            )
+
     return report
 
 
