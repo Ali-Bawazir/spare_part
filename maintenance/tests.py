@@ -3963,11 +3963,17 @@ class V48ShortageDecisionTests(TestCase):
         self.assertContains(r, "Shortage Dashboard")
         self.assertContains(r, "Pending manager decision")  # human label
 
-    # ---- Scenario 12: edit procurement qty refused after PR exists (v4.8 lock) ----
+    # ---- Scenario 12: edit procurement qty syncs PR.quantity (Phase UC-06) ----
+    #
+    # The v4.8 procurement lock refused to let the manager change
+    # approved_procurement_qty once an auto-PR existed. Phase UC-06
+    # replaces the refuse with a sync: PR.quantity follows the new
+    # decision value. This keeps the "Decisions Recorded" panel and the
+    # "Linked procurement requests" panel in agreement.
 
     def test_edit_procurement_qty_after_pr_creation_refused(self):
         from inventory.services import create_shortage_decision, edit_shortage_decision, request_part_on_wo
-        from django.core.exceptions import ValidationError
+        from procurement.models import PurchaseRequest
 
         self.inventory.quantity_available = Decimal("0")
         self.inventory.save()
@@ -3981,13 +3987,23 @@ class V48ShortageDecisionTests(TestCase):
             approved_issue_qty=Decimal("0"), approved_procurement_qty=Decimal("5"),
             rejected_qty=Decimal("0"), decided_by=self.manager,
         )
-        with self.assertRaises(ValidationError) as ctx:
-            edit_shortage_decision(
-                report=report, approved_issue_qty=Decimal("0"),
-                approved_procurement_qty=Decimal("10"), rejected_qty=Decimal("0"),
-                edited_by=self.manager,
-            )
-        self.assertIn("procurement qty", str(ctx.exception).lower())
+        # Same qty -> no-op (no exception, PR qty unchanged).
+        edit_shortage_decision(
+            report=report, approved_issue_qty=Decimal("0"),
+            approved_procurement_qty=Decimal("5"), rejected_qty=Decimal("0"),
+            edited_by=self.manager,
+        )
+        # Different proc (5 -> 3) succeeds and PR follows; reject goes 0 -> 2
+        # to keep books balanced (issue + proc + rej = qty_requested = 5).
+        edit_shortage_decision(
+            report=report, approved_issue_qty=Decimal("0"),
+            approved_procurement_qty=Decimal("3"), rejected_qty=Decimal("2"),
+            edited_by=self.manager,
+        )
+        report.refresh_from_db()
+        pr = PurchaseRequest.objects.get(source_shortage_report=report)
+        self.assertEqual(report.decision.approved_procurement_qty, Decimal("3.000"))
+        self.assertEqual(pr.quantity, Decimal("3.000"))
 
     # ---- Scenario 13: mark_shortage_fulfilled does NOT check PR status (v4.8) ----
 

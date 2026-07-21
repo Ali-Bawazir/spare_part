@@ -93,6 +93,24 @@ import logging
 log = logging.getLogger(__name__)
 
 
+def sync_shortage_blocker_after_pr_change(*, pr, event_type: str, actor):
+    """Tell the SHORTAGE WO Blocker keyed to a PR's source PSR that the
+    wait state changed. Single chokepoint mirroring the SHORTAGE_FULFILLED
+    pattern already used by purchase_order_receive (procurement/views.py).
+
+    Called from every view/service that mutates PurchaseRequest.status
+    (purchase_order_cancel, purchase_order_close_short). Returns the
+    affected WorkOrderBlocker or None.
+    """
+    from maintenance.services_blocker import WorkOrderBlockerService
+    report = getattr(pr, "source_shortage_report", None)
+    if report is None:
+        return None
+    return WorkOrderBlockerService.sync_from_external_event(
+        external_obj=report, event_type=event_type, actor=actor,
+    )
+
+
 class PurchaseOrderService:
     """Domain services for PurchaseOrder workflows."""
 

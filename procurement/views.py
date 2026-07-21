@@ -1135,6 +1135,16 @@ def purchase_order_close_short(request, pk):
                 continue
             pr.status = PurchaseRequest.Status.PARTIALLY_FULFILLED
             pr.save(update_fields=["status"])
+            # Phase UC-06: tell the SHORTAGE WO Blocker (if any) that this
+            # PR's wait ended via PO close-short. Missing this event left
+            # the "Awaiting Procurement" panel stuck OPEN.
+            try:
+                from procurement.services import sync_shortage_blocker_after_pr_change
+                sync_shortage_blocker_after_pr_change(
+                    pr=pr, event_type="PO_CLOSED_SHORT", actor=request.user,
+                )
+            except Exception as _e:
+                logger.exception("Failed to sync SHORTAGE blocker on PO close-short for PR #%s: %s", pr.pk, _e)
         # Phase 4: clear backordered_qty on items that weren't cancelled
         # (the line is closed — there's no future shipment expected).
         for item in po.items.all():
@@ -1239,6 +1249,18 @@ def purchase_order_cancel(request, pk):
                     pr.status = PurchaseRequest.Status.PENDING
                     pr.save(update_fields=["status", "updated_at"])
                     released += 1
+                    # Phase UC-06: when a PO is cancelled, the wait that the
+                    # SHORTAGE WO Blocker was tracking has shifted vehicle
+                    # (the cancelled PO is gone; PR goes back to PENDING for
+                    # a fresh PO attempt). Resolve the blocker — it does
+                    # not need to stay OPEN across the PO replacement.
+                    try:
+                        from procurement.services import sync_shortage_blocker_after_pr_change
+                        sync_shortage_blocker_after_pr_change(
+                            pr=pr, event_type="PO_CANCELLED", actor=request.user,
+                        )
+                    except Exception as _e:
+                        logger.exception("Failed to sync SHORTAGE blocker on PO cancel for PR #%s: %s", pr.pk, _e)
             log_audit(
                 actor=request.user, action="po_cancelled",
                 entity="PurchaseOrder", object_id=str(po.pk),

@@ -1872,6 +1872,20 @@ def create_shortage_decision(
             "Current status: %(status)s.") % {"status": report.status}
         )
 
+    # Phase UC-06: refuse to silently overwrite an existing decision row.
+    # The OneToOne would either raise IntegrityError or, in test prep
+    # sessions, get silently deleted and re-created — leaving the audit
+    # log with two part_shortage_decided/decision_edited entries that
+    # reference different PSD pks. Force the caller to the Edit Decision
+    # path if a decision is already recorded.
+    if getattr(report, "decision", None) is not None:
+        raise ValidationError(
+            _("Decision #%(pk)s already exists for this report. "
+            "Use the Edit Decision view to change the qty split.") % {
+                "pk": report.decision.pk,
+            }
+        )
+
     decision = PartShortageDecision(
         report=report,
         decision_type=decision_type,
@@ -2080,17 +2094,27 @@ def edit_shortage_decision(
     if decision is None:
         raise ValidationError(_("Report has no decision to edit."))
 
-    # v4.8 procurement lock
+    # v4.8 procurement lock — Phase UC-06: instead of refusing the
+    # edit (which left PR rows stuck at their initial quantity and made
+    # the Decision display disagree with the PR row), sync the PR's
+    # quantity to the new approved_procurement_qty. The PO line item
+    # gets reconciled later via purchase_order_receive's existing
+    # reallocation path. Caller (the manager edit view) can still
+    # overrule by setting approved_procurement_qty to its current
+    # decision value (no-op).
     from procurement.models import PurchaseRequest
     existing_pr = PurchaseRequest.objects.filter(source_shortage_report=report).first()
     if existing_pr is not None and approved_procurement_qty != decision.approved_procurement_qty:
-        raise ValidationError(
-            _("Cannot edit procurement qty: PR #%(pk)s already created "
-            "for this shortage. Close this shortage and create a new one, "
-            "or manually edit PR #%(pk2)s.") % {
-                "pk": existing_pr.pk,
-                "pk2": existing_pr.pk,
-            }
+        old_pr_qty = existing_pr.quantity
+        existing_pr.quantity = approved_procurement_qty
+        existing_pr.save(update_fields=["quantity"])
+        log_audit(
+            actor=edited_by, action="purchase_request_qty_synced",
+            entity="PurchaseRequest", object_id=str(existing_pr.pk),
+            payload={
+                "from": str(old_pr_qty), "to": str(approved_procurement_qty),
+                "source_shortage_report": str(report.pk),
+            },
         )
 
     old_issue = decision.approved_issue_qty

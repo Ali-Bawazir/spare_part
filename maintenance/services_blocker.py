@@ -417,6 +417,38 @@ class WorkOrderBlockerService:
                 resolved_by=actor,
             )
 
+        # Phase UC-06: PR/PO cancellation paths tell the SHORTAGE blocker
+        # the wait is over (clean closure, not rejection). Symmetric
+        # counterpart of the SHORTAGE_FULFILLED branch above.
+        if event_type == "PR_CANCELLED":
+            return cls.resolve_blocker(
+                blocker=open_blocker,
+                resolution_note=payload.get(
+                    "note", _("Purchase request cancelled"),
+                ),
+                resolved_by=actor,
+            )
+
+        if event_type == "PO_CANCELLED":
+            return cls.resolve_blocker(
+                blocker=open_blocker,
+                resolution_note=payload.get(
+                    "note",
+                    _("Purchase order cancelled — no further procurement"),
+                ),
+                resolved_by=actor,
+            )
+
+        if event_type == "PO_CLOSED_SHORT":
+            return cls.resolve_blocker(
+                blocker=open_blocker,
+                resolution_note=payload.get(
+                    "note",
+                    _("Purchase order closed-short — remaining qty will not ship"),
+                ),
+                resolved_by=actor,
+            )
+
         return None
 
 
