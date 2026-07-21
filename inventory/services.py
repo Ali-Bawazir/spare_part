@@ -1492,7 +1492,9 @@ def edit_part_request_qty(*, line: PartIssueLine, manager, new_quantity: Decimal
 
 @transaction.atomic
 def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor, source_line=None) -> Inventory:
-    """Increment Inventory.quantity_reserved by `qty` for `part`.
+    """Low-level inventory primitive — reserves exactly `qty` units or raises.
+
+    Increment Inventory.quantity_reserved by `qty` for `part`.
 
     This is a soft claim — it does not physically remove stock. Used for
     planning/reporting (e.g. "how much is committed but not yet issued?").
@@ -1515,6 +1517,12 @@ def reserve_stock(*, part: SparePart, qty: Decimal, source_wo: WorkOrder, actor,
     the reconcile_legacy_reservations management command cleans those up.
 
     Raises ValueError if (quantity_available - quantity_reserved) < qty.
+
+    Application services should not call this directly. Use
+    PartAllocationService.allocate_one() instead — that chokepoint owns
+    the gap / free / delta math and is idempotent for the same line.
+    Direct calls from application services will fail loudly by design
+    when the same line already owns a reservation.
     """
     if qty <= 0:
         raise ValueError(_("Reservation qty must be positive."))
@@ -1909,17 +1917,17 @@ def create_shortage_decision(
         except Exception:
             related_line = None
 
-        # Phase 1: single reservation source. Reserve once, link to related_line.
-        # Previously this function called reserve_stock() AND PartAllocationService.
-        # allocate_one(related_line), creating two reservations for the same qty
-        # when free stock >= approved_issue_qty. The duplicate is removed; the
-        # reservation is now linked to the originating PartIssueLine.
-        if approved_issue_qty > 0:
-            reserve_stock(
-                part=report.part, qty=approved_issue_qty,
-                source_wo=report.work_order, actor=decided_by,
-                source_line=related_line,  # ← Phase 1: link reservation to line
-            )
+        # Phase reservation chokepoint: route reservation creation through
+        # PartAllocationService.allocate_one — the single business primitive
+        # that owns the gap / free / delta math. reserve_stock() is a strict
+        # low-level primitive and is no longer called from this path.
+        # Persist related_line.approved_qty first so allocate_one sees the
+        # correct gap (allocate_one reads approved_qty, allocated_qty).
+        if related_line is not None and approved_issue_qty > 0:
+            related_line.approved_qty = approved_issue_qty
+            related_line.save(update_fields=["approved_qty", "updated_at"])
+            from inventory.services_allocation import PartAllocationService
+            PartAllocationService.allocate_one(related_line)
 
         if approved_procurement_qty > 0:
             # Local import to avoid circular dependency
@@ -2047,10 +2055,19 @@ def edit_shortage_decision(
     # Adjust reservation based on issue-qty delta
     issue_delta = approved_issue_qty - old_issue
     if issue_delta > 0:
-        reserve_stock(
-            part=report.part, qty=issue_delta,
-            source_wo=report.work_order, actor=edited_by,
-        )
+        # Phase reservation chokepoint: route through allocate_one.
+        # Persist related_line.approved_qty first so allocate_one sees the
+        # gap. release_reservation below stays untouched (negative path).
+        related_line = None
+        try:
+            related_line = report.issue_lines.first()
+        except Exception:
+            related_line = None
+        if related_line is not None:
+            related_line.approved_qty = approved_issue_qty
+            related_line.save(update_fields=["approved_qty", "updated_at"])
+            from inventory.services_allocation import PartAllocationService
+            PartAllocationService.allocate_one(related_line)
     elif issue_delta < 0:
         try:
             release_reservation(
