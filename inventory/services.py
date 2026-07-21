@@ -2081,6 +2081,18 @@ def edit_shortage_decision(
             # The audit log records the partial adjustment.
             pass
 
+    # Always persist related_line.approved_qty to reflect the latest
+    # decision — even on the negative-delta path where release_reservation
+    # alone doesn't update the line field.
+    if issue_delta != 0:
+        try:
+            related_line = report.issue_lines.first()
+        except Exception:
+            related_line = None
+        if related_line is not None and related_line.approved_qty != approved_issue_qty:
+            related_line.approved_qty = approved_issue_qty
+            related_line.save(update_fields=["approved_qty", "updated_at"])
+
     return decision
 
 
