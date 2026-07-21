@@ -6119,6 +6119,30 @@ def work_order_decide_shortage(request, pk, report_id):
         except ValueError:
             messages.warning(request, _("Invalid expected_availability_date; skipped."))
 
+    # Duplicate-submit guard. The status check above handles
+    # post-completion resubmits, but a multi-tab or double-click race can
+    # submit twice while report.status is still PENDING_REVIEW. If a
+    # decision already exists for this report with identical values, this
+    # is an identical resubmit — silently succeed without re-running the
+    # service. create_shortage_decision has its own idempotency story but
+    # the guard short-circuits before any DB writes or audit entries.
+    existing_decision = getattr(report, "decision", None)
+    if existing_decision is not None:
+        same_values = (
+            existing_decision.decision_type == decision_type.upper()
+            and existing_decision.approved_issue_qty == approved_issue
+            and existing_decision.approved_procurement_qty == approved_procure
+            and existing_decision.rejected_qty == rejected
+            and (existing_decision.expected_availability_date or None) == (eta or None)
+            and (existing_decision.decision_note or "") == note
+        )
+        if same_values:
+            messages.success(
+                request,
+                _("Already saved — this decision was recorded earlier."),
+            )
+            return redirect("work_order_detail", pk=wo.pk)
+
     try:
         decision = create_shortage_decision(
             report=report,
@@ -6203,6 +6227,27 @@ def work_order_edit_shortage(request, pk, report_id):
         return redirect("work_order_detail", pk=wo.pk)
 
     note = (request.POST.get("decision_note") or "").strip()
+
+    # Duplicate-submit guard: if the saved decision already matches the
+    # incoming form values, treat this as a successful no-op instead of
+    # re-entering the service. Browsers double-submit during network lag
+    # and multi-tab editing are the common causes. The service is
+    # idempotent for unchanged values, but the guard short-circuits
+    # before any DB writes or audit entries fire.
+    existing_decision = report.decision
+    if existing_decision is not None:
+        same_values = (
+            existing_decision.approved_issue_qty == approved_issue
+            and existing_decision.approved_procurement_qty == approved_procure
+            and existing_decision.rejected_qty == rejected
+            and (existing_decision.decision_note or "") == note
+        )
+        if same_values:
+            messages.success(
+                request,
+                _("Already saved — this decision was recorded earlier."),
+            )
+            return redirect("work_order_detail", pk=wo.pk)
 
     try:
         decision = edit_shortage_decision(
