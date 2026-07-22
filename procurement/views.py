@@ -580,9 +580,14 @@ def purchase_order_create(request):
                 from procurement.models import PurchaseRequest
                 prs = PurchaseRequest.objects.filter(pk__in=selected_pr_ids, status=PurchaseRequest.Status.PENDING)
                 for pr in prs:
-                    # Add PR items as line items if not already added via formset
+                    # Aggregate same-part PRs into one PO line; create a new line for new parts.
                     existing = po.items.filter(part=pr.part).first()
-                    if not existing:
+                    if existing:
+                        existing.ordered_qty = (existing.ordered_qty or Decimal("0")) + (pr.quantity or Decimal("0"))
+                        if existing.negotiated_unit_price is not None:
+                            existing.total_price = existing.ordered_qty * existing.negotiated_unit_price
+                        existing.save(update_fields=["ordered_qty", "total_price"])
+                    else:
                         unit_price = pr.unit_price or pr.part.last_purchase_cost or Decimal("0")
                         PurchaseOrderItem.objects.create(
                             purchase_order=po,
