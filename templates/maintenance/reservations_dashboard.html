@@ -106,8 +106,8 @@
             <span class="text-muted">—</span>
           {% endif %}
         </td>
-        <td><small>{{ r.created_at|date:"Y-m-d H:i" }}</small></td>
-        <td><small>{{ r.released_at|date:"Y-m-d H:i"|default:"-" }}</small></td>
+        <td><small>{{ r.created_at|mms_datetime }}</small></td>
+        <td><small>{{ r.released_at|mms_datetime|default:"-" }}</small></td>
         <td><small>{{ r.release_reason|truncatechars:60|default:"-" }}</small></td>
       </tr>
       {% endfor %}

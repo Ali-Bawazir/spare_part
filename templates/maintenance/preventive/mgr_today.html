@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Today's Schedule — Bawazir MMS{% endblock %}
 {% block page_heading %}{% trans "Today's Schedule" %}{% endblock %}
 {% block content %}
 
 <div class="mms-banner" style="margin-bottom:1rem">
-    <strong>{{ today|date:"l · j F Y" }}</strong>
+    <strong>{{ today|mms_date }}</strong>
     <form method="post" action="{% url 'preventive:mgr_today_regenerate' %}" style="display:inline;margin-left:0.5rem">
         {% csrf_token %}
         <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Refresh today's occurrences" %}</button>

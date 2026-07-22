@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Daily consumables{% endblock %}
 {% block page_heading %}{% trans "Daily consumables" %}{% endblock %}
@@ -142,7 +143,7 @@
                     <td>{{ a.quantity }} {{ a.part.unit }}</td>
                     <td>{{ a.machine.name|default:"—" }}</td>
                     <td><span class="mms-badge mms-badge--muted">{{ a.get_source_display }}</span></td>
-                    <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ a.created_at|mms_datetime }}</td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -174,7 +175,7 @@
                     <td>{{ a.quantity }} {{ a.part.unit }}</td>
                     <td>{{ a.consumed_by.username }}</td>
                     <td>{{ a.machine.name|default:"—" }}</td>
-                    <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ a.created_at|mms_datetime }}</td>
                 </tr>
             {% endfor %}
             </tbody>

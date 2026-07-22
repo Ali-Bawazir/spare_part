@@ -18,7 +18,7 @@
                 <dt>{% trans "Expected Delivery" %}</dt><dd>{{ po.expected_delivery|default:"—" }}</dd>
                 <dt>{% trans "Handled By" %}</dt><dd>{{ po.handled_by|default:"—" }}</dd>
                 <dt>{% trans "Created By" %}</dt><dd>{{ po.created_by }}</dd>
-                <dt>{% trans "Created" %}</dt><dd>{{ po.created_at|date:"Y-m-d H:i" }}</dd>
+                <dt>{% trans "Created" %}</dt><dd>{{ po.created_at|mms_datetime }}</dd>
                 <dt>{% trans "Total Value" %}</dt><dd>{{ po.total_ordered_value }}</dd>
                 <dt>{% trans "Received Value" %}</dt><dd>{{ po.total_received_value }}</dd>
             </dl>

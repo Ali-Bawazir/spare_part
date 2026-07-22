@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Confirm batch PM spawn{% endblock %}
 {% block page_heading %}{% trans "Confirm batch PM spawn" %}{% endblock %}
@@ -30,7 +31,7 @@
               <small class="mms-text-muted">{{ s.machine.qr_code }}</small></td>
           <td>{% if s.component %}{{ s.component.name }}{% else %}<span class="mms-text-muted">—</span>{% endif %}</td>
           <td>{{ s.get_frequency_type_display }}{% if s.interval != 1 %} × {{ s.interval }}{% endif %}</td>
-          <td>{{ s.next_due_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ s.next_due_at|mms_datetime }}</td>
           <td>{{ s.get_priority_override_display|default:s.template.get_priority_display }}</td>
           <td>{{ s.effective_duration_minutes }} min</td>
         </tr>

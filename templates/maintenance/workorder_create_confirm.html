@@ -20,7 +20,7 @@
       <div><strong>{% trans "Priority" %}</strong><br><span class="{{ issue.priority|priority_badge_class }}">{{ issue.get_priority_display }}</span></div>
       <div><strong>{% trans "Reported by" %}</strong><br>{{ issue.reported_by.username }}</div>
       <div><strong>{% trans "Validated by" %}</strong><br>{{ issue.validated_by.username|default:"-" }}</div>
-      <div><strong>{% trans "Validated at" %}</strong><br>{{ issue.validated_at|date:"Y-m-d H:i"|default:"-" }}</div>
+      <div><strong>{% trans "Validated at" %}</strong><br>{{ issue.validated_at|mms_datetime|default:"-" }}</div>
     </div>
   </div>
 

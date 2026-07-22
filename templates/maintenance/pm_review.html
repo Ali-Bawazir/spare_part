@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}PM Review — WO-{{ wo.number }}{% endblock %}
 {% block page_heading %}PM Review — WO-{{ wo.number }}{% endblock %}
@@ -14,9 +15,9 @@
       <dt>{% trans "Technician" %}</dt><dd>{{ wo.assigned_technician.username|default:"Unassigned" }}</dd>
       <dt>{% trans "PM Template" %}</dt><dd><a href="{% url 'pm_template_detail' template.pk %}"><code>{{ template.code }}</code></a> — {{ template.title }}</dd>
       <dt>{% trans "Schedule" %}</dt><dd>every {{ schedule.interval }} {{ schedule.get_frequency_type_display|lower }}{% if schedule.interval != 1 %}s{% endif %}</dd>
-      <dt>{% trans "Scheduled due" %}</dt><dd>{{ pm_execution.scheduled_due_at|date:"Y-m-d H:i" }}</dd>
+      <dt>{% trans "Scheduled due" %}</dt><dd>{{ pm_execution.scheduled_due_at|mms_datetime }}</dd>
       <dt>{% trans "Execution sequence" %}</dt><dd>#{{ pm_execution.execution_sequence }}</dd>
-      <dt>{% trans "Completion time" %}</dt><dd>{% if pm_execution.completed_at %}{{ pm_execution.completed_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</dd>
+      <dt>{% trans "Completion time" %}</dt><dd>{% if pm_execution.completed_at %}{{ pm_execution.completed_at|mms_datetime }}{% else %}—{% endif %}</dd>
     </dl>
   </div>
 </div>
@@ -74,12 +75,12 @@
 
 {% if is_approved %}
 <div class="mms-alert" style="background:#dcfce7;border-left:3px solid #16a34a;padding:1rem;border-radius:4px;margin-bottom:1rem">
-  <strong>{% trans "✓ Approved" %}</strong> on {{ pm_execution.approved_at|date:"Y-m-d H:i" }} by {{ pm_execution.approved_by.username }}.
-  Schedule advanced to {{ schedule.next_due_at|date:"Y-m-d H:i" }}.
+  <strong>{% trans "✓ Approved" %}</strong> on {{ pm_execution.approved_at|mms_datetime }} by {{ pm_execution.approved_by.username }}.
+  Schedule advanced to {{ schedule.next_due_at|mms_datetime }}.
 </div>
 {% elif is_rejected %}
 <div class="mms-alert" style="background:#fee2e2;border-left:3px solid #dc2626;padding:1rem;border-radius:4px;margin-bottom:1rem">
-  <strong>{% trans "✗ Rejected" %}</strong> on {{ pm_execution.approved_at|date:"Y-m-d H:i" }} by {{ pm_execution.approved_by.username }}.
+  <strong>{% trans "✗ Rejected" %}</strong> on {{ pm_execution.approved_at|mms_datetime }} by {{ pm_execution.approved_by.username }}.
   Returned to technician. WO rejection count: {{ wo.rejection_count }}.
 </div>
 {% elif is_submitted %}

@@ -80,8 +80,8 @@
       {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Technician" %}</span><br>{{ wo.assigned_technician|default:"-" }}</div>
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Labor" %}</span><br>
-        {% trans "Started:" %} {{ wo.labor_started_at|default:"-" }}<br>
-        {% trans "Stopped:" %} {{ wo.labor_stopped_at|default:"-" }}
+        {% trans "Started:" %} {{ wo.labor_started_at|mms_datetime }}<br>
+        {% trans "Stopped:" %} {{ wo.labor_stopped_at|mms_datetime }}
       </div>
       {% if wo.operational_status == 'paused' %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Pause reason" %}</span><br>
@@ -89,7 +89,7 @@
       </div>
       {% endif %}
       <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Downtime window" %}</span><br>
-        {{ wo.downtime_started_at|default:"-" }} -> {{ wo.downtime_ended_at|default:"-" }}
+        {{ wo.downtime_started_at|mms_datetime }} -> {{ wo.downtime_ended_at|mms_datetime }}
       </div>
       <div class="mms-divider"></div>
       <div><strong>{% trans "Root cause" %}</strong><br>{{ wo.root_cause|default:"-"|linebreaksbr }}</div>
@@ -194,7 +194,7 @@
           {% endif %}
           <strong>{{ req.part.name }}</strong>
           <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
-          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|date:"Y-m-d H:i" }}</span>
+          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|mms_datetime }}</span>
         </div>
         {% if perm_approve_part_request %}
         <form method="post" action="{% url 'work_order_decide_part' wo.pk req.pk %}">
@@ -246,7 +246,7 @@
           <strong>{{ req.part.name }}</strong>
           <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
           <span class="mms-badge mms-badge--danger">{% trans "Refused" %}</span>
-          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|date:"Y-m-d H:i" }}</span>
+          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|mms_datetime }}</span>
         </div>
         {% if req.rejection_reason %}
         <div style="font-size:.85rem;color:#7f1d1d">
@@ -321,7 +321,7 @@
       <tbody>
       {% for err in pending_external_repair_requests %}
         <tr>
-          <td>{{ err.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ err.created_at|mms_datetime }}</td>
           <td>{{ err.requested_by.get_full_name|default:err.requested_by.username }}</td>
           <td style="max-width:240px;white-space:normal">{{ err.diagnosis_note|truncatechars:120 }}</td>
           <td style="max-width:200px;white-space:normal">{{ err.part_description|truncatechars:80 }}</td>
@@ -360,7 +360,7 @@
       <tbody>
       {% for err in external_repair_requests %}
         <tr>
-          <td>{{ err.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ err.created_at|mms_datetime }}</td>
           <td>{{ err.requested_by.get_full_name|default:err.requested_by.username }}</td>
           <td style="max-width:200px;white-space:normal">{{ err.part_description|truncatechars:60 }}</td>
           <td>
@@ -405,7 +405,7 @@
   <div class="mms-card-body mms-stack">
     {% for l in logs %}
     <div style="font-size:.8125rem;border-left:3px solid var(--mms-accent);padding-left:.75rem">
-      <strong>{{ l.created_at|date:"Y-m-d H:i" }}</strong>
+      <strong>{{ l.created_at|mms_datetime }}</strong>
       {{ l.from_status|default:"-" }} -> <strong>{{ l.to_status }}</strong>
       - {{ l.actor|default:"-" }}{% if l.note %} <span class="text-muted">({{ l.note }})</span>{% endif %}
     </div>
@@ -441,8 +441,8 @@
       <tr>
         <td>{{ record.technician.get_full_name|default:record.technician.username }}</td>
         <td>{{ record.get_action_display }}</td>
-        <td>{{ record.assigned_at|date:"Y-m-d H:i" }}</td>
-        <td>{% if record.unassigned_at %}{{ record.unassigned_at|date:"Y-m-d H:i" }}{% else %}<em>{% trans "Active" %}</em>{% endif %}</td>
+        <td>{{ record.assigned_at|mms_datetime }}</td>
+        <td>{% if record.unassigned_at %}{{ record.unassigned_at|mms_datetime }}{% else %}<em>{% trans "Active" %}</em>{% endif %}</td>
         <td>
           {% if record.unassigned_at %}
             {{ record.unassigned_at|timesince:record.assigned_at }}
@@ -473,8 +473,8 @@
       {% for dt in wo.downtime_records.all %}
       <tr class="{% if dt.is_open %}mms-row-warn{% endif %}">
         <td>{{ dt.get_downtime_type_display }}</td>
-        <td>{{ dt.start_time|date:"Y-m-d H:i" }}</td>
-        <td>{% if dt.end_time %}{{ dt.end_time|date:"Y-m-d H:i" }}{% else %}<em>{% trans "Still down" %}</em>{% endif %}</td>
+        <td>{{ dt.start_time|mms_datetime }}</td>
+        <td>{% if dt.end_time %}{{ dt.end_time|mms_datetime }}{% else %}<em>{% trans "Still down" %}</em>{% endif %}</td>
         <td>{% if dt.total_minutes %}{{ dt.total_minutes }} min{% else %}—{% endif %}</td>
         <td>{{ dt.reason|default:"—" }}</td>
       </tr>

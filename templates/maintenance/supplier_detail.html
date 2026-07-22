@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}{{ supplier.name }} — Suppliers{% endblock %}
 {% block page_heading %}{{ supplier.code }} — {{ supplier.name }}{% endblock %}
@@ -123,7 +124,7 @@
         <tbody>
         {% for ero in repair_history %}
         <tr>
-          <td>{{ ero.created_at|date:"d M Y" }}</td>
+          <td>{{ ero.created_at|mms_date }}</td>
           <td>{{ ero.machine.name|default:"—" }}{% if ero.component %} / {{ ero.component.name }}{% endif %}</td>
           <td>{{ ero.title }}</td>
           <td><span class="mms-badge">{{ ero.get_status_display }}</span></td>
@@ -133,7 +134,7 @@
         {% endfor %}
         {% for ero in legacy_repairs %}
         <tr class="text-muted">
-          <td>{{ ero.created_at|date:"d M Y" }}</td>
+          <td>{{ ero.created_at|mms_date }}</td>
           <td>{{ ero.machine.name|default:"—" }}</td>
           <td>{{ ero.title }} <small>({% trans "legacy" %})</small></td>
           <td><span class="mms-badge">{{ ero.get_status_display }}</span></td>
@@ -165,7 +166,7 @@
         <tbody>
         {% for m in stock_history %}
         <tr>
-          <td>{{ m.created_at|date:"d M Y" }}</td>
+          <td>{{ m.created_at|mms_date }}</td>
           <td>{{ m.part.sku }} — {{ m.part.name }}</td>
           <td>{{ m.quantity }}</td>
           <td>{{ m.invoice_ref|default:"—" }}</td>
@@ -175,7 +176,7 @@
         {% endfor %}
         {% for m in legacy_stock %}
         <tr class="text-muted">
-          <td>{{ m.created_at|date:"d M Y" }}</td>
+          <td>{{ m.created_at|mms_date }}</td>
           <td>{{ m.part.sku }} — {{ m.part.name }} <small>({% trans "legacy" %})</small></td>
           <td>{{ m.quantity }}</td>
           <td>{{ m.invoice_ref|default:"—" }}</td>
@@ -219,7 +220,7 @@
   <div class="mms-card-body">
     <ul>
       {% for pr in recent_prs %}
-      <li>PR #{{ pr.pk }} — {{ pr.part.sku }} x{{ pr.quantity }} — {{ pr.created_at|date:"d M Y" }}</li>
+      <li>PR #{{ pr.pk }} — {{ pr.part.sku }} x{{ pr.quantity }} — {{ pr.created_at|mms_date }}</li>
       {% endfor %}
     </ul>
   </div>

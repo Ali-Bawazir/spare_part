@@ -132,7 +132,7 @@
 {# ──── Timer JS ──── #}
 <script>
 (function() {
-    var startedAt = {{ wo.labor_started_at|date:"U" }};  // unix seconds
+    var startedAt = {{ wo.labor_started_at|mms_date }};  // unix seconds
     var expectedMin = {{ sched.effective_duration_minutes }};
     var elapsedEl = document.getElementById("pm-elapsed");
 

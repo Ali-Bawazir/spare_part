@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Maintenance Plans — Bawazir MMS{% endblock %}
 {% block page_heading %}{% trans "Maintenance Plans" %}{% endblock %}
@@ -33,7 +34,7 @@
                     <td>{{ plan.template.title }}</td>
                     <td>
                         {% if plan.next_due_at %}
-                            {{ plan.next_due_at|date:"Y-m-d H:i" }}
+                            {{ plan.next_due_at|mms_datetime }}
                         {% endif %}
                     </td>
                     <td>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Plan Details — {{ schedule.template.title }}{% endblock %}
 {% block page_heading %}{{ schedule.template.title }}{% endblock %}
@@ -30,9 +31,9 @@
             <dt>{% trans "Priority" %}</dt><dd>{{ schedule.effective_priority|capfirst }}</dd>
             <dt>{% trans "Active" %}</dt><dd>{% if schedule.is_active %}✓{% else %}—{% endif %}</dd>
             {% if schedule.ends_at %}
-            <dt>{% trans "Ends" %}</dt><dd>{{ schedule.ends_at|date:"Y-m-d" }}</dd>
+            <dt>{% trans "Ends" %}</dt><dd>{{ schedule.ends_at|mms_date }}</dd>
             {% endif %}
-            <dt>{% trans "Created" %}</dt><dd>{{ schedule.created_at|date:"Y-m-d" }} by {{ schedule.created_by.username|default_if_none:"—" }}</dd>
+            <dt>{% trans "Created" %}</dt><dd>{{ schedule.created_at|mms_date }} by {{ schedule.created_by.username|default_if_none:"—" }}</dd>
         </dl>
     </div>
 </div>
@@ -88,14 +89,14 @@
             <dt>{% trans "Next due" %}</dt>
             <dd>
                 {% if next_occ %}
-                    {{ next_occ.scheduled_due_at|date:"Y-m-d H:i" }}
+                    {{ next_occ.scheduled_due_at|mms_datetime }}
                     {% if next_occ.assigned_technician %}
                         · {{ next_occ.assigned_technician.username|default_if_none:"—" }}
                     {% else %}
                         · <span style="color:#dc3545">{% trans "Unassigned" %}</span>
                     {% endif %}
                 {% elif schedule.next_due_at %}
-                    {{ schedule.next_due_at|date:"Y-m-d H:i" }}
+                    {{ schedule.next_due_at|mms_datetime }}
                     <small class="text-muted">{% trans "(scheduled — occurrence not generated yet)" %}</small>
                 {% else %}
                     —
@@ -104,7 +105,7 @@
             <dt>{% trans "Last completed" %}</dt>
             <dd>
                 {% if last_completed %}
-                    {{ last_completed.scheduled_due_at|date:"Y-m-d" }}
+                    {{ last_completed.scheduled_due_at|mms_date }}
                     {% if last_completed.completed_by %}
                         by {{ last_completed.completed_by.username|default_if_none:"—" }}
                     {% endif %}
@@ -140,7 +141,7 @@
             <tbody>
                 {% for occ in recent %}
                 <tr>
-                    <td>{{ occ.scheduled_due_at|date:"Y-m-d" }}</td>
+                    <td>{{ occ.scheduled_due_at|mms_date }}</td>
                     <td>
                         {% if occ.status == 'approved' %}
                             <span style="color:#28a745">{% trans "✓ Approved" %}</span>

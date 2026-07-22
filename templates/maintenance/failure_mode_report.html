@@ -55,7 +55,7 @@
                           <li style="padding:.15rem 0">
                             <a href="{% url 'issue_detail' iss.pk %}">#{{ iss.pk }}</a>
                             {{ iss.machine.name }}{% if iss.component %} / {{ iss.component.name }}{% endif %}
-                            <span style="color:var(--mms-muted)">— {{ iss.created_at|date:"Y-m-d" }} by {{ iss.reported_by.username }}</span>
+                            <span style="color:var(--mms-muted)">— {{ iss.created_at|mms_date }} by {{ iss.reported_by.username }}</span>
                           </li>
                         {% endfor %}
                       </ul>

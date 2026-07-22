@@ -1,3 +1,4 @@
+{% load mms_extras %}
 {% load i18n %}
 {% comment %}
       Phase 3A — Active Blockers panel.
@@ -62,7 +63,7 @@
         {% endif %}
 
         <div style="font-size:.7rem;color:#9ca3af;margin-top:.35rem">
-          Opened {{ blocker.opened_at|date:"Y-m-d H:i" }}
+          Opened {{ blocker.opened_at|mms_datetime }}
           {% if blocker.opened_by %}by {{ blocker.opened_by.get_full_name|default:blocker.opened_by.username }}{% elif blocker.source_work_order %}by system (auto-paused by <a href="{% url 'work_order_detail' blocker.source_work_order.pk %}">WO-{{ blocker.source_work_order.number }}</a>){% else %}by system{% endif %}
         </div>
 

@@ -45,7 +45,7 @@
     <ol class="mms-timeline">
       {% for event in timeline %}
       <li>
-        <span class="mms-timeline-date">{{ event.occurred_at|date:"d M Y H:i" }}</span>
+        <span class="mms-timeline-date">{{ event.occurred_at|mms_datetime }}</span>
         <span class="mms-timeline-label">{{ event.label }}</span>
         {% if event.note %}<span class="mms-timeline-note text-muted">— {{ event.note }}</span>{% endif %}
       </li>

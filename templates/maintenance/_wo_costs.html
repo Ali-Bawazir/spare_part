@@ -1,3 +1,4 @@
+{% load mms_extras %}
 {% load i18n %}
 {% comment %}
        Work Order cost breakdown dashboard — Phase 1+2 Cost Ledger.
@@ -60,7 +61,7 @@
               <circle cx="12" cy="12" r="10"/>
               <polyline points="12 6 12 12 16 14"/>
             </svg>
-            {% trans "Last reconciled" %} {% if last %}{{ last|date:"Y-m-d H:i" }}{% else %}{% trans "never" %}{% endif %}
+            {% trans "Last reconciled" %} {% if last %}{{ last|mms_datetime }}{% else %}{% trans "never" %}{% endif %}
           </span>
           {% if cost.committed_material_cost %}
             <span class="mms-wo-cost-dashboard__hero-meta-pill" title="Sum of approved × unit_cost for approved/allocated/issued lines that haven't been warehouse-issued yet.">
@@ -174,7 +175,7 @@
             </svg>
           </span>
           <div class="mms-wo-cost-kpi__body">
-            <div class="mms-wo-cost-kpi__value" style="font-size:.95rem">{% if last %}{{ last|date:"Y-m-d" }}{% else %}Never{% endif %}</div>
+            <div class="mms-wo-cost-kpi__value" style="font-size:.95rem">{% if last %}{{ last|mms_date }}{% else %}Never{% endif %}</div>
             <div class="mms-wo-cost-kpi__label">{% trans "Last reconciled" %}</div>
           </div>
         </div>
@@ -247,7 +248,7 @@
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-          {% trans "Last reconciled" %} {% if last %}{{ last|date:"Y-m-d H:i" }}{% else %}{% trans "never" %}{% endif %}
+          {% trans "Last reconciled" %} {% if last %}{{ last|mms_datetime }}{% else %}{% trans "never" %}{% endif %}
         </span>
         <a href="{% url 'work_order_cost_ledger' wo.pk %}" style="color:var(--mms-accent);text-decoration:none;font-weight:600">
           View ledger →
@@ -349,7 +350,7 @@
           </svg>
         </span>
         <div class="mms-wo-cost-kpi__body">
-          <div class="mms-wo-cost-kpi__value" style="font-size:.95rem">{% if last %}{{ last|date:"Y-m-d" }}{% else %}Never{% endif %}</div>
+          <div class="mms-wo-cost-kpi__value" style="font-size:.95rem">{% if last %}{{ last|mms_date }}{% else %}Never{% endif %}</div>
           <div class="mms-wo-cost-kpi__label">{% trans "Last reconciled" %}</div>
         </div>
       </div>

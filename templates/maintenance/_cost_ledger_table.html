@@ -1,3 +1,4 @@
+{% load mms_extras %}
 {% load i18n %}
 {% comment %}
        Cost ledger table — shared between work_order_cost_ledger.html
@@ -125,7 +126,7 @@
         {% for t in txns %}
         <tr class="{% if t.is_reversal %}is-reversal{% endif %}">
           <td class="is-when">
-            {{ t.occurred_at|date:"Y-m-d H:i" }}
+            {{ t.occurred_at|mms_datetime }}
             {% if t.is_reversal %}
               <br><span class="mms-cost-ledger-table__reversal-tag">{% trans "REVERSAL" %}</span>
             {% endif %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Issue #{{ issue.pk }}{% endblock %}
 {% block page_heading %}Issue #{{ issue.pk }}{% endblock %}
@@ -38,16 +39,16 @@
                 {% if issue.is_emergency %}
                     <span class="status-badge" style="background:#dc3545;color:#fff;margin-left:.5rem">{% trans "EMERGENCY" %}</span>
                     {% if issue.escalated_by %}
-                        <br><small class="text-muted">Escalated by {{ issue.escalated_by.username }} at {{ issue.escalated_at|date:"Y-m-d H:i" }}</small>
+                        <br><small class="text-muted">Escalated by {{ issue.escalated_by.username }} at {{ issue.escalated_at|mms_datetime }}</small>
                     {% endif %}
                 {% endif %}
             </dd>
             <dt>{% trans "Description" %}</dt><dd>{{ issue.description|linebreaks }}</dd>
             <dt>{% trans "Reported By" %}</dt><dd>{{ issue.reported_by.get_full_name|default:issue.reported_by.username }}</dd>
-            <dt>{% trans "Reported At" %}</dt><dd>{{ issue.created_at|date:"Y-m-d H:i" }}</dd>
+            <dt>{% trans "Reported At" %}</dt><dd>{{ issue.created_at|mms_datetime }}</dd>
             {% if issue.validated_by %}
             <dt>{% trans "Validated By" %}</dt><dd>{{ issue.validated_by.get_full_name|default:issue.validated_by.username }}</dd>
-            <dt>{% trans "Validated At" %}</dt><dd>{{ issue.validated_at|date:"Y-m-d H:i" }}</dd>
+            <dt>{% trans "Validated At" %}</dt><dd>{{ issue.validated_at|mms_datetime }}</dd>
             {% endif %}
             <dt>{% trans "Linked WO" %}</dt>
             <dd>

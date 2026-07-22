@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}PM schedules{% endblock %}
 {% block page_heading %}{% trans "Preventive maintenance" %}{% endblock %}
@@ -73,7 +74,7 @@
             <td><a href="{% url 'pm_template_detail' row.schedule.template.pk %}"><code>{{ row.schedule.template.code }}</code></a> — {{ row.schedule.template.title }}</td>
             <td>{{ row.schedule.machine }}</td>
             <td>{{ row.schedule.get_frequency_type_display }}{% if row.schedule.interval != 1 %} × {{ row.schedule.interval }}{% endif %}</td>
-            <td>{{ row.schedule.next_due_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ row.schedule.next_due_at|mms_datetime }}</td>
             <td>
               <span class="mms-badge mms-badge--{{ row.days_color }}">{{ row.days_label }}</span>
             </td>

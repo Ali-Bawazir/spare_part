@@ -92,10 +92,10 @@
             {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}
           </td>
           <td>{{ wo.machine.name }}</td>
-          <td><span class="text-muted" style="font-size:.8rem">{{ wo.updated_at|date:"Y-m-d H:i" }}</span></td>
+          <td><span class="text-muted" style="font-size:.8rem">{{ wo.updated_at|mms_datetime }}</span></td>
           <td>
             {% if wo.labor_started_at and wo.labor_stopped_at %}
-              <span class="text-muted" style="font-size:.8rem">{{ wo.labor_started_at|date:"H:i" }} → {{ wo.labor_stopped_at|date:"H:i" }}</span>
+              <span class="text-muted" style="font-size:.8rem">{{ wo.labor_started_at|mms_time }} → {{ wo.labor_stopped_at|mms_time }}</span>
             {% else %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td>

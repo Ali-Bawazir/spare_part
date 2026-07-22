@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}{% trans "Damage history" %}{% blocktrans with tool_code=tool.code %}: {{ tool_code }}{% endblocktrans %}{% endblock %}
 {% block page_heading %}{% blocktrans with tool_name=tool.name %}{{ tool_name }} — damage history{% endblocktrans %}{% endblock %}
@@ -26,7 +27,7 @@
       <tbody>
         {% for r in records %}
           <tr>
-            <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ r.created_at|mms_datetime }}</td>
             <td><span class="mms-badge mms-badge--warn">{{ r.get_damage_kind_display }}</span></td>
             <td>{{ r.damage_reason|truncatechars:80 }}</td>
             <td>{{ r.reported_by }}</td>

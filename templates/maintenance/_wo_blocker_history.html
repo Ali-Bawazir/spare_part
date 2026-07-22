@@ -1,3 +1,4 @@
+{% load mms_extras %}
 {% load i18n %}
 {% comment %}
       Phase 3A — Blocker History panel.
@@ -44,20 +45,20 @@
         <div style="font-size:.8rem;line-height:1.5">
           <div>
             <span class="text-muted">{% trans "Opened:" %}</span>
-            {{ blocker.opened_at|date:"Y-m-d H:i" }}
+            {{ blocker.opened_at|mms_datetime }}
             {% if blocker.opened_by %}by {{ blocker.opened_by.get_full_name|default:blocker.opened_by.username }}{% else %}by system{% endif %}
           </div>
           {% if blocker.resolved_at %}
           <div>
             <span class="text-muted">{% trans "Resolved:" %}</span>
-            {{ blocker.resolved_at|date:"Y-m-d H:i" }}
+            {{ blocker.resolved_at|mms_datetime }}
             {% if blocker.resolved_by %}by {{ blocker.resolved_by.get_full_name|default:blocker.resolved_by.username }}{% else %}by system{% endif %}
           </div>
           {% endif %}
           {% if blocker.cancelled_at %}
           <div>
             <span class="text-muted">{% trans "Cancelled:" %}</span>
-            {{ blocker.cancelled_at|date:"Y-m-d H:i" }}
+            {{ blocker.cancelled_at|mms_datetime }}
             {% if blocker.cancelled_by %}by {{ blocker.cancelled_by.get_full_name|default:blocker.cancelled_by.username }}{% else %}by system{% endif %}
           </div>
           {% endif %}
@@ -81,7 +82,7 @@
             <ul style="margin:.25rem 0 0 0;padding-left:1.1rem">
               {% for event in events|slice:":5" %}
                 <li>
-                  {{ event.created_at|date:"Y-m-d H:i" }} —
+                  {{ event.created_at|mms_datetime }} —
                   <code>{{ event.event_type }}</code>
                   by {% if event.actor %}{{ event.actor.get_full_name|default:event.actor.username }}{% else %}system{% endif %}
                 </li>

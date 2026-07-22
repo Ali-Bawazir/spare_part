@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Failing assets report{% endblock %}
 {% block page_heading %}{% trans "Failing assets report" %}{% endblock %}
@@ -48,7 +49,7 @@
               </td>
               <td>
                 {% if a.last_failure %}
-                  <span style="color:var(--mms-muted);font-size:.85rem">{{ a.last_failure|date:"Y-m-d H:i" }}</span>
+                  <span style="color:var(--mms-muted);font-size:.85rem">{{ a.last_failure|mms_datetime }}</span>
                 {% else %}
                   <span style="color:var(--mms-muted)">—</span>
                 {% endif %}

@@ -29,7 +29,7 @@
       <audio controls style="width:100%;"><source src="{{ att.file.url }}" type="{{ att.mime_type }}"></audio>
       <small style="color:#6b7280">
         🎤 <strong>{{ att.uploaded_by.get_full_name|default:att.uploaded_by.username }}</strong>
-        · {{ att.uploaded_at|date:"Y-m-d H:i" }}
+        · {{ att.uploaded_at|mms_datetime }}
         {% if att.note %}· "{{ att.note }}"{% endif %}
       </small>
     </div>
@@ -82,7 +82,7 @@
             <dt>{% trans "Supplier" %}</dt><dd>{{ pr.supplier.name|default:"—" }}</dd>
             <dt>{% trans "Unit Price" %}</dt><dd>{{ pr.unit_price|default:"—" }}</dd>
             <dt>{% trans "Created By" %}</dt><dd>{{ pr.created_by.get_full_name|default:pr.created_by.username }}</dd>
-            <dt>{% trans "Created" %}</dt><dd>{{ pr.created_at|date:"Y-m-d H:i" }}</dd>
+            <dt>{% trans "Created" %}</dt><dd>{{ pr.created_at|mms_datetime }}</dd>
             <dt>{% trans "Linked Work Order" %}</dt>
             <dd>
                 {% if pr.work_order %}

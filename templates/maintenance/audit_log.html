@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load mms_extras %}
 {% block title %}Audit log{% endblock %}
 {% block page_heading %}{% trans "Audit log" %}{% endblock %}
 {% block content %}
@@ -11,7 +12,7 @@
       <tbody>
       {% for e in page_obj %}
       <tr>
-        <td style="white-space:nowrap;font-size:.8rem">{{ e.created_at }}</td>
+        <td style="white-space:nowrap;font-size:.8rem">{{ e.created_at|mms_datetime }}</td>
         <td>{% if e.actor %}{{ e.actor.username }}{% else %}—{% endif %}</td>
         <td><code style="font-size:.78rem">{{ e.action }}</code></td>
         <td>{{ e.entity|default:"—" }}</td>

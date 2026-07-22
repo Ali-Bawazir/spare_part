@@ -1,3 +1,4 @@
+{% load mms_extras %}
 {% load i18n %}
 {# Phase 3B: Manager actions block (extracted from workorder_detail.html). #}
 {# Self-gated to managers (capability-gated, same as the original inline block). #}
@@ -58,7 +59,7 @@
                 </td>
                 <td>
                   {{ r.reported_by.username }}
-                  <br><small class="text-muted">{{ r.created_at|timesince }} ago ({{ r.created_at|date:"d M H:i" }})</small>
+                  <br><small class="text-muted">{{ r.created_at|timesince }} ago ({{ r.created_at|mms_datetime }})</small>
                 </td>
               </tr>
               <tr>
@@ -196,7 +197,7 @@
                 {% else %}
                   {% if item.linked_pr %}
                     <span class="mms-badge mms-badge--info" title={% trans "Stock is on order — will auto-issue when received" %}>
-                      🟡 {% if item.eta_date %}{% trans "On order" %} — ETA {{ item.eta_date|date:"d M Y" }}{% else %}{% trans "On order" %}{% endif %}
+                      🟡 {% if item.eta_date %}{% trans "On order" %} — ETA {{ item.eta_date|mms_date }}{% else %}{% trans "On order" %}{% endif %}
                       {% if item.linked_po %}
                         · <a href="{% url 'purchase_order_detail' item.linked_po.pk %}" style="color:inherit">PO #{{ item.linked_po.po_number }}</a>
                       {% else %}
@@ -267,7 +268,7 @@
                         Procure: <strong>{{ r.decision.approved_procurement_qty }}</strong> ·
                         Reject: <strong>{{ r.decision.rejected_qty }}</strong>
                         {% if r.decision.expected_availability_date %}
-                          · ETA: <strong>{{ r.decision.expected_availability_date|date:"d M Y" }}</strong>
+                          · ETA: <strong>{{ r.decision.expected_availability_date|mms_date }}</strong>
                         {% endif %}
                       </small>
                     {% else %}
@@ -285,7 +286,7 @@
                 </td>
                 <td>
                   <span class="mms-badge mms-badge--info">{{ r.get_status_display }}</span>
-                  <br><small>Decided {{ r.reviewed_at|date:"d M H:i" }}</small>
+                  <br><small>Decided {{ r.reviewed_at|mms_datetime }}</small>
                 </td>
                 <td>
                   {% if r.status == "approved" and r.decision and r.decision.decision_type == "approve" %}
@@ -365,7 +366,7 @@
                   <li>
                     {{ r.decision.approved_procurement_qty }} × {{ r.part.name }} —
                     {% if r.expected_availability_date %}
-                      Expected: <strong>{{ r.expected_availability_date|date:"d M Y" }}</strong>
+                      Expected: <strong>{{ r.expected_availability_date|mms_date }}</strong>
                     {% else %}
                       Expected: TBD
                     {% endif %}

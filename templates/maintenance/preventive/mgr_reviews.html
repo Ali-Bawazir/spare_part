@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Reviews — Bawazir MMS{% endblock %}
 {% block page_heading %}{% trans "Reviews" %}{% endblock %}
@@ -20,7 +21,7 @@
                         · {{ occ.assigned_technician.username|default:"Unassigned" }}
                     </div>
                     <div class="text-muted" style="font-size:.85rem;margin-top:0.25rem">
-                        Submitted {{ occ.work_order.labor_stopped_at|date:"H:i" }}
+                        Submitted {{ occ.work_order.labor_stopped_at|mms_time }}
                         {% if occ.work_order.labor_started_at %}
                         · {{ occ.work_order.labor_started_at|timesince:occ.work_order.labor_stopped_at }} elapsed
                         {% endif %}

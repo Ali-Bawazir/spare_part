@@ -47,7 +47,7 @@
         <td>{{ w.machine.name }}</td>
         <td><span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span></td>
         <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
-        <td>{{ w.created_at|date:"Y-m-d" }}</td>
+        <td>{{ w.created_at|mms_date }}</td>
       </tr>
       {% empty %}<tr><td colspan="5" class="mms-empty">{% trans "No WOs." %}</td></tr>{% endfor %}
       </tbody>

@@ -91,7 +91,7 @@
             <tr>
               <td style="padding-left:2rem">
                 <a href="{% url 'purchase_order_detail' po.pk %}">{{ po.po_number }}</a>
-                <small class="text-muted" style="margin-left:0.5rem">{{ po.created_at|date:"Y-m-d" }}</small>
+                <small class="text-muted" style="margin-left:0.5rem">{{ po.created_at|mms_date }}</small>
               </td>
               <td colspan="2">
                 <span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span>
@@ -154,7 +154,7 @@
             <td><span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span></td>
             <td>{{ po.expected_delivery|default:"—" }}</td>
             <td>{{ po.total_ordered_value|default:0 }}</td>
-            <td>{{ po.created_at|date:"Y-m-d" }}</td>
+            <td>{{ po.created_at|mms_date }}</td>
             <td>
                 <a href="{% url 'purchase_order_detail' po.pk %}">{% trans "View" %}</a>
                 {% if po.status == 'draft' or po.status == 'sent' or po.status == 'partial' %}

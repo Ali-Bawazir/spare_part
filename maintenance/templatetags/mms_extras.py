@@ -1,3 +1,5 @@
+from datetime import datetime, date
+
 from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext
@@ -213,3 +215,44 @@ def i18n_json(*pairs):
         f'{json.dumps(data, ensure_ascii=False)}'
         f'</script>'
     )
+
+
+# --- 12-hour Standard Time filters -----------------------------------------
+#
+# Project rule (per CONTEXT.md + team decision): render every datetime the
+# user sees using 12-hour Standard Time with AM/PM (e.g. "Jul 21, 2026
+# 7:45 PM"). Database values stay ISO; only display strings change.
+#
+# Use these filters everywhere instead of `|date:"Y-m-d H:i"` /
+# `|date:"Y-m-d"` so the format stays consistent across the WO page,
+# part-movement surfaces, dashboards, and procurement views.
+
+@register.filter
+def mms_datetime(value):
+    """Render `value` as 'M d, Y h:i A' (12-hour with AM/PM), e.g.
+    'Jul 21, 2026 07:45 PM'. Returns '—' for None / empty."""
+    if value in (None, ""):
+        return "—"
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%b %d, %Y %I:%M %p")
+    return value
+
+
+@register.filter
+def mms_time(value):
+    """Render `value` as 'h:i A' (12-hour with AM/PM), e.g. '07:45 PM'."""
+    if value in (None, ""):
+        return "—"
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%I:%M %p")
+    return value
+
+
+@register.filter
+def mms_date(value):
+    """Render `value` as 'M d, Y' (e.g. 'Jul 21, 2026')."""
+    if value in (None, ""):
+        return "—"
+    if isinstance(value, (datetime, date)):
+        return value.strftime("%b %d, %Y")
+    return value

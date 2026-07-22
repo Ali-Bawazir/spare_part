@@ -43,7 +43,7 @@
                 <span class="text-muted">{% trans "(legacy)" %}</span>
               {% endif %}
             </td>
-            <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ r.created_at|mms_datetime }}</td>
           </tr>
           {% endfor %}
         </tbody>

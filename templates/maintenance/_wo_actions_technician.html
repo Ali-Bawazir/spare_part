@@ -1,3 +1,4 @@
+{% load mms_extras %}
 {% load i18n %}
 {# Phase 3B: Technician actions block (extracted from workorder_detail.html). #}
 {# Self-gated to the assigned technician (or super-admin). Same gate as the original. #}
@@ -186,7 +187,7 @@
           {% for r in approved_shortage_reports %}
             <li>
               {{ r.qty_requested }} × {{ r.part.name }} —
-              Expected: <strong>{{ r.expected_availability_date|default:"TBD"|date:"d M Y" }}</strong>
+              Expected: <strong>{{ r.expected_availability_date|default:"TBD"|mms_date }}</strong>
             </li>
           {% endfor %}
         </ul>

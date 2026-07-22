@@ -27,7 +27,7 @@
             <dt>{% trans "Work Order" %}</dt>
             <dd>
                 <a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a>
-                — created {{ wo.created_at|date:"Y-m-d H:i" }}
+                — created {{ wo.created_at|mms_datetime }}
             </dd>
 
             <dt>{% trans "Lifecycle status" %}</dt>
@@ -76,8 +76,8 @@
 
             <dt>{% trans "Schedule info" %}</dt>
             <dd>
-                Last completed: <strong>{{ sched.last_completed_at|date:"Y-m-d"|default:"Never" }}</strong><br>
-                Next due: <strong>{{ sched.next_due_at|date:"Y-m-d" }}</strong>
+                Last completed: <strong>{{ sched.last_completed_at|mms_date|default:"Never" }}</strong><br>
+                Next due: <strong>{{ sched.next_due_at|mms_date }}</strong>
             </dd>
             {% endif %}
 
@@ -85,12 +85,12 @@
             <dt>{% trans "PM Execution" %}</dt>
             <dd>
                 #{{ pm_execution.execution_sequence }} ·
-                scheduled for {{ pm_execution.scheduled_due_at|date:"Y-m-d" }}<br>
+                scheduled for {{ pm_execution.scheduled_due_at|mms_date }}<br>
                 {% if pm_execution.completed_by %}
-                    Completed by {{ pm_execution.completed_by.username }} on {{ pm_execution.completed_at|date:"Y-m-d H:i" }}
+                    Completed by {{ pm_execution.completed_by.username }} on {{ pm_execution.completed_at|mms_datetime }}
                 {% endif %}
                 {% if pm_execution.approved_by %}
-                    <br>Approved by {{ pm_execution.approved_by.username }} on {{ pm_execution.approved_at|date:"Y-m-d H:i" }}
+                    <br>Approved by {{ pm_execution.approved_by.username }} on {{ pm_execution.approved_at|mms_datetime }}
                 {% endif %}
             </dd>
             {% endif %}

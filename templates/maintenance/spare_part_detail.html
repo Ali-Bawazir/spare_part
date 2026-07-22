@@ -106,7 +106,7 @@
         <td class="text-muted small">{% trans "Last counted" %}</td>
         <td>
           {% if inv.last_counted_at %}
-            {{ inv.last_counted_at|date:"Y-m-d H:i" }} by {{ inv.last_counted_by.username }}
+            {{ inv.last_counted_at|mms_datetime }} by {{ inv.last_counted_by.username }}
           {% else %}
             —
           {% endif %}
@@ -147,7 +147,7 @@
           {% if m.invoice_ref %}| Inv: {{ m.invoice_ref }}{% endif %}
           {% if m.work_order %}| <a href="{% url 'work_order_detail' m.work_order.pk %}">{{ m.work_order.number }}</a>{% endif %}
         </span>
-        <span class="text-muted small" style="margin-left:auto">{{ m.created_at|date:"Y-m-d H:i" }}</span>
+        <span class="text-muted small" style="margin-left:auto">{{ m.created_at|mms_datetime }}</span>
       </div>
       {% endfor %}
     </div>
@@ -171,7 +171,7 @@
           <td><a href="{% url 'work_order_detail' wo.pk %}">{{ wo.number }}</a></td>
           <td>{{ wo.machine.name }}</td>
           <td><span class="mms-badge mms-badge--muted">{{ wo.get_status_display }}</span></td>
-          <td>{{ wo.created_at|date:"Y-m-d" }}</td>
+          <td>{{ wo.created_at|mms_date }}</td>
         </tr>
         {% endfor %}
         </tbody>
@@ -196,7 +196,7 @@
           <td>{{ pr.quantity }}</td>
           <td>{% if pr.supplier %}{{ pr.supplier.name }}{% else %}—{% endif %}</td>
           <td><span class="mms-badge mms-badge--warning">{{ pr.get_status_display }}</span></td>
-          <td>{{ pr.created_at|date:"Y-m-d" }}</td>
+          <td>{{ pr.created_at|mms_date }}</td>
         </tr>
         {% endfor %}
         </tbody>

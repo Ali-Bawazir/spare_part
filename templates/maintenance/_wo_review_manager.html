@@ -1,3 +1,4 @@
+{% load mms_extras %}
 {% load i18n %}
 {# Phase 3B: Manager review block (extracted from workorder_detail.html). #}
 {# Self-gated: only managers with a WO in pending_review see this. #}
@@ -8,7 +9,7 @@
 {% if wo.rejected_at %}
 <div class="alert alert-info">
     <strong>{% trans "Previously rejected:" %}</strong> {{ wo.rejection_reason }}
-    <br><small>Rejected by {{ wo.rejected_by }} on {{ wo.rejected_at|date:"Y-m-d H:i" }} ({{ wo.rejection_count }} rejection{{ wo.rejection_count|pluralize:"s" }})</small>
+    <br><small>Rejected by {{ wo.rejected_by }} on {{ wo.rejected_at|mms_datetime }} ({{ wo.rejection_count }} rejection{{ wo.rejection_count|pluralize:"s" }})</small>
 </div>
 {% endif %}
 <form method="post" action="{% url 'work_order_close' wo.pk %}">

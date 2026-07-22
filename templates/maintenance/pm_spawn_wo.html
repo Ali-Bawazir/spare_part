@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Spawn PM Work Order{% endblock %}
 {% block page_heading %}Spawn PM Work Order for {{ schedule.machine.name }}{% endblock %}
@@ -12,7 +13,7 @@
       <dt>{% trans "Template" %}</dt><dd><a href="{% url 'pm_template_detail' schedule.template.pk %}"><code>{{ schedule.template.code }}</code></a> — {{ schedule.template.title }}</dd>
       <dt>{% trans "Machine" %}</dt><dd>{{ schedule.machine.name }} ({{ schedule.machine.qr_code }})</dd>
       <dt>{% trans "Frequency" %}</dt><dd>{{ schedule.get_frequency_type_display }}{% if schedule.interval != 1 %} × {{ schedule.interval }}{% endif %}</dd>
-      <dt>{% trans "Next due" %}</dt><dd>{{ schedule.next_due_at|date:"Y-m-d H:i" }}</dd>
+      <dt>{% trans "Next due" %}</dt><dd>{{ schedule.next_due_at|mms_datetime }}</dd>
       <dt>{% trans "Priority" %}</dt><dd>{{ schedule.get_priority_override_display|default:schedule.template.get_priority_display }}</dd>
       <dt>{% trans "Estimated duration" %}</dt><dd>{{ schedule.effective_duration_minutes }} minutes</dd>
     </dl>

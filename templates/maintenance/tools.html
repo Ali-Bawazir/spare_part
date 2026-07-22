@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Tools{% endblock %}
 {% block page_heading %}{% trans "Reusable tools" %}{% endblock %}
@@ -74,7 +75,7 @@
       <tr>
         <td>{{ a.tool }}</td>
         <td>{{ a.user }}</td>
-        <td>{{ a.assigned_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ a.assigned_at|mms_datetime }}</td>
         <td>{% if perm_tool_return and a.user_id == user.id or perm_tool_assign %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'tool_return' a.pk %}">{% trans "Return" %}</a>{% else %}â€”{% endif %}</td>
       </tr>
       {% empty %}<tr><td colspan="4" class="mms-empty">{% trans "None." %}</td></tr>{% endfor %}

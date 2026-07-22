@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}{% trans "Tool damage archive" %}{% endblock %}
 {% block page_heading %}{% trans "Tool damage archive" %}{% endblock %}
@@ -46,7 +47,7 @@
       <tbody>
         {% for r in records %}
           <tr>
-            <td>{{ r.created_at|date:"Y-m-d" }}</td>
+            <td>{{ r.created_at|mms_date }}</td>
             <td><a href="{% url 'tool_damage_list' r.tool.pk %}">{{ r.tool }}</a></td>
             <td><span class="mms-badge mms-badge--warn">{{ r.get_damage_kind_display }}</span></td>
             <td>{{ r.damage_reason|truncatechars:60 }}</td>

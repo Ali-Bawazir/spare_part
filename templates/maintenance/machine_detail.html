@@ -139,7 +139,7 @@
                 {% else %}<span class="mms-badge mms-badge--muted">{{ wo.get_lifecycle_status_display }}</span>{% endif %}
               </td>
               <td>{% if wo.component %}{{ wo.component.name }}{% else %}—{% endif %}</td>
-              <td><span class="mms-text-muted">{{ wo.created_at|date:"Y-m-d" }}</span></td>
+              <td><span class="mms-text-muted">{{ wo.created_at|mms_date }}</span></td>
               <td>{% if wo.assigned_technician %}{{ wo.assigned_technician.username }}{% else %}—{% endif %}</td>
               <td class="mms-cost-cell {% if wo.cost_record and wo.cost_record.total_cost > 1000 %}mms-cost-cell--warn{% endif %}">
                 {% if wo.cost_record %}{{ wo.cost_record.total_cost|floatformat:2 }} SAR{% else %}—{% endif %}
@@ -174,7 +174,7 @@
               <td>{{ iss.get_status_display }}</td>
               <td>{% if iss.reported_by %}{{ iss.reported_by.username }}{% else %}—{% endif %}</td>
               <td>{{ iss.description|truncatechars:60 }}</td>
-              <td><span class="mms-text-muted">{{ iss.created_at|date:"Y-m-d" }}</span></td>
+              <td><span class="mms-text-muted">{{ iss.created_at|mms_date }}</span></td>
             </tr>
           {% empty %}
             <tr><td colspan="6" class="mms-empty">{% trans "No issues yet." %}</td></tr>
@@ -231,7 +231,7 @@
               <td>{{ pm.get_frequency_type_display }}{% if pm.interval != 1 %} × {{ pm.interval }}{% endif %}</td>
               <td>
                 <span style="{% if pm.next_due_at < now %}color:#dc2626;font-weight:600{% endif %}">
-                  {{ pm.next_due_at|date:"Y-m-d H:i" }}
+                  {{ pm.next_due_at|mms_datetime }}
                 </span>
                 {% if pm.next_due_at < now %}<br><small class="mms-badge mms-badge--danger">{% trans "OVERDUE" %}</small>{% endif %}
               </td>
@@ -247,7 +247,7 @@
                 {% if last_exec %}
                   <small>
                     {{ last_exec.get_status_display }}<br>
-                    <span class="mms-text-muted">{{ last_exec.scheduled_due_at|date:"Y-m-d" }}</span>
+                    <span class="mms-text-muted">{{ last_exec.scheduled_due_at|mms_date }}</span>
                   </small>
                 {% else %}<span class="mms-text-muted">—</span>{% endif %}
               </td>
@@ -281,7 +281,7 @@
               <td>{{ ero.get_status_display }}</td>
               <td>{{ ero.vendor_name|default:"—" }}</td>
               <td class="mms-cost-cell">{% if ero.actual_cost %}{{ ero.actual_cost|floatformat:2 }} SAR{% else %}—{% endif %}</td>
-              <td><span class="mms-text-muted">{{ ero.sent_at|date:"Y-m-d"|default:"—" }}</span></td>
+              <td><span class="mms-text-muted">{{ ero.sent_at|mms_date|default:"—" }}</span></td>
             </tr>
           {% empty %}
             <tr><td colspan="5" class="mms-empty">{% trans "No external repairs yet." %}</td></tr>

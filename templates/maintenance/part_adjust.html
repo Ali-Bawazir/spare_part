@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Adjust quantity — {{ part.name }}{% endblock %}
 {% block page_heading %}Adjust inventory — {{ part.name }}{% endblock %}
@@ -18,7 +19,7 @@
       </div>
       {% if inv and inv.last_counted_at %}
         <div class="text-muted small" style="margin-top:0.5rem">
-          Last counted: {{ inv.last_counted_at|date:"Y-m-d H:i" }} by {{ inv.last_counted_by.username }}
+          Last counted: {{ inv.last_counted_at|mms_datetime }} by {{ inv.last_counted_by.username }}
         </div>
       {% endif %}
     </div>

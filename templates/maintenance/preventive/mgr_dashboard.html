@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}Preventive Maintenance Dashboard — Bawazir MMS{% endblock %}
 {% block page_heading %}{% trans "Preventive Maintenance" %}{% endblock %}
 {% block content %}
 
 <div class="mms-banner" style="margin-bottom:1rem">
-    <strong>{% trans "Today" %}</strong> is {{ today|date:"l · j F Y" }}
+    <strong>{% trans "Today" %}</strong> is {{ today|mms_date }}
 </div>
 
 {# ──── 5 counts ──── #}

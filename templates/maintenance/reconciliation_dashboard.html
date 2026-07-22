@@ -68,7 +68,7 @@
         <td>{% if wo.machine %}<a href="{% url 'machine_detail' wo.machine.pk %}">{{ wo.machine.name }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
         <td>{{ wo.assigned_technician.username|default:"—" }}</td>
         <td><span class="{{ wo.lifecycle_status|wo_status_badge_class }}">{{ wo.get_lifecycle_status_display }}</span></td>
-        <td>{{ wo.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ wo.created_at|mms_datetime }}</td>
         <td>{{ wo.blocker_system_version }}</td>
       </tr>
       {% empty %}

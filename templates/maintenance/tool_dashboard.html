@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}{% trans "Tools dashboard" %}{% endblock %}
 {% block page_heading %}{% trans "Tools dashboard" %}{% endblock %}
@@ -135,7 +136,7 @@
       <tbody>
         {% for r in recent_damages %}
           <tr>
-            <td>{{ r.created_at|date:"Y-m-d" }}</td>
+            <td>{{ r.created_at|mms_date }}</td>
             <td><a href="{% url 'tool_damage_list' r.tool.pk %}">{{ r.tool }}</a></td>
             <td>{% if r.supplier %}{{ r.supplier.name }}{% else %}—{% endif %}</td>
             <td><span class="mms-badge mms-badge--warn">{{ r.get_damage_kind_display }}</span></td>
@@ -189,7 +190,7 @@
           <tr>
             <td>{{ a.tool }}</td>
             <td>{{ a.user }}</td>
-            <td>{{ a.assigned_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ a.assigned_at|mms_datetime }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="3" class="mms-empty">{% trans "No open assignments." %}</td></tr>

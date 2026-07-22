@@ -1359,7 +1359,7 @@ def work_order_detail(request, pk):
         last_prices_by_part[pid] = {
             "unit_cost": str(quantized),
             "supplier_name": m["supplier_name"] or "—",
-            "date": m["created_at"].strftime("%Y-%m-%d"),
+            "date": m["created_at"].strftime("%b %d, %Y %I:%M %p"),
         }
     last_prices_json = json.dumps(last_prices_by_part)
     linked_prs = wo.purchase_requests.select_related("part", "supplier")[:25]

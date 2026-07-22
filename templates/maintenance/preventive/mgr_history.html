@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load mms_extras %}
 {% load i18n %}
 {% block title %}History — Bawazir MMS{% endblock %}
 {% block page_heading %}{% trans "History" %}{% endblock %}
@@ -100,7 +101,7 @@
             <tbody>
                 {% for occ in executions %}
                 <tr>
-                    <td>{{ occ.scheduled_due_at|date:"Y-m-d" }}</td>
+                    <td>{{ occ.scheduled_due_at|mms_date }}</td>
                     <td>{{ occ.pm_schedule.machine.name }}</td>
                     <td>{{ occ.pm_schedule.template.title }}</td>
                     <td>
