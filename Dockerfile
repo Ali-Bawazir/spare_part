@@ -67,10 +67,9 @@ RUN mkdir -p /app/staticfiles /app/media \
 # Drop to non-root
 USER mms
 
-# Pre-collect staticfiles at build time so first boot is fast
-# (idempotent — collectstatic at startup will be a no-op if nothing changed).
-# Surface failures loudly so a broken staticfile reference fails the build.
-RUN python manage.py collectstatic --noinput
+# collectstatic runs in entrypoint.sh at container start (where env vars
+# like SECRET_KEY are set). Building collectstatic here would fail because
+# the fail-closed settings raise ImproperlyConfigured without env vars.
 
 EXPOSE 8000
 
