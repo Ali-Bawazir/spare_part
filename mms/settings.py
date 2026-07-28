@@ -107,8 +107,10 @@ def _get_db_config():
     Precedence (highest to lowest):
         1. ``MMS_USE_SQLITE=1`` — explicit SQLite fallback (CI, tests, local dev).
            Forces SQLite regardless of other DB_* vars.
-        2. All of ``DB_USER``, ``DB_PASSWORD``, ``DB_NAME`` set — PostgreSQL.
-        3. None of the above — SQLite (last-resort) with a warning in DEBUG only.
+        2. ``DATABASE_URL`` set — parses postgresql://user:pass@host:port/db
+           (CranL auto-injects this when a DB is connected to the app).
+        3. All of ``DB_USER``, ``DB_PASSWORD``, ``DB_NAME`` set — PostgreSQL.
+        4. None of the above — SQLite (last-resort) with a warning in DEBUG only.
 
     In production, the docker compose stack always sets DB_PASSWORD, so the
     SQLite path is never hit. Tests run with ``MMS_USE_SQLITE=1``.
@@ -120,13 +122,31 @@ def _get_db_config():
             "NAME": BASE_DIR / "db.sqlite3",
         }
 
+    # 2) DATABASE_URL (CranL auto-injects when DB is connected)
+    database_url = os.environ.get("DATABASE_URL", "")
+    if database_url.startswith(("postgresql://", "postgres://")):
+        from urllib.parse import urlparse
+        u = urlparse(database_url)
+        return {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": (u.path or "/").lstrip("/") or "postgres",
+            "USER": u.username or "",
+            "PASSWORD": u.password or "",
+            "HOST": u.hostname or "localhost",
+            "PORT": str(u.port or 5432),
+            "CONN_MAX_AGE": 60,
+            "OPTIONS": {
+                "connect_timeout": 10,
+            },
+        }
+
     db_user = os.environ.get("DB_USER", "")
     db_password = os.environ.get("DB_PASSWORD", "")
     db_host = os.environ.get("DB_HOST", "localhost")
     db_port = os.environ.get("DB_PORT", "5432")
     db_name = os.environ.get("DB_NAME", "")
 
-    # 2) PostgreSQL when all required vars are present
+    # 3) PostgreSQL when all required vars are present
     if db_user and db_password and db_name:
         return {
             "ENGINE": "django.db.backends.postgresql",
