@@ -18,22 +18,46 @@ DB_USER="${DB_USER:-mms_user}"
 DB_NAME="${DB_NAME:-mms_db}"
 
 # ─── 1. Wait for DB ──────────────────────────────────────────────────────────
-echo "[entrypoint] Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT} (db=${DB_NAME}, user=${DB_USER})..."
+# Resolve host/port/user/password/dbname from either DB_* vars (compose/local)
+# or DATABASE_URL (CranL auto-injects when DB is connected to the app).
+# This matches settings.py _get_db_config().
+if [ -n "${DATABASE_URL:-}" ]; then
+    _DB_HOST="${DATABASE_URL#*@}"
+    _DB_HOST="${_DB_HOST%%/*}"
+    _DB_HOST="${_DB_HOST%%:*}"
+    _DB_PORT="${DATABASE_URL#*@}"
+    _DB_PORT="${_DB_PORT#*:}"
+    _DB_PORT="${_DB_PORT%%/*}"
+    _DB_USER="${DATABASE_URL#*://}"
+    _DB_USER="${_DB_USER%%:*}"
+    _DB_PASS="${DATABASE_URL#*://}"
+    _DB_PASS="${_DB_PASS#*:}"
+    _DB_PASS="${_DB_PASS%%@*}"
+    _DB_NAME="${DATABASE_URL##*/}"
+    _DB_NAME="${_DB_NAME%%\?*}"
+else
+    _DB_HOST="${DB_HOST:-db}"
+    _DB_PORT="${DB_PORT:-5432}"
+    _DB_USER="${DB_USER:-mms_user}"
+    _DB_PASS="${DB_PASSWORD:-}"
+    _DB_NAME="${DB_NAME:-mms_db}"
+fi
+echo "[entrypoint] Waiting for PostgreSQL at ${_DB_HOST}:${_DB_PORT} (db=${_DB_NAME}, user=${_DB_USER})..."
 
 WAITED=0
 MAX_WAIT=30
-until python - <<'PY' 2>/dev/null
+until python - <<PY 2>/dev/null
 import os, sys
 try:
     import psycopg2
 except ImportError:
     sys.exit("psycopg2 is required in the image")
 psycopg2.connect(
-    host=os.environ.get("DB_HOST", "db"),
-    port=int(os.environ.get("DB_PORT", "5432")),
-    user=os.environ.get("DB_USER", "mms_user"),
-    password=os.environ.get("DB_PASSWORD", ""),
-    dbname=os.environ.get("DB_NAME", "mms_db"),
+    host="${_DB_HOST}",
+    port=int("${_DB_PORT}"),
+    user="${_DB_USER}",
+    password="${_DB_PASS}",
+    dbname="${_DB_NAME}",
     connect_timeout=2,
 ).close()
 PY
