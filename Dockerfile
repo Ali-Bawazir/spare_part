@@ -71,7 +71,7 @@ USER mms
 # like SECRET_KEY are set). Building collectstatic here would fail because
 # the fail-closed settings raise ImproperlyConfigured without env vars.
 
-EXPOSE 8000
+EXPOSE 8000 3000
 
 ENTRYPOINT ["./entrypoint.sh"]
 # Default command runs through entrypoint.sh.
