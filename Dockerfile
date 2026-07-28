@@ -79,11 +79,4 @@ ENTRYPOINT ["./entrypoint.sh"]
 # Binds to $PORT (CranL sets PORT=3000; default 8000 in compose / local).
 # ${GUNICORN_WORKERS:-3} is expanded at container start by entrypoint.sh.
 # ${TRUSTED_PROXY_CIDR:-127.0.0.1} is the proxy IP/CIDR (CranL edge in prod).
-CMD ["sh", "-c", "exec gunicorn mms.wsgi:application \
-     --bind 0.0.0.0:${PORT:-8000} \
-     --workers ${GUNICORN_WORKERS:-3} \
-     --timeout 120 \
-     --max-requests 1000 \
-     --access-logfile - \
-     --error-logfile - \
-     --forwarded-allow-ips ${TRUSTED_PROXY_CIDR:-127.0.0.1}"]
+CMD ["sh", "-c", "exec gunicorn mms.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${GUNICORN_WORKERS:-3} --timeout 120 --max-requests 1000 --access-logfile - --error-logfile - --forwarded-allow-ips ${TRUSTED_PROXY_CIDR:-127.0.0.1}"]
