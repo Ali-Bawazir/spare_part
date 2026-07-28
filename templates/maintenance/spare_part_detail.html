@@ -47,6 +47,7 @@
         {% elif part.status == 'obsolete' %}<span class="mms-badge mms-badge--warning">{% trans "Obsolete" %}</span>
         {% else %}<span class="mms-badge mms-badge--muted">{% trans "Discontinued" %}</span>{% endif %}
         |
+        Type: {{ part.get_item_type_display }} |
         Consumable: {{ part.is_consumable|yesno:"Yes,No" }}
       </div>
       <div class="text-muted small" style="margin-top:0.25rem">
@@ -80,6 +81,11 @@
 <div class="mms-card" style="margin-bottom:1rem">
   <div class="mms-card-header">
     Inventory @ {{ selected_site.name }}
+    {% if part.item_type == 'reusable_tool' and inv %}
+      <a href="{% url 'tools_issue' part.pk %}" class="mms-btn mms-btn--primary mms-btn--sm" style="float:right">
+        {% trans "Issue to Tool Pool" %}
+      </a>
+    {% endif %}
   </div>
   <div class="mms-card-body">
     {% if inv %}
@@ -127,6 +133,35 @@
     </div>
   </div>
 </div>
+
+{% if tool_pool_summary %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">
+    {% trans "Tool Pool" %}
+    <a href="{% url 'tools_list' %}?q={{ part.name }}" class="mms-btn mms-btn--ghost mms-btn--sm" style="float:right">
+      {% trans "Search in tools" %}
+    </a>
+  </div>
+  <div class="mms-card-body">
+    <table style="width:100%;border-collapse:collapse">
+      <tr>
+        <td class="text-muted small" style="width:140px">{% trans "Available" %}</td>
+        <td>
+          <a href="{% url 'tools_search' %}?q={{ part.name }}">{{ tool_pool_summary.available }}</a>
+        </td>
+      </tr>
+      <tr>
+        <td class="text-muted small">{% trans "In Use" %}</td>
+        <td>{{ tool_pool_summary.in_use }}</td>
+      </tr>
+      <tr>
+        <td class="text-muted small">{% trans "Out of Service" %}</td>
+        <td>{{ tool_pool_summary.out_of_service }}</td>
+      </tr>
+    </table>
+  </div>
+</div>
+{% endif %}
 
 {# Stock movement timeline #}
 <div class="mms-card" style="margin-bottom:1rem">

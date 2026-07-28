@@ -357,10 +357,10 @@ class WorkOrderBlockerService:
         if event_type == "PART_ISSUED":
             if not isinstance(external_obj, PartIssueLine):
                 return None
-            # Correction rule: PART blocker resolves on issued == approved,
-            # not on allocation. (ADR-0007 top note.)
-            if (external_obj.issued_qty or 0) >= (external_obj.approved_qty or 0) \
-                    and (external_obj.approved_qty or 0) > 0:
+            # Blocker resolution reacts to business state, not quantity
+            # math. The business service that transitioned the line to
+            # ISSUED has already validated everything; we just react.
+            if external_obj.status == PartIssueLine.Status.ISSUED:
                 return cls.resolve_blocker(
                     blocker=open_blocker,
                     resolution_note=payload.get("note", _("Part fully issued")),
@@ -381,7 +381,6 @@ class WorkOrderBlockerService:
             # when the report is actually in IN_FULFILLMENT with qty_issued
             # >= approved_issue_qty. Otherwise (e.g. partial receive), this
             # is a no-op so the blocker stays OPEN until full issuance.
-            external_obj = kwargs.get("external_obj")
             if external_obj is not None:
                 decision = getattr(external_obj, "decision", None)
                 approved = getattr(decision, "approved_issue_qty", None) or Decimal("0")

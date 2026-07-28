@@ -41,9 +41,12 @@ _ALL_KEYS = (
     "procurement_officer_update",
     "procurement_receive",
     "pm_schedule_manage",
-    "tool_page",
-    "tool_assign",
-    "tool_return",
+    "tools_search",
+    "tools_list",
+    "tools_self_assign",
+    "tools_assign",
+    "tools_manage",
+    "tools_dashboard",
     "emergency_wo",
     "repair_create",
     "repair_list",
@@ -132,9 +135,18 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
     pm_schedule_manage = role_in(User.Role.MANAGER)
 
     # --- Tools: manager/supervisor assign to anyone; technician/operator self-assign ---
-    tool_page = role_in(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.OPERATOR)
-    tool_assign = role_in(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.OPERATOR)
-    tool_return = role_in(User.Role.MANAGER, User.Role.SUPERVISOR, User.Role.TECHNICIAN, User.Role.OPERATOR)
+    tools_search = role_in(
+        User.Role.OPERATOR, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.MANAGER,
+    )
+    tools_list = role_in(
+        User.Role.OPERATOR, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.MANAGER,
+    )
+    tools_self_assign = role_in(
+        User.Role.OPERATOR, User.Role.TECHNICIAN, User.Role.SUPERVISOR, User.Role.MANAGER,
+    )
+    tools_assign = role_in(User.Role.SUPERVISOR, User.Role.MANAGER)
+    tools_manage = role_in(User.Role.MANAGER)
+    tools_dashboard = role_in(User.Role.MANAGER)
 
     # --- Emergency / repairs ---
     emergency_wo = role_in(User.Role.MANAGER)
@@ -193,9 +205,12 @@ def get_mms_capabilities(user: Any) -> Dict[str, bool]:
         "procurement_officer_update": procurement_officer_update,
         "procurement_receive": procurement_receive,
         "pm_schedule_manage": pm_schedule_manage,
-        "tool_page": tool_page,
-        "tool_assign": tool_assign,
-        "tool_return": tool_return,
+        "tools_search": tools_search,
+        "tools_list": tools_list,
+        "tools_self_assign": tools_self_assign,
+        "tools_assign": tools_assign,
+        "tools_manage": tools_manage,
+        "tools_dashboard": tools_dashboard,
         "emergency_wo": emergency_wo,
         "repair_create": repair_create,
         "repair_list": repair_list,

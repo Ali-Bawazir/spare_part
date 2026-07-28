@@ -54,6 +54,11 @@ class Inventory(models.Model):
 
 
 class SparePart(models.Model):
+    class ItemType(models.TextChoices):
+        SPARE_PART = "spare_part", _("Spare Part")
+        CONSUMABLE = "consumable", _("Consumable")
+        REUSABLE_TOOL = "reusable_tool", _("Reusable Tool")
+
     sku = models.SlugField(max_length=64, unique=True)
     qr_code = models.CharField(
         max_length=128,
@@ -64,6 +69,17 @@ class SparePart(models.Model):
     description = models.TextField(blank=True)
     category = models.CharField(max_length=64, blank=True)
     unit = models.CharField(max_length=32, blank=True)
+    item_type = models.CharField(
+        max_length=20,
+        choices=ItemType.choices,
+        default=ItemType.SPARE_PART,
+        db_index=True,
+        help_text=_(
+            "spare_part = normal inventory item; "
+            "consumable = decreases when issued; "
+            "reusable_tool = managed as physical units in a tool pool."
+        ),
+    )
     is_consumable = models.BooleanField(default=False, db_index=True)
     allow_operator_consumption = models.BooleanField(
         default=False,
@@ -253,6 +269,9 @@ class StockMovement(models.Model):
         indexes = [
             models.Index(fields=["supplier", "movement_type"], name="stockmv_supplier_mvmt_idx"),
             models.Index(fields=["part", "supplier"], name="stockmv_part_supplier_idx"),
+            # Phase 1 v1.0.0 — covers the "last stock-in price per part"
+            # and WO timeline queries (filter by part, order by created_at).
+            models.Index(fields=["part", "-created_at"], name="stockmv_part_created_idx"),
         ]
 
 
@@ -439,6 +458,19 @@ class PartIssueLine(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            # Phase 1 v1.0.0 hardening — DB-level duplicate prevention.
+            # Service layer in request_part_on_wo() uses SELECT-FOR-UPDATE
+            # on the WO row to serialize duplicates; this constraint is the
+            # safety net so a future code path that forgets the lock can
+            # never create two ACTIVE lines for the same (wo, part).
+            # ACTIVE = PENDING|APPROVED|ALLOCATED (see results.ACTIVE_REQUEST_STATUSES).
+            models.UniqueConstraint(
+                fields=["work_order", "part"],
+                condition=models.Q(status__in=["pending", "approved", "allocated"]),
+                name="unique_active_pil_per_wo_part",
+            ),
+        ]
 
     def clean(self):
         if self.quantity <= 0:
@@ -752,3 +784,136 @@ class InventoryReservation(models.Model):
             models.Index(fields=["part", "status"]),
             models.Index(fields=["work_order", "status"]),
         ]
+        constraints = [
+            # Phase 1 v1.0.0 hardening — at most one ACTIVE reservation per
+            # source PartIssueLine. Releases/cancellations are recorded as
+            # separate rows with status=released/cancelled, not by mutating
+            # the active row, so this constraint never blocks legitimate
+            # lifecycle transitions.
+            models.UniqueConstraint(
+                fields=["source_line"],
+                condition=models.Q(status="active"),
+                name="uniq_active_reservation_per_line",
+            ),
+        ]
+
+
+class ReusableToolInstance(models.Model):
+    """One physical unit of a reusable tool issued from inventory.
+
+    A SparePart of ``item_type=reusable_tool`` is just a catalog entry.
+    Each physical unit (e.g. "Knife Punch #7") is a row in this table.
+
+    The unit was created by a StockMovement (source_stock_movement) when
+    the manager pressed "Issue to Tool Pool" on the inventory row. The
+    StockMovement is the source of truth for cost, date, supplier, PO,
+    and audit. This row only tracks the unit's lifecycle status and
+    human-readable number.
+    """
+
+    class Status(models.TextChoices):
+        AVAILABLE     = "available",     _("Available")
+        IN_USE        = "in_use",        _("In Use")
+        OUT_OF_SERVICE = "out_of_service", _("Out of Service")
+
+    part = models.ForeignKey(
+        SparePart,
+        on_delete=models.PROTECT,
+        related_name="tool_instances",
+        limit_choices_to={"item_type": "reusable_tool"},
+    )
+    tool_number = models.PositiveIntegerField(
+        help_text=_("Human-readable sequence number, unique per part. "
+                  "Displayed as '{part.name} #{tool_number}'."),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.AVAILABLE,
+        db_index=True,
+    )
+    source_stock_movement = models.ForeignKey(
+        "StockMovement",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tool_instances",
+        help_text=_(
+            "The 'Issue to Tool Pool' StockMovement that created this unit. "
+            "Source of truth for cost/date/supplier/PO via JOIN. "
+            "May be null for legacy or manually-created instances."
+        ),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text=_(
+            "Inactive instances are hidden from default listings but "
+            "history is preserved. Use this for written-off tools instead "
+            "of deleting the row."
+        ),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["part_id", "tool_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["part", "tool_number"],
+                name="unique_tool_number_per_part",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["part", "status"]),
+            models.Index(fields=["status", "is_active"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.part.name} #{self.tool_number}"
+
+    @property
+    def display_name(self) -> str:
+        """Human-readable label, e.g. 'Knife Punch #7'."""
+        return f"{self.part.name} #{self.tool_number}"
+
+    @property
+    def active_assignment(self):
+        """The currently-open ToolAssignment for this instance, if any.
+
+        Defined here as a property (with a forward reference) to avoid a
+        circular import with the assignment model. The assignment model
+        defines a matching reverse accessor.
+        """
+        from inventory.models_tools import ToolAssignment
+        return (
+            ToolAssignment.objects
+            .filter(instance=self, return_at__isnull=True)
+            .order_by("-checkout_at")
+            .first()
+        )
+
+    @property
+    def current_holder(self):
+        """Operator holding this unit, derived from the active assignment."""
+        a = self.active_assignment
+        return a.operator if a else None
+
+    @property
+    def current_machine(self):
+        """Machine where this unit is being used, derived from active assignment."""
+        a = self.active_assignment
+        return a.machine if a else None
+
+    @property
+    def purchase_cost(self):
+        """Cost of this unit, derived from the source StockMovement."""
+        m = self.source_stock_movement
+        if m and m.unit_cost is not None:
+            return m.unit_cost
+        return None
+
+    @property
+    def purchase_date(self):
+        """Date this unit was issued to the pool."""
+        m = self.source_stock_movement
+        return m.created_at if m else self.created_at

@@ -10,7 +10,6 @@ from .models import (
     ExternalRepairRequest,
     FailureCategory,
     FailureMode,
-    Incident,
     Machine,
     MaintenanceIssue,
     Notification,
@@ -19,9 +18,6 @@ from .models import (
     PMSchedule,
     PMTemplate,
     QuickMaintenanceLog,
-    Tool,
-    ToolAssignment,
-    ToolDamageRecord,
     WorkOrder,
     WorkOrderStateLog,
 )
@@ -176,40 +172,6 @@ class PMScheduleAdmin(MMSAdminPermission, admin.ModelAdmin):
     readonly_fields = ("created_at", "effective_priority", "effective_duration_minutes")
     raw_id_fields = ("template", "machine", "component", "created_by")
 
-
-@admin.register(Tool)
-class ToolAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("name", "code", "status", "created_at")
-    list_filter = ("status",)
-    search_fields = ("name", "code")
-    readonly_fields = ("created_at",)
-
-
-@admin.register(ToolAssignment)
-class ToolAssignmentAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("tool", "user", "assigned_at", "returned_at", "return_condition")
-    list_filter = ("return_condition",)
-    search_fields = ("tool__name", "tool__code", "user__username")
-    raw_id_fields = ("tool", "user", "assigned_by")
-
-
-@admin.register(Incident)
-class IncidentAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("title", "status", "reported_by", "tool", "created_at", "resolved_at")
-    list_filter = ("status",)
-    search_fields = ("title", "description", "reported_by__username")
-    raw_id_fields = ("reported_by", "tool", "work_order")
-    readonly_fields = ("created_at",)
-    date_hierarchy = "created_at"
-    ordering = ("-created_at",)
-
-
-@admin.register(ToolDamageRecord)
-class ToolDamageRecordAdmin(MMSAdminPermission, admin.ModelAdmin):
-    list_display = ("id", "tool", "supplier", "damage_kind", "replacement_action", "reported_by", "created_at")
-    list_filter = ("damage_kind", "replacement_action", "tool__status")
-    search_fields = ("tool__code", "tool__name", "supplier__name", "damage_reason")
-    autocomplete_fields = ("tool", "supplier", "assignment", "reported_by")
 
 
 @admin.register(Notification)

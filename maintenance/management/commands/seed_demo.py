@@ -4,7 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -187,9 +187,31 @@ class Command(BaseCommand):
             action="store_true",
             help="Also create demo issues, work orders, purchase request, PM schedule, quick log, repair order, notification.",
         )
+        parser.add_argument(
+            "--allow-in-production",
+            action="store_true",
+            help=(
+                "Acknowledged that this command is being run against a production "
+                "database. Refuses to run otherwise. Default password 'demo123' is "
+                "intentionally weak; never use the default against prod."
+            ),
+        )
 
     def handle(self, *args, **options):
+        from django.conf import settings
+
+        if not settings.DEBUG and not options["allow_in_production"]:
+            raise CommandError(
+                "Refusing to seed demo data when DEBUG=False. "
+                "Pass --allow-in-production if you really mean it."
+            )
+
         pwd = options["password"]
+        if pwd == "demo123" and not settings.DEBUG:
+            raise CommandError(
+                "Refusing to seed users with default password 'demo123' against "
+                "a non-DEBUG database. Pass --password=<a strong one>."
+            )
         User = get_user_model()
 
         roles = [

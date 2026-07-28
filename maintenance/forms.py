@@ -19,9 +19,6 @@ from .models import (
     PMSchedule,
     PMTemplate,
     QuickMaintenanceLog,
-    Tool,
-    ToolAssignment,
-    ToolDamageRecord,
     WorkOrder,
 )
 
@@ -500,291 +497,6 @@ class PMTemplateForm(forms.ModelForm):
         }
 
 
-class ToolAssignForm(forms.Form):
-    tool = forms.ModelChoiceField(queryset=Tool.objects.none(), widget=forms.Select(attrs=_SEL), label=_("Tool"))
-    assignee = forms.ModelChoiceField(queryset=User.objects.none(), widget=forms.Select(attrs=_SEL), label=_("Assignee"))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["tool"].queryset = Tool.objects.filter(status=Tool.Status.AVAILABLE).order_by("name")
-        self.fields["tool"].empty_label = _("Select an available tool")
-        self.fields["tool"].help_text = _("Only tools in Available status can be assigned.")
-        self.fields["tool"].label_from_instance = lambda obj: f"{obj.name} ({obj.code})"
-        self.fields["assignee"].queryset = User.objects.filter(
-            role__in=[User.Role.OPERATOR, User.Role.TECHNICIAN],
-            is_active=True,
-        )
-
-
-class ToolReturnForm(forms.Form):
-    condition = forms.ChoiceField(
-        choices=ToolAssignment.ReturnCondition.choices,
-        widget=forms.Select(attrs=_SEL),
-        label=_("Condition"),
-    )
-    damage_kind = forms.ChoiceField(
-        choices=ToolDamageRecord.DamageKind.choices,
-        widget=forms.Select(attrs=_SEL),
-        required=False,
-        label=_("Damage kind"),
-        help_text=_("Required if condition is Damaged or Lost."),
-    )
-    supplier = forms.ModelChoiceField(
-        queryset=None,
-        widget=forms.Select(attrs=_SEL),
-        required=False,
-        label=_("Supplier who supplied this unit"),
-        help_text=_("Auto-set from the tool record. Override only if unknown."),
-    )
-    damage_reason = forms.CharField(
-        widget=forms.Textarea(attrs={**_CTRL, "rows": 3, "minlength": "15", "placeholder": _("Describe what happened — at least 15 characters.")}),
-        required=False,
-        label=_("Reason"),
-        help_text=_("Minimum 15 characters."),
-    )
-    replacement_action = forms.ChoiceField(
-        choices=ToolDamageRecord.ReplacementAction.choices,
-        widget=forms.Select(attrs=_SEL),
-        required=False,
-        initial=ToolDamageRecord.ReplacementAction.BUY_FROM_OTHER,
-        label=_("Recommended replacement action"),
-    )
-
-    def __init__(self, *args, tool=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        from procurement.models import Supplier
-        self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True).order_by("name")
-        self.fields["supplier"].empty_label = _("— Select supplier —")
-        if tool is not None and tool.supplier_id:
-            self.fields["supplier"].initial = tool.supplier_id
-            self.fields["supplier"].disabled = True
-        self._tool = tool
-
-    def clean(self):
-        cleaned = super().clean()
-        cond = cleaned.get("condition")
-        if cond in (ToolAssignment.ReturnCondition.DAMAGED, ToolAssignment.ReturnCondition.LOST):
-            if not cleaned.get("damage_kind"):
-                self.add_error("damage_kind", _("Required when condition is damaged or lost."))
-            reason = (cleaned.get("damage_reason") or "").strip()
-            if len(reason) < 15:
-                self.add_error("damage_reason", _("Please provide at least 15 characters explaining what happened."))
-            if not cleaned.get("supplier"):
-                if self._tool is not None and self._tool.supplier_id:
-                    self.add_error("supplier", _("Required — this tool has a recorded supplier."))
-            if not cleaned.get("replacement_action"):
-                cleaned["replacement_action"] = ToolDamageRecord.ReplacementAction.BUY_FROM_OTHER
-        return cleaned
-
-
-class ToolForm(forms.ModelForm):
-    class Meta:
-        model = Tool
-        fields = (
-            "code",
-            "name",
-            "status",
-            "supplier",
-            "purchase_cost",
-            "purchase_date",
-            "invoice_ref",
-            "notes",
-        )
-        labels = {
-            "code": _("Code"),
-            "name": _("Name"),
-            "status": _("Status"),
-            "supplier": _("Supplier"),
-            "purchase_cost": _("Purchase cost"),
-            "purchase_date": _("Purchase date"),
-            "invoice_ref": _("Invoice ref"),
-            "notes": _("Notes"),
-        }
-        widgets = {
-            "code": forms.TextInput(attrs={**_CTRL, "placeholder": "e.g. KNF-A-001 (Type-Supplier-Unit)"}),
-            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Chef knife 8-inch")}),
-            "status": forms.Select(attrs=_SEL),
-            "supplier": forms.Select(attrs=_SEL),
-            "purchase_cost": forms.NumberInput(attrs={**_CTRL, "step": "0.01", "min": "0"}),
-            "purchase_date": forms.DateInput(attrs={**_CTRL, "type": "date"}),
-            "invoice_ref": forms.TextInput(attrs={**_CTRL, "placeholder": _("Vendor invoice number (optional)")}),
-            "notes": forms.Textarea(attrs={**_CTRL, "rows": 2, "placeholder": _("Optional notes about this tool")}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from procurement.models import Supplier
-        self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True).order_by("name")
-        self.fields["supplier"].required = False
-        self.fields["supplier"].empty_label = _("— No supplier recorded —")
-        self.fields["supplier"].help_text = _("Optional. Use the supplier quick-create button to add a new vendor.")
-
-
-class ExternalRepairForm(forms.ModelForm):
-    machine = forms.ModelChoiceField(
-        queryset=Machine.objects.filter(is_active=True, asset_level=3),
-        required=True,
-        label=_("Machine"),
-        widget=forms.Select(attrs=_SEL),
-    )
-    component = forms.ModelChoiceField(
-        queryset=Machine.objects.filter(is_active=True, asset_level=5),
-        required=False,
-        label=_("Component"),
-        widget=forms.Select(attrs=_SEL),
-    )
-
-    class Meta:
-        model = ExternalRepairOrder
-        fields = ("title", "description", "machine", "component", "work_order", "estimated_cost")
-        labels = {
-            "title": _("Title"),
-            "description": _("Description"),
-            "work_order": _("Work order"),
-            "estimated_cost": _("Estimated cost"),
-        }
-        widgets = {
-            "title": forms.TextInput(attrs=_CTRL),
-            "description": forms.Textarea(attrs={**_CTRL, "rows": 4}),
-            "work_order": forms.Select(attrs=_SEL),
-            "estimated_cost": forms.NumberInput(attrs=_CTRL),
-        }
-
-    def __init__(self, *args, lock_asset=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["work_order"].required = False
-        self.fields["work_order"].queryset = (
-            WorkOrder.objects.exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED).select_related("machine").order_by("-number")[:300]
-        )
-        if lock_asset:
-            self.fields["machine"].disabled = True
-            self.fields["component"].disabled = True
-
-    def clean(self):
-        cleaned = super().clean()
-        machine = cleaned.get("machine")
-        component = cleaned.get("component")
-        if machine and component:
-            from .validators import validate_component_belongs_to_machine
-            try:
-                validate_component_belongs_to_machine(component, machine)
-            except ValidationError as e:
-                for field, errors in e.message_dict.items():
-                    for error in errors:
-                        self.add_error(field, error)
-        return cleaned
-
-
-class ExternalRepairOfficerForm(forms.ModelForm):
-    """Officer-side repair form: pick vendor, set actual_cost, transition status.
-
-    `supplier` is a Supplier FK (preferred). Filtered to suppliers whose
-    `supplier_type == 'repair_vendor'` so only true repair vendors appear in
-    the dropdown (parts suppliers never show up here, even if they have
-    related parts). The `vendor_name` snapshot is auto-populated from
-    `supplier.name` on save so historical rows always carry the vendor name
-    as it was at the time of the repair, even if the Supplier is later
-    renamed or deleted.
-
-    `vendor_name` stays as a writable free-text field for legacy EROs that
-    pre-date the Supplier FK — the snapshot is preserved either way.
-    """
-    supplier = forms.ModelChoiceField(
-        queryset=None,
-        required=False,
-        widget=forms.Select(attrs=_SEL),
-        label=_("Repair vendor"),
-        help_text=_("Only suppliers classified as repair vendors."),
-    )
-
-    class Meta:
-        model = ExternalRepairOrder
-        fields = ("supplier", "vendor_name", "actual_cost", "status")
-        labels = {
-            "vendor_name": _("Vendor name (legacy snapshot)"),
-            "actual_cost": _("Actual cost"),
-            "status": _("Status"),
-        }
-        widgets = {
-            "vendor_name": forms.TextInput(attrs=_CTRL),
-            "actual_cost": forms.NumberInput(attrs=_CTRL),
-            "status": forms.Select(attrs=_SEL),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from procurement.models import Supplier
-        # Filter dropdown to active repair vendors only; alphabetized.
-        self.fields["supplier"].queryset = (
-            Supplier.objects
-            .filter(is_active=True, supplier_type=Supplier.Type.REPAIR_VENDOR)
-            .order_by("code", "name")
-        )
-        # If instance has supplier FK but no vendor_name yet, pre-fill the
-        # snapshot for display. The clean() also re-syncs on save.
-        if self.instance and self.instance.pk and self.instance.supplier_id:
-            if not self.instance.vendor_name:
-                self.fields["vendor_name"].initial = self.instance.supplier.name
-            self.fields["supplier"].initial = self.instance.supplier_id
-
-    def clean(self):
-        cleaned = super().clean()
-        supplier = cleaned.get("supplier")
-        vendor_name = (cleaned.get("vendor_name") or "").strip()
-        if supplier and not vendor_name:
-            cleaned["vendor_name"] = supplier.name
-        return cleaned
-
-
-class MachineForm(forms.ModelForm):
-    class Meta:
-        model = Machine
-        fields = ("name", "qr_code", "location", "is_active", "site", "parent", "asset_level", "asset_type",
-                  "serial_number", "manufacturer", "model_number", "install_date", "expected_life_days",
-                  "criticality", "status", "asset_code", "failure_category")
-        labels = {
-            "name": _("Name"),
-            "qr_code": _("QR Code"),
-            "location": _("Location"),
-            "is_active": _("Is active"),
-            "site": _("Site"),
-            "parent": _("Parent machine"),
-            "asset_level": _("Asset level"),
-            "asset_type": _("Asset type"),
-            "serial_number": _("Serial number"),
-            "manufacturer": _("Manufacturer"),
-            "model_number": _("Model number"),
-            "install_date": _("Install date"),
-            "expected_life_days": _("Expected life (days)"),
-            "criticality": _("Criticality"),
-            "status": _("Status"),
-            "asset_code": _("Asset code"),
-            "failure_category": _("Failure category"),
-        }
-        widgets = {
-            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Line A Press 1")}),
-            "qr_code": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. PRESS-01")}),
-            "location": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Hall A")}),
-            "site": forms.Select(attrs=_SEL),
-            "parent": forms.Select(attrs=_SEL),
-            "asset_level": forms.Select(attrs=_SEL),
-            "asset_type": forms.Select(attrs=_SEL),
-            "serial_number": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. SN-12345")}),
-            "manufacturer": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Siemens")}),
-            "model_number": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. MDL-X100")}),
-            "install_date": forms.DateInput(attrs={**_CTRL, "type": "date"}),
-            "expected_life_days": forms.NumberInput(attrs={**_CTRL, "placeholder": _("e.g. 3650")}),
-            "criticality": forms.Select(attrs=_SEL),
-            "status": forms.Select(attrs=_SEL),
-            "asset_code": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. FM-01-CONV-BRG-001")}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in ("parent", "asset_level", "asset_type"):
-            self.fields[field].required = False
-
-
 class EmergencyWOForm(forms.Form):
     machine = forms.ModelChoiceField(
         queryset=Machine.objects.filter(is_active=True, asset_level=3),
@@ -960,39 +672,274 @@ class RepairManagerAcceptForm(forms.Form):
         return cleaned
 
 
-class ToolDamageRecordForm(forms.ModelForm):
+class ExternalRepairForm(forms.ModelForm):
+    machine = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=3),
+        required=True,
+        label=_("Machine"),
+        widget=forms.Select(attrs=_SEL),
+    )
+    component = forms.ModelChoiceField(
+        queryset=Machine.objects.filter(is_active=True, asset_level=5),
+        required=False,
+        label=_("Component"),
+        widget=forms.Select(attrs=_SEL),
+    )
+
     class Meta:
-        model = ToolDamageRecord
-        fields = ("tool", "supplier", "damage_kind", "damage_reason", "quantity_damaged",
-                  "assignment", "replacement_action")
+        model = ExternalRepairOrder
+        fields = ("title", "description", "machine", "component", "work_order", "estimated_cost")
+        labels = {
+            "title": _("Title"),
+            "description": _("Description"),
+            "work_order": _("Work order"),
+            "estimated_cost": _("Estimated cost"),
+        }
         widgets = {
-            "tool": forms.Select(attrs=_SEL),
-            "supplier": forms.Select(attrs=_SEL),
-            "damage_kind": forms.Select(attrs=_SEL),
-            "damage_reason": forms.Textarea(attrs={**_CTRL, "rows": 3, "minlength": "15",
-                "placeholder": _("Describe what happened — at least 15 characters.")}),
-            "quantity_damaged": forms.NumberInput(attrs={**_CTRL, "min": "1", "value": "1"}),
-            "assignment": forms.Select(attrs=_SEL),
-            "replacement_action": forms.Select(attrs=_SEL),
+            "title": forms.TextInput(attrs=_CTRL),
+            "description": forms.Textarea(attrs={**_CTRL, "rows": 4}),
+            "work_order": forms.Select(attrs=_SEL),
+            "estimated_cost": forms.NumberInput(attrs=_CTRL),
+        }
+
+    def __init__(self, *args, lock_asset=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["work_order"].required = False
+        self.fields["work_order"].queryset = (
+            WorkOrder.objects.exclude(lifecycle_status=WorkOrder.LifecycleStatus.CLOSED).select_related("machine").order_by("-number")[:300]
+        )
+        if lock_asset:
+            self.fields["machine"].disabled = True
+            self.fields["component"].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        machine = cleaned.get("machine")
+        component = cleaned.get("component")
+        if machine and component:
+            from .validators import validate_component_belongs_to_machine
+            try:
+                validate_component_belongs_to_machine(component, machine)
+            except ValidationError as e:
+                for field, errors in e.message_dict.items():
+                    for error in errors:
+                        self.add_error(field, error)
+        return cleaned
+
+
+
+
+class ExternalRepairOfficerForm(forms.ModelForm):
+    """Officer-side repair form: pick vendor, set actual_cost, transition status.
+
+    `supplier` is a Supplier FK (preferred). Filtered to suppliers whose
+    `supplier_type == 'repair_vendor'` so only true repair vendors appear in
+    the dropdown (parts suppliers never show up here, even if they have
+    related parts). The `vendor_name` snapshot is auto-populated from
+    `supplier.name` on save so historical rows always carry the vendor name
+    as it was at the time of the repair, even if the Supplier is later
+    renamed or deleted.
+
+    `vendor_name` stays as a writable free-text field for legacy EROs that
+    pre-date the Supplier FK — the snapshot is preserved either way.
+    """
+    supplier = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        widget=forms.Select(attrs=_SEL),
+        label=_("Repair vendor"),
+        help_text=_("Only suppliers classified as repair vendors."),
+    )
+
+    class Meta:
+        model = ExternalRepairOrder
+        fields = ("supplier", "vendor_name", "actual_cost", "status")
+        labels = {
+            "vendor_name": _("Vendor name (legacy snapshot)"),
+            "actual_cost": _("Actual cost"),
+            "status": _("Status"),
+        }
+        widgets = {
+            "vendor_name": forms.TextInput(attrs=_CTRL),
+            "actual_cost": forms.NumberInput(attrs=_CTRL),
+            "status": forms.Select(attrs=_SEL),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["damage_reason"].required = True
-        self.fields["damage_reason"].validators.append(MinLengthValidator(15))
-        self.fields["assignment"].required = False
-        self.fields["assignment"].queryset = self.fields["assignment"].queryset.filter(returned_at__isnull=False) | \
-                                              self.fields["assignment"].queryset.none()
-        if "tool" in self.data or (self.instance and self.instance.pk):
-            tool = None
-            if self.instance and self.instance.pk:
-                tool = self.instance.tool
-            elif "tool" in self.data:
-                try:
-                    tool = Tool.objects.get(pk=self.data.get("tool"))
-                except (Tool.DoesNotExist, ValueError):
-                    tool = None
-            if tool is not None:
-                self.fields["assignment"].queryset = (
-                    self.fields["assignment"].queryset.filter(tool=tool)
+        from procurement.models import Supplier
+        # Filter dropdown to active repair vendors only; alphabetized.
+        self.fields["supplier"].queryset = (
+            Supplier.objects
+            .filter(is_active=True, supplier_type=Supplier.Type.REPAIR_VENDOR)
+            .order_by("code", "name")
+        )
+        # If instance has supplier FK but no vendor_name yet, pre-fill the
+        # snapshot for display. The clean() also re-syncs on save.
+        if self.instance and self.instance.pk and self.instance.supplier_id:
+            if not self.instance.vendor_name:
+                self.fields["vendor_name"].initial = self.instance.supplier.name
+            self.fields["supplier"].initial = self.instance.supplier_id
+
+    def clean(self):
+        cleaned = super().clean()
+        supplier = cleaned.get("supplier")
+        vendor_name = (cleaned.get("vendor_name") or "").strip()
+        if supplier and not vendor_name:
+            cleaned["vendor_name"] = supplier.name
+        return cleaned
+
+
+
+
+class MachineForm(forms.ModelForm):
+    class Meta:
+        model = Machine
+        fields = ("name", "qr_code", "location", "is_active", "site", "parent", "asset_level", "asset_type",
+                  "serial_number", "manufacturer", "model_number", "install_date", "expected_life_days",
+                  "criticality", "status", "asset_code", "failure_category")
+        labels = {
+            "name": _("Name"),
+            "qr_code": _("QR Code"),
+            "location": _("Location"),
+            "is_active": _("Is active"),
+            "site": _("Site"),
+            "parent": _("Parent machine"),
+            "asset_level": _("Asset level"),
+            "asset_type": _("Asset type"),
+            "serial_number": _("Serial number"),
+            "manufacturer": _("Manufacturer"),
+            "model_number": _("Model number"),
+            "install_date": _("Install date"),
+            "expected_life_days": _("Expected life (days)"),
+            "criticality": _("Criticality"),
+            "status": _("Status"),
+            "asset_code": _("Asset code"),
+            "failure_category": _("Failure category"),
+        }
+        widgets = {
+            "name": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Line A Press 1")}),
+            "qr_code": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. PRESS-01")}),
+            "location": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Hall A")}),
+            "site": forms.Select(attrs=_SEL),
+            "parent": forms.Select(attrs=_SEL),
+            "asset_level": forms.Select(attrs=_SEL),
+            "asset_type": forms.Select(attrs=_SEL),
+            "serial_number": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. SN-12345")}),
+            "manufacturer": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. Siemens")}),
+            "model_number": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. MDL-X100")}),
+            "install_date": forms.DateInput(attrs={**_CTRL, "type": "date"}),
+            "expected_life_days": forms.NumberInput(attrs={**_CTRL, "placeholder": _("e.g. 3650")}),
+            "criticality": forms.Select(attrs=_SEL),
+            "status": forms.Select(attrs=_SEL),
+            "asset_code": forms.TextInput(attrs={**_CTRL, "placeholder": _("e.g. FM-01-CONV-BRG-001")}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in ("parent", "asset_level", "asset_type"):
+            self.fields[field].required = False
+
+
+class ToolIssueForm(forms.Form):
+    """Manager form to issue N units from inventory into the tool pool.
+
+    Quantity pre-filled with on-hand stock but editable.
+    """
+    quantity = forms.IntegerField(
+        min_value=1,
+        label=_("Quantity to issue"),
+        help_text=_("Number of physical units to create in the tool pool."),
+    )
+    note = forms.CharField(
+        max_length=500, required=False,
+        label=_("Note"),
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
+
+class ToolAssignForm(forms.Form):
+    """Assign an available tool instance to an operator on a machine."""
+    operator = forms.ModelChoiceField(
+        queryset=None,
+        label=_("Operator"),
+        help_text=_("Person who will hold the tool."),
+    )
+    machine = forms.ModelChoiceField(
+        queryset=None,
+        label=_("Machine"),
+        help_text=_("Where the tool will be used."),
+    )
+    condition_out = forms.ChoiceField(
+        choices=[
+            ("good", _("Good")),
+            ("fair", _("Fair")),
+        ],
+        initial="good",
+        label=_("Condition out"),
+    )
+    notes = forms.CharField(
+        max_length=500, required=False,
+        label=_("Notes"),
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
+    def __init__(self, *args, operator=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from accounts.models import User
+        self.fields["operator"].queryset = User.objects.filter(is_active=True).order_by("username")
+        from .models import Machine
+        self.fields["machine"].queryset = Machine.objects.filter(is_active=True).order_by("name")
+        if operator is not None:
+            self.fields["operator"].initial = operator.pk
+            self.fields["operator"].widget.attrs["readonly"] = True
+            self.fields["operator"].disabled = True
+
+
+class ToolReturnForm(forms.Form):
+    """Operator returns a tool. Damaged = inline damage report."""
+    condition_in = forms.ChoiceField(
+        choices=[
+            ("good", _("Good")),
+            ("damaged", _("Damaged")),
+        ],
+        label=_("Return condition"),
+        widget=forms.RadioSelect,
+    )
+    damage_reason = forms.CharField(
+        max_length=500, required=False,
+        label=_("Damage reason"),
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": _("Required when condition is damaged.")}),
+        help_text=_("Required if you choose Damaged. Min 15 characters."),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("condition_in") == "damaged":
+            reason = (cleaned.get("damage_reason") or "").strip()
+            if len(reason) < 15:
+                raise forms.ValidationError(
+                    _("Damage reason must be at least 15 characters.")
                 )
+        return cleaned
+
+
+class ToolDamageResolveForm(forms.Form):
+    """Manager resolves a damage report — repair (with cost) or write off."""
+    action = forms.ChoiceField(
+        choices=[("repair", _("Mark as repaired")), ("write_off", _("Write off"))],
+        widget=forms.RadioSelect,
+        label=_("Action"),
+    )
+    repair_cost = forms.DecimalField(
+        max_digits=12, decimal_places=4, required=False,
+        label=_("Repair cost"),
+        help_text=_("Required when marking as repaired."),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("action") == "repair" and cleaned.get("repair_cost") is None:
+            raise forms.ValidationError(_("Repair cost is required to mark as repaired."))
+        return cleaned
+

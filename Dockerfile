@@ -68,8 +68,9 @@ RUN mkdir -p /app/staticfiles /app/media \
 USER mms
 
 # Pre-collect staticfiles at build time so first boot is fast
-# (idempotent — collectstatic at startup will be a no-op if nothing changed)
-RUN python manage.py collectstatic --noinput || true
+# (idempotent — collectstatic at startup will be a no-op if nothing changed).
+# Surface failures loudly so a broken staticfile reference fails the build.
+RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
@@ -81,4 +82,4 @@ CMD ["gunicorn", "mms.wsgi:application", \
      "--workers", "${GUNICORN_WORKERS:-3}", \
      "--access-logfile", "-", \
      "--error-logfile", "-", \
-     "--forwarded-allow-ips", "*"]
+     "--forwarded-allow-ips", "${TRUSTED_PROXY_CIDR:-127.0.0.1}"]

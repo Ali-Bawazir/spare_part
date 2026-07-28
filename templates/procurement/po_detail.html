@@ -76,8 +76,6 @@
                     <td>
                         {% if item.item.part %}
                             <span class="mms-badge mms-badge--primary">{% trans "Part" %}</span>
-                        {% elif item.item.tool %}
-                            <span class="mms-badge mms-badge--accent">{% trans "Tool" %}</span>
                         {% else %}—{% endif %}
                     </td>
                     <td>
@@ -89,15 +87,11 @@
                             </a>
                             {% endif %}
                             {{ item.item.part.name }}
-                        {% elif item.item.tool %}
-                            {{ item.item.tool.name }}
                         {% else %}—{% endif %}
                     </td>
                     <td>
                         {% if item.item.part %}
                             {{ item.item.part.sku }}
-                        {% elif item.item.tool %}
-                            {{ item.item.tool.code }}
                         {% else %}—{% endif %}
                     </td>
                     <td>{{ item.item.ordered_qty }}</td>
@@ -120,9 +114,6 @@
             {% endfor %}
             </tbody>
         </table>
-        {% if tool_line_count %}
-        <p class="text-muted" style="margin-top:0.5rem"><em>{% blocktrans count tool_line_count as count %}{{ count }} tool-only line in this PO.{% plural %}{{ count }} tool-only lines in this PO.{% endblocktrans %}</em></p>
-        {% endif %}
         {% if not po.is_locked %}
         <p class="text-muted" style="margin-top:0.5rem"><em>{% trans "To add line items, use " %}<strong>{% trans "Create from PR" %}</strong>{% trans " or contact admin." %}</em></p>
         {% endif %}

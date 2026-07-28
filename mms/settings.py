@@ -10,15 +10,37 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY",
-    "django-insecure-zc0@t@h31(g7nnu%-smd00#vlq1*h5ko5b7#hf36*8@6zz&q@@"
-)
+# Fail-closed: when DEBUG is False, SECRET_KEY must be set in the environment.
+from django.core.exceptions import ImproperlyConfigured
+
+DEBUG = os.environ.get("DEBUG", "False").lower() in ("true", "1", "yes")
+
+if not DEBUG:
+    _secret = os.environ.get("SECRET_KEY")
+    if not _secret:
+        raise ImproperlyConfigured(
+            "SECRET_KEY env var is required when DEBUG=False."
+        )
+    SECRET_KEY = _secret
+else:
+    SECRET_KEY = os.environ.get(
+        "SECRET_KEY",
+        "django-insecure-dev-only-not-for-production-set-DEBUG-False-to-enforce",
+    )
+    if SECRET_KEY.startswith("django-insecure-"):
+        import warnings
+        warnings.warn(
+            "MMS: SECRET_KEY not set; using insecure dev fallback. "
+            "Set SECRET_KEY env var for any non-DEBUG deployment.",
+            stacklevel=1,
+        )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
-
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")]
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "ALLOWED_HOSTS env var is required when DEBUG=False (comma-separated hostnames)."
+    )
 
 
 # Application definition
@@ -119,7 +141,7 @@ def _get_db_config():
             },
         }
 
-    # 3) Last-resort: SQLite (dev convenience; warn in DEBUG only)
+    # 3) Dev convenience: SQLite with warning (DEBUG only)
     if DEBUG:
         import warnings
         warnings.warn(
@@ -127,10 +149,16 @@ def _get_db_config():
             "Falling back to SQLite. For production, configure the docker compose stack.",
             stacklevel=1,
         )
-    return {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+
+    # 4) Production fail-closed: refuse to start without a real DB.
+    raise ImproperlyConfigured(
+        "DB_NAME/DB_USER/DB_PASSWORD env vars are required when DEBUG=False "
+        "and MMS_USE_SQLITE is not '1'. Refusing to start with SQLite in production."
+    )
 
 
 DATABASES = {
@@ -235,3 +263,86 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 PO_AUTO_ISSUE = os.environ.get("MMS_PO_AUTO_ISSUE", "True").lower() in (
     "true", "1", "yes", "on",
 )
+
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+# Minimal logging config. stderr for everything; per-app loggers inherit.
+# DEBUG=False hides Django's verbose request logging; tests/dev see INFO.
+# Gunicorn --access-logfile / --error-logfile - forwards to stdout/stderr
+# which is captured by Docker / CranL log shipping.
+# Phase 1 v1.0.0 — structured JSON logging is deferred to v1.1.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO" if not DEBUG else "DEBUG",
+            "propagate": False,
+        },
+        "maintenance": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "inventory": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "procurement": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Production hardening (only when DEBUG=False AND not running tests)
+# ---------------------------------------------------------------------------
+# CranL terminates TLS at the edge, so Django trusts the X-Forwarded-Proto
+# header from the proxy. Set TRUSTED_PROXY_CIDR on the host so
+# --forwarded-allow-ips in gunicorn is locked down to the proxy.
+#
+# Tests run with DEBUG=False but over plain HTTP. Enabling
+# SECURE_SSL_REDIRECT in tests causes every authenticated request to 301
+# before tests can assert on 200, breaking the suite. We skip these
+# settings when running under `manage.py test` so the test client can hit
+# plain HTTP.
+import sys as _sys
+_RUNNING_TESTS = "test" in _sys.argv
+if not DEBUG and not _RUNNING_TESTS:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = "Lax"
+    X_FRAME_OPTIONS = "DENY"

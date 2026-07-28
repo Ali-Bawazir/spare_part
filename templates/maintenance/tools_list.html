@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{% trans "Tools" %}{% endblock %}
+{% block content %}
+<div class="mms-page">
+  <div class="mms-page-header">
+    <div>
+      <h1 class="mms-page-title">{% trans "Tools" %}</h1>
+      <div class="mms-page-sub">
+        {% if is_manager_or_above %}
+          {% trans "Every reusable tool in the pool. Click a row to see its full history." %}
+        {% else %}
+          {% trans "Available tools you can take, and tools you currently have." %}
+        {% endif %}
+      </div>
+    </div>
+    <div class="mms-page-actions">
+      {% if is_manager_or_above %}
+        <a href="{% url 'tools_dashboard' %}" class="mms-btn mms-btn--ghost">
+          {% trans "Dashboard" %}
+        </a>
+        <a href="{% url 'stock_dashboard' %}?reusable_tool=1" class="mms-btn mms-btn--primary">
+          + {% trans "Issue to Tool Pool" %}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Search box #}
+  <form method="get" class="mms-tools-search">
+    <span class="mms-tools-search-icon">🔍</span>
+    <input type="text" name="q" value="{{ q }}"
+           placeholder="{% if is_manager_or_above %}{% trans 'Search by name, SKU, or tool number…' %}{% else %}{% trans 'Search available tools…' %}{% endif %}"
+           autocomplete="off">
+    {% if q %}
+      <a href="?status={{ status_filter }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Clear" %}</a>
+    {% endif %}
+  </form>
+
+  {# Status filter chips #}
+  <div class="mms-tools-filter-row">
+    <a href="?{% if q %}q={{ q }}&{% endif %}status=available"
+       class="mms-tools-chip {% if status_filter == 'available' %}is-active{% endif %}">
+      🟢 {% trans "Available" %} <span class="count">{{ chip_counts.available }}</span>
+    </a>
+    {% if is_manager_or_above %}
+      <a href="?{% if q %}q={{ q }}&{% endif %}status=in_use"
+         class="mms-tools-chip {% if status_filter == 'in_use' %}is-active{% endif %}">
+        🔵 {% trans "In Use" %} <span class="count">{{ chip_counts.in_use }}</span>
+      </a>
+      <a href="?{% if q %}q={{ q }}&{% endif %}status=out_of_service"
+         class="mms-tools-chip {% if status_filter == 'out_of_service' %}is-active{% endif %}">
+        🔴 {% trans "Out of Service" %} <span class="count">{{ chip_counts.out_of_service }}</span>
+      </a>
+    {% endif %}
+  </div>
+
+  {# Tool list #}
+  <div class="mms-card mms-tools-list-card">
+    <div class="mms-card-header">
+      <h3 class="mms-card-title">{% trans "Tool Pool" %}</h3>
+      <span class="mms-tools-list-count">
+        {{ rows|length }}
+        {% if q %}
+          {% trans "result(s)" %}
+        {% else %}
+          {% trans "shown" %}
+        {% endif %}
+      </span>
+    </div>
+    <div class="mms-card-body" style="padding:0">
+      {% if rows %}
+        <div class="mms-tools-list">
+          {% for inst, active in rows %}
+            <div class="mms-tool-row" data-instance-id="{{ inst.pk }}">
+              <a class="mms-tool-row-link" href="{% url 'tools_instance_detail' inst.pk %}" title="{% trans 'Open history' %}">
+                <div class="mms-tool-row-name">
+                  {{ inst.part.name }}
+                  <span class="mms-tool-num">#{{ inst.tool_number }}</span>
+                </div>
+                <div class="mms-tool-row-meta">
+                  {% if active %}
+                    {% if active.operator_id == self_id %}
+                      <strong>{% trans "You" %}</strong>
+                    {% else %}
+                      <strong>{{ active.operator.username }}</strong>
+                    {% endif %}
+                    <span style="color:var(--mms-muted,#94a3b8)">·</span>
+                    {{ active.machine.name }}
+                  {% else %}
+                    <span style="color:var(--mms-muted,#94a3b8)">— {% trans "free" %} —</span>
+                  {% endif %}
+                </div>
+                <div class="mms-tool-row-time">
+                  {% if active %}
+                    <strong>{% trans "Out" %}: {{ active.checkout_at|mms_time }}</strong>
+                    {{ active.checkout_at|mms_datetime }}
+                  {% else %}
+                    <span style="color:var(--mms-muted,#94a3b8)">—</span>
+                  {% endif %}
+                </div>
+                {% if show_costs %}
+                  <div class="mms-tool-row-time">
+                    {% if inst.purchase_cost %}
+                      <strong>{{ inst.purchase_cost|floatformat:2 }} €</strong>
+                      {{ inst.created_at|mms_datetime }}
+                    {% else %}
+                      <span style="color:var(--mms-muted,#94a3b8)">—</span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+                <span class="mms-tool-status mms-tool-status--{{ inst.status }}">
+                  {% if inst.status == 'available' %}{% trans "Available" %}
+                  {% elif inst.status == 'in_use' %}{% trans "In Use" %}
+                  {% else %}{% trans "Out of Service" %}{% endif %}
+                </span>
+              </a>
+
+                {# Action button (separate cell so the row link is clean) #}
+              <div class="mms-tool-row-action">
+                {% if inst.status == 'available' %}
+                  {% if is_manager_or_above %}
+                    <a href="{% url 'tools_assign' inst.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">
+                      ➕ {% trans "Assign to…" %}
+                    </a>
+                  {% else %}
+                    {# Operator / Technician: pick a machine to take it #}
+                    <a href="{% url 'tools_assign' inst.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">
+                      ➕ {% trans "Take this tool" %}
+                    </a>
+                  {% endif %}
+                {% elif inst.status == 'in_use' and active %}
+                  {% if active.operator_id == self_id or is_manager_or_above %}
+                    <a href="{% url 'tools_return' active.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+                      ↩ {% trans "Return" %}
+                    </a>
+                  {% endif %}
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="mms-tools-section-empty">
+          <div class="mms-tools-section-empty-icon">🔧</div>
+          {% if q %}
+            <div>{% trans "No tools match your search." %}</div>
+            <div style="margin-top:.5rem">
+              <a href="{% url 'tools_list' %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+                {% trans "Clear search" %}
+              </a>
+            </div>
+          {% elif is_manager_or_above %}
+            <div>{% trans "No reusable tools in the pool yet." %}</div>
+            <div style="margin-top:.5rem">
+              <a href="{% url 'stock_dashboard' %}?reusable_tool=1" class="mms-btn mms-btn--primary mms-btn--sm">
+                {% trans "Issue from inventory" %}
+              </a>
+            </div>
+          {% else %}
+            <div>{% trans "No tools available right now." %}</div>
+            <div style="margin-top:.5rem;color:var(--mms-muted,#94a3b8)">{% trans "Ask your manager to issue tools to the pool." %}</div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

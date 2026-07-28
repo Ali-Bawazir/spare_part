@@ -145,10 +145,9 @@ class PurchaseOrderItemForm(forms.ModelForm):
 
     class Meta:
         model = PurchaseOrderItem
-        fields = ["part", "tool", "ordered_qty", "negotiated_unit_price", "line_note"]
+        fields = ["part", "ordered_qty", "negotiated_unit_price", "line_note"]
         labels = {
             "part": _("Part"),
-            "tool": _("Tool"),
             "ordered_qty": _("Ordered qty"),
             "negotiated_unit_price": _("Unit price"),
             "line_note": _("Line note"),
@@ -157,8 +156,6 @@ class PurchaseOrderItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["negotiated_unit_price"].label = _("Unit price")
-        self.fields["part"].required = False
-        self.fields["tool"].required = False
 
     def clean(self):
         cleaned = super().clean()
@@ -166,23 +163,13 @@ class PurchaseOrderItemForm(forms.ModelForm):
         price = cleaned.get("negotiated_unit_price")
         if qty and price:
             cleaned["total_price"] = qty * price
-        part = cleaned.get("part")
-        tool = cleaned.get("tool")
-        if part and tool:
-            raise forms.ValidationError(
-                _("A line item must reference either a part or a tool, not both.")
-            )
-        if not part and not tool:
-            raise forms.ValidationError(
-                _("A line item must reference a part or a tool.")
-            )
         return cleaned
 
 
 POItemFormSet = forms.inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderItem,
-    fields=["part", "tool", "ordered_qty", "negotiated_unit_price", "line_note"],
+    fields=["part", "ordered_qty", "negotiated_unit_price", "line_note"],
     extra=1,
     can_delete=True,
 )

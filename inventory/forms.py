@@ -186,6 +186,18 @@ class IssueConsumableForm(forms.Form):
 class SparePartForm(forms.ModelForm):
     """Operational spare part form — used in stock module (not Django admin)."""
 
+    ITEM_TYPE_CHOICES = [
+        ("spare_part",     _("Spare Part — normal inventory item")),
+        ("consumable",     _("Consumable — decreases when issued")),
+        ("reusable_tool",  _("Reusable Tool — physical units, tracked in tool pool")),
+    ]
+    item_type = forms.ChoiceField(
+        choices=ITEM_TYPE_CHOICES,
+        widget=forms.RadioSelect(attrs={"class": "mms-radio-tile"}),
+        label=_("Item type"),
+        help_text=_("Choose how this item is managed in the system."),
+    )
+
     class Meta:
         model = SparePart
         fields = (
@@ -194,6 +206,7 @@ class SparePartForm(forms.ModelForm):
             "description",
             "category",
             "unit",
+            "item_type",
             "supplier",
             "is_consumable",
             "is_repairable",
@@ -210,7 +223,7 @@ class SparePartForm(forms.ModelForm):
             "description": forms.Textarea(attrs={**_CTRL, "rows": 2}),
             "category": forms.TextInput(attrs={**_CTRL, "placeholder": _("Bearings")}),
             "unit": forms.TextInput(attrs={**_CTRL, "placeholder": _("pcs")}),
-            "supplier": forms.Select(attrs={**_SEL}),
+            "supplier": forms.Select(attrs=_SEL),
             "is_consumable": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_repairable": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "allow_operator_consumption": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -218,8 +231,40 @@ class SparePartForm(forms.ModelForm):
             "max_stock_level": forms.NumberInput(attrs={**_CTRL, "min": "0", "step": "0.001"}),
             "avg_cost": forms.NumberInput(attrs={**_CTRL, "min": "0", "step": "0.0001"}),
             "last_purchase_cost": forms.NumberInput(attrs={**_CTRL, "min": "0", "step": "0.0001"}),
-            "status": forms.Select(attrs={**_SEL}),
+            "status": forms.Select(attrs=_SEL),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The Meta `fields` list does NOT include item_type because we
+        # override it above with a localized ChoiceField. Pull its
+        # initial value from the instance (or default to spare_part).
+        if self.instance and self.instance.pk:
+            self.fields["item_type"].initial = self.instance.item_type
+        else:
+            self.fields["item_type"].initial = "spare_part"
+
+    def clean(self):
+        cleaned = super().clean()
+        item_type = cleaned.get("item_type")
+        # Keep is_consumable and item_type in sync for backwards compat
+        if item_type == "consumable":
+            cleaned["is_consumable"] = True
+        elif item_type == "spare_part":
+            cleaned["is_consumable"] = False
+        # For reusable_tool, is_consumable stays False.
+        return cleaned
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        if self.cleaned_data.get("item_type"):
+            obj.item_type = self.cleaned_data["item_type"]
+            if obj.item_type == "consumable":
+                obj.is_consumable = True
+        if commit:
+            obj.save()
+            self.save_m2m()
+        return obj
 
     def clean_sku(self):
         sku = (self.cleaned_data.get("sku") or "").strip().upper()

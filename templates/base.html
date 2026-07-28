@@ -94,7 +94,7 @@
       {% endif %}
       {% endif %}
 
-      {% if perm_machine_manage or perm_pm_schedule_manage or perm_tool_page or perm_repair_list %}
+      {% if perm_machine_manage or perm_pm_schedule_manage or perm_tools_search or perm_repair_list %}
       {% if user.role != 'procurement' %}
       <div class="mms-nav-section" data-section="assets">{% trans "Assets" %}</div>
       {% endif %}
@@ -129,10 +129,10 @@
         {% if nav_pm_today_count %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_pm_today_count }}</span>{% endif %}
       </a>
       {% endif %}
-      {% if perm_tool_page %}
-      <a href="{% url 'tool_list' %}" class="mms-nav-link{% if current_url_name and 'tool' in current_url_name %} is-active{% endif %}">{% trans "Tools" %}</a>
+      {% if perm_tools_search %}
+      <a href="{% url 'tools_list' %}" class="mms-nav-link{% if current_url_name == 'tools_list' %} is-active{% endif %}">{% trans "Tools" %}</a>
       {% if user.role == 'manager' or user.role == 'super_admin' %}
-      <a href="{% url 'tool_dashboard' %}" class="mms-nav-link{% if current_url_name == 'tool_dashboard' %} is-active{% endif %}">
+      <a href="{% url 'tools_dashboard' %}" class="mms-nav-link{% if current_url_name == 'tools_dashboard' %} is-active{% endif %}">
         {% trans "Tools dashboard" %}
       </a>
       {% endif %}
@@ -397,7 +397,7 @@
         <span class="mms-nav-icon">🧴</span>
         <span>{% trans "Consume" %}</span>
     </a>
-    <a href="{% url 'tool_list' %}" class="{% if current_url_name and 'tool' in current_url_name %}is-active{% endif %}">
+    <a href="{% url 'tools_list' %}" class="{% if current_url_name == 'tools_list' %}is-active{% endif %}">
         <span class="mms-nav-icon">🔧</span>
         <span>{% trans "Tools" %}</span>
     </a>
@@ -514,7 +514,7 @@
         <span class="mms-nav-icon">🛠️</span>
         <span>WO</span>
     </a>
-    <a href="{% url 'tool_list' %}" class="{% if current_url_name and 'tool' in current_url_name %}is-active{% endif %}">
+    <a href="{% url 'tools_list' %}" class="{% if current_url_name == 'tools_list' %}is-active{% endif %}">
         <span class="mms-nav-icon">🔧</span>
         <span>{% trans "Tools" %}</span>
     </a>

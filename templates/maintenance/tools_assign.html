@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{% trans "Assign" %}: {{ tool.display_name }}{% endblock %}
+{% block content %}
+<div class="mms-page">
+  <div class="mms-page-header">
+    <div>
+      <a href="{% url 'tools_list' %}" class="mms-back-link">← {% trans "Tools" %}</a>
+      <h1 class="mms-page-title">
+        {% trans "Assign" %}: <span class="mms-page-title-emph">{{ tool.display_name }}</span>
+      </h1>
+      <div class="mms-page-meta">
+        <span class="mms-badge mms-badge--success mms-tool-status--available">{% trans "Available" %}</span>
+        <span class="mms-meta-item">SKU: <code>{{ tool.part.sku }}</code></span>
+        {% if siblings_count %}
+          <span class="mms-meta-item">
+            {% blocktrans count c=siblings_count %}{{ c }} unit in pool{% plural %}{{ c }} units in pool{% endblocktrans %}
+          </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="mms-page-actions">
+      <a href="{% url 'tools_instance_detail' tool.pk %}" class="mms-btn mms-btn--ghost">
+        {% trans "View history" %}
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="mms-form mms-form--two-col" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mms-form-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {# ─── Left column: assign form ─── #}
+    <div class="mms-form-col mms-form-col--main">
+      <div class="mms-form-section">
+        <div class="mms-form-section-title">{% trans "Who" %}</div>
+        <div class="mms-form-row {% if self_assign_locked %}mms-form-row--locked{% endif %}">
+          <label for="{{ form.operator.id_for_label }}">
+            {{ form.operator.label }}
+            {% if self_assign_locked %}
+              <span class="mms-form-required-pill">{% trans "You" %}</span>
+            {% endif %}
+          </label>
+          {{ form.operator }}
+          {% if self_assign_locked %}
+            <small class="mms-form-help mms-form-help--ok">
+              🔒 {% trans "You are assigning this tool to yourself." %}
+            </small>
+          {% else %}
+            <small class="mms-form-help">{% trans "Choose the operator who will hold this tool." %}</small>
+          {% endif %}
+          {{ form.operator.errors }}
+        </div>
+      </div>
+
+      <div class="mms-form-section">
+        <div class="mms-form-section-title">{% trans "Where" %}</div>
+        <div class="mms-form-row">
+          <label for="{{ form.machine.id_for_label }}">{{ form.machine.label }}</label>
+          {{ form.machine }}
+          <small class="mms-form-help">{% trans "The machine where this tool will be used." %}</small>
+          {{ form.machine.errors }}
+        </div>
+        <div class="mms-form-row">
+          <label>{{ form.condition_out.label }}</label>
+          <div class="mms-radio-pills">
+            {% for radio in form.condition_out %}
+              <label class="mms-radio-pill" for="{{ radio.id_for_label }}">
+                <input type="radio" name="{{ radio.data.name }}" id="{{ radio.id_for_label }}"
+                       value="{{ radio.data.value }}" {% if radio.data.selected %}checked{% endif %}>
+                <span class="mms-radio-pill-label">{{ radio.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          <small class="mms-form-help">{% trans "Condition of the tool when it leaves the pool." %}</small>
+          {{ form.condition_out.errors }}
+        </div>
+      </div>
+
+      <div class="mms-form-section">
+        <div class="mms-form-section-title">{% trans "Notes" %}</div>
+        <div class="mms-form-row">
+          <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+          {{ form.notes }}
+          <small class="mms-form-help">{% trans "Optional. Why is this tool being issued? Anything the operator should know?" %}</small>
+          {{ form.notes.errors }}
+        </div>
+      </div>
+
+      <div class="mms-form-sticky-actions">
+        <a href="{% url 'tools_list' %}" class="mms-btn mms-btn--ghost">
+          {% trans "Cancel" %}
+        </a>
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--lg">
+          {% if self_assign_locked %}
+            ✓ {% trans "Take this tool" %}
+          {% else %}
+            ➕ {% trans "Assign tool" %}
+          {% endif %}
+        </button>
+      </div>
+    </div>
+
+    {# ─── Right column: tool context ─── #}
+    <aside class="mms-form-col mms-form-col--side">
+      <div class="mms-card mms-card--accent">
+        <div class="mms-card-header">
+          <h3 class="mms-card-title">{% trans "Tool context" %}</h3>
+        </div>
+        <div class="mms-card-body">
+          <dl class="mms-detail-list mms-detail-list--compact">
+            <dt>{% trans "Part" %}</dt>
+            <dd>{{ tool.part.name }}</dd>
+            <dt>{% trans "Number" %}</dt>
+            <dd><strong>#{{ tool.tool_number }}</strong></dd>
+            <dt>{% trans "Status" %}</dt>
+            <dd>
+              <span class="mms-tool-status mms-tool-status--{{ tool.status }}">
+                {{ tool.get_status_display }}
+              </span>
+            </dd>
+            <dt>{% trans "Issued to pool" %}</dt>
+            <dd>{{ tool.created_at|mms_datetime }}</dd>
+            {% if tool.purchase_cost %}
+              <dt>{% trans "Acquisition cost" %}</dt>
+              <dd>{{ tool.purchase_cost|floatformat:2 }} €</dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+
+      <div class="mms-card">
+        <div class="mms-card-header">
+          <h3 class="mms-card-title">{% trans "History" %}</h3>
+        </div>
+        <div class="mms-card-body">
+          <dl class="mms-detail-list mms-detail-list--compact">
+            <dt>{% trans "Total checkouts" %}</dt>
+            <dd><strong>{{ total_assignments }}</strong></dd>
+            <dt>{% trans "Damage reports" %}</dt>
+            <dd>
+              {% if total_damage %}
+                <span class="mms-badge mms-badge--warning">{{ total_damage }}</span>
+              {% else %}
+                <span style="color:var(--mms-muted,#94a3b8)">0</span>
+              {% endif %}
+            </dd>
+            {% if last_assignment %}
+              <dt>{% trans "Last checkout" %}</dt>
+              <dd>
+                <strong>{{ last_assignment.operator.username }}</strong>
+                <span style="color:var(--mms-muted,#94a3b8)">·</span>
+                {{ last_assignment.machine.name }}<br>
+                <span style="color:var(--mms-muted,#94a3b8);font-size:.78rem">
+                  {{ last_assignment.checkout_at|mms_datetime }}
+                </span>
+              </dd>
+            {% endif %}
+          </dl>
+          <div style="margin-top:0.75rem">
+            <a href="{% url 'tools_instance_detail' tool.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm" style="width:100%;justify-content:center">
+              {% trans "Open full history" %}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {% if self_assign_locked %}
+        <div class="mms-callout mms-callout--info">
+          <strong>{% trans "Self-assign reminder" %}</strong>
+          <p>{% trans "You are about to take this tool. Make sure you will actually use it — once you take it, your name appears as the holder on the dashboard until you return it." %}</p>
+        </div>
+      {% endif %}
+    </aside>
+  </form>
+</div>
+{% endblock %}

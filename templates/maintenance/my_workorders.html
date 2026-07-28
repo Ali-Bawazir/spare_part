@@ -46,6 +46,7 @@
           <td>
             <a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>
             {% if w.is_emergency %}<span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}
+            {% if w.blocker_source_id %}<a href="{% url 'work_order_detail' w.blocker_source_id %}" class="mms-badge mms-badge--warning" title="{% trans 'Paused because this WO is waiting on another. Resolve the source WO to release.' %}">⛔ {% blocktrans with n=w.blocker_source_number %}BLOCKED by WO-{{ n }}{% endblocktrans %}</a>{% endif %}
             {% if w.rejection_count > 0 %}
               <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">
                 ↩ {{ w.rejection_count }}

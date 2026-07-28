@@ -21,101 +21,151 @@
 <div class="mms-form-stack" style="margin-top:1rem">
   <form method="post" class="mms-form" enctype="multipart/form-data">
     {% csrf_token %}
-    <div class="mms-form-row">
-      <label for="id_sku">{% trans "SKU *" %}</label>
-      {{ form.sku }}
-      <span class="mms-form-help">{% trans "Unique part identifier (e.g. BRG-6006). Uppercase letters, numbers, dashes only." %}</span>
-      {% if form.sku.errors %}<span class="mms-field-error">{{ form.sku.errors.0 }}</span>{% endif %}
-    </div>
-    <div class="mms-form-row">
-      <label for="id_name">{% trans "Name *" %}</label>
-      {{ form.name }}
-      {% if form.name.errors %}<span class="mms-field-error">{{ form.name.errors.0 }}</span>{% endif %}
-    </div>
-    <div class="mms-form-row">
-      <label for="id_category">{% trans "Category" %}</label>
-      {{ form.category }}
-      <span class="mms-form-help">{% trans "e.g. Bearings, Filters, Electrical, Hydraulic" %}</span>
-    </div>
-    <div class="mms-form-row">
-      <label for="id_unit">{% trans "Unit" %}</label>
-      {{ form.unit }}
-      <span class="mms-form-help">{% trans "e.g. pcs, kg, liter, meter" %}</span>
-    </div>
-    <div class="mms-form-row">
-      <label for="id_supplier">{% trans "Preferred supplier" %}</label>
-      {{ form.supplier }}
-    </div>
-    <div class="mms-form-row mms-form-row--checkbox">
-      <div>
-        {{ form.is_consumable }}
-        <label for="id_is_consumable">{% trans "Consumable (depletes on use)" %}</label>
+
+    {# ─── Item Type (radio tiles) ─── #}
+    <div class="mms-form-section">
+      <div class="mms-form-section-title">{% trans "Item type" %}</div>
+      <div class="mms-form-section-sub">{% trans "How this item is managed in the system. You can change this later if needed." %}</div>
+      <div class="mms-radio-tiles">
+        {% for radio in form.item_type %}
+          <label class="mms-radio-tile {% if radio.data.selected or radio.id_for_label.value == form.item_type.value %}is-checked{% endif %}" for="{{ radio.id_for_label }}">
+            <input type="radio" name="{{ radio.data.name }}" id="{{ radio.id_for_label }}" value="{{ radio.data.value }}" {% if radio.data.selected %}checked{% endif %}>
+            <div class="mms-radio-tile-body">
+              <div class="mms-radio-tile-title">
+                {% if radio.data.value == "spare_part" %}
+                  🧰 {% trans "Spare Part" %}
+                {% elif radio.data.value == "consumable" %}
+                  🧴 {% trans "Consumable" %}
+                {%elif radio.data.value == "reusable_tool" %}
+                  🔧 {% trans "Reusable Tool" %}
+                {% endif %}
+              </div>
+              <div class="mms-radio-tile-desc">
+                {% if radio.data.value == "spare_part" %}
+                  {% trans "Normal inventory item. Stock decreases when issued." %}
+                {% elif radio.data.value == "consumable" %}
+                  {% trans "Drawn from stock as operators use it (oil, grease, tape)." %}
+                {% elif radio.data.value == "reusable_tool" %}
+                  {% trans "Physical units tracked in the tool pool (knife punches, dies)." %}
+                {% endif %}
+              </div>
+            </div>
+          </label>
+        {% endfor %}
       </div>
-    </div>
-    <div class="mms-form-row mms-form-row--checkbox">
-      <div>
-        {{ form.is_repairable }}
-        <label for="id_is_repairable">{% trans "Repairable (can be refurbished)" %}</label>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
-      <div class="mms-form-row">
-        <label for="id_min_stock_level">{% trans "Min stock level" %}</label>
-        {{ form.min_stock_level }}
-        {% if form.min_stock_level.errors %}<span class="mms-field-error">{{ form.min_stock_level.errors.0 }}</span>{% endif %}
-      </div>
-      <div class="mms-form-row">
-        <label for="id_max_stock_level">{% trans "Max stock level" %}</label>
-        {{ form.max_stock_level }}
-      </div>
-      <div class="mms-form-row">
-        <label for="id_avg_cost">{% trans "Avg cost (€)" %}</label>
-        {{ form.avg_cost }}
-      </div>
-    </div>
-    {% if form.last_purchase_cost %}
-    <div class="mms-form-row">
-      <label for="id_last_purchase_cost">{% trans "Last purchase cost (€)" %}</label>
-      {{ form.last_purchase_cost }}
-      <span class="mms-form-help">{% trans "Most recent procurement unit price." %}</span>
-    </div>
-    {% endif %}
-    <div class="mms-form-row">
-      <label for="id_status">{% trans "Status" %}</label>
-      {{ form.status }}
-    </div>
-    <div class="mms-form-row">
-      <label for="id_description">{% trans "Description" %}</label>
-      {{ form.description }}
     </div>
 
-    <div class="mms-form-group">
-      <label class="mms-label">{% trans "Datasheet / Certificate" %}</label>
-      <input type="file" name="part_attachment" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" class="form-control">
-      <span class="mms-form-help">{% trans "Optional: PDF or image (datasheet, certificate, etc.)" %}</span>
+    <div class="mms-form-section">
+      <div class="mms-form-row">
+        <label for="id_sku">{% trans "SKU *" %}</label>
+        {{ form.sku }}
+        <span class="mms-form-help">{% trans "Unique part identifier (e.g. BRG-6006). Uppercase letters, numbers, dashes only." %}</span>
+        {% if form.sku.errors %}<span class="mms-field-error">{{ form.sku.errors.0 }}</span>{% endif %}
+      </div>
+      <div class="mms-form-row">
+        <label for="id_name">{% trans "Name *" %}</label>
+        {{ form.name }}
+        {% if form.name.errors %}<span class="mms-field-error">{{ form.name.errors.0 }}</span>{% endif %}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="mms-form-row">
+          <label for="id_category">{% trans "Category" %}</label>
+          {{ form.category }}
+          <span class="mms-form-help">{% trans "e.g. Bearings, Filters, Electrical, Hydraulic" %}</span>
+        </div>
+        <div class="mms-form-row">
+          <label for="id_unit">{% trans "Unit" %}</label>
+          {{ form.unit }}
+          <span class="mms-form-help">{% trans "e.g. pcs, kg, liter, meter" %}</span>
+        </div>
+      </div>
+      <div class="mms-form-row">
+        <label for="id_supplier">{% trans "Preferred supplier" %}</label>
+        {{ form.supplier }}
+      </div>
+    </div>
+
+    <div class="mms-form-section">
+      <div class="mms-form-section-title">{% trans "Behavior flags" %}</div>
+      <div class="mms-form-row mms-form-row--checkbox">
+        <div>
+          {{ form.is_consumable }}
+          <label for="id_is_consumable">{% trans "Consumable (depletes on use)" %}</label>
+        </div>
+      </div>
+      <div class="mms-form-row mms-form-row--checkbox">
+        <div>
+          {{ form.is_repairable }}
+          <label for="id_is_repairable">{% trans "Repairable (can be refurbished)" %}</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="mms-form-section">
+      <div class="mms-form-section-title">{% trans "Stock levels & cost" %}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+        <div class="mms-form-row">
+          <label for="id_min_stock_level">{% trans "Min stock level" %}</label>
+          {{ form.min_stock_level }}
+          {% if form.min_stock_level.errors %}<span class="mms-field-error">{{ form.min_stock_level.errors.0 }}</span>{% endif %}
+        </div>
+        <div class="mms-form-row">
+          <label for="id_max_stock_level">{% trans "Max stock level" %}</label>
+          {{ form.max_stock_level }}
+        </div>
+        <div class="mms-form-row">
+          <label for="id_avg_cost">{% trans "Avg cost (€)" %}</label>
+          {{ form.avg_cost }}
+        </div>
+      </div>
+      {% if form.last_purchase_cost %}
+      <div class="mms-form-row">
+        <label for="id_last_purchase_cost">{% trans "Last purchase cost (€)" %}</label>
+        {{ form.last_purchase_cost }}
+        <span class="mms-form-help">{% trans "Most recent procurement unit price." %}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="mms-form-section">
+      <div class="mms-form-row">
+        <label for="id_status">{% trans "Status" %}</label>
+        {{ form.status }}
+      </div>
+      <div class="mms-form-row">
+        <label for="id_description">{% trans "Description" %}</label>
+        {{ form.description }}
+      </div>
+
+      <div class="mms-form-group">
+        <label class="mms-label">{% trans "Datasheet / Certificate" %}</label>
+        <input type="file" name="part_attachment" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" class="form-control">
+        <span class="mms-form-help">{% trans "Optional: PDF or image (datasheet, certificate, etc.)" %}</span>
+      </div>
     </div>
 
     {# Opening inventory fields — only on create form #}
     {% if form.opening_qty %}
-    <hr style="border:none;border-top:1px solid #e2e8f0;margin:1.5rem 0">
-    <div class="mms-subheading" style="margin-bottom:1rem">{% trans "Opening inventory (optional)" %}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <div class="mms-form-row">
-        <label for="id_opening_qty">{% trans "Opening quantity" %}</label>
-        {{ form.opening_qty }}
-        <span class="mms-form-help">{% trans "Initial stock at default site." %}</span>
-      </div>
-      <div class="mms-form-row">
-        <label for="id_rack_location">{% trans "Rack location" %}</label>
-        {{ form.rack_location }}
-        <span class="mms-form-help">{% trans "Storage location (e.g. A-01-03)." %}</span>
+    <div class="mms-form-section">
+      <div class="mms-form-section-title">{% trans "Opening inventory (optional)" %}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="mms-form-row">
+          <label for="id_opening_qty">{% trans "Opening quantity" %}</label>
+          {{ form.opening_qty }}
+          <span class="mms-form-help">{% trans "Initial stock at default site." %}</span>
+        </div>
+        <div class="mms-form-row">
+          <label for="id_rack_location">{% trans "Rack location" %}</label>
+          {{ form.rack_location }}
+          <span class="mms-form-help">{% trans "Storage location (e.g. A-01-03)." %}</span>
+        </div>
       </div>
     </div>
     {% endif %}
 
     <div class="mms-form-actions">
       <button type="submit" class="mms-btn mms-btn--primary">
-        {% if part %}Save changes{% else %}Create part{% endif %}
+        {% if part %}Save changes{% else %}{% trans "Create part" %}{% endif %}
       </button>
       {% if part %}
         <a class="mms-btn mms-btn--ghost" href="{% url 'spare_part_detail' part.pk %}">{% trans "Cancel" %}</a>
@@ -125,4 +175,25 @@
     </div>
   </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Visual highlight for the selected radio tile.
+  const tiles = document.querySelectorAll('.mms-radio-tile');
+  tiles.forEach(tile => {
+    const input = tile.querySelector('input[type=radio]');
+    if (input && input.checked) tile.classList.add('is-checked');
+    tile.addEventListener('click', function(e) {
+      if (e.target.tagName !== 'INPUT') {
+        input.checked = true;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    input.addEventListener('change', function() {
+      tiles.forEach(t => t.classList.remove('is-checked'));
+      if (input.checked) tile.classList.add('is-checked');
+    });
+  });
+});
+</script>
 {% endblock %}

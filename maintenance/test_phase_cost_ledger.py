@@ -751,3 +751,95 @@ class RebuildCommandTests(TestCase):
         self.assertEqual(cost.vendor_repair_cost, Decimal("50.00"))
         self.assertEqual(cost.consumables_cost, Decimal("20.00"))
         self.assertEqual(cost.ledger_transaction_count, 3)
+
+
+# ---------------------------------------------------------------------------
+# 6) HTTP-level test for the work_order_adjust_cost view
+# ---------------------------------------------------------------------------
+
+class WorkOrderAdjustCostViewTests(TestCase):
+    """End-to-end: the manager-side form on the WO detail page."""
+
+    def setUp(self):
+        from accounts.models import User
+        from maintenance.models import WorkOrder
+        from maintenance.forms import CostAdjustmentForm
+
+        self.manager = User.objects.create(
+            username="adjmgr", role=User.Role.MANAGER, is_active=True,
+        )
+        self.tech = User.objects.create(
+            username="adjtech", role=User.Role.TECHNICIAN, is_active=True,
+        )
+        self.wo = WorkOrder.objects.create(
+            number=90000 + WorkOrder.objects.count(),
+            category="breakdown",
+            lifecycle_status="in_progress",
+            operational_status="active",
+            assigned_technician=self.tech,
+            created_by=self.tech,
+        )
+
+    def test_get_redirects(self):
+        from django.test import Client
+        c = Client()
+        c.force_login(self.manager)
+        r = c.get(f"/work-orders/{self.wo.pk}/adjust-cost/")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("work_order_detail", r["Location"])
+
+    def test_post_creates_adjustment_and_refreshes_cache(self):
+        from django.test import Client
+        from maintenance.models import CostAdjustment, CostTransaction, WorkOrderCost
+        c = Client()
+        c.force_login(self.manager)
+        r = c.post(
+            f"/work-orders/{self.wo.pk}/adjust-cost/",
+            data={"amount": "42.00", "memo": "finance correction"},
+        )
+        self.assertEqual(r.status_code, 302)
+        adj = CostAdjustment.objects.get(work_order=self.wo)
+        self.assertEqual(adj.amount, Decimal("42.00"))
+        self.assertEqual(adj.memo, "finance correction")
+        # Linked CostTransaction was created
+        txn = CostTransaction.objects.get(adjustment=adj)
+        self.assertEqual(txn.category, "adjustment")
+        self.assertEqual(txn.amount, Decimal("42.00"))
+        # WorkOrderCost cache was refreshed
+        self.wo.refresh_from_db()
+        cost = WorkOrderCost.objects.get(work_order=self.wo)
+        self.assertEqual(cost.additional_cost, Decimal("42.00"))
+
+    def test_technician_forbidden(self):
+        from django.test import Client
+        c = Client()
+        c.force_login(self.tech)
+        r = c.post(
+            f"/work-orders/{self.wo.pk}/adjust-cost/",
+            data={"amount": "10.00", "memo": "should fail"},
+        )
+        # role_required redirects unauthorized roles
+        self.assertIn(r.status_code, (302, 403))
+
+    def test_short_memo_redirects(self):
+        from django.test import Client
+        c = Client()
+        c.force_login(self.manager)
+        r = c.post(
+            f"/work-orders/{self.wo.pk}/adjust-cost/",
+            data={"amount": "10.00", "memo": "short"},
+        )
+        # short memo → form invalid → redirect with error message
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(CostAdjustment.objects.filter(work_order=self.wo).count(), 0)
+
+    def test_zero_amount_redirects(self):
+        from django.test import Client
+        c = Client()
+        c.force_login(self.manager)
+        r = c.post(
+            f"/work-orders/{self.wo.pk}/adjust-cost/",
+            data={"amount": "0", "memo": "no adjustment needed here"},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(CostAdjustment.objects.filter(work_order=self.wo).count(), 0)

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from contextlib import contextmanager
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -8,6 +9,26 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+
+@contextmanager
+def ero_auto_fire_disabled():
+    """Context manager that prevents ExternalRepairOrder.save() from
+    auto-firing ERO_RETURNED / ERO_ACCEPTED events for the duration of
+    the block. Use in tests that need to control blocker resolution
+    explicitly. Always restores the flag on exit, even on exception.
+
+    Phase 1 v1.0.0 hardening — replaces manual class-attribute set/restore
+    in test setUp/tearDown, which previously leaked across tests if a test
+    failed before restoring.
+    """
+    from .models import ExternalRepairOrder  # local import to avoid cycle
+    prev = ExternalRepairOrder._disable_auto_fire
+    ExternalRepairOrder._disable_auto_fire = True
+    try:
+        yield
+    finally:
+        ExternalRepairOrder._disable_auto_fire = prev
 
 
 class Site(models.Model):
@@ -25,6 +46,13 @@ class Site(models.Model):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_default"],
+                condition=models.Q(is_default=True),
+                name="uniq_default_site",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name
@@ -332,6 +360,35 @@ class WorkOrder(models.Model):
         OPERATIONAL = "operational", _("Operational interruption")
         OTHER = "other", _("Other (note required)")
 
+    # Phase 1 v1.0.0 hardening — legal lifecycle transitions.
+    # Mirrors the SHORTAGE status guard in inventory.services; previously any
+    # caller could write lifecycle_status to any value. Centralized enforcement
+    # blocks truly illegal transitions (CLOSED → anything, CANCELLED → anything).
+    # The "happy path" edges (ASSIGNED → IN_PROGRESS → PENDING_REVIEW → CLOSED)
+    # are enforced, but PM-WOs and similar shortcuts (ASSIGNED → PENDING_REVIEW
+    # for checklist-only PMs, PENDING_REVIEW → ASSIGNED for batch reset) are
+    # allowed because they represent real production flows.
+    VALID_LIFECYCLE_TRANSITIONS: dict[str, frozenset[str]] = {
+        LifecycleStatus.DRAFT:          frozenset({LifecycleStatus.ASSIGNED, LifecycleStatus.CANCELLED}),
+        LifecycleStatus.ASSIGNED:       frozenset({
+            LifecycleStatus.IN_PROGRESS,
+            LifecycleStatus.PENDING_REVIEW,
+            LifecycleStatus.CANCELLED,
+        }),
+        LifecycleStatus.IN_PROGRESS:    frozenset({
+            LifecycleStatus.PENDING_REVIEW,
+            LifecycleStatus.ASSIGNED,
+            LifecycleStatus.CANCELLED,
+        }),
+        LifecycleStatus.PENDING_REVIEW: frozenset({
+            LifecycleStatus.CLOSED,
+            LifecycleStatus.IN_PROGRESS,
+            LifecycleStatus.ASSIGNED,
+        }),
+        LifecycleStatus.CLOSED:         frozenset(),
+        LifecycleStatus.CANCELLED:      frozenset(),
+    }
+
     number = models.PositiveIntegerField(unique=True, editable=False)
     category = models.CharField(
         max_length=20,
@@ -419,13 +476,6 @@ class WorkOrder(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    tool = models.ForeignKey(
-        "Tool",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="work_orders",
-    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -442,6 +492,7 @@ class WorkOrder(models.Model):
         # the UNIQUE constraint on archived rows.
         from django.db import IntegrityError, transaction
         from django.db.models import Max
+        last_integrity_error: IntegrityError | None = None
         for _attempt in range(5):
             if not self.number:
                 last = (
@@ -454,12 +505,19 @@ class WorkOrder(models.Model):
                 with transaction.atomic():
                     super().save(*args, **kwargs)
                 return
-            except IntegrityError:
+            except IntegrityError as exc:
                 # Another transaction grabbed our number. Refresh and retry.
+                last_integrity_error = exc
                 self.number = None
                 continue
-        # Fallback: re-raise after exhausting retries.
-        super().save(*args, **kwargs)
+        # Retries exhausted. Surface the underlying IntegrityError to the
+        # caller instead of silently falling through to a save() that will
+        # collide again. (Phase 1 v1.0.0 hardening.)
+        raise RuntimeError(
+            f"WorkOrder.save: exhausted 5 retries on UNIQUE number collision "
+            f"({type(last_integrity_error).__name__}: {last_integrity_error}). "
+            f"Investigate concurrent WO creation or schema drift."
+        ) from last_integrity_error
 
     def clean(self):
         super().clean()
@@ -821,212 +879,6 @@ class PMSchedule(models.Model):
             validate_component_belongs_to_machine(self.component, self.machine)
 
 
-class Tool(models.Model):
-    class Status(models.TextChoices):
-        AVAILABLE = "available", _("Available")
-        IN_USE = "in_use", _("In use")
-        OUT_OF_SERVICE = "out_of_service", _("Out of service")
-
-    code = models.SlugField(max_length=64, unique=True)
-    name = models.CharField(max_length=255)
-    status = models.CharField(
-        max_length=32,
-        choices=Status.choices,
-        default=Status.AVAILABLE,
-        db_index=True,
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    supplier = models.ForeignKey(
-        "procurement.Supplier",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="tools_supplied",
-        help_text=_("Vendor who supplied this tool. Optional for legacy tools."),
-    )
-    purchase_cost = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
-        help_text=_("What we paid for this tool. Used for cost-of-damaged reporting."),
-    )
-    purchase_date = models.DateField(null=True, blank=True)
-    invoice_ref = models.CharField(max_length=120, blank=True)
-    notes = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return f"{self.name} ({self.code})"
-
-    @property
-    def is_available(self) -> bool:
-        return self.status == self.Status.AVAILABLE
-
-
-class ToolAssignment(models.Model):
-    class ReturnCondition(models.TextChoices):
-        GOOD = "good", _("Good")
-        DAMAGED = "damaged", _("Damaged")
-        LOST = "lost", _("Lost")
-
-    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="assignments")
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="tool_assignments",
-    )
-    assigned_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="tool_assignments_given",
-    )
-    assigned_at = models.DateTimeField(auto_now_add=True)
-    returned_at = models.DateTimeField(null=True, blank=True)
-    return_condition = models.CharField(
-        max_length=20,
-        choices=ReturnCondition.choices,
-        blank=True,
-        default="",
-    )
-
-    class Meta:
-        ordering = ["-assigned_at"]
-
-    def clean(self):
-        if self.returned_at and not self.return_condition:
-            raise ValidationError(_("Return condition is required when returning a tool."))
-
-
-class Incident(models.Model):
-    """Incident report for lost/damaged tools or safety issues."""
-
-    class Status(models.TextChoices):
-        OPEN = "open", _("Open")
-        INVESTIGATING = "investigating", _("Investigating")
-        CLOSED = "closed", _("Closed")
-
-    title = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    reported_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="reported_incidents",
-    )
-    tool = models.ForeignKey(
-        "Tool",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="incidents",
-    )
-    work_order = models.ForeignKey(
-        "WorkOrder",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="incidents",
-    )
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.OPEN,
-        db_index=True,
-    )
-    resolved_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-
-    def __str__(self) -> str:
-        return self.title
-
-
-class ToolDamageRecord(models.Model):
-    """Immutable archive entry for a tool that was returned DAMAGED or LOST, or worn-out.
-    Captures the supplier (snapshot from Tool.supplier at time of damage), the user
-    who was holding it, the reason, and the recommended replacement action.
-    The Tool itself transitions to OUT_OF_SERVICE but is NOT removed. No auto-WorkOrder
-    is created — this is the canonical record.
-    """
-
-    class DamageKind(models.TextChoices):
-        DAMAGED = "damaged", _("Damaged")
-        LOST = "lost", _("Lost")
-        WORN_OUT = "worn_out", _("Worn out / end of life")
-        INHERITED_DEFECT = "inherited_defect", _("Defective on arrival")
-
-    class ReplacementAction(models.TextChoices):
-        BUY_FROM_OTHER = "buy_from_other", _("Buy from a different supplier")
-        BUY_FROM_SAME = "buy_from_same", _("Buy from same supplier")
-        PENDING = "pending", _("Replacement pending")
-        REPLACED_FROM_STOCK = "replaced_from_stock", _("Replaced from existing stock")
-        NO_REPLACEMENT_NEEDED = "no_replacement", _("No replacement needed")
-
-    tool = models.ForeignKey(
-        Tool,
-        on_delete=models.PROTECT,
-        related_name="damage_records",
-        help_text=_("The specific unit that was damaged."),
-    )
-    # Snapshot FK — value preserved even if supplier is renamed/deleted.
-    supplier = models.ForeignKey(
-        "procurement.Supplier",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="tool_damage_records",
-        help_text=_("Snapshot of the supplier who supplied THIS unit. Null for legacy unbranded tools."),
-    )
-    assignment = models.ForeignKey(
-        "ToolAssignment",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="damage_records",
-        help_text=_("The assignment that ended in damage. Null for outages not tied to an open assignment."),
-    )
-    damage_kind = models.CharField(max_length=20, choices=DamageKind.choices)
-    damage_reason = models.TextField(
-        help_text=_("Why the tool was damaged or lost. Minimum 15 characters."),
-    )
-    quantity_damaged = models.PositiveIntegerField(default=1)
-    reported_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="tool_damage_records_reported",
-    )
-    replacement_action = models.CharField(
-        max_length=30,
-        choices=ReplacementAction.choices,
-        default=ReplacementAction.BUY_FROM_OTHER,
-    )
-    tool_status_after = models.CharField(
-        max_length=32,
-        default="out_of_service",
-        help_text=_("Tool's status after this incident. Always 'out_of_service' for now."),
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["tool", "-created_at"], name="tdr_tool_created_idx"),
-            models.Index(fields=["supplier"], name="tdr_supplier_idx"),
-            models.Index(fields=["damage_kind"], name="tdr_kind_idx"),
-        ]
-
-    def __str__(self) -> str:
-        return f"Damage #{self.pk} — {self.tool.code} ({self.get_damage_kind_display()})"
-
-    def save(self, *args, **kwargs):
-        # Force at least 15 characters on save (defence-in-depth — form also validates).
-        if self.damage_reason and len(self.damage_reason.strip()) < 15:
-            from django.core.exceptions import ValidationError
-            raise ValidationError({"damage_reason": _("Reason must be at least 15 characters.")})
-        super().save(*args, **kwargs)
-
 
 class Notification(models.Model):
     """In-app alerts (PDF: low stock, emergency, PM due, pending WO, etc.)."""
@@ -1121,10 +973,9 @@ class ExternalRepairOrder(models.Model):
     # ERO_RETURNED / ERO_ACCEPTED. Production code leaves this False so
     # status transitions always notify the blocker subsystem. Tests that
     # need to control blocker resolution explicitly (e.g. asserting on
-    # the return value of sync_from_external_event) can opt out for the
-    # duration of a setUp/test using:
-    #   ExternalRepairOrder._disable_auto_fire = True
-    # and restore in tearDown.
+    # the return value of sync_from_external_event) should use
+    # `disable_auto_fire()` (defined below) which guarantees the flag is
+    # restored even on test failure.
     _disable_auto_fire = False
 
     class Status(models.TextChoices):

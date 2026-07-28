@@ -37,7 +37,7 @@ class WorkOrderReconciliationTests(TestCase):
         self.technician = User.objects.create_user(
             username="tech", password="pass1234", role=User.Role.TECHNICIAN,
         )
-        self.site = Site.objects.create(
+        self.site = Site.objects.filter(is_default=True).first() or Site.objects.create(
             name="Test Site", code="TEST-SITE-001", is_default=True, is_active=True,
         )
         self.machine = Machine.objects.create(
@@ -124,10 +124,18 @@ class WorkOrderReconciliationTests(TestCase):
             status=InventoryReservation.Status.ACTIVE,
             source_line=None,
         )
-        # Reset WO to ASSIGNED so we can transition it
+        # Walk the WO through the legal lifecycle: ASSIGNED → IN_PROGRESS →
+        # PENDING_REVIEW → CLOSED. (Phase 1 v1.0.0 hardening — direct
+        # ASSIGNED → CLOSED is now blocked by VALID_LIFECYCLE_TRANSITIONS.)
+        from maintenance.services import transition_work_order
         self.wo.lifecycle_status = WorkOrder.LifecycleStatus.ASSIGNED
         self.wo.save(update_fields=["lifecycle_status"])
-        from maintenance.services import transition_work_order
+        transition_work_order(
+            self.wo, WorkOrder.LifecycleStatus.IN_PROGRESS, actor=self.manager,
+        )
+        transition_work_order(
+            self.wo, WorkOrder.LifecycleStatus.PENDING_REVIEW, actor=self.manager,
+        )
         transition_work_order(
             self.wo, WorkOrder.LifecycleStatus.CLOSED, actor=self.manager,
         )

@@ -5,8 +5,10 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import models, transaction
-from django.http import HttpResponse, JsonResponse
+from django.db.models import Q
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
@@ -382,12 +384,20 @@ def purchase_order_list(request):
     }
 
     if group_by_supplier:
+        # Items with part=NULL are legacy orphans from the deleted
+        # PurchaseOrderItem.tool field. Skip them in line_count + total.
         supplier_rows = (
             qs.values("supplier__id", "supplier__name", "supplier__code")
               .annotate(
                   po_count=Count("id", distinct=True),
-                  line_count=Count("items", distinct=True),
-                  total=Sum("items__total_price"),
+                  line_count=Count(
+                      "items", distinct=True,
+                      filter=Q(items__part__isnull=False),
+                  ),
+                  total=Sum(
+                      "items__total_price",
+                      filter=Q(items__part__isnull=False),
+                  ),
               )
               .order_by("-total", "supplier__name")
         )
@@ -489,6 +499,11 @@ def purchase_order_supplier_csv(request, supplier_id):
     ])
     for po in qs:
         for item in po.items.all():
+            # Skip legacy orphan rows (part=NULL — leftover from the
+            # deleted PurchaseOrderItem.tool field). Their other fields are
+            # meaningless without a part reference.
+            if item.part_id is None:
+                continue
             writer.writerow([
                 po.po_number,
                 po.get_status_display(),
@@ -534,22 +549,18 @@ def purchase_order_create(request):
         form = PurchaseOrderForm(initial=initial)
         formset = POItemFormSet(prefix="items", queryset=PurchaseOrderItem.objects.none())
 
+        # Legacy `?tool_id=` query (from old Tool dashboard) is ignored now:
+        # Tools are no longer ordered via POs — manager issues them from
+        # inventory directly via the "Issue to Tool Pool" action.
         tool_id = request.GET.get("tool_id")
         if tool_id:
-            from maintenance.models import Tool
-            tool = get_object_or_404(Tool, pk=tool_id)
-            first_form = formset.forms[0]
-            first_form.initial = {
-                "part": None,
-                "tool": tool.pk,
-                "ordered_qty": "1",
-                "negotiated_unit_price": (
-                    str(tool.purchase_cost) if tool.purchase_cost is not None else "0"
-                ),
-                "line_note": (
-                    f"Replacement for damaged tool: {tool.name} ({tool.code})"
-                ),
-            }
+            from django.http import HttpResponseRedirect
+            messages.info(
+                request,
+                _("Replacement procurement for tools now goes through the "
+                  "'Issue to Tool Pool' flow on the inventory page."),
+            )
+            return HttpResponseRedirect(reverse("stock_dashboard") + "?reusable_tool=1")
 
     # Live stock badge: per-row badge needs {row_idx: {part_id: qty}}.
     # Walk the formset forms and build one dict per row.
@@ -658,7 +669,7 @@ def purchase_order_detail(request, pk):
     """View and edit a purchase order."""
     po = get_object_or_404(
         PurchaseOrder.objects.prefetch_related(
-            "items", "items__part", "items__tool", "supplier", "created_by", "handled_by",
+            "items", "items__part", "supplier", "created_by", "handled_by",
         ),
         pk=pk
     )
@@ -675,8 +686,6 @@ def purchase_order_detail(request, pk):
             "item": item,
             "inventory_qty": inv.quantity_available if inv else Decimal("0"),
         })
-
-    tool_line_count = sum(1 for it in po.items.all() if it.tool_id and not it.part_id)
 
     if request.method == "POST":
         if po.is_locked:
@@ -695,7 +704,6 @@ def purchase_order_detail(request, pk):
         "items_with_inventory": items_with_inventory,
         "sites": sites,
         "selected_site": selected_site,
-        "tool_line_count": tool_line_count,
     })
 
 
@@ -788,12 +796,12 @@ def purchase_order_receive(request, pk):
             )
             if actual_price and actual_price > 0:
                 item.actual_unit_price = actual_price
-            update_fields = [
-                "received_qty", "damaged_qty", "rejected_qty", "backordered_qty",
-            ]
-            if actual_price and actual_price > 0:
-                update_fields.append("actual_unit_price")
-            item.save(update_fields=update_fields)
+            # Use plain save() (no update_fields) so the model's custom
+            # save() method runs and recomputes total_price from the
+            # effective unit price (actual_unit_price if set, else
+            # negotiated_unit_price). With update_fields=, Django skips
+            # the model's save() and total_price would stay stale.
+            item.save()
 
             # Stock in good units (to available)
             if good > 0:
@@ -902,6 +910,8 @@ def purchase_order_receive(request, pk):
         # WO-bound PRs on this PO that the procurement is fulfilled.
         # The handler at WorkOrderBlockerService.sync_from_external_event
         # resolves SHORTAGE blockers matching the source PartShortageReport.
+        # This block is BEST-EFFORT — any exception here must NOT roll back
+        # the parent PO receive (Phase 1 v1.0.0 hardening — P0-4).
         try:
             from procurement.models import PurchaseRequest as _PR
             from maintenance.services_blocker import WorkOrderBlockerService
@@ -909,16 +919,48 @@ def purchase_order_receive(request, pk):
                 _report = getattr(_pr, "source_shortage_report", None)
                 if _report is None:
                     continue
-                WorkOrderBlockerService.sync_from_external_event(
-                    external_obj=_report,
-                    event_type="SHORTAGE_FULFILLED",
-                    actor=request.user,
-                    payload={"note": _("Auto-fulfilled via PO %s") % po.po_number},
-                )
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(
-                f"Failed to emit SHORTAGE_FULFILLED for PO {po.po_number}: {e}"
+                try:
+                    WorkOrderBlockerService.sync_from_external_event(
+                        external_obj=_report,
+                        event_type="SHORTAGE_FULFILLED",
+                        actor=request.user,
+                        payload={"note": _("Auto-fulfilled via PO %s") % po.po_number},
+                    )
+                except Exception:
+                    logger.exception(
+                        "sync_from_external_event(SHORTAGE_FULFILLED) failed "
+                        "for PR pk=%s on PO %s; receive not rolled back.",
+                        _pr.pk, po.po_number,
+                    )
+                # Also transition the shortage report itself to
+                # FULFILLED — the PO has been received in full, the report
+                # is in IN_FULFILLMENT with qty_issued already at the
+                # approved level. This keeps the report and its blocker
+                # in lock-step; without it the report stays stuck at
+                # IN_FULFLEMENT even though the underlying blocker is
+                # resolved.
+                if _report.status == "in_fulfillment":
+                    try:
+                        from inventory.services import transition_shortage_status
+                        transition_shortage_status(
+                            _report, "fulfilled",
+                            actor=request.user,
+                            note=_(f"Auto-fulfilled via PO {po.po_number}"),
+                        )
+                    except Exception:
+                        logger.exception(
+                            "transition_shortage_status(fulfilled) failed "
+                            "for shortage pk=%s on PO %s; receive not rolled back.",
+                            _report.pk, po.po_number,
+                        )
+        except Exception:
+            # Outer catch-all: anything we missed above (e.g. unexpected
+            # exception during the iteration) must not roll back the
+            # receive. The receive itself succeeded; only the side-effects
+            # are best-effort.
+            logger.exception(
+                "Unexpected error in shortage-resolve loop for PO %s; "
+                "receive not rolled back.", po.po_number,
             )
 
     # Outside atomic: fire summary notification

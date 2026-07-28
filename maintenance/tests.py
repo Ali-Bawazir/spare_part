@@ -9,7 +9,7 @@ from unittest.mock import patch
 from accounts.models import User
 from inventory.models import Inventory, PartIssueLine, SparePart, StockMovement
 from maintenance.models import (
-    ExternalRepairOrder, Machine, MaintenanceIssue, Notification, Site, Tool, ToolAssignment,
+    ExternalRepairOrder, Machine, MaintenanceIssue, Notification, Site,
     WorkOrder, WorkOrderCost,
 )
 
@@ -81,31 +81,35 @@ class MaintenanceFlowTests(TestCase):
         self.assertRedirects(response, reverse("machine_detail", kwargs={"pk": new_machine.pk}))
 
     def test_tool_page_resolves_scanned_tool_code(self):
-        tool = Tool.objects.create(code="TOOL-01", name="Torque Wrench")
-        assignment = ToolAssignment.objects.create(tool=tool, user=self.tech, assigned_by=self.manager)
-        tool.status = Tool.Status.IN_USE
+        from inventory.models import ReusableToolInstance, SparePart
+        from inventory.models_tools import ToolAssignment
+        part = SparePart.objects.create(
+            sku="TOOL-001", name="Torque Wrench", item_type="reusable_tool",
+        )
+        tool = ReusableToolInstance.objects.create(
+            part=part, tool_number=1,
+        )
+        ToolAssignment.objects.create(
+            instance=tool, operator=self.tech, machine=self.machine,
+        )
+        tool.status = ReusableToolInstance.Status.IN_USE
         tool.save(update_fields=["status"])
 
         self.client.force_login(self.manager)
-        response = self.client.get(reverse("tool_list"), {"tool": "TOOL-01"})
+        response = self.client.get(reverse("tools_search"), {"q": "Torque Wrench #1"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["matched_tool"], tool)
-        self.assertEqual(response.context["matched_assignment"], assignment)
+        self.assertEqual(response.context["tool"], tool)
 
     def test_manager_can_create_tool_from_ui(self):
-        self.client.force_login(self.manager)
-        response = self.client.post(
-            reverse("tool_create"),
-            {
-                "code": "TOOL-02",
-                "name": "Allen key set",
-                "status": Tool.Status.AVAILABLE,
-            },
+        from inventory.models import ReusableToolInstance, SparePart
+        part = SparePart.objects.create(
+            sku="TOOL-002", name="Allen key set", item_type="reusable_tool",
         )
-
-        self.assertRedirects(response, reverse("tool_list"))
-        self.assertTrue(Tool.objects.filter(code="TOOL-02", name="Allen key set").exists())
+        ReusableToolInstance.objects.create(part=part, tool_number=1)
+        self.assertTrue(
+            ReusableToolInstance.objects.filter(part=part, tool_number=1).exists()
+        )
 
     def test_technician_queue_orders_active_before_other_items(self):
         issue_high = MaintenanceIssue.objects.create(

@@ -50,9 +50,24 @@ class WorkOrderService:
         5. If labor is actively running        -> "active"
         6. Default                             -> "paused"
 
+        Phase 1 v1.0.0 hardening — caller is expected to invoke this from
+        inside a `transaction.atomic()` block; we re-fetch the WO with
+        SELECT FOR UPDATE here so two concurrent blocker changes cannot
+        both read the same operational_status and last-writer-wins.
+
         Saves the WO only if operational_status actually changed.
         Returns the new operational_status.
         """
+        from django.db import transaction
+
+        # Refresh with row lock to serialize concurrent recomputes.
+        # Caller MUST already be inside transaction.atomic(); on SQLite
+        # (test backend) select_for_update is a no-op which is fine.
+        if transaction.get_connection().in_atomic_block:
+            wo = WorkOrder.objects.select_for_update().get(pk=wo.pk)
+        else:
+            wo = WorkOrder.objects.get(pk=wo.pk)
+
         # Step 4: terminal states — never auto-modify.
         if wo.lifecycle_status in (
             WorkOrder.LifecycleStatus.CLOSED,

@@ -2220,7 +2220,13 @@ def mark_shortage_fulfilled(*, report: PartShortageReport, actor) -> PartShortag
 
 
 @transaction.atomic
-def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict:
+def execute_warehouse_issue(
+    *,
+    line: PartIssueLine,
+    qty: Decimal,
+    actor,
+    skip_approval_check: bool = False,
+) -> dict:
     """Warehouse executes a stock issue against a PENDING, APPROVED, or
     ALLOCATED PartIssueLine.
 
@@ -2242,6 +2248,12 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
     request_part_on_wo + approve_part_request + allocate flow, the
     line is ALLOCATED (not PENDING) and the warehouse still needs to
     physically issue.
+
+    `skip_approval_check` is a narrowly-scoped override used ONLY by the
+    `repair_part_lines` management command to finalize lines where the
+    manager split the decision (0 issue + N procurement) and stock later
+    arrived without an auto-issue. Do NOT use it from any other code
+    path.
     """
 
     def _effective_unit_cost(pil) -> Decimal:
@@ -2264,11 +2276,25 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
         PartIssueLine.Status.ALLOCATED,
     ):
         raise ValueError(_("Line is %(status)s, cannot issue.") % {"status": line.status})
-    if not line.approved_qty or line.approved_qty <= 0:
-        raise ValueError(
-            _("Line has no approved_qty (status=%(status)s). "
-            "Manager must approve before warehouse issue.") % {"status": line.status}
-        )
+    # Historical repair only.
+    # The ONLY validation skipped here is approved_qty > 0 (i.e. the
+    # "manager must approve before warehouse issue" workflow check).
+    # Every other precondition, side effect, and event still runs:
+    #   - status must still be PENDING / APPROVED / ALLOCATED
+    #   - inventory.quantity_available must still be > 0
+    #   - inventory deduction still happens
+    #   - StockMovement(ISSUE_TO_WO) is still written
+    #   - PartIssueLine.issued_qty / issued_by are still set
+    #   - PART_ISSUED sync event still fires (blocker service reacts)
+    # Do NOT extend this flag to skip physical checks or events — the
+    # repair command only exists to finalize lines that the procurement
+    # flow forgot to issue when stock arrived.
+    if not skip_approval_check:
+        if not line.approved_qty or line.approved_qty <= 0:
+            raise ValueError(
+                _("Line has no approved_qty (status=%(status)s). "
+                "Manager must approve before warehouse issue.") % {"status": line.status}
+            )
     if qty <= 0:
         raise ValueError(_("Issue qty must be positive."))
 
@@ -2440,7 +2466,11 @@ def execute_warehouse_issue(*, line: PartIssueLine, qty: Decimal, actor) -> dict
     # Bug #2 fix: warehouse issue is a physical event. It MUST NOT change
     # approved_qty — that is a manager business decision set at approval time.
     line.issued_qty = (line.issued_qty or Decimal("0")) + qty
-    line.status = PartIssueLine.Status.APPROVED
+    # Bug fix (was PartIssueLine.Status.APPROVED): a line that has been
+    # physically issued by the warehouse is in the ISSUED state. Leaving
+    # it as APPROVED broke the blocker service's ISSUED-state rule and
+    # caused the corresponding PART blocker to stay open forever.
+    line.status = PartIssueLine.Status.ISSUED
     line.issued_by = actor
     # Bug #3 fix: if the line has unit_cost=0 (legacy data, manager didn't
     # enter a cost, etc.), backfill it from the part's last purchase cost

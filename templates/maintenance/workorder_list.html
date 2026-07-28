@@ -35,7 +35,12 @@
       <tbody>
       {% for w in work_orders %}
       <tr class="mms-row--clickable" onclick="window.location='{% url 'work_order_detail' w.pk %}'" style="cursor:pointer">
-        <td><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>{% if w.is_emergency %} <span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}{% if w.rejection_count > 0 %} <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">↩ {{ w.rejection_count }}</span>{% endif %}</td>
+        <td>
+          <a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>
+          {% if w.is_emergency %} <span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}
+          {% if w.blocker_source_id %}<a href="{% url 'work_order_detail' w.blocker_source_id %}" class="mms-badge mms-badge--warning" onclick="event.stopPropagation()" title="{% trans 'Paused because this WO is waiting on another. Resolve the source WO to release.' %}">⛔ {% blocktrans with n=w.blocker_source_number %}BLOCKED by WO-{{ n }}{% endblocktrans %}</a>{% endif %}
+          {% if w.rejection_count > 0 %} <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">↩ {{ w.rejection_count }}</span>{% endif %}
+        </td>
         <td><a href="{% url 'work_order_detail' w.pk %}">{{ w.machine.name }}</a></td>
         <td>{% if w.component %}{{ w.component.name }}{% else %}—{% endif %}</td>
         <td><span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span></td>
@@ -44,21 +49,25 @@
         <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
         <td>
           {% if show_archived and w.is_archived %}
-            <form method="post" action="{% url 'work_order_restore' w.pk %}" style="display:inline"
-                  onsubmit="return confirm('{% blocktrans with n=w.number %}Restore WO-{{ n }} from archive?{% endblocktrans %}')">
-              {% csrf_token %}
-              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
-                {% trans "Restore" %}
-              </button>
-            </form>
+            {% if user.role == 'manager' or user.role == 'supervisor' or user.role == 'super_admin' %}
+              <form method="post" action="{% url 'work_order_restore' w.pk %}" style="display:inline"
+                    onsubmit="return confirm('{% blocktrans with n=w.number %}Restore WO-{{ n }} from archive?{% endblocktrans %}')">
+                {% csrf_token %}
+                <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
+                  {% trans "Restore" %}
+                </button>
+              </form>
+            {% endif %}
           {% elif not w.is_archived %}
-            <form method="post" action="{% url 'work_order_archive' w.pk %}" style="display:inline"
-                  onsubmit="return confirm('{% trans 'Archive this work order?' %}')">
-              {% csrf_token %}
-              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
-                {% trans "Archive" %}
-              </button>
-            </form>
+            {% if user.role == 'manager' or user.role == 'supervisor' or user.role == 'super_admin' %}
+              <form method="post" action="{% url 'work_order_archive' w.pk %}" style="display:inline"
+                    onsubmit="return confirm('{% trans 'Archive this work order?' %}')">
+                {% csrf_token %}
+                <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
+                  {% trans "Archive" %}
+                </button>
+              </form>
+            {% endif %}
           {% else %}
             <span class="mms-badge mms-badge--archived">{% trans "Archived" %}</span>
           {% endif %}

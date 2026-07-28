@@ -33,6 +33,18 @@ def transition_work_order(
     from_status = wo.lifecycle_status
     if from_status == to_status:
         return
+    # Phase 1 v1.0.0 hardening — refuse illegal lifecycle transitions.
+    # Allowed edges are declared in WorkOrder.VALID_LIFECYCLE_TRANSITIONS.
+    # Previously any caller could write lifecycle_status to any value.
+    legal_next = WorkOrder.VALID_LIFECYCLE_TRANSITIONS.get(
+        from_status, frozenset(),
+    )
+    if to_status not in legal_next:
+        raise ValueError(
+            f"Illegal WorkOrder lifecycle transition "
+            f"{from_status!r} → {to_status!r}. "
+            f"Allowed from {from_status!r}: {sorted(legal_next) or 'none (terminal)'}."
+        )
     wo.lifecycle_status = to_status
     wo.save(update_fields=["lifecycle_status", "updated_at"])
     WorkOrderStateLog.objects.create(
@@ -75,6 +87,18 @@ def transition_work_order(
             logging.getLogger(__name__).warning(
                 f"Failed to release stale reservations for WO #{wo.number}: {e}"
             )
+
+    # Release dependent OPERATIONAL blockers whenever this WO stops
+    # actively blocking others. The helper self-gates: if `wo` is still
+    # ACTIVE+IN_PROGRESS, this is a no-op; otherwise it resolves every
+    # open OPERATIONAL blocker whose source_work_order is `wo`.
+    try:
+        release_dependent_blockers(wo, actor)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to release dependent blockers for WO #{wo.number}: {e}"
+        )
 
 
 def release_stale_reservations_for_wo(wo, actor) -> int:
@@ -134,6 +158,87 @@ def release_stale_reservations_for_wo(wo, actor) -> int:
         )
         released += 1
     return released
+
+
+def source_still_blocks(wo: WorkOrder) -> bool:
+    """True iff `wo` is actively holding the technician's attention.
+
+    A WO blocks other WOs (auto-paused dependents) only while it is
+    being actively worked on. Any other state — terminal, paused on
+    parts/vendor, or paused by another blocker — means the technician
+    is not making forward progress on `wo`, so dependents should be
+    released.
+
+    This is the single invariant used everywhere operational blockers
+    are released (runtime + repair command).
+    """
+    return (
+        wo.lifecycle_status == WorkOrder.LifecycleStatus.IN_PROGRESS
+        and wo.operational_status == WorkOrder.OperationalStatus.ACTIVE
+    )
+
+
+def release_dependent_blockers(source_wo: WorkOrder, actor) -> int:
+    """Resolve open OPERATIONAL blockers pointing at `source_wo` when
+    `source_still_blocks(source_wo)` is False.
+
+    Pause_reason is preserved as-is (historical audit field). We only
+    check the live blocking condition. No recursion: if WO A is paused
+    by WO B and B is paused by WO C, fixing B will fix A the next time
+    B's state changes.
+    """
+    if source_still_blocks(source_wo):
+        return 0
+
+    from maintenance.models import WorkOrderBlocker
+    from maintenance.services_blocker import WorkOrderBlockerService
+
+    note = _(
+        "Source WO-%(number)s no longer blocking "
+        "(status: %(status)s) — auto-pause released."
+    ) % {
+        "number": source_wo.number,
+        "status": source_wo.get_lifecycle_status_display(),
+    }
+
+    blockers = (
+        WorkOrderBlocker.objects
+        .filter(
+            source_work_order=source_wo,
+            status=WorkOrderBlocker.Status.OPEN,
+            kind=WorkOrderBlocker.Kind.OPERATIONAL,
+        )
+        .select_related("work_order")
+    )
+
+    resolved = 0
+    affected_wos = set()
+    for blocker in blockers:
+        try:
+            WorkOrderBlockerService.resolve_blocker(
+                blocker=blocker,
+                resolution_note=note,
+                resolved_by=actor,
+            )
+            affected_wos.add(blocker.work_order_id)
+            resolved += 1
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to release dependent blocker #{blocker.pk}: {e}"
+            )
+
+    # Re-derive operational_status on each affected WO so the technician
+    # sees "active" again instead of stuck "paused".
+    if affected_wos:
+        from maintenance.services_wo_status import WorkOrderService
+        for wo in WorkOrder.objects.filter(pk__in=affected_wos):
+            try:
+                WorkOrderService.recompute_operational_status(wo)
+            except Exception:
+                pass
+
+    return resolved
 
 
 def pause_other_in_progress(
@@ -932,64 +1037,3 @@ def compute_compliance(*, window_days: int = 90, grace_days: int = 7, machine=No
         "grace_days": grace_days,
     }
 
-
-class ToolAvailabilityService:
-    """Centralized availability / reuse check for `Tool`.
-
-    Used by:
-      - `tool_assign` view (block bad assignments with explicit reason)
-      - `tools.html` template (red banner showing why a tool is unavailable)
-      - QR scan handler (preview before showing the assign form)
-
-    Returns a tuple `(ok: bool, reason: str)`.
-    """
-
-    @staticmethod
-    def can_assign(tool) -> "tuple[bool, str]":
-        """Return (ok, reason) for whether `tool` can be assigned right now.
-
-        ok=True:  tool.status == AVAILABLE. reason = "".
-        ok=False: tool.status in {IN_USE, OUT_OF_SERVICE}; reason is a translated
-                  human-readable string for UI display.
-        """
-        # Localised imports keep this module decoupled at import time.
-        from django.utils.translation import gettext_lazy as _
-
-        if tool.status == tool.Status.AVAILABLE:
-            return True, ""
-
-        if tool.status == tool.Status.IN_USE:
-            # Try to surface the current holder's name + since date.
-            from maintenance.models import ToolAssignment
-            ta = (
-                ToolAssignment.objects.filter(tool=tool, returned_at__isnull=True)
-                .select_related("user")
-                .order_by("-assigned_at")
-                .first()
-            )
-            holder = ta.user.get_full_name() or ta.user.username if ta else "?"
-            since = ta.assigned_at.strftime("%Y-%m-%d") if ta else "?"
-            return False, _(
-                "Currently assigned to %(holder)s since %(date)s."
-            ) % {"holder": holder, "date": since}
-
-        if tool.status == tool.Status.OUT_OF_SERVICE:
-            from maintenance.models import ToolDamageRecord
-            rec = (
-                ToolDamageRecord.objects.filter(tool=tool)
-                .order_by("-created_at")
-                .first()
-            )
-            if rec is not None:
-                supplier_label = rec.supplier.name if rec.supplier_id else _("unknown supplier")
-                return False, _(
-                    "Out of service — damaged %(date)s (supplier: %(supplier)s). "
-                    "Replacement status: %(action)s."
-                ) % {
-                    "date": rec.created_at.strftime("%Y-%m-%d"),
-                    "supplier": supplier_label,
-                    "action": rec.get_replacement_action_display(),
-                }
-            return False, _("Out of service.")
-
-        return False, _("Unknown status — cannot assign.")

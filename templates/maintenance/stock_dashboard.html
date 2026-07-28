@@ -33,15 +33,20 @@
       <input type="checkbox" name="consumable" value="1" {% if consumable_only %}checked{% endif %} onchange="this.form.submit()">
       <span class="small">{% trans "Consumables only" %}</span>
     </label>
+    <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer">
+      <input type="checkbox" name="reusable_tool" value="1" {% if reusable_tool_only %}checked{% endif %} onchange="this.form.submit()">
+      <span class="small">{% trans "Reusable Tools only" %}</span>
+    </label>
   </div>
 </div>
 
-{% if q or category or low_stock_only or consumable_only %}
+{% if q or category or low_stock_only or consumable_only or reusable_tool_only %}
 <div class="mms-form-tip" style="margin-bottom:0.75rem">
   Filters: {% if q %}SKU/name contains "{{ q }}"{% endif %}
   {% if category %} | Category: {{ category }}{% endif %}
   {% if low_stock_only %} | Low stock only{% endif %}
   {% if consumable_only %} | Consumables only{% endif %}
+  {% if reusable_tool_only %} | Reusable Tools only{% endif %}
 </div>
 {% endif %}
 
@@ -122,7 +127,15 @@
             <span class="mms-badge mms-badge--muted">OK</span>
           {% endif %}
         </td>
-        <td><a href="/media/qr/parts/PART_{{ p.sku }}.png" target="_blank" title={% trans "Print QR" %}>📋</a></td>
+        <td>
+          {% if p.item_type == 'reusable_tool' %}
+            <a href="{% url 'tools_issue' p.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">
+              {% trans "Issue to Tool Pool" %}
+            </a>
+          {% else %}
+            <a href="/media/qr/parts/PART_{{ p.sku }}.png" target="_blank" title={% trans "Print QR" %}>📋</a>
+          {% endif %}
+        </td>
       </tr>
       {% empty %}
       <tr><td colspan="12" class="mms-empty">{% trans "No parts found." %}</td></tr>

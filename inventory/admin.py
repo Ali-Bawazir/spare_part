@@ -3,7 +3,8 @@ from django.utils.translation import gettext_lazy as _
 
 from mms.admin_mixins import MMSAdminPermission
 
-from .models import Inventory, PartIssueLine, SparePart, StockMovement
+from .models import Inventory, PartIssueLine, ReusableToolInstance, SparePart, StockMovement
+from .models_tools import ToolAssignment, ToolDamageReport, ToolMovement
 
 
 @admin.register(Inventory)
@@ -134,7 +135,7 @@ class PartIssueLineAdmin(MMSAdminPermission, admin.ModelAdmin):
         "work_order__number", "part__sku", "part__name",
         "issued_by__username", "requested_by__username", "approved_by__username",
     )
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "status")
     raw_id_fields = ("work_order", "part", "issued_by", "requested_by", "approved_by")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
@@ -145,3 +146,45 @@ class PartIssueLineAdmin(MMSAdminPermission, admin.ModelAdmin):
         (_("Decision"), {"fields": ("rejection_reason", "is_emergency_auto_approved")}),
         (_("Timestamps"), {"fields": ("created_at", "updated_at")}),
     )
+
+
+@admin.register(ReusableToolInstance)
+class ReusableToolInstanceAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("display_name", "status", "is_active", "created_at")
+    list_filter = ("status", "is_active", "part")
+    search_fields = ("part__sku", "part__name", "tool_number")
+    raw_id_fields = ("part", "source_stock_movement")
+    readonly_fields = ("created_at", "status")
+    ordering = ("part__name", "tool_number")
+
+
+@admin.register(ToolAssignment)
+class ToolAssignmentAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("instance", "operator", "machine", "checkout_at", "return_at", "condition_in")
+    list_filter = ("condition_out", "condition_in")
+    search_fields = ("instance__part__name", "instance__tool_number", "operator__username")
+    raw_id_fields = ("instance", "operator", "machine")
+    date_hierarchy = "checkout_at"
+    ordering = ("-checkout_at",)
+
+
+@admin.register(ToolDamageReport)
+class ToolDamageReportAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("id", "instance", "status", "reported_by", "damage_date", "repair_cost", "resolved_by")
+    list_filter = ("status",)
+    search_fields = ("instance__part__name", "instance__tool_number", "reason", "reported_by__username")
+    raw_id_fields = ("instance", "reported_by", "machine", "assignment", "resolved_by")
+    date_hierarchy = "damage_date"
+    ordering = ("-damage_date",)
+
+
+@admin.register(ToolMovement)
+class ToolMovementAdmin(MMSAdminPermission, admin.ModelAdmin):
+    list_display = ("instance", "movement_type", "actor", "machine", "created_at")
+    list_filter = ("movement_type",)
+    search_fields = ("instance__part__name", "instance__tool_number", "actor__username", "note")
+    raw_id_fields = ("instance", "actor", "machine", "assignment", "damage_report")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+    def has_add_permission(self, request):
+        return False

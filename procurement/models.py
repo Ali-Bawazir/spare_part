@@ -3,8 +3,6 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models.expressions import RawSQL
-from django.db.models import Max
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -259,19 +257,46 @@ class PurchaseOrder(models.Model):
         return f"PO-{self.po_number}"
 
     def save(self, *args, **kwargs):
+        from django.db import IntegrityError, transaction
+
         if not self.po_number:
             year = timezone.now().year
             prefix = f"PO-{year}-"
-            last_suffix = PurchaseOrder.objects.filter(
-                po_number__startswith=prefix
-            ).annotate(
-                suffix=RawSQL(
-                    "CAST(SUBSTRING(po_number FROM %s) AS INTEGER)",
-                    (len(prefix) + 1,),
-                )
-            ).aggregate(m=Max("suffix"))["m"]
-            next_num = (last_suffix or 0) + 1
-            self.po_number = f"PO-{year}-{next_num:04d}"
+            # Race-safe numbering: SELECT-MAX-then-INSERT is not atomic for two
+            # concurrent creates. Retry on IntegrityError, refreshing max between
+            # attempts. Uses portable Python-side cast (int(...)) so the same
+            # code path works on Postgres and SQLite (Phase 1 v1.0.0 hardening:
+            # the previous RawSQL "CAST(SUBSTRING(po_number FROM n) AS INTEGER)"
+            # raised sqlite3.OperationalError on SQLite).
+            last_integrity_error: IntegrityError | None = None
+            for _attempt in range(5):
+                last_suffix = None
+                for existing in (
+                    PurchaseOrder.objects.filter(po_number__startswith=prefix)
+                    .order_by("-po_number")
+                    .values_list("po_number", flat=True)[:50]
+                ):
+                    try:
+                        n = int(existing[len(prefix):])
+                        if last_suffix is None or n > last_suffix:
+                            last_suffix = n
+                    except (TypeError, ValueError):
+                        continue
+                next_num = (last_suffix or 0) + 1
+                self.po_number = f"PO-{year}-{next_num:04d}"
+                try:
+                    with transaction.atomic():
+                        super().save(*args, **kwargs)
+                    return
+                except IntegrityError as exc:
+                    last_integrity_error = exc
+                    self.po_number = ""  # force regeneration on next loop
+                    continue
+            raise RuntimeError(
+                f"PurchaseOrder.save: exhausted 5 retries on UNIQUE po_number "
+                f"collision ({type(last_integrity_error).__name__}: "
+                f"{last_integrity_error})."
+            ) from last_integrity_error
         super().save(*args, **kwargs)
 
     @property
@@ -315,18 +340,6 @@ class PurchaseOrderItem(models.Model):
         null=True,
         blank=True,
     )
-    tool = models.ForeignKey(
-        "maintenance.Tool",
-        on_delete=models.PROTECT,
-        related_name="po_items",
-        null=True,
-        blank=True,
-        help_text=_(
-            "Set when this PO line is for a tool (e.g. a damaged tool being "
-            "reordered). Mutually exclusive with `part` — exactly one of "
-            "`part` or `tool` must be set."
-        ),
-    )
     ordered_qty = models.DecimalField(max_digits=14, decimal_places=3)
     received_qty = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0"))
     negotiated_unit_price = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal("0"),
@@ -349,21 +362,12 @@ class PurchaseOrderItem(models.Model):
         verbose_name_plural = _("purchase order items")
 
     def __str__(self) -> str:
-        label = self.part.sku if self.part_id else (self.tool.code if self.tool_id else "?")
-        return f"{label} x{self.ordered_qty} (recv {self.received_qty})"
+        return f"{self.part.sku} x{self.ordered_qty} (recv {self.received_qty})"
 
     def clean(self):
         super().clean()
-        has_part = bool(self.part_id)
-        has_tool = bool(self.tool_id)
-        if has_part and has_tool:
-            raise ValidationError(
-                _("A PO line item must reference either a part or a tool, not both.")
-            )
-        if not has_part and not has_tool:
-            raise ValidationError(
-                _("A PO line item must reference a part or a tool.")
-            )
+        if not self.part_id:
+            raise ValidationError(_("A PO line item must reference a part."))
 
     @property
     def remaining_qty(self) -> Decimal:
