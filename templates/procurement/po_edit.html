@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Edit PO {{ po.po_number }}{% endblock %}
+{% block page_heading %}{% trans "Edit" %} — PO {{ po.po_number }}{% endblock %}
+{% block content %}
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <strong>{% trans "PO Number" %}:</strong> {{ po.po_number }}
+        &nbsp;·&nbsp;
+        <strong>{% trans "Status" %}:</strong>
+        <span class="{{ po.status|po_status_badge_class }}">{{ po.get_status_display }}</span>
+        &nbsp;·&nbsp;
+        <strong>{% trans "Supplier" %}:</strong> {{ po.supplier.name|default:"—" }}
+    </div>
+</div>
+
+<div class="mms-card">
+    <div class="mms-card-body">
+        <form method="post" class="mms-form">
+            {% csrf_token %}
+
+            <div class="mms-form-row">
+                {{ form.supplier.label_tag }}
+                {{ form.supplier }}
+                {% if form.supplier.errors %}<div class="mms-field-error">{{ form.supplier.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.invoice_ref.label_tag }}
+                {{ form.invoice_ref }}
+                {% if form.invoice_ref.errors %}<div class="mms-field-error">{{ form.invoice_ref.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.expected_delivery.label_tag }}
+                {{ form.expected_delivery }}
+                {% if form.expected_delivery.errors %}<div class="mms-field-error">{{ form.expected_delivery.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.notes.label_tag }}
+                {{ form.notes }}
+                {% if form.notes.errors %}<div class="mms-field-error">{{ form.notes.errors }}</div>{% endif %}
+            </div>
+
+            {% if form.handled_by %}
+            <div class="mms-form-row">
+                {{ form.handled_by.label_tag }}
+                {{ form.handled_by }}
+                {% if form.handled_by.errors %}<div class="mms-field-error">{{ form.handled_by.errors }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            {% if form.status %}
+            <div class="mms-form-row">
+                {{ form.status.label_tag }}
+                {{ form.status }}
+                {% if form.status.errors %}<div class="mms-field-error">{{ form.status.errors }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            <h3 style="margin-top:1.5rem">{% trans "Line Items — Unit Prices" %}</h3>
+            <p class="text-muted" style="font-size:0.85rem">{% trans "Edit the negotiated unit price per line. Quantities cannot be changed here — cancel and re-issue if needed." %}</p>
+            <table class="mms-table">
+                <thead>
+                    <tr>
+                        <th>{% trans "Part" %}</th>
+                        <th>{% trans "SKU" %}</th>
+                        <th>{% trans "Ordered Qty" %}</th>
+                        <th>{% trans "In Stock" %}</th>
+                        <th>{% trans "Negotiated Unit Price" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for entry in items_with_inventory %}
+                    <tr>
+                        <td>{{ entry.item.part.name }}</td>
+                        <td>{{ entry.item.part.sku }}</td>
+                        <td>{{ entry.item.ordered_qty }}</td>
+                        <td>{{ entry.inventory_qty }}</td>
+                        <td>
+                            <input name="unit_price_{{ entry.item.pk }}"
+                                   type="number" step="0.0001" min="0"
+                                   value="{{ entry.item.negotiated_unit_price }}"
+                                   style="width:10rem;padding:0.3rem;border:1px solid #cbd5e1;border-radius:4px">
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1rem">{% trans "No line items on this PO." %}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="mms-form-actions" style="margin-top:1rem">
+                <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save Changes" %}</button>
+                <a href="{% url 'purchase_order_detail' po.pk %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

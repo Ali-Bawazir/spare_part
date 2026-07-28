@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Supplier analytics{% endblock %}
+
+{% block content %}
+<div class="mms-page-header">
+  <div>
+    <h1 class="mms-page-title">{% trans "Supplier analytics" %}</h1>
+    <p class="mms-page-lead">Performance per supplier over the last {{ days }} days, sorted by total spend.</p>
+  </div>
+  <div class="mms-page-actions">
+    {% for opt in days_options %}
+      <a class="mms-btn mms-btn--sm {% if opt == days %}mms-btn--primary{% else %}mms-btn--ghost{% endif %}"
+         href="?days={{ opt }}">{{ opt }}d</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="mms-kpi-row">
+  <div class="mms-kpi">
+    <div class="mms-kpi-value">${{ totals.spend|floatformat:2 }}</div>
+    <div class="mms-kpi-label">{% trans "Total spend" %}</div>
+  </div>
+  <div class="mms-kpi">
+    <div class="mms-kpi-value">{{ totals.suppliers }}</div>
+    <div class="mms-kpi-label">{% trans "Suppliers" %}</div>
+  </div>
+  <div class="mms-kpi">
+    <div class="mms-kpi-value">{{ totals.pos }}</div>
+    <div class="mms-kpi-label">{% trans "POs" %}</div>
+  </div>
+  <div class="mms-kpi">
+    <div class="mms-kpi-value">{{ totals.on_time|floatformat:1 }}%</div>
+    <div class="mms-kpi-label">{% trans "Avg on-time" %}</div>
+  </div>
+</div>
+
+<div class="mms-card">
+  <div class="mms-card-header">{% trans "Per-supplier breakdown" %}</div>
+  {% if rows %}
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>{% trans "Supplier" %}</th>
+        <th class="num">{% trans "POs" %}</th>
+        <th class="num">{% trans "Total spend" %}</th>
+        <th class="num">{% trans "On-time %" %}</th>
+        <th class="num">{% trans "Avg cycle (days)" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>
+          <a href="{% url 'purchase_order_by_supplier' %}?supplier={{ r.supplier.id }}">{{ r.supplier.name }}</a>
+          <small class="mms-muted">{{ r.supplier.code }}</small>
+        </td>
+        <td class="num">{{ r.po_count }}</td>
+        <td class="num">${{ r.total_spend|floatformat:2 }}</td>
+        <td class="num">
+          {% if r.on_time_rate >= 80 %}
+            <span class="mms-badge mms-badge--ok">{{ r.on_time_rate|floatformat:1 }}%</span>
+          {% elif r.on_time_rate >= 50 %}
+            <span class="mms-badge mms-badge--warn">{{ r.on_time_rate|floatformat:1 }}%</span>
+          {% else %}
+            <span class="mms-badge mms-badge--danger">{{ r.on_time_rate|floatformat:1 }}%</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ r.avg_cycle_days|floatformat:1 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="mms-empty">
+    <p>{% blocktrans with d=days %}No supplier activity in the last {{ d }} days.{% endblocktrans %}</p>
+    <p class="mms-muted">{% trans "Try a wider range, or create and receive a PO." %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

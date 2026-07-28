@@ -1,34 +1,36 @@
 {% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
 {% block title %}Notifications{% endblock %}
-{% block page_heading %}Notifications{% endblock %}
+{% block page_heading %}{% trans "Notifications" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">In-app alerts: new issues, validated issues, <strong>emergency work orders</strong>, assignments, manager review, <strong>overdue PM</strong>, low stock, purchase requests, and repair returns. Unread count appears in the sidebar.</p>
+<p class="mms-page-lead">{% trans "In-app alerts: new issues, validated issues," %}<strong>{% trans "emergency work orders" %}</strong>{% trans ", assignments, manager review," %}<strong>{% trans "overdue PM" %}</strong>{% trans ", low stock, purchase requests, and repair returns. Unread count appears in the sidebar." %}</p>
 <div class="mms-actions" style="margin-bottom:1rem">
   <form method="post" action="{% url 'notification_mark_all_read' %}">
     {% csrf_token %}
-    <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Mark all read</button>
+    <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Mark all read" %}</button>
   </form>
 </div>
 <div class="mms-card">
-  <div class="mms-card-header">Recent</div>
+  <div class="mms-card-header">{% trans "Recent" %}</div>
   <div class="mms-card-body mms-stack" style="gap:0">
     {% for n in notifications %}
-    <div class="mms-notif-row{% if not n.read_at %} mms-notif-row--unread{% endif %}">
+    <div class="mms-notif-row{% if not n.read_at %} mms-notif-row--unread{% endif %}{% if n.is_critical %} mms-notif-row--critical{% endif %}">
       <div class="mms-notif-row__body">
         <div class="mms-notif-row__title">{{ n.title }}</div>
         {% if n.body %}<div style="font-size:.85rem;opacity:.9;margin-top:.25rem">{{ n.body }}</div>{% endif %}
-        <div class="mms-notif-row__meta">{{ n.created_at }} · {{ n.get_kind_display }}</div>
-        {% if n.link %}<div style="margin-top:.35rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{{ n.link }}">Open</a></div>{% endif %}
+        <div class="mms-notif-row__meta">{{ n.created_at|mms_datetime }} · {{ n.get_kind_display }}</div>
+        {% if n.link %}<div style="margin-top:.35rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{{ n.link }}">{% trans "Open" %}</a></div>{% endif %}
       </div>
       {% if not n.read_at %}
       <form method="post" action="{% url 'notification_mark_read' n.pk %}">
         {% csrf_token %}
-        <button type="submit" class="mms-btn mms-btn--sm">Read</button>
+        <button type="submit" class="mms-btn mms-btn--sm">{% trans "Read" %}</button>
       </form>
       {% endif %}
     </div>
     {% empty %}
-    <div class="mms-empty">No notifications yet.</div>
+    <div class="mms-empty">{% trans "No notifications yet." %}</div>
     {% endfor %}
   </div>
 </div>

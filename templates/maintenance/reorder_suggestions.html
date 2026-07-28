@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Reorder Suggestions{% endblock %}
+{% block page_heading %}{% trans "Reorder Suggestions" %}{% endblock %}
+{% block content %}
+<p class="mms-page-lead">{{ count }} part{{ count|pluralize }} below minimum stock level.</p>
+
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>{% trans "SKU" %}</th>
+        <th>{% trans "Image" %}</th>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Category" %}</th>
+        <th>{% trans "Current" %}</th>
+        <th>{% trans "Min" %}</th>
+        <th>{% trans "Max" %}</th>
+        <th>{% trans "Suggested" %}</th>
+        <th>{% trans "Supplier" %}</th>
+        <th>{% trans "Last cost" %}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+      {% for p in parts %}
+      <tr>
+        <td><code>{{ p.sku }}</code></td>
+        <td>
+          {% part_primary_image p as img %}
+          {% if img %}
+            <a href="{{ img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
+            </a>
+          {% else %}
+            <span class="mms-badge mms-badge--warning" title={% trans "This part has no primary image. Upload one in the part detail page." %}>{% trans "⚠ Missing Image" %}</span>
+          {% endif %}
+        </td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.category|default:"—" }}</td>
+        <td>{{ p.effective_qty }}</td>
+        <td>{{ p.min_stock_level }}</td>
+        <td>{{ p.max_stock_level|default:"—" }}</td>
+        <td><strong>{{ p.suggested_qty }}</strong></td>
+        <td>{% if p.supplier %}{{ p.supplier.code }}{% else %}—{% endif %}</td>
+        <td>{% if p.last_purchase_cost %}{{ p.last_purchase_cost }}{% else %}—{% endif %}</td>
+        <td><a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'purchase_create' %}?part={{ p.pk }}&qty={{ p.suggested_qty }}">{% trans "Create PR" %}</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="11" class="mms-empty">{% trans "All parts are above minimum stock." %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}{{ supplier.name }} — Suppliers{% endblock %}
+{% block page_heading %}{{ supplier.code }} — {{ supplier.name }}{% endblock %}
+{% block content %}
+<div class="mms-link-back">
+  <a href="{% url 'supplier_list' %}">{% trans "← Back to suppliers" %}</a>
+</div>
+
+<div class="mms-grid mms-grid--2" style="margin-top:1rem; gap:1.5rem">
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Contact information" %}</div>
+    <div class="mms-card-body">
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td class="text-muted small" style="width:120px">{% trans "Contact person" %}</td><td>{{ supplier.contact_person|default:"—" }}</td></tr>
+        <tr><td class="text-muted small">{% trans "Phone" %}</td><td>{{ supplier.phone|default:"—" }}</td></tr>
+        <tr><td class="text-muted small">{% trans "Email" %}</td><td>{{ supplier.email|default:"—" }}</td></tr>
+        <tr><td class="text-muted small">{% trans "Address" %}</td><td>{{ supplier.address|default:"—"|linebreaks }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Status" %}</div>
+    <div class="mms-card-body">
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td class="text-muted small" style="width:120px">{% trans "Active" %}</td>
+          <td>
+            {% if supplier.is_active %}
+              <span class="mms-badge mms-badge--success">{% trans "Active" %}</span>
+            {% else %}
+              <span class="mms-badge mms-badge--muted">{% trans "Inactive" %}</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr><td class="text-muted small">{% trans "Type" %}</td>
+          <td>
+            {% if supplier.supplier_type == "parts_supplier" %}
+              <span class="mms-badge mms-badge--muted">{% trans "Parts supplier" %}</span>
+            {% elif supplier.supplier_type == "repair_vendor" %}
+              <span class="mms-badge mms-badge--info">{% trans "Repair vendor" %}</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr><td class="text-muted small">{% trans "Code" %}</td><td><code>{{ supplier.code }}</code></td></tr>
+        <tr><td class="text-muted small">QR</td>
+          <td>
+            {% if supplier.code %}
+              <a href="/media/qr/suppliers/SUPPLIER_{{ supplier.code }}.png" target="_blank">
+                <img src="/media/qr/suppliers/SUPPLIER_{{ supplier.code }}.png" width="80" height="80" style="border:1px solid #e2e8f0;border-radius:6px">
+              </a>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mms-actions" style="margin:1.5rem 0">
+  <a class="mms-btn mms-btn--primary" href="{% url 'supplier_edit' supplier.pk %}">{% trans "Edit supplier" %}</a>
+  <a class="mms-btn mms-btn--ghost" href="{% url 'supplier_export_csv' supplier.pk %}">{% trans "Export CSV" %}</a>
+</div>
+
+{% if repair_count or parts_count %}
+<div class="mms-grid mms-grid--2" style="margin-bottom:1rem; gap:1rem">
+  {% if repair_count %}
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Repair totals" %}</div>
+    <div class="mms-card-body">
+      <div class="mms-grid mms-grid--3">
+        <div>
+          <div class="text-muted small">{% trans "Repairs" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ repair_count }}</div>
+        </div>
+        <div>
+          <div class="text-muted small">{% trans "Total cost" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ repair_total|floatformat:2 }} SAR</div>
+        </div>
+        <div>
+          <div class="text-muted small">{% trans "Average cost" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ repair_avg|floatformat:2 }} SAR</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if parts_count %}
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Purchases totals" %}</div>
+    <div class="mms-card-body">
+      <div class="mms-grid mms-grid--2">
+        <div>
+          <div class="text-muted small">{% trans "Receipts" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ parts_count }}</div>
+        </div>
+        <div>
+          <div class="text-muted small">{% trans "Total spent" %}</div>
+          <div style="font-size:1.5rem;font-weight:600">{{ parts_total|floatformat:2 }} SAR</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if repair_history or legacy_repairs %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{% trans "Repair history" %} ({{ repair_count }})</div>
+  <div class="mms-card-body">
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Machine" %}</th>
+          <th>{% trans "Title" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Cost" %}</th>
+          <th></th>
+        </tr></thead>
+        <tbody>
+        {% for ero in repair_history %}
+        <tr>
+          <td>{{ ero.created_at|mms_date }}</td>
+          <td>{{ ero.machine.name|default:"—" }}{% if ero.component %} / {{ ero.component.name }}{% endif %}</td>
+          <td>{{ ero.title }}</td>
+          <td><span class="mms-badge">{{ ero.get_status_display }}</span></td>
+          <td>{{ ero.actual_cost|floatformat:2|default:"—" }}</td>
+          <td><a href="{% url 'repair_officer' ero.pk %}" class="mms-btn mms-btn--sm">{% trans "Open" %}</a></td>
+        </tr>
+        {% endfor %}
+        {% for ero in legacy_repairs %}
+        <tr class="text-muted">
+          <td>{{ ero.created_at|mms_date }}</td>
+          <td>{{ ero.machine.name|default:"—" }}</td>
+          <td>{{ ero.title }} <small>({% trans "legacy" %})</small></td>
+          <td><span class="mms-badge">{{ ero.get_status_display }}</span></td>
+          <td>{{ ero.actual_cost|floatformat:2|default:"—" }}</td>
+          <td><a href="{% url 'repair_officer' ero.pk %}" class="mms-btn mms-btn--sm">{% trans "Open" %}</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if stock_history or legacy_stock %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{% trans "Stock received" %}</div>
+  <div class="mms-card-body">
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr>
+          <th>{% trans "Date" %}</th>
+          <th>{% trans "Part" %}</th>
+          <th>{% trans "Qty" %}</th>
+          <th>{% trans "Invoice" %}</th>
+          <th>{% trans "Unit cost" %}</th>
+          <th>{% trans "Work order" %}</th>
+        </tr></thead>
+        <tbody>
+        {% for m in stock_history %}
+        <tr>
+          <td>{{ m.created_at|mms_date }}</td>
+          <td>{{ m.part.sku }} — {{ m.part.name }}</td>
+          <td>{{ m.quantity }}</td>
+          <td>{{ m.invoice_ref|default:"—" }}</td>
+          <td>{{ m.unit_cost|floatformat:4|default:"—" }}</td>
+          <td>{% if m.work_order %}<a href="{% url 'work_order_detail' m.work_order.pk %}">WO-{{ m.work_order.number }}</a>{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% for m in legacy_stock %}
+        <tr class="text-muted">
+          <td>{{ m.created_at|mms_date }}</td>
+          <td>{{ m.part.sku }} — {{ m.part.name }} <small>({% trans "legacy" %})</small></td>
+          <td>{{ m.quantity }}</td>
+          <td>{{ m.invoice_ref|default:"—" }}</td>
+          <td>{{ m.unit_cost|floatformat:4|default:"—" }}</td>
+          <td>{% if m.work_order %}<a href="{% url 'work_order_detail' m.work_order.pk %}">WO-{{ m.work_order.number }}</a>{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if linked_parts %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{% trans "Default parts" %} ({{ linked_parts|length }})</div>
+  <div class="mms-card-body">
+    <div class="mms-table-wrap">
+      <table class="mms-table">
+        <thead><tr><th>{% trans "SKU" %}</th><th>{% trans "Name" %}</th><th>{% trans "Category" %}</th><th>{% trans "Is consumable" %}</th></tr></thead>
+        <tbody>
+        {% for p in linked_parts %}
+        <tr>
+          <td><code>{{ p.sku }}</code></td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.category|default:"—" }}</td>
+          <td>{{ p.is_consumable|yesno:"Yes,No" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if recent_prs %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{% trans "Pending purchase requests" %}</div>
+  <div class="mms-card-body">
+    <ul>
+      {% for pr in recent_prs %}
+      <li>PR #{{ pr.pk }} — {{ pr.part.sku }} x{{ pr.quantity }} — {{ pr.created_at|mms_date }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% if supplier.notes %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{% trans "Notes" %}</div>
+  <div class="mms-card-body">{{ supplier.notes|linebreaks }}</div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Inventory Reservations — Bawazir Maintenance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h1>{% trans "🗃️ Inventory Reservations" %}</h1>
+  <p class="text-muted">
+    Soft-claim reservations. ACTIVE rows hold stock for a specific WO
+    but do not yet deduct inventory. Released automatically on warehouse
+    issue; cancelled on line rejection.
+  </p>
+
+  <div class="mms-card-row" style="display: flex; gap: 1rem; margin: 1rem 0;">
+    <div class="mms-card" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+      <div style="font-size: 0.85em; color: #666;">{% trans "ACTIVE" %}</div>
+      <div style="font-size: 1.5em; font-weight: bold;">{{ active_count }}</div>
+    </div>
+    <div class="mms-card" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+      <div style="font-size: 0.85em; color: #666;">{% trans "RELEASED" %}</div>
+      <div style="font-size: 1.5em; font-weight: bold;">{{ released_count }}</div>
+    </div>
+    <div class="mms-card" style="flex: 1; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+      <div style="font-size: 0.85em; color: #666;">{% trans "CANCELLED" %}</div>
+      <div style="font-size: 1.5em; font-weight: bold;">{{ cancelled_count }}</div>
+    </div>
+  </div>
+
+  <div class="mms-filter-bar" style="margin: 1rem 0;">
+    <strong>{% trans "Filter:" %}</strong>
+    <a href="?status=active" class="{% if status_filter == 'active' %}mms-badge mms-badge-blue{% endif %}" style="margin-left: 0.5rem;">{% trans "Active" %}</a>
+    <a href="?status=released" class="{% if status_filter == 'released' %}mms-badge mms-badge-blue{% endif %}" style="margin-left: 0.5rem;">{% trans "Released" %}</a>
+    <a href="?status=cancelled" class="{% if status_filter == 'cancelled' %}mms-badge mms-badge-blue{% endif %}" style="margin-left: 0.5rem;">{% trans "Cancelled" %}</a>
+    <a href="?status=all" class="{% if status_filter == 'all' %}mms-badge mms-badge-blue{% endif %}" style="margin-left: 0.5rem;">{% trans "All" %}</a>
+  </div>
+
+  <h2 style="margin-top: 1.5rem;">{% trans "By part (active only, top 25)" %}</h2>
+  {% if by_part %}
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "SKU" %}</th>
+        <th>{% trans "Total reserved" %}</th>
+        <th>{% trans "# WOs" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in by_part %}
+      <tr>
+        <td>{{ row.part__name }}</td>
+        <td><code>{{ row.part__sku }}</code></td>
+        <td><strong>{{ row.total_reserved|floatformat:3 }}</strong></td>
+        <td>{{ row.wo_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="mms-empty">{% trans "No active reservations." %}</div>
+  {% endif %}
+
+  <h2 style="margin-top: 2rem;">Reservations ({{ status_filter }})</h2>
+  {% if reservations %}
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "SKU" %}</th>
+        <th>{% trans "Qty" %}</th>
+        <th>{% trans "Status" %}</th>
+        <th>WO</th>
+        <th>{% trans "Source line" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Released" %}</th>
+        <th>{% trans "Reason" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reservations %}
+      <tr>
+        <td>{{ r.part.name }}</td>
+        <td><code>{{ r.part.sku }}</code></td>
+        <td>{{ r.quantity|floatformat:3 }}</td>
+        <td>
+          {% if r.status == "active" %}
+            <span class="mms-badge mms-badge-amber">{% trans "active" %}</span>
+          {% elif r.status == "released" %}
+            <span class="mms-badge mms-badge-green">{% trans "released" %}</span>
+          {% else %}
+            <span class="mms-badge mms-badge-red">{% trans "cancelled" %}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r.work_order_id %}
+            <a href="{% url 'work_order_detail' r.work_order_id %}">WO-{{ r.work_order.number|default:r.work_order_id }}</a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r.source_line_id %}
+            L-{{ r.source_line_id }}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td><small>{{ r.created_at|mms_datetime }}</small></td>
+        <td><small>{{ r.released_at|mms_datetime|default:"-" }}</small></td>
+        <td><small>{{ r.release_reason|truncatechars:60|default:"-" }}</small></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if reservations|length >= 200 %}
+    <p class="text-muted" style="margin-top: 0.5rem;">{% trans "Showing the first 200 rows." %}</p>
+  {% endif %}
+  {% else %}
+  <div class="mms-empty">{% trans "No reservations matching this filter." %}</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% load mms_extras %}
+{% load i18n %}
+{% comment %}
+      Phase 3A — Blocker History panel.
+      Renders one row per non-OPEN WorkOrderBlocker (RESOLVED / CANCELLED),
+      with the most recent 5 events per blocker for the forensic timeline.
+      Context variables (provided by work_order_detail view):
+        - blocker_history : queryset[WorkOrderBlocker] (status != OPEN)
+                           prefetched with .events (and .events__actor)
+{% endcomment %}
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header" style="background:#f3f4f6">
+    📜 Blocker History ({{ blocker_history|length }})
+  </div>
+  <div class="mms-card-body mms-stack">
+
+    {% if blocker_history %}
+      {% for blocker in blocker_history %}
+      <div style="border:1px solid #e5e7eb;background:#fafafa;border-radius:4px;padding:.5rem .75rem">
+
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.25rem">
+          {% if blocker.kind == 'part' %}
+            <span style="font-size:1rem">⏳</span>
+          {% elif blocker.kind == 'shortage' %}
+            <span style="font-size:1rem">📋</span>
+          {% elif blocker.kind == 'vendor_repair' %}
+            <span style="font-size:1rem">🔧</span>
+          {% elif blocker.kind == 'operational' %}
+            <span style="font-size:1rem">⏸</span>
+          {% endif %}
+          <strong>{{ blocker.get_kind_display|default:blocker.kind }}</strong>
+          {% if blocker.external_label %}
+            <span style="color:#374151">{{ blocker.external_label }}</span>
+          {% endif %}
+
+          {% if blocker.status == 'resolved' %}
+            <span class="mms-badge mms-badge--success">{% trans "RESOLVED" %}</span>
+          {% elif blocker.status == 'cancelled' %}
+            <span class="mms-badge mms-badge--muted">{% trans "CANCELLED" %}</span>
+          {% else %}
+            <span class="mms-badge mms-badge--muted">{{ blocker.get_status_display|default:blocker.status }}</span>
+          {% endif %}
+        </div>
+
+        <div style="font-size:.8rem;line-height:1.5">
+          <div>
+            <span class="text-muted">{% trans "Opened:" %}</span>
+            {{ blocker.opened_at|mms_datetime }}
+            {% if blocker.opened_by %}by {{ blocker.opened_by.get_full_name|default:blocker.opened_by.username }}{% else %}by system{% endif %}
+          </div>
+          {% if blocker.resolved_at %}
+          <div>
+            <span class="text-muted">{% trans "Resolved:" %}</span>
+            {{ blocker.resolved_at|mms_datetime }}
+            {% if blocker.resolved_by %}by {{ blocker.resolved_by.get_full_name|default:blocker.resolved_by.username }}{% else %}by system{% endif %}
+          </div>
+          {% endif %}
+          {% if blocker.cancelled_at %}
+          <div>
+            <span class="text-muted">{% trans "Cancelled:" %}</span>
+            {{ blocker.cancelled_at|mms_datetime }}
+            {% if blocker.cancelled_by %}by {{ blocker.cancelled_by.get_full_name|default:blocker.cancelled_by.username }}{% else %}by system{% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        {% if blocker.resolution_note %}
+        <div style="font-size:.8rem;margin-top:.35rem">
+          <span class="text-muted">{% trans "Resolution:" %}</span> {{ blocker.resolution_note }}
+        </div>
+        {% endif %}
+        {% if blocker.cancel_reason %}
+        <div style="font-size:.8rem;margin-top:.35rem">
+          <span class="text-muted">{% trans "Cancel reason:" %}</span> {{ blocker.cancel_reason }}
+        </div>
+        {% endif %}
+
+        {% with events=blocker.events.all %}
+          {% if events %}
+          <div style="font-size:.75rem;margin-top:.5rem;border-top:1px dashed #e5e7eb;padding-top:.35rem">
+            <span class="text-muted" style="font-weight:600">{% trans "Events:" %}</span>
+            <ul style="margin:.25rem 0 0 0;padding-left:1.1rem">
+              {% for event in events|slice:":5" %}
+                <li>
+                  {{ event.created_at|mms_datetime }} —
+                  <code>{{ event.event_type }}</code>
+                  by {% if event.actor %}{{ event.actor.get_full_name|default:event.actor.username }}{% else %}system{% endif %}
+                </li>
+              {% endfor %}
+              {% if events|length > 5 %}
+                <li class="text-muted">… and {{ events|length|add:"-5" }} more</li>
+              {% endif %}
+            </ul>
+          </div>
+          {% endif %}
+        {% endwith %}
+
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="mms-empty">{% trans "No past blockers — this WO has no blocker history yet." %}</div>
+    {% endif %}
+
+  </div>
+</div>

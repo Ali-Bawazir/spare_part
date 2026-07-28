@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}Reviews — Bawazir MMS{% endblock %}
+{% block page_heading %}{% trans "Reviews" %}{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <strong>{{ pending.count }}</strong> {% trans "pending" %}
+</div>
+
+{% if pending %}
+    {% for occ in pending %}
+    <div class="mms-card" style="margin-bottom:0.75rem">
+        <div class="mms-card-body">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div style="flex:1">
+                    <strong style="font-size:1.05rem">{{ occ.pm_schedule.template.title }}</strong>
+                    <div class="text-muted" style="font-size:.85rem">
+                        {{ occ.pm_schedule.machine.name }}
+                        · {{ occ.assigned_technician.username|default:"Unassigned" }}
+                    </div>
+                    <div class="text-muted" style="font-size:.85rem;margin-top:0.25rem">
+                        Submitted {{ occ.work_order.labor_stopped_at|mms_time }}
+                        {% if occ.work_order.labor_started_at %}
+                        · {{ occ.work_order.labor_started_at|timesince:occ.work_order.labor_stopped_at }} elapsed
+                        {% endif %}
+                        {% if occ.work_order.rejection_count %}
+                        · <span class="mms-badge mms-badge--warning" style="font-size:.7rem;padding:0.1rem 0.4rem">Attempt #{{ occ.work_order.rejection_count|add:1 }}</span>
+                        {% endif %}
+                    </div>
+
+                    {# ──── Technician's checklist (read-only, manager sees before Approve/Return) ──── #}
+                    {% if occ.work_order.action_taken %}
+                    <div style="margin-top:0.75rem;padding:0.75rem;background:#f9fafb;border-radius:4px;border:1px solid #e5e7eb">
+                        <strong style="font-size:.85rem;color:#374151">{% trans "Technician's checklist" %}</strong>
+                        <pre style="margin:0.5rem 0 0 0;font-family:inherit;white-space:pre-wrap;font-size:.85rem;line-height:1.5;color:#1f2937">{{ occ.work_order.action_taken }}</pre>
+                        {% if occ.recent_photos %}
+                        <div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.4rem">
+                            {% for att in occ.recent_photos %}
+                            <a href="{{ att.file.url }}" target="_blank" title="{{ att.filename }}">
+                                {% if att.thumbnail %}
+                                <img src="{{ att.thumbnail.url }}" alt="{{ att.filename }}"
+                                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
+                                {% else %}
+                                <img src="{{ att.file.url }}" alt="{{ att.filename }}"
+                                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if occ.work_order.photo_count is not None or occ.pm_schedule.template.requires_photo_min_count %}
+                        <div style="margin-top:0.5rem;font-size:.85rem;color:#6b7280">
+                            📷 {{ occ.work_order.photo_count|default:0 }} photo(s)
+                            {% if occ.pm_schedule.template.requires_photo_min_count %}
+                             / {{ occ.pm_schedule.template.requires_photo_min_count }} required
+                             {% if occ.work_order.photo_count|default:0 < occ.pm_schedule.template.requires_photo_min_count %}
+                             · <span style="color:#dc3545;font-weight:600">⚠ Below requirement</span>
+                             {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                    <form method="post" action="{% url 'preventive:review_approve' occ.pk %}" style="display:inline">
+                        {% csrf_token %}
+                        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "Approve" %}</button>
+                    </form>
+                    <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm"
+                            onclick="document.getElementById('return-{{ occ.pk }}').style.display='block'">
+                        Return
+                    </button>
+                </div>
+            </div>
+            <div id="return-{{ occ.pk }}" style="display:none;margin-top:0.75rem;border-top:1px solid #eee;padding-top:0.75rem">
+                <form method="post" action="{% url 'preventive:review_return' occ.pk %}">
+                    {% csrf_token %}
+                    <label><strong>{% trans "Return reason (required)" %}</strong></label>
+                    <textarea name="reason" rows="2" class="form-control" required></textarea>
+                    <div style="margin-top:0.5rem">
+                        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "Return to technician" %}</button>
+                        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm"
+                                onclick="document.getElementById('return-{{ occ.pk }}').style.display='none'">{% trans "Cancel" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="mms-card">
+    <div class="mms-card-body text-muted">{% trans "No pending reviews." %}</div>
+</div>
+{% endif %}
+
+{% endblock %}

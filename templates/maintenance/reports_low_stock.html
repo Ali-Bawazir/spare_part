@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}Stock Analysis{% endblock %}
+{% block page_heading %}{% trans "Stock Analysis" %}{% endblock %}
+{% block content %}
+<p class="mms-page-lead">{% blocktrans with low=low_stock_count all=all_count %}{{ low }} of {{ all }} active parts are at or below minimum stock level.{% endblocktrans %}</p>
+<div class="mms-card">
+  <div class="mms-card-header">{% trans "All active parts" %}</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>{% trans "SKU" %}</th><th>{% trans "Name" %}</th><th>{% trans "Qty on hand" %}</th><th>{% trans "Min stock" %}</th><th>{% trans "Status" %}</th></tr></thead>
+      <tbody>
+      {% for part in page_obj %}
+      <tr>
+        <td>{{ part.sku }}</td>
+        <td>{{ part.name }}</td>
+        <td>{{ part.quantity_on_hand|floatformat:3 }}</td>
+        <td>{{ part.min_stock_level|floatformat:3 }}</td>
+        <td>{% if part.quantity_on_hand <= part.min_stock_level %}<span class="mms-badge mms-badge--danger">{% trans "Low stock" %}</span>{% else %}<span class="mms-badge mms-badge--success">OK</span>{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="5" class="mms-empty">{% trans "No active parts." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if page_obj.paginator.num_pages > 1 %}
+<nav style="margin-top:1rem;display:flex;gap:.5rem;align-items:center">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Previous" %}</a>{% endif %}
+  <span class="text-muted">{% blocktrans with n=page_obj.number t=page_obj.paginator.num_pages c=page_obj.paginator.count %}Page {{ n }} of {{ t }} ({{ c }} total){% endblocktrans %}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Next →" %}</a>{% endif %}
+</nav>
+{% endif %}
+<a href="{% url 'reports' %}" class="mms-btn mms-btn--ghost" style="margin-top:1rem">{% trans "← Back to Reports" %}</a>
+{% endblock %}

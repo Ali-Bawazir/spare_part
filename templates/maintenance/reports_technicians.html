@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}Technician Performance{% endblock %}
+{% block page_heading %}{% trans "Technician Performance" %}{% endblock %}
+{% block content %}
+<p class="mms-page-lead">{% trans "All technicians ranked by closed work orders and average repair time." %}</p>
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>#</th><th>{% trans "Technician" %}</th><th>{% trans "Closed WOs" %}</th><th>{% trans "In progress" %}</th><th>{% trans "Avg repair hours" %}</th><th>{% trans "Reopened jobs" %}</th><th></th></tr></thead>
+      <tbody>
+      {% for tech in page_obj %}
+      <tr>
+        <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+        <td>{{ tech.username }}</td>
+        <td>{{ tech.closed_wos }}</td>
+        <td>{{ tech.in_progress_wos }}</td>
+        <td>{% if tech.avg_repair_hours is not None %}{{ tech.avg_repair_hours }}h{% else %}-{% endif %}</td>
+        <td>{{ tech.rejection_sum }}</td>
+        <td><a href="{% url 'technician_report_detail' tech.id %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Drill-down" %}</a></td>
+      </tr>
+      {% empty %}<tr><td colspan="7" class="mms-empty">{% trans "No technicians found." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if page_obj.paginator.num_pages > 1 %}
+<nav style="margin-top:1rem;display:flex;gap:.5rem;align-items:center">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Previous" %}</a>{% endif %}
+  <span class="text-muted">{% blocktrans with n=page_obj.number t=page_obj.paginator.num_pages c=page_obj.paginator.count %}Page {{ n }} of {{ t }} ({{ c }} total){% endblocktrans %}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Next →" %}</a>{% endif %}
+</nav>
+{% endif %}
+<a href="{% url 'reports' %}" class="mms-btn mms-btn--ghost" style="margin-top:1rem">{% trans "← Back to Reports" %}</a>
+{% endblock %}

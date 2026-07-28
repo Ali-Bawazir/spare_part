@@ -1,0 +1,21 @@
+{
+  "Verify repair quality and cost, then accept (UC-20).": "تحقق من جودة الإصلاح والتكلفة، ثم اقبل (UC-20).",
+  "A new external repair order is awaiting vendor assignment. ": "طلب إصلاح خارجي جديد بانتظار إسناد المورّد. ",
+  "The maintenance supply officer has sent this repair to  ": "أرسل مسؤول توريد الصيانة هذا الإصلاح إلى ",
+  "tomorrow": "غدًا",
+  "You can pick it up from the warehouse.": "يمكنك استلامه من المخزن.",
+  "You can re-install it on the asset.": "يمكنك إعادة تركيبه على الأصل.",
+  "No reason given": "لا يوجد سبب محدد",
+  "Edit & re-submit, switch parts, or use the shortage flow.": "عدِّل وأعد الإرسال، أو بدِّل القطع، أو استخدم مسار النقص.",
+  "part": "قطعة",
+  "shortage": "نقص",
+  "vendor repair": "إصلاح المورّد",
+  "operational pause": "إيقاف تشغيلي",
+  "Manager rejected the part request.": "رفض المدير طلب القطعة.",
+  "Procurement / warehouse fulfilled the shortage.": "تم تنفيذ النقص من المشتريات / المخزن.",
+  "External repair order created.": "تم إنشاء طلب إصلاح خارجي.",
+  "Vendor repair accepted.": "تم قبول إصلاح المورّد.",
+  "Technician resumed work on this WO.": "استأنف الفني العمل على أمر العمل هذا.",
+  "Lines received.": "تم استلام الأسطر.",
+  "PO received.": "تم استلام أمر الشراء."
+}

@@ -1,0 +1,183 @@
+# Untranslated msgids: WORKORDERS (181 entries)
+
+CRITICAL PRIORITY | maintenance/services_wo_health.py
+HIGH COST | maintenance/services_wo_health.py
+Manager actions | templates/maintenance/_wo_actions_manager.html
+Assign / reassign technician | templates/maintenance/_wo_actions_manager.html
+Direct issue (manager override — bypasses technician request flow) | templates/maintenance/_wo_actions_manager.html
+Issue to WO | templates/maintenance/_wo_actions_manager.html
+New purchase request for this WO | templates/maintenance/_wo_actions_manager.html
+Need | templates/maintenance/_wo_actions_manager.html
+Reported | templates/maintenance/_wo_actions_manager.html
+Decision type | templates/maintenance/_wo_actions_manager.html
+✅ Approve (issue and/or procure) | templates/maintenance/_wo_actions_manager.html
+❌ Reject | templates/maintenance/_wo_actions_manager.html
+Issue from stock | templates/maintenance/_wo_actions_manager.html
+Procure (via PR) | templates/maintenance/_wo_actions_manager.html
+Reject (not needed) | templates/maintenance/_wo_actions_manager.html
+Expected availability (procure ETA) | templates/maintenance/_wo_actions_manager.html
+Rejection reason (reject only, min 15 chars) | templates/maintenance/_wo_actions_manager.html
+Decision note (optional) | templates/maintenance/_wo_actions_manager.html
+Submit Decision | templates/maintenance/_wo_actions_manager.html
+· status: | templates/maintenance/_wo_actions_manager.html
+· free stock: | templates/maintenance/_wo_actions_manager.html
+Insufficient stock | templates/maintenance/_wo_actions_manager.html
+Cancel this part request (release reservation + clear PART blocker) | templates/maintenance/_wo_actions_manager.html
+Cancellation reason (min 15 chars — required for audit) | templates/maintenance/_wo_actions_manager.html
+✅ Approve | templates/maintenance/_wo_actions_manager.html
+Legacy (no decision row) | templates/maintenance/_wo_actions_manager.html
+✎ Edit decision | templates/maintenance/_wo_actions_manager.html
+Decision note | templates/maintenance/_wo_actions_manager.html
+Save Edit | templates/maintenance/_wo_actions_manager.html
+🔒 Decision locked | templates/maintenance/_wo_actions_manager.html
+✓ Mark as Fulfilled | templates/maintenance/_wo_actions_manager.html
+Mark as blocked (operational problem) | templates/maintenance/_wo_actions_manager.html
+⚠ Block | templates/maintenance/_wo_actions_manager.html
+Close this shortage report (releases reservation, cancels PRs) | templates/maintenance/_wo_actions_manager.html
+🗙 Close | templates/maintenance/_wo_actions_manager.html
+📦 Awaiting Procurement | templates/maintenance/_wo_actions_manager.html
+My actions (technician) | templates/maintenance/_wo_actions_technician.html
+Emergency override: | templates/maintenance/_wo_actions_technician.html
+Finish the active emergency WO first | templates/maintenance/_wo_actions_technician.html
+Pause work | templates/maintenance/_wo_actions_technician.html
+— Select — | templates/maintenance/_wo_actions_technician.html
+(required for Other) | templates/maintenance/_wo_actions_technician.html
+Optional context | templates/maintenance/_wo_actions_technician.html
+Confirm pause | templates/maintenance/_wo_actions_technician.html
+Execution flow | templates/maintenance/_wo_actions_technician.html
+Add note (optional) | templates/maintenance/_wo_actions_technician.html
+Completion submission | templates/maintenance/_wo_actions_technician.html
+Open dedicated PM page → | templates/maintenance/_wo_actions_technician.html
+Request a part (manager will approve) | templates/maintenance/_wo_actions_technician.html
+— Select a part — | templates/maintenance/_wo_actions_technician.html
+All active parts shown | templates/maintenance/_wo_actions_technician.html
+Note (optional, shown to manager) | templates/maintenance/_wo_actions_technician.html
+Emergency WO: | templates/maintenance/_wo_actions_technician.html
+Submit part request | templates/maintenance/_wo_actions_technician.html
+Stock is available; the manager will approve and deduct the stock. | templates/maintenance/_wo_actions_technician.html
+The manager has NOT been notified yet. | templates/maintenance/_wo_actions_technician.html
+RESOLVED | templates/maintenance/_wo_blocker_history.html
+CANCELLED | templates/maintenance/_wo_blocker_history.html
+Opened: | templates/maintenance/_wo_blocker_history.html
+Resolved: | templates/maintenance/_wo_blocker_history.html
+Cancelled: | templates/maintenance/_wo_blocker_history.html
+Resolution: | templates/maintenance/_wo_blocker_history.html
+Cancel reason: | templates/maintenance/_wo_blocker_history.html
+Events: | templates/maintenance/_wo_blocker_history.html
+Pause reason: | templates/maintenance/_wo_blockers_panel.html
+Triggered by: | templates/maintenance/_wo_blockers_panel.html
+✅ No active blockers | templates/maintenance/_wo_blockers_panel.html
+No costs posted yet. | templates/maintenance/_wo_costs.html
+Costs will appear here after parts are issued, vendor repairs close, or consumables are logged. | templates/maintenance/_wo_costs.html
+Total cost &middot; all time | templates/maintenance/_wo_costs.html
+SAR | templates/maintenance/_wo_costs.html
+Amount (SAR) * | templates/maintenance/_wo_costs.html
+Memo * | templates/maintenance/_wo_costs.html
+Min 10 characters. Explains why this adjustment exists. | templates/maintenance/_wo_costs.html
+Post adjustment | templates/maintenance/_wo_costs.html
+The vendor returned the part. Manager still needs to accept the ERO before the cost posts to the ledger. | templates/maintenance/_wo_health_card.html
+Priority: | templates/maintenance/_wo_health_card.html
+day | templates/maintenance/_wo_health_card.html
+Yes | templates/maintenance/_wo_health_card.html
+Active claims | templates/maintenance/_wo_reservation_history.html
+SKU | templates/maintenance/_wo_reservation_history.html
+Created | templates/maintenance/_wo_reservation_history.html
+Source line | templates/maintenance/_wo_reservation_history.html
+Released at | templates/maintenance/_wo_reservation_history.html
+released | templates/maintenance/_wo_reservation_history.html
+cancelled | templates/maintenance/_wo_reservation_history.html
+Manager review (pending your decision) | templates/maintenance/_wo_review_manager.html
+Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure. | templates/maintenance/_wo_review_manager.html
+Previously rejected: | templates/maintenance/_wo_review_manager.html
+Rejection Reason (required if returning to technician) | templates/maintenance/_wo_review_manager.html
+Enter reason if returning to technician... | templates/maintenance/_wo_review_manager.html
+Approve & Close | templates/maintenance/_wo_review_manager.html
+Return to Technician | templates/maintenance/_wo_review_manager.html
+Open work orders assigned to you | templates/maintenance/my_workorders.html
+In-progress right now | templates/maintenance/my_workorders.html
+EMRG | templates/maintenance/my_workorders.html
+No open work orders assigned to you. 🎉 | templates/maintenance/my_workorders.html
+View all work orders | templates/maintenance/my_workorders.html
+← Back to WO-%(n)s | templates/maintenance/pm_wo_detail.html
+This is a Preventive Maintenance work order. | templates/maintenance/pm_wo_detail.html
+PM Context | templates/maintenance/pm_wo_detail.html
+Lifecycle status | templates/maintenance/pm_wo_detail.html
+PM Schedule | templates/maintenance/pm_wo_detail.html
+Schedule info | templates/maintenance/pm_wo_detail.html
+PM Execution | templates/maintenance/pm_wo_detail.html
+Reference Photos (read-only) | templates/maintenance/pm_wo_detail.html
+Completion Notes | templates/maintenance/pm_wo_detail.html
+✓ Submit for Review | templates/maintenance/pm_wo_detail.html
+No checklist defined for this PM template. You can still submit for review with notes. | templates/maintenance/pm_wo_detail.html
+Inspection Checklist (read-only) | templates/maintenance/pm_wo_detail.html
+No checklist defined. | templates/maintenance/pm_wo_detail.html
+Last submission | templates/maintenance/pm_wo_detail.html
+⚖️ Review PM | templates/maintenance/pm_wo_detail.html
+Work Order Report | templates/maintenance/reports_work_orders.html
+All work orders with status breakdown. | templates/maintenance/reports_work_orders.html
+Overdue (&gt;7d) | templates/maintenance/reports_work_orders.html
+Statuses | templates/maintenance/reports_work_orders.html
+Status breakdown | templates/maintenance/reports_work_orders.html
+No WOs. | templates/maintenance/reports_work_orders.html
+Filter by status | templates/maintenance/reports_work_orders.html
+Tech | templates/maintenance/reports_work_orders.html
+Cost ledger summary | templates/maintenance/work_order_cost_ledger.html
+Grand total &middot; all time | templates/maintenance/work_order_cost_ledger.html
+Create work order | templates/maintenance/workorder_create_confirm.html
+Review the validated issue before converting it into a work order, as defined in the approved maintenance flow. | templates/maintenance/workorder_create_confirm.html
+Back to issues | templates/maintenance/workorder_create_confirm.html
+Validated issue | templates/maintenance/workorder_create_confirm.html
+Validated by | templates/maintenance/workorder_create_confirm.html
+Validated at | templates/maintenance/workorder_create_confirm.html
+Issue description | templates/maintenance/workorder_create_confirm.html
+Creating the work order will link this issue and machine, and the new work order will start in | templates/maintenance/workorder_create_confirm.html
+📋 View PM Work Order | templates/maintenance/workorder_detail.html
+▶ Execute PM (with checklist) | templates/maintenance/workorder_detail.html
+Issue photos | templates/maintenance/workorder_detail.html
+Reporter / validator | templates/maintenance/workorder_detail.html
+You already have an active work order: | templates/maintenance/workorder_detail.html
+. Starting this one will pause that task to keep only one active technician job. | templates/maintenance/workorder_detail.html
+Auto-approved due to emergency | templates/maintenance/workorder_detail.html
+No parts issued or requested. | templates/maintenance/workorder_detail.html
+read-only | templates/maintenance/workorder_detail.html
+Approve (deduct stock) | templates/maintenance/workorder_detail.html
+Edit quantity | templates/maintenance/workorder_detail.html
+New qty (when editing) | templates/maintenance/workorder_detail.html
+Rejection reason (required when rejecting) | templates/maintenance/workorder_detail.html
+Submit decision | templates/maintenance/workorder_detail.html
+Refused | templates/maintenance/workorder_detail.html
+Reason: | templates/maintenance/workorder_detail.html
+✏️ Edit & re-submit | templates/maintenance/workorder_detail.html
+Request external repair (vendor) | templates/maintenance/workorder_detail.html
+Submit request | templates/maintenance/workorder_detail.html
+Diagnosis | templates/maintenance/workorder_detail.html
+Reason (required on reject) | templates/maintenance/workorder_detail.html
+External-repair history | templates/maintenance/workorder_detail.html
+ERO | templates/maintenance/workorder_detail.html
+Linked procurement requests | templates/maintenance/workorder_detail.html
+No transitions yet. | templates/maintenance/workorder_detail.html
+Assignment History | templates/maintenance/workorder_detail.html
+Assigned At | templates/maintenance/workorder_detail.html
+Released At | templates/maintenance/workorder_detail.html
+Still down | templates/maintenance/workorder_detail.html
+Total Downtime | templates/maintenance/workorder_detail.html
+Record a verbal note (e.g. supplier update, vendor callback, work log) and save it as an attachment to this WO. | templates/maintenance/workorder_detail.html
+The recording is auto-stopped at 60s and the file is linked to WO-%(n)s. | templates/maintenance/workorder_detail.html
+Note (optional, shown alongside the recording) | templates/maintenance/workorder_detail.html
+e.g. 'Called supplier ABC, they will deliver Friday' | templates/maintenance/workorder_detail.html
+${a.filename} | templates/maintenance/workorder_detail.html
+${(a.size/1024).toFixed(1)} KB | templates/maintenance/workorder_detail.html
+${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()} | templates/maintenance/workorder_detail.html
+Queue is ordered to surface active work first, then emergency and higher-priority jobs. | templates/maintenance/workorder_list.html
+Archive this work order? | templates/maintenance/workorder_list.html
+Edit & re-submit refused part request | templates/maintenance/workorder_part_re_review.html
+Originally: | templates/maintenance/workorder_part_re_review.html
+. Switch to a different part if needed. | templates/maintenance/workorder_part_re_review.html
+Why are you re-requesting? Any new context? | templates/maintenance/workorder_part_re_review.html
+Recording auto-stops at 60s. Voice is uploaded and attached to the WO. | templates/maintenance/workorder_part_re_review.html
+Submit for re-review | templates/maintenance/workorder_part_re_review.html
+Switch active work order | templates/maintenance/workorder_switch_confirm.html
+Only one work order can be active per technician. Starting this task will pause your current in-progress work order. | templates/maintenance/workorder_switch_confirm.html
+Current active task | templates/maintenance/workorder_switch_confirm.html
+Task to start | templates/maintenance/workorder_switch_confirm.html
+Pause current and start this task | templates/maintenance/workorder_switch_confirm.html

@@ -1,0 +1,70 @@
+{% load i18n %}
+{% comment %}
+   Compact chronological timeline for a machine's Quick Logs.
+
+   Used inside the "History" tab on the machine detail page.
+
+   Required context:
+     - logs: queryset of QuickMaintenanceLog for this machine
+     - machine: the machine (for empty-state + "Add log" link)
+     - page_obj: paginator Page (optional). If provided, "← Newer" /
+       "Older →" pagination links render at the bottom.
+
+   Features:
+     - Newest first (matching the index `qmlog_machine_recent_idx`)
+     - Day separators ("Today" / "Yesterday" / locale-formatted date)
+     - Type-colored dot + compact summary line + author/time right-aligned
+     - Details (if any) on a second line, smaller grey text
+     - Optional single attachment (image / video / audio / PDF) via
+       _log_attachment.html partial
+     - Inline "Add log" link → /quick-log/?next=…  (sidebar flow)
+{% endcomment %}
+
+<div id="history" class="mms-history-timeline">
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div style="display:flex;justify-content:flex-end;margin-bottom:.4rem">
+      <span style="font-size:.75em;color:#94a3b8">
+        {% blocktrans with n=page_obj.number t=page_obj.paginator.num_pages %}Page {{ n }} of {{ t }}{% endblocktrans %}
+      </span>
+    </div>
+  {% endif %}
+
+  {% if logs %}
+    {% regroup logs by log.created_at.date as day_groups %}
+    {% for day in day_groups %}
+      {% with day_list=day.list %}
+        <div class="mms-history-day-separator"
+             style="margin:.6rem 0 .25rem 0;padding:.15rem 0;border-bottom:1px solid #e5e7eb;
+                    font-size:.7em;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em">
+          {% if day.grouper == today %}{% trans "Today" %}
+          {% elif day.grouper == yesterday %}{% trans "Yesterday" %}
+          {% else %}{{ day.grouper|date }}{% endif %}
+        </div>
+        <ul class="mms-history-list" style="list-style:none;margin:0;padding:0">
+          {% for log in day_list %}
+            {% include "maintenance/_partials/_log_row.html" with log=log %}
+          {% endfor %}
+        </ul>
+      {% endwith %}
+    {% endfor %}
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+      <div class="mms-history-pagination"
+           style="margin-top:.5rem;display:flex;justify-content:space-between;align-items:center;
+                  font-size:.75em;color:#94a3b8">
+        {% if page_obj.has_previous %}
+          <a class="mms-btn mms-btn--ghost mms-btn--sm"
+             href="?page={{ page_obj.previous_page_number }}#history">← {% trans "Newer" %}</a>
+        {% else %}<span></span>{% endif %}
+        {% if page_obj.has_next %}
+          <a class="mms-btn mms-btn--ghost mms-btn--sm"
+             href="?page={{ page_obj.next_page_number }}#history">{% trans "Older" %} →</a>
+        {% else %}<span></span>{% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <p class="mms-empty text-muted" style="font-size:.85em;margin:.5rem 0">
+      {% trans "No logs yet." %}
+    </p>
+  {% endif %}
+</div>

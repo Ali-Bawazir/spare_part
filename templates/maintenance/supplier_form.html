@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{{ page_heading }}{% endblock %}
+{% block page_heading %}{{ page_heading }}{% endblock %}
+{% block content %}
+<div class="mms-link-back">
+  {% if supplier %}
+    <a href="{% url 'supplier_detail' supplier.pk %}">← Back to {{ supplier.name }}</a>
+  {% else %}
+    <a href="{% url 'supplier_list' %}">{% trans "← Back to suppliers" %}</a>
+  {% endif %}
+</div>
+
+<div class="mms-form-stack" style="margin-top:1rem">
+  <form method="post" class="mms-form">
+    {% csrf_token %}
+    <div class="mms-form-row">
+      <label for="id_code">{% trans "Supplier code *" %}</label>
+      {{ form.code }}
+      <span class="mms-form-help">{% trans "Unique code e.g. SUP-001. Used in QR format." %}</span>
+      {% if form.code.errors %}<span class="mms-field-error">{{ form.code.errors.0 }}</span>{% endif %}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_name">{% trans "Supplier name *" %}</label>
+      {{ form.name }}
+      {% if form.name.errors %}<span class="mms-field-error">{{ form.name.errors.0 }}</span>{% endif %}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_contact_person">{% trans "Contact person" %}</label>
+      {{ form.contact_person }}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_phone">{% trans "Phone" %}</label>
+      {{ form.phone }}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_email">{% trans "Email" %}</label>
+      {{ form.email }}
+      {% if form.email.errors %}<span class="mms-field-error">{{ form.email.errors.0 }}</span>{% endif %}
+    </div>
+    <div class="mms-form-row">
+      <label for="id_address">{% trans "Address" %}</label>
+      {{ form.address }}
+    </div>
+    <div class="mms-form-row">
+      <label class="mms-label">{% trans "Supplier type" %}</label>
+      <div class="mms-radio-group">
+        {% for radio in form.supplier_type %}
+          <label class="mms-radio">
+            {{ radio.tag }}
+            <span>{{ radio.choice_label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <span class="mms-form-help">
+        {% trans "Parts supplier: sells spare parts. Repair vendor: fixes damaged parts. Mutual exclusive — create two Supplier records if a vendor does both." %}
+      </span>
+      {% if form.supplier_type.errors %}<span class="mms-field-error">{{ form.supplier_type.errors.0 }}</span>{% endif %}
+    </div>
+    <div class="mms-form-row mms-form-row--checkbox">
+      <div>
+        {{ form.is_active }}
+        <label for="id_is_active">{% trans "Active (deactivate to hide from lists)" %}</label>
+      </div>
+    </div>
+    <div class="mms-form-row">
+      <label for="id_notes">{% trans "Notes" %}</label>
+      {{ form.notes }}
+    </div>
+    <div class="mms-form-actions">
+      <button type="submit" class="mms-btn mms-btn--primary">{% if supplier %}Save changes{% else %}Create supplier{% endif %}</button>
+      <a class="mms-btn mms-btn--ghost" href="{% url 'supplier_list' %}">{% trans "Cancel" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

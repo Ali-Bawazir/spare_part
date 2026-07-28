@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}My work orders{% endblock %}
+{% block page_heading %}
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <div>
+      <h1 style="margin:0">{% trans "My work orders" %}</h1>
+      <p class="mms-page-lead" style="margin:.25rem 0 0 0">
+        Your assigned, open work orders. Queue order: active work first, then
+        emergency and higher-priority jobs.
+      </p>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <span class="mms-badge mms-badge--muted" title={% trans "Open work orders assigned to you" %}>
+        Open: {{ queue_total }}
+      </span>
+      <span class="mms-badge mms-badge--accent" title={% trans "In-progress right now" %}>
+        In progress: {{ in_progress_count }}
+      </span>
+      <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+        ← Back to dashboard
+      </a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="mms-card">
+  <div class="mms-card-header">{% trans "My queue" %}</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>WO</th>
+        <th>{% trans "Machine" %}</th>
+        <th>{% trans "Component" %}</th>
+        <th>{% trans "Status" %}</th>
+        <th>{% trans "Priority" %}</th>
+        <th>{% trans "Category" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+      {% for w in work_orders %}
+        <tr>
+          <td>
+            <a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>
+            {% if w.is_emergency %}<span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}
+            {% if w.blocker_source_id %}<a href="{% url 'work_order_detail' w.blocker_source_id %}" class="mms-badge mms-badge--warning" title="{% trans 'Paused because this WO is waiting on another. Resolve the source WO to release.' %}">⛔ {% blocktrans with n=w.blocker_source_number %}BLOCKED by WO-{{ n }}{% endblocktrans %}</a>{% endif %}
+            {% if w.rejection_count > 0 %}
+              <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">
+                ↩ {{ w.rejection_count }}
+              </span>
+            {% endif %}
+          </td>
+          <td>{{ w.machine.name }}</td>
+          <td>{% if w.component %}{{ w.component.name }}{% else %}—{% endif %}</td>
+          <td>
+            <span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span>
+            {% if w.lifecycle_status == 'in_progress' %}<span class="mms-badge mms-badge--accent">●</span>{% endif %}
+          </td>
+          <td>
+            {% if w.issue and w.issue.priority %}
+              <span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>
+            {% else %}
+              <span class="mms-badge mms-badge--muted">{% trans "n/a" %}</span>
+            {% endif %}
+          </td>
+          <td>{{ w.get_category_display }}</td>
+          <td><span class="text-muted" style="font-size:.8rem">{{ w.created_at|mms_datetime }}</span></td>
+          <td>
+            <a href="{% url 'work_order_detail' w.pk %}" class="mms-btn mms-btn--sm mms-btn-primary">{% trans "Open" %}</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8" class="mms-empty">{% trans "No open work orders assigned to you. 🎉" %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-body" style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center">
+    <a href="{% url 'work_order_list' %}" class="mms-btn mms-btn--ghost">{% trans "View all work orders" %}</a>
+    <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to dashboard" %}</a>
+  </div>
+</div>
+{% endblock %}

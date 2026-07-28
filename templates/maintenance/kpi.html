@@ -1,107 +1,158 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}KPIs{% endblock %}
-{% block page_heading %}KPIs &amp; reliability{% endblock %}
+{% block page_heading %}{% trans "KPIs &amp; reliability" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">This dashboard gives management a clear view of maintenance performance, reliability, preventive maintenance compliance, downtime behavior, spare-parts usage, technician performance, tool loss, and supplier cost impact.</p>
+<p class="mms-page-lead">{% trans "Executive maintenance metrics — MTTR, MTBF, PM compliance, and more." %}</p>
 
 <div class="mms-grid mms-grid--kpis">
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if mttr_hours is not None %}{{ mttr_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">MTTR</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if mttw_hours is not None %}{{ mttw_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">MTTW</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if mtbf_hours is not None %}{{ mtbf_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">MTBF</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if pm_compliance_pct is not None %}{{ pm_compliance_pct }}%{% else %}-{% endif %}</div><div class="mms-kpi-label">PM compliance</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if avg_downtime_hours is not None %}{{ avg_downtime_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">Avg. downtime / closed WO</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_emergency_wos }}</div><div class="mms-kpi-label">Open emergency WO</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_closed_90d }}</div><div class="mms-kpi-label">PM work orders closed (90d)</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ tool_lost_count }}</div><div class="mms-kpi-label">Lost tools</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{% if tool_loss_rate_pct is not None %}{{ tool_loss_rate_pct }}%{% else %}-{% endif %}</div><div class="mms-kpi-label">Tool loss rate</div></div>
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_due_count }}</div><div class="mms-kpi-label">PM due now</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if mttr_hours is not None %}{{ mttr_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "MTTR" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if mttw_hours is not None %}{{ mttw_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "MTTW" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if mtbf_hours is not None %}{{ mtbf_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "MTBF" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if pm_compliance_pct is not None %}{{ pm_compliance_pct }}%{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "PM compliance" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if avg_downtime_hours is not None %}{{ avg_downtime_hours|floatformat:1 }}h{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "Avg. downtime / closed WO" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_emergency_wos }}</div><div class="mms-kpi-label">{% trans "Open emergency WO" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_closed_90d }}</div><div class="mms-kpi-label">{% trans "PM work orders closed (90d)" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ tool_lost_count }}</div><div class="mms-kpi-label">{% trans "Lost tools" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if tool_loss_rate_pct is not None %}{{ tool_loss_rate_pct }}%{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "Tool loss rate" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pm_due_count }}</div><div class="mms-kpi-label">{% trans "PM due now" %}</div></div>
+  {% if can_see_cost %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ failures_90d }}</div><div class="mms-kpi-label">{% trans "Failures (90d)" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{% if cost_per_failure is not None %}{{ cost_per_failure|floatformat:2 }} SAR{% else %}-{% endif %}</div><div class="mms-kpi-label">{% trans "Cost / failure" %}</div></div>
+  {% endif %}
+  {# Phase 6 — 30-day supply counters. Visible to roles that manage or #}
+  {# oversee procurement (manager / supervisor / procurement / super). #}
+  {# Operators and technicians see operational KPIs only. #}
+  {% if can_see_procurement %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ parts_consumed_30d_qty }}</div><div class="mms-kpi-label">{% trans "Consumables used (30d)" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ eros_accepted_30d }}</div><div class="mms-kpi-label">{% trans "Vendor repairs accepted (30d)" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pos_received_30d }}<span style="font-size:.5em;color:var(--mms-muted)"> / {{ pos_fully_received_30d }} full</span></div><div class="mms-kpi-label">{% trans "POs received (30d)" %}</div></div>
+  {% endif %}
 </div>
 
-<div class="mms-grid mms-grid--2" style="margin-top:1.25rem">
+<style>
+  .mms-kpi-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  @media (max-width: 720px) {
+    .mms-kpi-row { grid-template-columns: 1fr; }
+  }
+  .mms-kpi-row .mms-card-body { padding: 0.75rem 0; }
+  .mms-kpi-row table { margin: 0; }
+  .mms-kpi-row th { font-size: 0.7rem; color: var(--mms-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .mms-kpi-row td { font-size: 0.85rem; vertical-align: middle; }
+  .mms-kpi-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mms-kpi-row .bar {
+    display: inline-block;
+    height: 6px;
+    background: var(--mms-accent, #0d6efd);
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+  }
+  .mms-kpi-row .empty {
+    color: var(--mms-muted);
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+  }
+</style>
+
+<div class="mms-kpi-row">
   <div class="mms-card">
-    <div class="mms-card-header">Downtime trends</div>
-    <div class="mms-table-wrap">
-      <table class="mms-table">
-        <thead><tr><th>Month</th><th>Downtime hours</th></tr></thead>
-        <tbody>
-        {% for row in downtime_trends %}
-        <tr><td>{{ row.month }}</td><td>{{ row.hours|floatformat:1 }}</td></tr>
-        {% empty %}<tr><td colspan="2" class="mms-empty">No closed downtime records in the recent window.</td></tr>{% endfor %}
-        </tbody>
-      </table>
+    <div class="mms-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+      <span>{% trans "Top failure modes (90d)" %}</span>
+      <a href="{% url 'failure_mode_report' %}" class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:.75rem">{% trans "View all →" %}</a>
+    </div>
+    <div class="mms-card-body">
+      {% if failure_mode_distribution %}
+        <table class="mms-table">
+          <thead>
+            <tr><th>{% trans "Code" %}</th><th>{% trans "Name" %}</th><th class="num">{% trans "Count" %}</th><th class="num">{% trans "Share" %}</th></tr>
+          </thead>
+          <tbody>
+            {% for fm in failure_mode_distribution %}
+              {% widthratio fm.count failures_90d 100 as share %}
+              <tr>
+                <td><code>{{ fm.code }}</code></td>
+                <td>{{ fm.name }}</td>
+                <td class="num"><strong>{{ fm.count }}</strong></td>
+                <td class="num">
+                  <span class="bar" style="width: {{ share|default:0 }}px"></span>{{ share }}%
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">{% trans "No failure modes recorded in the last 90 days." %}</div>
+      {% endif %}
     </div>
   </div>
 
+  {% if can_see_cost %}
   <div class="mms-card">
-    <div class="mms-card-header">Machines with repeated issues (180d, >=2)</div>
-    <div class="mms-table-wrap">
-      <table class="mms-table">
-        <thead><tr><th>Machine</th><th>Issues</th></tr></thead>
-        <tbody>
-        {% for m in repeat_failures %}
-        <tr><td>{{ m.name }}</td><td>{{ m.recent_failures }}</td></tr>
-        {% empty %}<tr><td colspan="2" class="mms-empty">No repeat failure pattern in the current window.</td></tr>{% endfor %}
-        </tbody>
-      </table>
+    <div class="mms-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+      <span>{% trans "Top failing assets (90d)" %}</span>
+      <a href="{% url 'failing_assets_report' %}" class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:.75rem">{% trans "View all →" %}</a>
+    </div>
+    <div class="mms-card-body">
+      {% if top_failing_assets %}
+        <table class="mms-table">
+          <thead>
+            <tr><th>{% trans "Asset" %}</th><th class="num">{% trans "Failures" %}</th><th class="num">{% trans "Total cost" %}</th></tr>
+          </thead>
+          <tbody>
+            {% for a in top_failing_assets %}
+              <tr>
+                <td>{{ a.name }}</td>
+                <td class="num"><strong>{{ a.failure_count }}</strong></td>
+                <td class="num">{{ a.total_cost|floatformat:2 }} SAR</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">{% trans "No closed corrective work orders in the last 90 days." %}</div>
+      {% endif %}
     </div>
   </div>
+  {% endif %}
+</div>
 
+<div class="mms-kpi-row" style="margin-top:1rem; grid-template-columns: 1fr">
   <div class="mms-card">
-    <div class="mms-card-header">Most used spare parts</div>
-    <div class="mms-table-wrap">
-      <table class="mms-table">
-        <thead><tr><th>Part</th><th>SKU</th><th>Total qty</th></tr></thead>
-        <tbody>
-        {% for row in most_used_parts %}
-        <tr><td>{{ row.part__name }}</td><td>{{ row.part__sku }}</td><td>{{ row.total_qty }}</td></tr>
-        {% empty %}<tr><td colspan="3" class="mms-empty">No issued parts yet.</td></tr>{% endfor %}
-        </tbody>
-      </table>
+    <div class="mms-card-header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+      <span>{% trans "Top reporters (30d)" %}</span>
+      <a href="{% url 'reporters_report' %}" class="mms-btn mms-btn--ghost mms-btn--sm" style="font-size:.75rem">{% trans "View all →" %}</a>
     </div>
-  </div>
-
-  <div class="mms-card">
-    <div class="mms-card-header">Machine failure rate</div>
-    <div class="mms-table-wrap">
-      <table class="mms-table">
-        <thead><tr><th>Machine</th><th>Failures (12m)</th><th>Avg / month</th></tr></thead>
-        <tbody>
-        {% for row in machine_failure_rate %}
-        <tr><td>{{ row.machine.name }}</td><td>{{ row.failure_count }}</td><td>{{ row.monthly_rate|floatformat:2 }}</td></tr>
-        {% empty %}<tr><td colspan="3" class="mms-empty">No failure records in the current window.</td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="mms-card">
-    <div class="mms-card-header">Technician efficiency</div>
-    <div class="mms-table-wrap">
-      <table class="mms-table">
-        <thead><tr><th>Technician</th><th>Closed WO (90d)</th><th>Avg repair hours</th></tr></thead>
-        <tbody>
-        {% for row in tech_efficiency %}
-        <tr><td>{{ row.username }}</td><td>{{ row.closed_count }}</td><td>{% if row.avg_repair_hours is not None %}{{ row.avg_repair_hours|floatformat:1 }}h{% else %}-{% endif %}</td></tr>
-        {% empty %}<tr><td colspan="3" class="mms-empty">No technician closure data yet.</td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="mms-card">
-    <div class="mms-card-header">Supplier cost ranking</div>
-    <div class="mms-table-wrap">
-      <table class="mms-table">
-        <thead><tr><th>Supplier</th><th>Requests</th><th>Total cost</th></tr></thead>
-        <tbody>
-        {% for row in supplier_cost_ranking %}
-        <tr><td>{{ row.supplier }}</td><td>{{ row.requests }}</td><td>{{ row.total_cost|floatformat:2 }}</td></tr>
-        {% empty %}<tr><td colspan="3" class="mms-empty">No supplier pricing data yet.</td></tr>{% endfor %}
-        </tbody>
-      </table>
+    <div class="mms-card-body">
+      {% if top_reporters %}
+        <table class="mms-table">
+          <thead>
+            <tr><th>{% trans "Operator" %}</th><th class="num">{% trans "Reports" %}</th><th class="num">{% trans "Share" %}</th></tr>
+          </thead>
+          <tbody>
+            {% for r in top_reporters %}
+              {% widthratio r.reports top_reporters.0.reports 100 as share %}
+              <tr>
+                <td>{{ r.display }} <span style="color:var(--mms-muted);font-size:.75rem">@{{ r.username }}</span></td>
+                <td class="num"><strong>{{ r.reports }}</strong></td>
+                <td class="num">
+                  <span class="bar" style="width: {{ share }}px"></span>{{ share }}%
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty">{% trans "No issues reported in the last 30 days." %}</div>
+      {% endif %}
     </div>
   </div>
 </div>
 
-<p style="font-size:.78rem;color:var(--mms-muted);margin-top:1rem">Definitions used here are practical system KPIs based on available maintenance, part, tool, and procurement records in the PDF scope.</p>
+<p style="font-size:.78rem;color:var(--mms-muted);margin-top:1rem">{% trans "Definitions used here are practical system KPIs based on available maintenance, part, tool, and procurement records in the PDF scope." %}</p>
 {% endblock %}

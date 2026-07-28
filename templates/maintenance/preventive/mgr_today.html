@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}Today's Schedule — Bawazir MMS{% endblock %}
+{% block page_heading %}{% trans "Today's Schedule" %}{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <strong>{{ today|mms_date }}</strong>
+    <form method="post" action="{% url 'preventive:mgr_today_regenerate' %}" style="display:inline;margin-left:0.5rem">
+        {% csrf_token %}
+        <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Refresh today's occurrences" %}</button>
+    </form>
+</div>
+
+{% if auto_generated_today %}
+<div class="mms-card" style="border-left:3px solid #16a34a;margin-bottom:1rem">
+    <div class="mms-card-body" style="font-size:0.9rem">
+        {% trans "Today's occurrences were just generated. If you just created a new plan, click" %}
+        <strong>{% trans "Run Now" %}</strong>
+        {% trans "on its detail page to spawn an occurrence immediately." %}
+    </div>
+</div>
+{% endif %}
+
+{% if by_slot %}
+    {% for slot, occs in by_slot.items %}
+    <div class="mms-card" style="margin-bottom:0.5rem">
+        <div class="mms-card-body">
+            <strong>{{ slot }}</strong>
+            {% for occ in occs %}
+            <div style="border-top:1px solid #eee;padding-top:0.5rem;margin-top:0.5rem">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                    <div>
+                        <strong>{{ occ.pm_schedule.template.title }}</strong>
+                        <div class="text-muted" style="font-size:.85rem">
+                            {{ occ.pm_schedule.machine.name }}
+                            {% if occ.assigned_technician %}
+                                · {{ occ.assigned_technician.username|default_if_none:"—" }}
+                            {% else %}
+                                · <span style="color:#dc3545">{% trans "Unassigned" %}</span>
+                            {% endif %}
+                            {% if occ.status == 'submitted' and occ.work_order.lifecycle_status == 'pending_review' %}
+                                · <span class="text-muted" style="color:#f0ad4e">{% trans "Waiting Review" %}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:0.25rem">
+                        {% if not occ.assigned_technician %}
+                        <form method="post" action="{% url 'preventive:mgr_plan_assign' occ.pm_schedule.pk %}" style="display:inline">
+                            {% csrf_token %}
+                            <select name="technician_id" class="form-select form-select-sm" style="display:inline;width:auto">
+                                <option value="">{% trans "Select..." %}</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.pk }}">{{ t.username }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "Assign" %}</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'preventive:mgr_plan_assign' occ.pm_schedule.pk %}" style="display:inline">
+                            {% csrf_token %}
+                            <select name="technician_id" class="form-select form-select-sm" style="display:inline;width:auto">
+                                <option value="">{% trans "Reassign to..." %}</option>
+                                {% for t in technicians %}
+                                <option value="{{ t.pk }}">{{ t.username }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Reassign" %}</button>
+                        </form>
+                        {% endif %}
+                        <a href="{% url 'preventive:execute' occ.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Open" %}</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="mms-card">
+    <div class="mms-card-body text-muted">{% trans "No maintenance scheduled today." %}</div>
+</div>
+{% endif %}
+
+{% endblock %}

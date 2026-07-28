@@ -1,22 +1,25 @@
 {% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% i18n_json "select_failure_mode" "— Select failure mode —" "submitting" "Submitting..." "submit" "Submit" %}
 {% block title %}Report issue{% endblock %}
-{% block page_heading %}Report machine issue{% endblock %}
+{% block page_heading %}{% trans "Report machine issue" %}{% endblock %}
 {% block content %}
 <div class="mms-actions" style="margin-bottom:1rem">
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">Scan machine QR</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">{% trans "Scan machine QR" %}</a>
   {% if perm_machine_manage %}
-  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">View machines</a>
+  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">{% trans "View machines" %}</a>
   {% endif %}
 </div>
 
 {% if qr_value %}
 <div class="mms-card" style="margin-bottom:1rem">
   <div class="mms-card-body">
-    <strong>Scanned code:</strong> <code>{{ qr_value }}</code><br>
+    <strong>{% trans "Scanned code:" %}</strong> <code>{{ qr_value }}</code><br>
     {% if matched_machine %}
     Matched machine: <strong>{{ matched_machine.name }}</strong>{% if matched_machine.location %} ({{ matched_machine.location }}){% endif %}
     {% else %}
-    <span class="mms-field-error">No machine matched this QR code yet. Add it in Machines, then retry.</span>
+    <span class="mms-field-error">{% trans "No machine matched this QR code yet. Add it in Machines, then retry." %}</span>
     {% endif %}
   </div>
 </div>
@@ -24,20 +27,332 @@
 
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
-    <form method="post" class="mms-form">
+    <form method="post" class="mms-form" id="issue-form" enctype="multipart/form-data">
       {% csrf_token %}
+{% if locked_asset %}
+<div class="mms-alert" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#dbeafe;border-left:3px solid #2563eb;border-radius:4px;color:#1e3a8a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+  <div style="flex:1;min-width:200px">
+    <strong>{% trans "🔒 Asset locked:" %}</strong>
+    This record will be attached to:
+    <strong style="color:#1e40af">{{ locked_asset.breadcrumb }}</strong>
+    <div style="font-size:0.85em;color:#475569;margin-top:0.25rem">{% trans "The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there." %}</div>
+  </div>
+  <a href="{% if locked_asset.machine_pk %}{% url 'machine_detail' locked_asset.machine_pk %}{% endif %}" class="mms-btn mms-btn--ghost" style="font-size:0.85em;flex-shrink:0">
+    ← Change asset
+  </a>
+</div>
+{% endif %}
+      {% if locked_asset %}
+        <input type="hidden" name="machine" value="{{ locked_asset.machine_pk }}">
+        {% if locked_asset.component_pk %}
+          <input type="hidden" name="component" value="{{ locked_asset.component_pk }}">
+        {% endif %}
+      {% endif %}
       {% for field in form %}
-      <div class="mms-form-row">
-        {{ field.label_tag }}
-        {{ field }}
-        {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
-      </div>
+        {% if field.name == 'component' %}{% else %}
+        <div class="mms-form-row">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endif %}
       {% endfor %}
+
+      {% if not locked_asset %}
+      {# Component field — JS populates this dropdown with components belonging to the selected machine. Initially empty. #}
+      <div class="mms-form-row" id="component-row">
+        <label for="id_component">{% trans "Component:" %}</label>
+        {{ form.component }}
+        <small class="form-text text-muted" style="color:#6b7280">{% trans "Optional. Pick a specific sub-assembly / component inside the selected machine." %}</small>
+        {% if form.component.errors %}<div class="mms-field-error">{{ form.component.errors }}</div>{% endif %}
+      </div>
+      {% endif %}
+      <div class="form-group" id="photo-upload-section">
+        <label for="id_issue_photos">{% trans "Photos &amp; Videos (optional)" %}</label>
+        <input type="file" name="issue_photos" id="id_issue_photos"
+               accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/quicktime" multiple
+               class="form-control">
+        <small class="form-text text-muted">{% trans "Max 10 files. Images/PDF: 5MB each. Videos: 30MB each. JPG, PNG, WEBP, PDF, MP4, MOV." %}</small>
+        <div id="photo-preview" class="photo-preview-grid" style="display:none;"></div>
+      </div>
+      {% include "maintenance/_voice_recorder.html" %}
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
+        <button class="mms-btn mms-btn--primary" type="submit" id="submit-btn">{% trans "Submit" %}</button>
       </div>
     </form>
   </div>
 </div>
-<p class="mms-form-tip">Tip: QR deep link <code>?qr=PRESS-01</code> pre-selects the machine, and the scanner page can fill it for you.</p>
+<p class="mms-form-tip">{% trans "Tip: QR deep link" %}<code>?qr=PRESS-01</code>{% trans "pre-selects the machine, and the scanner page can fill it for you." %}</p>
+<style>
+.photo-preview-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+.photo-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-preview-item .remove-photo {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 12px;
+}
+</style>
+<script>
+(function() {
+    const i18nEl = document.getElementById('i18n-json');
+    const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
+    // ─── Photo upload (enhanced for multiple) ────────────────────────────
+    // Simple approach: treat <input type="file"> as append-only event source
+    // Maintain our own fileArray as single source of truth
+    const photoInput = document.getElementById('id_issue_photos');
+    const previewContainer = document.getElementById('photo-preview');
+
+    // fileArray must be accessible to form submission handler
+    const fileArray = [];
+
+    if (photoInput) {
+
+        photoInput.addEventListener('change', function(e) {
+            // e.target.files contains newly selected files (browser replaced it)
+            // Append only new files, avoiding duplicates
+            Array.from(e.target.files).forEach(function(file) {
+                const exists = fileArray.some(function(f) {
+                    return f.name === file.name &&
+                           f.size === file.size &&
+                           f.lastModified === file.lastModified;
+                });
+                if (!exists) {
+                    fileArray.push(file);
+                }
+            });
+            // Clear the input so selecting same file again triggers change
+            photoInput.value = "";
+            updatePreview();
+        });
+
+        function updatePreview() {
+            previewContainer.innerHTML = '';
+            if (fileArray.length > 0) {
+                previewContainer.style.display = 'flex';
+                fileArray.forEach(function(file, index) {
+                    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const div = document.createElement('div');
+                            div.className = 'photo-preview-item';
+                            if (file.type.startsWith('video/')) {
+                                div.innerHTML = '<video src="' + e.target.result + '" controls style="width:100%;height:100%;object-fit:cover"></video>' +
+                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="{% trans 'Remove' %}">{% trans "&times;" %}</button>';
+                            } else {
+                                div.innerHTML = '<img src="' + e.target.result + '" alt="{% trans 'Preview' %}">' +
+                                    '<button type="button" class="remove-photo" data-index="' + index + '" title="{% trans 'Remove' %}">{% trans "&times;" %}</button>';
+                            }
+                            previewContainer.appendChild(div);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        }
+
+        // Remove photo handler
+        previewContainer.addEventListener('click', function(e) {
+            const btn = e.target.closest('.remove-photo');
+            if (btn) {
+                const index = parseInt(btn.dataset.index, 10);
+                fileArray.splice(index, 1);
+                updatePreview();
+            }
+        });
+    }
+
+    // ─── Cascading failure category → mode dropdown ─────────────────────────
+    var categorySelect = document.getElementById('id_issue_type');
+    var modeSelect = document.getElementById('id_failure_mode');
+    var originalModeOptions = modeSelect ? Array.from(modeSelect.options) : [];
+
+    function getCsrfToken() {
+        var value = document.cookie.split("; ").find(function(row) { return row.indexOf("csrftoken=") === 0; });
+        return value ? decodeURIComponent(value.split("=").slice(1).join("=")) : "";
+    }
+
+    function updateModeSelect(modes) {
+        if (!modeSelect) return;
+        modeSelect.innerHTML = '';
+        var blankOpt = document.createElement('option');
+        blankOpt.value = '';
+        blankOpt.textContent = T.select_failure_mode || '— Select failure mode —';
+        modeSelect.appendChild(blankOpt);
+        modes.forEach(function(m) {
+            var opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.code + ' — ' + m.name;
+            modeSelect.appendChild(opt);
+        });
+    }
+
+    // ─── Cascading Machine → Component dropdown ─────────────────────────────
+    var machineSelect = document.getElementById('id_machine');
+    var componentRow = document.getElementById('component-row');
+    var componentSelect = document.getElementById('id_component');
+
+    function updateComponentRow(machineId, preserveSelection) {
+      if (!componentRow || !componentSelect) return;
+      if (!machineId) {
+        while (componentSelect.options.length > 1) componentSelect.remove(1);
+        componentSelect.value = '';
+        componentSelect.disabled = true;
+        return;
+      }
+      componentSelect.disabled = false;
+      fetch('/machines/' + encodeURIComponent(machineId) + '/components/', {
+        headers: { 'X-CSRFToken': getCsrfToken() }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        while (componentSelect.options.length > 1) componentSelect.remove(1);
+        (data.components || []).forEach(function(c) {
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name + (c.asset_code ? ' (' + c.asset_code + ')' : '');
+          componentSelect.appendChild(opt);
+        });
+        if (preserveSelection) {
+          var stillExists = Array.from(componentSelect.options).some(function(o) { return o.value === preserveSelection; });
+          if (stillExists) {
+            componentSelect.value = preserveSelection;
+          } else {
+            componentSelect.value = '';
+          }
+        }
+      })
+      .catch(function() {
+        componentSelect.disabled = true;
+      });
+    }
+
+    if (machineSelect) {
+      machineSelect.addEventListener('change', function() {
+        updateComponentRow(machineSelect.value, null);
+      });
+      if (machineSelect.value) {
+        updateComponentRow(machineSelect.value, componentSelect ? componentSelect.value : null);
+      }
+    }
+
+    if (categorySelect && modeSelect) {
+        categorySelect.addEventListener('change', function() {
+            var catId = categorySelect.value;
+            if (!catId) {
+                // Reset to all modes
+                updateModeSelect(originalModeOptions.filter(function(o) { return o.value !== ''; }).map(function(o) {
+                    return { id: o.value, code: '', name: o.textContent };
+                }));
+                return;
+            }
+            // Fetch filtered modes from API
+            var url = '{% url "failure_modes_by_category" %}?category_id=' + encodeURIComponent(catId);
+            fetch(url, {
+                headers: { "X-CSRFToken": getCsrfToken() }
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) { updateModeSelect(data.modes || []); })
+            .catch(function() { updateModeSelect([]); });
+        });
+
+        // If category pre-selected (e.g. from machine), trigger initial load
+        if (categorySelect.value) {
+            categorySelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    // ─── Form submission ──────────────────────────────────────────────────
+    // Always use AJAX - FormData(form) correctly handles multiple files
+    const form = document.getElementById('issue-form');
+    const submitBtn = document.getElementById('submit-btn');
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.textContent = T.submitting || 'Submitting...';
+
+            // Build FormData manually to ensure files are properly included
+            const formData = new FormData();
+            
+            // Add CSRF token first
+            const csrfInput = form.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfInput) {
+                formData.append('csrfmiddlewaretoken', csrfInput.value);
+            }
+            
+            // Add all form fields
+            const fields = ['machine', 'component', 'issue_type', 'failure_mode', 'description', 'voice_attachment_id'];
+            fields.forEach(function(fieldName) {
+                const field = form.querySelector('[name=' + fieldName + ']');
+                if (field) {
+                    formData.append(fieldName, field.value);
+                }
+            });
+            
+            // Add files from fileArray (our accumulated files)
+            fileArray.forEach(function(file) {
+                formData.append('issue_photos', file);
+            });
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+            })
+            .then(function(response) {
+                // Check if we got a redirect (302) - the issue was saved
+                if (response.url && response.url.includes('/issues/')) {
+                    window.location.href = '{% url "issue_list" %}';
+                    return;
+                }
+                // If we got HTML back (redirect page), follow it
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                // Otherwise try to parse as JSON
+                return response.json().then(function(data) {
+                    window.location.href = data.redirect_url || '{% url "issue_list" %}';
+                }).catch(function() {
+                    // If JSON parse fails, check if it's a redirect
+                    window.location.href = '{% url "issue_list" %}';
+                });
+            })
+            .catch(function(err) {
+                console.error('Form submission error:', err);
+                submitBtn.disabled = false;
+                submitBtn.textContent = T.submit || 'Submit';
+                alert('{% trans 'Failed to submit issue. Please try again.' %}');
+            });
+        });
+    }
+})();
+</script>
+{% include "maintenance/_asset_tree.html" %}
 {% endblock %}

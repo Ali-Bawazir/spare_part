@@ -1,0 +1,124 @@
+{% load i18n %}
+{% load mms_extras %}
+{% comment %}
+v4.9 B2/B3: Reusable voice recorder block.
+Usage: {% include "maintenance/_voice_recorder.html" %}
+Hidden form field name: voice_attachment_id
+JS uploads to /attachments/upload-pending/ and stores returned Attachment.id in hidden field.
+{% endcomment %}
+{% i18n_json "voice_recording" "● recording" "voice_uploading" "uploading…" "voice_recorded" "✓ recorded" "voice_upload_failed" "upload failed" "voice_discarded" "discarded" "voice_mic_denied" "Microphone access denied or not available." %}
+<div class="form-group" id="voice-record-section">
+  <label>{% trans "🎤 Voice note (optional, 30–60s)" %}</label>
+  <p class="form-text text-muted" style="color:#6b7280">
+    {% trans "Tap Start to record. Auto-stops at 60s." %}<br>
+    {% trans "Recording auto-stops at 60s. Voice is uploaded and attached to the record." %}
+  </p>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <button type="button" id="voice-start-btn" class="mms-btn mms-btn--primary">{% trans "🎤 Start" %}</button>
+    <button type="button" id="voice-stop-btn" class="mms-btn" disabled>{% trans "⏹ Stop" %}</button>
+    <span id="voice-timer" style="font-family:monospace; color:#6b7280; min-width:40px;">0:00</span>
+    <span id="voice-status" style="color:#16a34a; font-size:0.875rem;"></span>
+  </div>
+  <div id="voice-preview" style="margin-top:10px; display:none;">
+    <audio id="voice-audio-preview" controls style="width:100%; max-width:400px;"></audio>
+    <button type="button" id="voice-discard-btn" class="mms-btn mms-btn--secondary" style="margin-top:6px;">{% trans "🗑 Discard" %}</button>
+  </div>
+  <input type="hidden" name="voice_attachment_id" id="voice-attachment-id" value="">
+</div>
+<script>
+(function() {
+  if (document.getElementById('voice-record-section').dataset.bound) return;
+  document.getElementById('voice-record-section').dataset.bound = '1';
+
+  const startBtn = document.getElementById('voice-start-btn');
+  const stopBtn  = document.getElementById('voice-stop-btn');
+  const timer    = document.getElementById('voice-timer');
+  const status   = document.getElementById('voice-status');
+  const preview  = document.getElementById('voice-preview');
+  const audio    = document.getElementById('voice-audio-preview');
+  const discard  = document.getElementById('voice-discard-btn');
+  const hidden   = document.getElementById('voice-attachment-id');
+  const i18nEl   = document.getElementById('i18n-json');
+  const T        = i18nEl ? JSON.parse(i18nEl.textContent) : {};
+
+  let mediaRecorder = null;
+  let chunks = [];
+  let seconds = 0;
+  let timerId = null;
+
+  async function start() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      chunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = upload;
+      mediaRecorder.start();
+      seconds = 0;
+      timerId = setInterval(() => {
+        seconds++;
+        const m = String(Math.floor(seconds/60));
+        const s = String(seconds % 60).padStart(2,'0');
+        timer.textContent = `${m}:${s}`;
+        if (seconds >= 60) stop();
+      }, 1000);
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      status.textContent = T.voice_recording || '● recording';
+      status.style.color = '#dc2626';
+    } catch (e) {
+      alert(T.voice_mic_denied || 'Microphone access denied or not available.');
+    }
+  }
+
+  function stop() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    }
+    clearInterval(timerId);
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    status.textContent = '';
+  }
+
+  async function upload() {
+    status.textContent = T.voice_uploading || 'uploading…';
+    status.style.color = '#6b7280';
+    const blob = new Blob(chunks, { type: 'audio/webm' });
+    const form = new FormData();
+    form.append('file', blob, 'voice-note.webm');
+    form.append('entity_type', 'pending_voice');
+    try {
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+      const headers = csrfToken ? {'X-CSRFToken': csrfToken.value} : {};
+      const r = await fetch('/attachments/upload-pending/', { method: 'POST', body: form, headers: headers });
+      const data = await r.json();
+      if (data.id) {
+        hidden.value = data.id;
+        audio.src = data.url;
+        preview.style.display = 'block';
+        status.textContent = T.voice_recorded || '✓ recorded';
+        status.style.color = '#16a34a';
+      } else {
+        status.textContent = T.voice_upload_failed || 'upload failed';
+        status.style.color = '#dc2626';
+      }
+    } catch (e) {
+      status.textContent = T.voice_upload_failed || 'upload failed';
+      status.style.color = '#dc2626';
+    }
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+  discard.addEventListener('click', () => {
+    hidden.value = '';
+    audio.src = '';
+    preview.style.display = 'none';
+    chunks = [];
+    status.textContent = T.voice_discarded || 'discarded';
+    status.style.color = '#6b7280';
+  });
+})();
+</script>

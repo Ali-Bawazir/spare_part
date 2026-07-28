@@ -1,0 +1,40 @@
+{% load i18n %}
+<style>
+.mms-tree-link { display:inline-block; padding:0.2rem 0.5rem; border-radius:4px; color:#0f766e; text-decoration:none; font-weight:500; transition:background 0.15s; }
+.mms-tree-link:hover { background:#f0fdfa; text-decoration:underline; }
+.mms-tree-link-current { display:inline-block; padding:0.2rem 0.5rem; border-radius:4px; background:#fef3c7; color:#92400e; font-weight:600; }
+.mms-tree-link-current .here-badge { background:#f59e0b; color:#fff; font-size:0.7rem; padding:0.1rem 0.4rem; border-radius:8px; margin-left:0.4rem; font-weight:normal; }
+.mms-tree-link .chevron { color:#9ca3af; margin-left:0.4rem; font-size:0.85em; }
+</style>
+
+<li style="padding:0.15rem 0;margin-left:{{ level }}em">
+  {% if node == machine %}
+    <span class="mms-tree-link-current">
+      {% if node.children.all %}<span style="color:#999">▼</span> {% endif %}
+      <a href="{% url 'machine_detail' node.pk %}" style="color:#92400e;text-decoration:none">
+        {{ node.name }}
+        {% if node.asset_code %}<span style="color:#666;font-weight:normal;font-size:0.85em">({{ node.asset_code }})</span>{% endif %}
+      </a>
+      <span style="color:#666;font-size:0.75em;font-weight:normal">[L{{ node.asset_level }}]</span>
+      <span class="here-badge">{% trans "📍 here" %}</span>
+    </span>
+  {% else %}
+    <a href="{% url 'machine_detail' node.pk %}" class="mms-tree-link" title={% trans "Click to view this asset" %}>
+      {% if node.children.all %}<span style="color:#999">▶</span> {% endif %}
+      {{ node.name }}
+      {% if node.asset_code %}<span style="color:#6b7280;font-size:0.85em">({{ node.asset_code }})</span>{% endif %}
+      <span style="color:#9ca3af;font-size:0.75em">[L{{ node.asset_level }}]</span>
+      <span class="chevron">›</span>
+    </a>
+  {% endif %}
+
+  {% if node == machine or node in ancestors %}
+    {% if node.children.all %}
+      <ul style="list-style:none;padding:0;margin:0.25rem 0 0 0.5rem;border-left:1px solid #e5e7eb;padding-left:0.5rem">
+        {% for child in node.children.all %}
+          {% include "maintenance/_asset_tree_node.html" with node=child ancestors=ancestors level=level|add:1 %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endif %}
+</li>

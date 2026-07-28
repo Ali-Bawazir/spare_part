@@ -1,0 +1,90 @@
+# Untranslated msgids: AUTH (87 entries)
+
+MMS role | accounts/admin.py
+Accounts | accounts/apps.py
+Username | accounts/forms.py
+Staff | accounts/forms.py
+Allows sign-in to Django /admin/ when combined with app permissions below. | accounts/forms.py
+Grant admin app permissions | accounts/forms.py
+When Staff is checked, assigns Maintenance, Inventory, and Procurement permissions so /admin/ lists those apps. | accounts/forms.py
+Password | accounts/forms.py
+Password (again) | accounts/forms.py
+A user with this username already exists. | accounts/forms.py
+The two password fields do not match. | accounts/forms.py
+Grant admin app permissions only applies when Staff is checked. | accounts/forms.py
+New password | accounts/forms.py
+New password (again) | accounts/forms.py
+Allows sign-in to Django /admin/ when the user also has app permissions. | accounts/forms.py
+Active | accounts/forms.py
+Inactive users cannot sign in. Prefer deactivating over deleting an account. | accounts/forms.py
+You cannot remove your own Super Admin access or deactivate yourself here. | accounts/forms.py
+Another active Super Admin or Django superuser is required before demoting, deactivating, or changing this account. | accounts/forms.py
+Create a real MMS user (production-style): username, role, optional staff flag, and optional Django admin permissions for maintenance/inventory/procurement. | accounts/management/commands/create_mms_user.py
+Login name (no spaces). | accounts/management/commands/create_mms_user.py
+MMS role. | accounts/management/commands/create_mms_user.py
+Email address. | accounts/management/commands/create_mms_user.py
+Allow login to /admin/ (still needs model permissions unless --grant-admin-apps). | accounts/management/commands/create_mms_user.py
+Django superuser (full admin). Prefer createsuperuser unless you know you need this. | accounts/management/commands/create_mms_user.py
+If --staff, assign maintenance+inventory+procurement permissions so /admin/ is not empty. | accounts/management/commands/create_mms_user.py
+Unsafe for shell history; omit to be prompted securely. | accounts/management/commands/create_mms_user.py
+With --password only; fail if password empty. | accounts/management/commands/create_mms_user.py
+username is required. | accounts/management/commands/create_mms_user.py
+User %s already exists. | accounts/management/commands/create_mms_user.py
+--no-input requires --password. | accounts/management/commands/create_mms_user.py
+Password:  | accounts/management/commands/create_mms_user.py
+Password (again):  | accounts/management/commands/create_mms_user.py
+Passwords do not match. | accounts/management/commands/create_mms_user.py
+Password is shorter than 8 characters (not recommended). | accounts/management/commands/create_mms_user.py
+Granted maintenance/inventory/procurement admin permissions to %s. | accounts/management/commands/create_mms_user.py
+User is staff but has no model permissions yet — /admin/ may be empty. Run:
+  python manage.py grant_staff_admin_permissions --usernames=%s | accounts/management/commands/create_mms_user.py
+Created user %(username)r role=%(role)s staff=%(staff)s superuser=%(superuser)s. MMS login: same username/password at site root (not /admin/ unless staff). | accounts/management/commands/create_mms_user.py
+Operator / Labor | accounts/models.py
+Supervisor | accounts/models.py
+Technician | accounts/models.py
+Maintenance Manager (Storekeeper) | accounts/models.py
+Procurement Officer | accounts/models.py
+Super Admin | accounts/models.py
+You do not have permission to access this page. | accounts/permissions.py
+Operator | accounts/utils.py
+Maintenance Manager | accounts/utils.py
+Maintenance Supply Officer | accounts/utils.py
+You cannot delete your own account. | accounts/views.py
+Cannot delete the last Super Admin or Django superuser. Promote another account first. | accounts/views.py
+You cannot deactivate your own account. | accounts/views.py
+This account is already inactive. | accounts/views.py
+Cannot deactivate the last active Super Admin or Django superuser. | accounts/views.py
+Only Super Admins (or Django superusers) can manage users. | accounts/views.py
+Only Super Admins (or Django superusers) can create users. | accounts/views.py
+User %s created. | accounts/views.py
+Only Super Admins (or Django superusers) can edit users. | accounts/views.py
+User %s updated. | accounts/views.py
+Only Super Admins (or Django superusers) can delete users. | accounts/views.py
+This user cannot be removed from the database while maintenance, inventory, or procurement records still reference them. Use "Deactivate account" below to block sign-in and keep history, or reassign those records in Django admin and try delete again. | accounts/views.py
+User %s was deleted. | accounts/views.py
+Only Super Admins (or Django superusers) can deactivate users. | accounts/views.py
+User %s is now inactive (they cannot sign in; records that reference them are unchanged). | accounts/views.py
+Delete user | templates/accounts/mms_user_confirm_delete.html
+Delete removes the row permanently (only when nothing in maintenance, inventory, or procurement still points at this user). Deactivate blocks sign-in but keeps all history. | templates/accounts/mms_user_confirm_delete.html
+(already inactive) | templates/accounts/mms_user_confirm_delete.html
+Delete user permanently | templates/accounts/mms_user_confirm_delete.html
+Deactivate account (keep history) | templates/accounts/mms_user_confirm_delete.html
+Back to users | templates/accounts/mms_user_confirm_delete.html
+Edit instead | templates/accounts/mms_user_confirm_delete.html
+Create MMS user | templates/accounts/mms_user_create.html
+Set username, password, and MMS role. Use | templates/accounts/mms_user_create.html
+only for people who should use Django | templates/accounts/mms_user_create.html
+Create user | templates/accounts/mms_user_create.html
+Update profile, MMS role, sign-in status, optional Django admin access, and permissions bundle. Leave password blank to keep the current password. | templates/accounts/mms_user_edit.html
+Save changes | templates/accounts/mms_user_edit.html
+MMS users | templates/accounts/mms_user_list.html
+Accounts for the maintenance app and optional Django admin access. | templates/accounts/mms_user_list.html
+Role | templates/accounts/mms_user_list.html
+Email | templates/accounts/mms_user_list.html
+Edit | templates/accounts/mms_user_list.html
+Delete | templates/accounts/mms_user_list.html
+No users. | templates/accounts/mms_user_list.html
+Sign in — Bawazir MMS | templates/registration/login.html
+Factory maintenance &amp; spare parts | templates/registration/login.html
+Invalid username or password. | templates/registration/login.html
+Sign in | templates/registration/login.html

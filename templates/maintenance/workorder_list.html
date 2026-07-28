@@ -1,34 +1,79 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% load mms_extras %}
 {% block title %}Work orders{% endblock %}
-{% block page_heading %}Work orders{% endblock %}
+{% block page_heading %}{% trans "Work orders" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Queue is ordered to surface active work first, then emergency and higher-priority jobs.</p>
+<p class="mms-page-lead">{% trans "Queue is ordered to surface active work first, then emergency and higher-priority jobs." %}</p>
 <form method="get" class="mms-actions" style="margin-bottom:1rem;align-items:center">
-  <label class="text-muted" style="font-size:.8rem;font-weight:600">Status</label>
+  <label class="text-muted" style="font-size:.8rem;font-weight:600">{% trans "Status" %}</label>
   <select name="status" onchange="this.form.submit()" style="max-width:14rem">
-    <option value="">All</option>
+    <option value="">{% trans "All" %}</option>
     {% for val,label in status_choices %}
     <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
     {% endfor %}
   </select>
+  {% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
 </form>
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <span style="color:#6b7280;font-size:0.85rem">{% trans "View:" %}</span>
+    <a href="{% url 'work_order_list' %}"
+       class="mms-btn {% if not show_archived %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">
+       {% trans "Active" %} ({{ active_count }})
+    </a>
+    <a href="{% url 'work_order_list' %}?archived=1"
+       class="mms-btn {% if show_archived %}mms-btn--primary{% else %}mms-btn--ghost{% endif %} mms-btn--sm">
+       {% trans "Archived" %} ({{ archived_count }})
+    </a>
+  </div>
+</div>
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>WO</th><th>Machine</th><th>Status</th><th>Priority</th><th>Category</th><th>Tech</th><th></th></tr></thead>
+      <thead><tr><th>WO</th><th>{% trans "Machine" %}</th><th>{% trans "Component" %}</th><th>{% trans "Status" %}</th><th>{% trans "Priority" %}</th><th>{% trans "Category" %}</th><th>{% trans "Tech" %}</th><th></th></tr></thead>
       <tbody>
       {% for w in work_orders %}
-      <tr>
-        <td>WO-{{ w.number }}{% if w.is_emergency %} <span class="mms-badge mms-badge--danger">EMRG</span>{% endif %}</td>
-        <td>{{ w.machine.name }}</td>
-        <td><span class="{{ w.status|wo_status_badge_class }}">{{ w.get_status_display }}</span></td>
-        <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">n/a</span>{% endif %}</td>
-        <td>{{ w.get_category_display }}</td>
-        <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}â€”{% endif %}</td>
-        <td><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_detail' w.pk %}">Open</a></td>
+      <tr class="mms-row--clickable" onclick="window.location='{% url 'work_order_detail' w.pk %}'" style="cursor:pointer">
+        <td>
+          <a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a>
+          {% if w.is_emergency %} <span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}
+          {% if w.blocker_source_id %}<a href="{% url 'work_order_detail' w.blocker_source_id %}" class="mms-badge mms-badge--warning" onclick="event.stopPropagation()" title="{% trans 'Paused because this WO is waiting on another. Resolve the source WO to release.' %}">⛔ {% blocktrans with n=w.blocker_source_number %}BLOCKED by WO-{{ n }}{% endblocktrans %}</a>{% endif %}
+          {% if w.rejection_count > 0 %} <span class="badge badge-rejected" title="Rejected {{ w.rejection_count }} time{{ w.rejection_count|pluralize }}">↩ {{ w.rejection_count }}</span>{% endif %}
+        </td>
+        <td><a href="{% url 'work_order_detail' w.pk %}">{{ w.machine.name }}</a></td>
+        <td>{% if w.component %}{{ w.component.name }}{% else %}—{% endif %}</td>
+        <td><span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span></td>
+        <td>{% if w.issue and w.issue.priority %}<span class="{{ w.issue.priority|priority_badge_class }}">{{ w.issue.get_priority_display }}</span>{% else %}<span class="mms-badge mms-badge--muted">{% trans "n/a" %}</span>{% endif %}</td>
+<td>{{ w.get_category_display }}</td>
+        <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
+        <td>
+          {% if show_archived and w.is_archived %}
+            {% if user.role == 'manager' or user.role == 'supervisor' or user.role == 'super_admin' %}
+              <form method="post" action="{% url 'work_order_restore' w.pk %}" style="display:inline"
+                    onsubmit="return confirm('{% blocktrans with n=w.number %}Restore WO-{{ n }} from archive?{% endblocktrans %}')">
+                {% csrf_token %}
+                <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
+                  {% trans "Restore" %}
+                </button>
+              </form>
+            {% endif %}
+          {% elif not w.is_archived %}
+            {% if user.role == 'manager' or user.role == 'supervisor' or user.role == 'super_admin' %}
+              <form method="post" action="{% url 'work_order_archive' w.pk %}" style="display:inline"
+                    onsubmit="return confirm('{% trans 'Archive this work order?' %}')">
+                {% csrf_token %}
+                <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm" onclick="event.stopPropagation()">
+                  {% trans "Archive" %}
+                </button>
+              </form>
+            {% endif %}
+          {% else %}
+            <span class="mms-badge mms-badge--archived">{% trans "Archived" %}</span>
+          {% endif %}
+        </td>
       </tr>
-      {% empty %}<tr><td colspan="7" class="mms-empty">No work orders.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="8" class="mms-empty">{% trans "No work orders." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

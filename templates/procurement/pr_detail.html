@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% i18n_json "upload_failed_prefix" "Upload failed: " "unknown_error" "Unknown error" %}
+{% load mms_extras %}
+{% block title %}PR #{{ pr.pk }}{% endblock %}
+{% block page_heading %}Purchase Request #{{ pr.pk }}{% endblock %}
+{% block content %}
+
+<style>
+.mms-detail-grid { display: grid; grid-template-columns: 280px 1fr; gap: 1rem; }
+@media (max-width: 900px) { .mms-detail-grid { grid-template-columns: 1fr; } }
+.mms-asset-tree { position: sticky; top: 1rem; align-self: start; }
+</style>
+
+<div class="mms-detail-grid">
+  <div>
+    {% include "maintenance/_asset_tree.html" %}
+  </div>
+  <div>
+
+{% if pr_voice_attachments %}
+<div class="mms-card" style="margin-bottom:1rem;border-left:4px solid #7c3aed">
+  <div class="mms-card-header" style="background:#f5f3ff">{% trans "🎤 Voice notes" %}</div>
+  <div class="mms-card-body">
+    <p class="text-muted" style="margin:0 0 0.5rem 0">{% trans "All voice recordings attached to this PR (manager's context, officer's voicemail, etc.)." %}</p>
+    {% for att in pr_voice_attachments %}
+    <div style="margin-bottom:0.75rem;padding:.5rem;border-bottom:1px dashed #e5e7eb">
+      <audio controls style="width:100%;"><source src="{{ att.file.url }}" type="{{ att.mime_type }}"></audio>
+      <small style="color:#6b7280">
+        🎤 <strong>{{ att.uploaded_by.get_full_name|default:att.uploaded_by.username }}</strong>
+        · {{ att.uploaded_at|mms_datetime }}
+        {% if att.note %}· "{{ att.note }}"{% endif %}
+      </small>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# v4.9.4: Add voice comment section (manager, procurement, supervisor) #}
+{% if user.role == 'manager' or user.role == 'procurement' or user.role == 'supervisor' or user.role == 'super_admin' or perms.procurement.change_purchaserequest %}
+<div class="mms-card" style="margin-bottom:1rem;border-left:4px solid #16a34a">
+  <div class="mms-card-header" style="background:#f0fdf4">{% trans "🎤 Add voice note" %}</div>
+  <div class="mms-card-body">
+    <p class="text-muted" style="margin:0 0 .75rem 0;font-size:.85rem">
+      Record a voicemail, a supplier quote recap, or any verbal context. The recording is auto-stopped at 60s.
+    </p>
+    <form method="post" action="{% url 'purchase_request_add_voice' pr.pk %}">
+      {% csrf_token %}
+      <div class="mms-form-row" style="margin-bottom:.5rem">
+        <label for="voice-note-input" style="font-size:.85rem">{% trans "Note (optional, shown alongside the recording)" %}</label>
+        <input type="text" name="note" id="voice-note-input" maxlength="500"
+               class="form-control" placeholder="e.g. 'Supplier ABC confirmed 2-day delivery at $15/unit'">
+      </div>
+      {% include "maintenance/_voice_recorder.html" %}
+      <div class="mms-form-actions" style="margin-top:.5rem">
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "📤 Save voice note" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <dl style="margin:0; display:grid; grid-template-columns: 150px 1fr; gap:0.5rem">
+            <dt>{% trans "Part" %}</dt>
+            <dd>
+                {% part_primary_image pr.part as img %}
+                {% if img %}
+                <a href="{{ img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+                    <img src="{{ img }}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;">
+                </a>
+                {% endif %}
+                <a href="{% url 'spare_part_detail' pr.part.pk %}">{{ pr.part.name }}</a> ({{ pr.part.sku }})
+            </dd>
+            <dt>{% trans "Quantity" %}</dt><dd>{{ pr.quantity }} {{ pr.part.unit }}</dd>
+
+            <dt>{% trans "Status" %}</dt>
+            <dd><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></dd>
+            <dt>{% trans "Supplier" %}</dt><dd>{{ pr.supplier.name|default:"—" }}</dd>
+            <dt>{% trans "Unit Price" %}</dt><dd>{{ pr.unit_price|default:"—" }}</dd>
+            <dt>{% trans "Created By" %}</dt><dd>{{ pr.created_by.get_full_name|default:pr.created_by.username }}</dd>
+            <dt>{% trans "Created" %}</dt><dd>{{ pr.created_at|mms_datetime }}</dd>
+            <dt>{% trans "Linked Work Order" %}</dt>
+            <dd>
+                {% if pr.work_order %}
+                    <a href="{% url 'work_order_detail' pr.work_order.pk %}">WO-{{ pr.work_order.number }}</a>
+                {% else %}
+                    —
+                {% endif %}
+            </dd>
+            <dt>{% trans "Linked PO" %}</dt>
+            <dd>
+                {% if pr.purchase_order %}
+                    <a href="{% url 'purchase_order_detail' pr.purchase_order.pk %}">{{ pr.purchase_order.po_number }}</a>
+                    ({{ pr.purchase_order.get_status_display }})
+                {% else %}
+                    —
+                {% endif %}
+            </dd>
+            <dt>{% trans "Notes" %}</dt><dd>{{ pr.notes|default:"—"|linebreaks }}</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="mms-form-actions">
+    {% if pr.status == 'pending' %}
+    <a href="{% url 'purchase_order_create_from_pr' pr.pk %}" class="mms-btn mms-btn--primary">{% trans "Create PO from this PR" %}</a>
+    {% endif %}
+    <a href="{% url 'purchase_list' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to PR List" %}</a>
+</div>
+
+<!-- Photos & Attachments -->
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>{% trans "Photos & Attachments" %}</h5>
+    </div>
+    <div class="mms-card-body">
+        <div class="attachment-list" id="attachment-list-purchase_request-{{ pr.pk }}"></div>
+        <div class="mt-2">
+            <input type="file" 
+                   id="attachment-file-input-purchase_request-{{ pr.pk }}"
+                   accept="image/jpeg,image/png,image/webp,application/pdf"
+                   class="d-none" multiple
+                   onchange="handleAttachmentSelect(this)">
+            <button type="button" class="mms-btn mms-btn--ghost"
+                    onclick="document.getElementById('attachment-file-input-purchase_request-{{ pr.pk }}').click()">
+                + Add Photo / File
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-emergency { background: #dc3545; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+</style>
+
+<script>
+const i18nEl = document.getElementById('i18n-json');
+const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
+async function loadAttachments(entityType, entityId, containerId) {
+    try {
+        const response = await fetch(`/attachments/${entityType}/${entityId}/`);
+        const data = await response.json();
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.attachments && data.attachments.length > 0) {
+            container.innerHTML = data.attachments.map(att => `
+                <div class="attachment-item mb-2 p-2 border rounded">
+                    ${att.mime_type && att.mime_type.startsWith('image/') 
+                        ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}" style="max-width:200px; max-height:150px; object-fit:cover;" class="mb-2">` 
+                        : `<div class="mb-2"><i class="bi bi-file-earmark"></i>{% trans "${att.filename}" %}</div>`
+                    }
+                    <div class="small text-muted">{% trans "${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by}" %}</div>
+                    {% if perms.maintenance.delete_attachment %}
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">{% trans "Delete" %}</button>
+                    {% endif %}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-muted mb-0">{% trans "No attachments yet." %}</p>';
+        }
+    } catch (e) { console.error('Failed to load attachments:', e); }
+}
+
+async function handleAttachmentSelect(input) {
+    const files = input.files;
+    if (!files.length) return;
+    const parts = input.id.split('-');
+    const entityType = parts[3];
+    const entityId = {{ pr.pk }};
+    for (const file of files) {
+        await uploadAttachment(file, entityType, entityId);
+    }
+    loadAttachments(entityType, entityId, `attachment-list-${entityType}-${entityId}`);
+    input.value = '';
+}
+
+async function uploadAttachment(file, entityType, entityId) {
+    const formData = new FormData();
+    formData.append('entity_type', entityType);
+    formData.append('entity_id', entityId);
+    formData.append('file', file);
+    const response = await fetch('/attachments/upload/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        alert((T.upload_failed_prefix || 'Upload failed: ') + (err.error || (T.unknown_error || 'Unknown error')));
+    }
+    return response.json();
+}
+
+async function deleteAttachment(attId, containerId, entityType, entityId) {
+    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
+    await fetch(`/attachments/${attId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    loadAttachments(entityType, entityId, containerId);
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAttachments('purchase_request', {{ pr.pk }}, 'attachment-list-purchase_request-{{ pr.pk }}');
+});
+</script>
+  </div>
+</div>
+{% endblock %}

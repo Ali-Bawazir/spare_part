@@ -1,0 +1,63 @@
+# Untranslated msgids: FORMS (61 entries)
+
+Optional note for the manager | inventory/forms.py
+Approve | inventory/forms.py
+Reject | inventory/forms.py
+Edit Qty | inventory/forms.py
+Required when rejecting | inventory/forms.py
+Rejection reason is required. | inventory/forms.py
+New qty is required when editing. | inventory/forms.py
+BRG-6006 | inventory/forms.py
+Ball bearing 6006 | inventory/forms.py
+Bearings | inventory/forms.py
+pcs | inventory/forms.py
+SKU is required. | inventory/forms.py
+SKU '%(sku)s' is already in use. | inventory/forms.py
+Opening quantity | inventory/forms.py
+Initial stock at default site. Leave blank or 0 if no opening stock. | inventory/forms.py
+Rack location | inventory/forms.py
+Storage location at default site. | inventory/forms.py
+A-01-03 | inventory/forms.py
+Failure Category | maintenance/forms.py
+Top-level failure classification | maintenance/forms.py
+Failure Mode | maintenance/forms.py
+Specific failure pattern (optional) | maintenance/forms.py
+Mark as emergency | maintenance/forms.py
+P3.3: tick if this issue is an emergency. The issue will be set to CRITICAL priority, and any WO created from it will be an Emergency WO. | maintenance/forms.py
+Reason for pause | maintenance/forms.py
+Required when reason is 'Other' | maintenance/forms.py
+Note | maintenance/forms.py
+Note is required when reason is 'Other'. | maintenance/forms.py
+Time-of-day for scheduled occurrences (default 08:00) | maintenance/forms.py
+Schedule stops generating occurrences after this date | maintenance/forms.py
+Apply to all child machines | maintenance/forms.py
+If this machine has child machines, create PM work orders for each of them. | maintenance/forms.py
+Checklist item text | maintenance/forms.py
+Duplicate checklist item text. | maintenance/forms.py
+At least one checklist item is required. | maintenance/forms.py
+Minimum number of photos the technician must attach | maintenance/forms.py
+Select an available tool | maintenance/forms.py
+Only tools in Available status can be assigned. | maintenance/forms.py
+Optional: Target a specific component (level-5) | maintenance/forms.py
+e.g. Line stop — hydraulic leak | maintenance/forms.py
+Optional note for the log | maintenance/forms.py
+What's wrong with the part? Why does it need an external repair? | maintenance/forms.py
+Part name, part number, qty (e.g. 'Servo drive S7-300, qty 1') | maintenance/forms.py
+Diagnosis note is required. | maintenance/forms.py
+Part description is required. | maintenance/forms.py
+Approve (create ERO) | maintenance/forms.py
+Required on reject; optional on approve. | maintenance/forms.py
+A rejection reason is required. | maintenance/forms.py
+Signed: positive adds, negative reduces | maintenance/forms.py
+Signed amount. Positive adds to the WO total, negative reduces it. | maintenance/forms.py
+Why does this adjustment exist? (min 10 chars) | maintenance/forms.py
+Required. Min 10 characters. Explains why this adjustment exists. | maintenance/forms.py
+Memo must be at least 10 characters. | maintenance/forms.py
+Amount must be non-zero. | maintenance/forms.py
+Vendor invoice total | maintenance/forms.py
+Required — final vendor invoice amount. | maintenance/forms.py
+Vendor invoice number | maintenance/forms.py
+Required — vendor invoice number (UC-20). | maintenance/forms.py
+Optional verification note (e.g. condition of returned part) | maintenance/forms.py
+Actual cost must be greater than zero. | maintenance/forms.py
+Vendor invoice number is required. | maintenance/forms.py

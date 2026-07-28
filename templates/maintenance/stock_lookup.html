@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Inventory Lookup{% endblock %}
+{% block page_heading %}Inventory Lookup — {{ selected_site.name }}{% endblock %}
+{% block content %}
+<style>
+tbody tr {
+  min-height: 48px;
+}
+tbody tr td {
+  font-size: 1rem;
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+}
+tbody tr td:first-child {
+  padding-left: 1rem;
+}
+tbody tr td:last-child {
+  padding-right: 1rem;
+}
+tbody tr td code {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+</style>
+<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap">
+  <form method="get" style="display:flex;align-items:center;gap:0.5rem;flex:1">
+    <label class="text-muted small">{% trans "Site:" %}</label>
+    <select name="site" class="form-select" style="width:auto" onchange="this.form.submit()">
+      {% for s in sites %}
+        <option value="{{ s.pk }}" {% if s.pk == selected_site.pk %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <input class="form-control" type="text" name="q" placeholder={% trans "Search SKU or name…" %} value="{{ q }}" style="width:200px" autofocus>
+    <button type="submit" class="mms-btn mms-btn--ghost">{% trans "Search" %}</button>
+    {% if q %}
+      <a href="{% url 'stock_lookup' %}?site={{ selected_site.pk }}" class="mms-btn mms-btn--ghost">{% trans "Clear" %}</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>{% trans "SKU" %}</th>
+        <th style="width:50px">{% trans "Image" %}</th>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Category" %}</th>
+        <th>{% trans "Available" %}</th>
+        <th>{% trans "Rack" %}</th>
+      </tr></thead>
+      <tbody>
+      {% for p in parts %}
+      <tr>
+        <td><code>{{ p.sku }}</code></td>
+        <td>
+          {% part_primary_image p as img %}
+          {% if img %}
+            <a href="{{ img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
+            </a>
+          {% else %}
+            <span class="mms-badge mms-badge--warning" title={% trans "This part has no primary image. Upload one in the part detail page." %}>{% trans "⚠ Missing Image" %}</span>
+          {% endif %}
+        </td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.category|default:"—" }}</td>
+        <td>
+          {% if p.inv_available is not None %}
+            {% if p.inv_available == 0 %}
+              <span class="mms-badge mms-badge--danger">{% trans "Out of stock" %}</span>
+            {% elif p.inv_available <= p.min_stock_level and p.min_stock_level > 0 %}
+              <span class="mms-badge" style="background-color:#f59e0b;color:#fff">{{ p.inv_available }} Low</span>
+            {% else %}
+              {{ p.inv_available }}
+            {% endif %}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>{{ p.inv_rack|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="mms-empty">{% trans "No parts found." %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

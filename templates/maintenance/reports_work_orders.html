@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Work Order Report{% endblock %}
+{% block page_heading %}{% trans "Work Order Report" %}{% endblock %}
+{% block content %}
+<p class="mms-page-lead">{% trans "All work orders with status breakdown." %}</p>
+
+<div class="mms-grid mms-grid--kpis" style="margin-bottom:1rem">
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ page_obj.paginator.count }}</div><div class="mms-kpi-label">{% trans "Total WOs" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ overdue_count }}</div><div class="mms-kpi-label">{% trans "Overdue (&gt;7d)" %}</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ status_counts|length }}</div><div class="mms-kpi-label">{% trans "Statuses" %}</div></div>
+</div>
+
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{% trans "Status breakdown" %}</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>{% trans "Status" %}</th><th>{% trans "Count" %}</th></tr></thead>
+      <tbody>
+      {% for sc in status_counts %}
+      <tr><td><span class="{{ sc.code|wo_status_badge_class }}">{{ sc.label }}</span></td><td>{{ sc.count }}</td></tr>
+      {% empty %}<tr><td colspan="2" class="mms-empty">{% trans "No WOs." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form method="get" class="mms-actions" style="margin-bottom:1rem;align-items:center">
+  <label class="text-muted" style="font-size:.8rem;font-weight:600">{% trans "Filter by status" %}</label>
+  <select name="status" onchange="this.form.submit()" style="max-width:14rem">
+    <option value="">{% trans "All" %}</option>
+    {% for val,label in status_choices %}
+    <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>{% trans "Work Order" %}</th><th>{% trans "Machine" %}</th><th>{% trans "Status" %}</th><th>{% trans "Tech" %}</th><th>{% trans "Created" %}</th></tr></thead>
+      <tbody>
+      {% for w in page_obj %}
+      <tr>
+        <td><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a></td>
+        <td>{{ w.machine.name }}</td>
+        <td><span class="{{ w.lifecycle_status|wo_status_badge_class }}">{{ w.get_lifecycle_status_display }}</span></td>
+        <td>{% if w.assigned_technician %}{{ w.assigned_technician.username }}{% else %}—{% endif %}</td>
+        <td>{{ w.created_at|mms_date }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="5" class="mms-empty">{% trans "No WOs." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if page_obj.paginator.num_pages > 1 %}
+<nav style="margin-top:1rem;display:flex;gap:.5rem;align-items:center">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Previous" %}</a>{% endif %}
+  <span class="text-muted">{% blocktrans with n=page_obj.number t=page_obj.paginator.num_pages c=page_obj.paginator.count %}Page {{ n }} of {{ t }} ({{ c }} total){% endblocktrans %}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Next →" %}</a>{% endif %}
+</nav>
+{% endif %}
+<a href="{% url 'reports' %}" class="mms-btn mms-btn--ghost" style="margin-top:1rem">{% trans "← Back to Reports" %}</a>
+{% endblock %}

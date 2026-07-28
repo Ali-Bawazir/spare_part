@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}Cost ledger — WO-{{ wo.number }}{% endblock %}
+{% block page_heading %}Cost ledger — WO-{{ wo.number }}{% endblock %}
+{% block content %}
+
+<style>
+  .mms-wo-ledger-dashboard {
+    --mms-cost-cat-material:   #0d6efd;
+    --mms-cost-cat-vendor:     #b45309;
+    --mms-cost-cat-consumable: #16a34a;
+    --mms-cost-cat-adjustment: #5b21b6;
+  }
+  .mms-wo-ledger-dashboard__hero {
+    display: grid;
+    gap: .45rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed var(--mms-border, #e2e8f0);
+    margin-bottom: 1.1rem;
+  }
+  .mms-wo-ledger-dashboard__hero-label {
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+  .mms-wo-ledger-dashboard__hero-amount {
+    display: flex;
+    align-items: baseline;
+    gap: .55rem;
+    flex-wrap: wrap;
+  }
+  .mms-wo-ledger-dashboard__hero-value {
+    font-size: clamp(2.25rem, 6.5vw, 3.1rem);
+    font-weight: 800;
+    letter-spacing: -.04em;
+    line-height: 1.05;
+    color: var(--mms-text, #0f172a);
+    font-variant-numeric: tabular-nums;
+  }
+  .mms-wo-ledger-dashboard__hero-currency {
+    font-size: clamp(1rem, 2.6vw, 1.2rem);
+    font-weight: 700;
+    color: var(--mms-muted, #64748b);
+    letter-spacing: .02em;
+  }
+  .mms-wo-ledger-dashboard__hero-meta {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;
+    font-size: .82rem;
+    color: var(--mms-muted, #64748b);
+  }
+  .mms-wo-ledger-dashboard__hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .25rem .7rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: .78rem;
+    background: var(--mms-bg, #f1f5f9);
+    color: var(--mms-muted, #64748b);
+    border: 1px solid var(--mms-border, #e2e8f0);
+  }
+  .mms-wo-ledger-dashboard__hero-pill svg { width: 14px; height: 14px; }
+
+  .mms-wo-ledger-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .65rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (max-width: 720px) {
+    .mms-wo-ledger-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 380px) {
+    .mms-wo-ledger-kpis { grid-template-columns: 1fr; }
+  }
+  .mms-wo-ledger-kpi {
+    padding: .9rem 1rem;
+    border-radius: 10px;
+    background: var(--mms-surface, #fff);
+    border: 1px solid var(--mms-border, #e2e8f0);
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+  }
+  .mms-wo-ledger-kpi__name {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .76rem;
+    font-weight: 600;
+    color: var(--mms-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .mms-wo-ledger-kpi__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .mms-wo-ledger-kpi__dot[data-cat="material"]   { background: var(--mms-cost-cat-material); }
+  .mms-wo-ledger-kpi__dot[data-cat="vendor"]     { background: var(--mms-cost-cat-vendor); }
+  .mms-wo-ledger-kpi__dot[data-cat="consumable"] { background: var(--mms-cost-cat-consumable); }
+  .mms-wo-ledger-kpi__dot[data-cat="adjustment"] { background: var(--mms-cost-cat-adjustment); }
+  .mms-wo-ledger-kpi__amount {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--mms-text, #0f172a);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .mms-wo-ledger-kpi__currency {
+    font-size: .7rem;
+    font-weight: 600;
+    color: var(--mms-muted, #64748b);
+    margin-left: .15rem;
+  }
+  .mms-wo-ledger-dashboard__table {
+    border-top: 1px solid var(--mms-border, #e2e8f0);
+    padding-top: 1rem;
+  }
+</style>
+
+<p class="mms-link-back">
+  <a href="{% url 'work_order_detail' wo.pk %}">{% blocktrans with n=wo.number %}← Back to WO-{{ n }}{% endblocktrans %}</a>
+</p>
+
+<div class="mms-card mms-wo-ledger-dashboard">
+  <div class="mms-card-header">{% trans "Cost ledger summary" %}</div>
+  <div class="mms-card-body">
+
+    <div class="mms-wo-ledger-dashboard__hero">
+      <div class="mms-wo-ledger-dashboard__hero-label">{% trans "Grand total &middot; all time" %}</div>
+      <div class="mms-wo-ledger-dashboard__hero-amount">
+        <span class="mms-wo-ledger-dashboard__hero-value">{{ grand_total|floatformat:2 }}</span>
+        <span class="mms-wo-ledger-dashboard__hero-currency">{% trans "SAR" %}</span>
+      </div>
+      <div class="mms-wo-ledger-dashboard__hero-meta">
+        <span class="mms-wo-ledger-dashboard__hero-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          {{ txns|length }} transaction{{ txns|length|pluralize }} posted
+        </span>
+        <span class="mms-wo-ledger-dashboard__hero-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+          Currency: SAR
+        </span>
+      </div>
+    </div>
+
+    <div class="mms-wo-ledger-kpis">
+      <div class="mms-wo-ledger-kpi">
+        <span class="mms-wo-ledger-kpi__name">
+          <span class="mms-wo-ledger-kpi__dot" data-cat="material" aria-hidden="true"></span>
+          Material
+        </span>
+        <span class="mms-wo-ledger-kpi__amount">
+          {{ category_totals.material|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
+        </span>
+      </div>
+      <div class="mms-wo-ledger-kpi">
+        <span class="mms-wo-ledger-kpi__name">
+          <span class="mms-wo-ledger-kpi__dot" data-cat="vendor" aria-hidden="true"></span>
+          Vendor repair
+        </span>
+        <span class="mms-wo-ledger-kpi__amount">
+          {{ category_totals.vendor_repair|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
+        </span>
+      </div>
+      <div class="mms-wo-ledger-kpi">
+        <span class="mms-wo-ledger-kpi__name">
+          <span class="mms-wo-ledger-kpi__dot" data-cat="consumable" aria-hidden="true"></span>
+          Consumable
+        </span>
+        <span class="mms-wo-ledger-kpi__amount">
+          {{ category_totals.consumable|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
+        </span>
+      </div>
+      <div class="mms-wo-ledger-kpi">
+        <span class="mms-wo-ledger-kpi__name">
+          <span class="mms-wo-ledger-kpi__dot" data-cat="adjustment" aria-hidden="true"></span>
+          Adjustment
+        </span>
+        <span class="mms-wo-ledger-kpi__amount">
+          {{ category_totals.adjustment|floatformat:2 }}<span class="mms-wo-ledger-kpi__currency">{% trans "SAR" %}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="mms-wo-ledger-dashboard__table">
+      {% include "maintenance/_cost_ledger_table.html" %}
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

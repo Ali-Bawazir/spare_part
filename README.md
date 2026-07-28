@@ -1,5 +1,22 @@
 # Bawazir Factory Maintenance & Spare Parts Management System
 
+## Quick start (Docker — production / company server)
+
+The canonical deployment runs in Docker with PostgreSQL. For local dev with
+hot-reload, run `python manage.py runserver` natively against SQLite.
+
+```bash
+git clone <repo-url> /opt/mms
+cd /opt/mms
+cp .env.example .env
+# Edit .env: set DB_PASSWORD, SECRET_KEY, ALLOWED_HOSTS
+docker compose up -d --build
+curl http://localhost:8000/health/    # {"status":"ok","db":"ok"}
+```
+
+See [`docs/DOCKER.md`](docs/DOCKER.md) for the full deployment runbook,
+service architecture, health endpoint contract, and Phase 2 roadmap.
+
 ## Overview
 
 This project is a Django-based internal maintenance management system for factory operations. It combines machine issue reporting, maintenance work orders, spare-parts inventory, procurement, preventive maintenance, reusable tools, external repairs, notifications, KPIs, and user management in one web application.

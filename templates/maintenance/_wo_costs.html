@@ -1,0 +1,382 @@
+{% load mms_extras %}
+{% load i18n %}
+{% comment %}
+       Work Order cost breakdown dashboard — Phase 1+2 Cost Ledger.
+
+       Full-width dashboard panel that mirrors the design language of
+       templates/maintenance/_cost_tab.html (machine/component). All-time
+       totals (no period selector — a WO has a bounded lifetime).
+
+       Manager adjustment form (CostAdjustmentForm) is preserved as a
+       collapsible <details> at the bottom — only renders for users with
+       can_manage_costs = True (manager / super_admin).
+
+       Context variables:
+         - wo                : WorkOrder
+         - cost              : WorkOrderCost | None
+         - can_manage_costs  : bool — show the adjustment form
+         - adjustment_form   : CostAdjustmentForm (optional)
+{% endcomment %}
+</style>
+
+{% if can_see_cost and cost %}
+  {% with mat=cost.material_cost|default:0 ven=cost.vendor_repair_cost|default:0 con=cost.consumables_cost|default:0 adj=cost.additional_cost|default:0 tot=cost.total_cost|default:0 txns=cost.ledger_transaction_count|default:0 last=cost.last_reconciled_at %}
+  <div class="mms-wo-cost-dashboard">
+    <div class="mms-wo-cost-dashboard__head">
+      <h3 class="mms-wo-cost-dashboard__title">
+        <svg class="mms-wo-cost-dashboard__title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l4-4 4 3 5-6"/>
+        </svg>
+        {% trans "Costs" %}
+      </h3>
+      <a href="{% url 'work_order_cost_ledger' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+        {% trans "Open cost ledger" %}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </a>
+    </div>
+
+    {% if tot == 0 and txns == 0 %}
+      <div class="mms-wo-cost-empty">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:.6">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        <div><strong style="color:var(--mms-text,#0f172a)">{% trans "No costs posted yet." %}</strong></div>
+        <div>{% trans "Costs will appear here after parts are issued, vendor repairs close, or consumables are logged." %}</div>
+      </div>
+    {% elif can_see_cost %}
+  {# No cost data yet for this WO #}
+      <div class="mms-wo-cost-dashboard__hero">
+        <div class="mms-wo-cost-dashboard__hero-label">{% trans "Total cost &middot; all time" %}</div>
+        <div class="mms-wo-cost-dashboard__hero-amount">
+          <span class="mms-wo-cost-dashboard__hero-value">{{ tot|floatformat:2 }}</span>
+          <span class="mms-wo-cost-dashboard__hero-currency">{% trans "SAR" %}</span>
+        </div>
+        <div class="mms-wo-cost-dashboard__hero-meta">
+          <span class="mms-wo-cost-dashboard__hero-meta-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            {% trans "Last reconciled" %} {% if last %}{{ last|mms_datetime }}{% else %}{% trans "never" %}{% endif %}
+          </span>
+          {% if cost.committed_material_cost %}
+            <span class="mms-wo-cost-dashboard__hero-meta-pill" title="Sum of approved × unit_cost for approved/allocated/issued lines that haven't been warehouse-issued yet.">
+              Committed {{ cost.committed_material_cost|floatformat:2 }} SAR
+            </span>
+          {% endif %}
+          <a href="{% url 'work_order_cost_ledger' wo.pk %}" style="color:var(--mms-accent);text-decoration:none;font-weight:600">
+            {% trans "View ledger →" %}
+          </a>
+        </div>
+      </div>
+
+      <div class="mms-wo-cost-dashboard__breakdown">
+        <h4 class="mms-wo-cost-dashboard__breakdown-title">{% trans "Breakdown by category" %}</h4>
+
+        <div class="mms-wo-cost-bar" role="img" aria-label={% trans "Cost distribution across categories" %}>
+          {% if tot %}
+            <div class="mms-wo-cost-bar__seg" data-cat="material"   style="width:{% widthratio mat tot 100 %}%" title="{% trans "Material" %} {{ mat|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="vendor"     style="width:{% widthratio ven tot 100 %}%" title="{% trans "Vendor repair" %} {{ ven|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="consumable" style="width:{% widthratio con tot 100 %}%" title="{% trans "Consumables" %} {{ con|floatformat:2 }} SAR"></div>
+            <div class="mms-wo-cost-bar__seg" data-cat="adjustment" style="width:{% widthratio adj tot 100 %}%" title="{% trans "Adjustments" %} {{ adj|floatformat:2 }} SAR"></div>
+          {% else %}
+            <div class="mms-wo-cost-bar__seg mms-wo-cost-bar__seg--empty" style="width:100%"></div>
+          {% endif %}
+        </div>
+
+        <ul class="mms-wo-cost-legend">
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="material" aria-hidden="true"></span>
+              {% trans "Material" %}
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ mat|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio mat tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="vendor" aria-hidden="true"></span>
+              {% trans "Vendor repair" %}
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ ven|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio ven tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="consumable" aria-hidden="true"></span>
+              {% trans "Consumables" %}
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ con|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio con tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+          <li>
+            <span class="mms-wo-cost-legend__name">
+              <span class="mms-wo-cost-legend__dot" data-cat="adjustment" aria-hidden="true"></span>
+              {% trans "Adjustments" %}
+            </span>
+            <span class="mms-wo-cost-legend__values">
+              <span class="mms-wo-cost-legend__amount">{{ adj|floatformat:2 }}</span>
+              <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+              <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio adj tot 100 %}{% else %}&mdash;{% endif %}%</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="mms-wo-cost-kpis">
+        <div class="mms-wo-cost-kpi">
+          <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </span>
+          <div class="mms-wo-cost-kpi__body">
+            <div class="mms-wo-cost-kpi__value">{{ txns }}</div>
+            <div class="mms-wo-cost-kpi__label">{% trans "Posted" %}</div>
+          </div>
+        </div>
+
+        <div class="mms-wo-cost-kpi">
+          <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3h7v7H3z"/>
+              <path d="M14 3h7v7h-7z"/>
+              <path d="M14 14h7v7h-7z"/>
+              <path d="M3 14h7v7H3z"/>
+            </svg>
+          </span>
+          <div class="mms-wo-cost-kpi__body">
+            <div class="mms-wo-cost-kpi__value">
+              {% if txns %}{% widthratio tot txns 100 %}{% else %}&mdash;{% endif %}
+            </div>
+            <div class="mms-wo-cost-kpi__label">{% trans "Avg / txn" %}</div>
+          </div>
+        </div>
+
+        <div class="mms-wo-cost-kpi">
+          <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </span>
+          <div class="mms-wo-cost-kpi__body">
+            <div class="mms-wo-cost-kpi__value" style="font-size:.95rem">{% if last %}{{ last|mms_date }}{% else %}Never{% endif %}</div>
+            <div class="mms-wo-cost-kpi__label">{% trans "Last reconciled" %}</div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if can_manage_costs and adjustment_form %}
+    <details class="mms-wo-cost-dashboard__adjust">
+      <summary>{% trans "Add a cost adjustment" %}</summary>
+      <form method="post" action="{% url 'work_order_adjust_cost' wo.pk %}" class="mms-form">
+        {% csrf_token %}
+        <div class="mms-form-row">
+          <label for="{{ adjustment_form.amount.id_for_label }}">{% trans "Amount (SAR) *" %}</label>
+          {{ adjustment_form.amount }}
+          <small class="text-muted">{% trans "Signed: positive adds, negative reduces." %}</small>
+        </div>
+        <div class="mms-form-row">
+          <label for="{{ adjustment_form.memo.id_for_label }}">{% trans "Memo *" %}</label>
+          {{ adjustment_form.memo }}
+          <small class="text-muted">{% trans "Min 10 characters. Explains why this adjustment exists." %}</small>
+        </div>
+        <div class="mms-form-actions">
+          <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "Post adjustment" %}</button>
+        </div>
+      </form>
+    </details>
+    {% endif %}
+
+  </div>
+  {% endwith %}
+{% elif can_see_cost %}
+  {% comment %}
+    No WorkOrderCost row yet for this WO. Render the full dashboard shell
+    with synthesized zeros so it reconciles with the Health Card above
+    (Total cost: 0.00 SAR). The inline empty-state note explains why
+    the bars are empty without replacing the entire card.
+  {% endcomment %}
+  {% with mat=0 ven=0 con=0 adj=0 tot=0 txns=0 last=None %}
+  <div class="mms-wo-cost-dashboard">
+    <div class="mms-wo-cost-dashboard__head">
+      <h3 class="mms-wo-cost-dashboard__title">
+        <svg class="mms-wo-cost-dashboard__title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/>
+          <path d="M7 14l4-4 4 3 5-6"/>
+        </svg>
+        {% trans "Costs" %}
+      </h3>
+      <a href="{% url 'work_order_cost_ledger' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+        {% trans "Open cost ledger" %}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </a>
+    </div>
+
+    <div class="mms-wo-cost-empty-note">
+      <strong>{% trans "No cost recorded yet" %}</strong>
+      {% trans "Costs will appear here once parts are issued to this work order or a manager posts an adjustment." %}
+    </div>
+
+    <div class="mms-wo-cost-dashboard__hero">
+      <div class="mms-wo-cost-dashboard__hero-label">{% trans "Total cost &middot; all time" %}</div>
+      <div class="mms-wo-cost-dashboard__hero-amount">
+        <span class="mms-wo-cost-dashboard__hero-value">{{ tot|floatformat:2 }}</span>
+        <span class="mms-wo-cost-dashboard__hero-currency">{% trans "SAR" %}</span>
+      </div>
+      <div class="mms-wo-cost-dashboard__hero-meta">
+        <span class="mms-wo-cost-dashboard__hero-meta-pill">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          {% trans "Last reconciled" %} {% if last %}{{ last|mms_datetime }}{% else %}{% trans "never" %}{% endif %}
+        </span>
+        <a href="{% url 'work_order_cost_ledger' wo.pk %}" style="color:var(--mms-accent);text-decoration:none;font-weight:600">
+          View ledger →
+        </a>
+      </div>
+    </div>
+
+    <div class="mms-wo-cost-dashboard__breakdown">
+      <h4 class="mms-wo-cost-dashboard__breakdown-title">{% trans "Breakdown by category" %}</h4>
+
+      <div class="mms-wo-cost-bar" role="img" aria-label={% trans "Cost distribution across categories" %}>
+        <div class="mms-wo-cost-bar__seg mms-wo-cost-bar__seg--empty" style="width:100%"></div>
+      </div>
+
+      <ul class="mms-wo-cost-legend">
+        <li>
+          <span class="mms-wo-cost-legend__name">
+            <span class="mms-wo-cost-legend__dot" data-cat="material" aria-hidden="true"></span>
+              {% trans "Material" %}
+          </span>
+          <span class="mms-wo-cost-legend__values">
+            <span class="mms-wo-cost-legend__amount">{{ mat|floatformat:2 }}</span>
+            <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+            <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio mat tot 100 %}{% else %}&mdash;{% endif %}%</span>
+          </span>
+        </li>
+        <li>
+          <span class="mms-wo-cost-legend__name">
+            <span class="mms-wo-cost-legend__dot" data-cat="vendor" aria-hidden="true"></span>
+              {% trans "Vendor repair" %}
+          </span>
+          <span class="mms-wo-cost-legend__values">
+            <span class="mms-wo-cost-legend__amount">{{ ven|floatformat:2 }}</span>
+            <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+            <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio ven tot 100 %}{% else %}&mdash;{% endif %}%</span>
+          </span>
+        </li>
+        <li>
+          <span class="mms-wo-cost-legend__name">
+            <span class="mms-wo-cost-legend__dot" data-cat="consumable" aria-hidden="true"></span>
+              {% trans "Consumables" %}
+          </span>
+          <span class="mms-wo-cost-legend__values">
+            <span class="mms-wo-cost-legend__amount">{{ con|floatformat:2 }}</span>
+            <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+            <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio con tot 100 %}{% else %}&mdash;{% endif %}%</span>
+          </span>
+        </li>
+        <li>
+          <span class="mms-wo-cost-legend__name">
+            <span class="mms-wo-cost-legend__dot" data-cat="adjustment" aria-hidden="true"></span>
+              {% trans "Adjustments" %}
+          </span>
+          <span class="mms-wo-cost-legend__values">
+            <span class="mms-wo-cost-legend__amount">{{ adj|floatformat:2 }}</span>
+            <span class="mms-wo-cost-legend__currency">{% trans "SAR" %}</span>
+            <span class="mms-wo-cost-legend__pct">{% if tot %}{% widthratio adj tot 100 %}{% else %}&mdash;{% endif %}%</span>
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="mms-wo-cost-kpis">
+      <div class="mms-wo-cost-kpi">
+        <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </span>
+        <div class="mms-wo-cost-kpi__body">
+          <div class="mms-wo-cost-kpi__value">{{ txns }}</div>
+          <div class="mms-wo-cost-kpi__label">{% trans "Posted" %}</div>
+        </div>
+      </div>
+
+      <div class="mms-wo-cost-kpi">
+        <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3h7v7H3z"/>
+            <path d="M14 3h7v7h-7z"/>
+            <path d="M14 14h7v7h-7z"/>
+            <path d="M3 14h7v7H3z"/>
+          </svg>
+        </span>
+        <div class="mms-wo-cost-kpi__body">
+          <div class="mms-wo-cost-kpi__value">
+            {% if txns %}{% widthratio tot txns 100 %}{% else %}&mdash;{% endif %}
+          </div>
+          <div class="mms-wo-cost-kpi__label">{% trans "Avg / txn" %}</div>
+        </div>
+      </div>
+
+      <div class="mms-wo-cost-kpi">
+        <span class="mms-wo-cost-kpi__icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </span>
+        <div class="mms-wo-cost-kpi__body">
+          <div class="mms-wo-cost-kpi__value" style="font-size:.95rem">{% if last %}{{ last|mms_date }}{% else %}Never{% endif %}</div>
+          <div class="mms-wo-cost-kpi__label">{% trans "Last reconciled" %}</div>
+        </div>
+      </div>
+    </div>
+
+    {% if can_manage_costs and adjustment_form %}
+    <details class="mms-wo-cost-dashboard__adjust">
+      <summary>{% trans "Add a cost adjustment" %}</summary>
+      <form method="post" action="{% url 'work_order_adjust_cost' wo.pk %}" class="mms-form">
+        {% csrf_token %}
+        <div class="mms-form-row">
+          <label for="{{ adjustment_form.amount.id_for_label }}">{% trans "Amount (SAR) *" %}</label>
+          {{ adjustment_form.amount }}
+          <small class="text-muted">{% trans "Signed: positive adds, negative reduces." %}</small>
+        </div>
+        <div class="mms-form-row">
+          <label for="{{ adjustment_form.memo.id_for_label }}">{% trans "Memo *" %}</label>
+          {{ adjustment_form.memo }}
+          <small class="text-muted">{% trans "Min 10 characters. Explains why this adjustment exists." %}</small>
+        </div>
+        <div class="mms-form-actions">
+          <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "Post adjustment" %}</button>
+        </div>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% endwith %}
+{% endif %}

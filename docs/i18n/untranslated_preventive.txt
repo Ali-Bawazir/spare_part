@@ -1,0 +1,176 @@
+# Untranslated msgids: PREVENTIVE (174 entries)
+
+Maintenance submitted for review. | maintenance/views_preventive.py
+Start the maintenance before adding photos. | maintenance/views_preventive.py
+No photo uploaded. | maintenance/views_preventive.py
+Photo added. | maintenance/views_preventive.py
+Approved. | maintenance/views_preventive.py
+Return reason is required. | maintenance/views_preventive.py
+Returned to technician. | maintenance/views_preventive.py
+Template saved. | maintenance/views_preventive.py
+Plan saved. | maintenance/views_preventive.py
+Assigned. | maintenance/views_preventive.py
+Plan paused. | maintenance/views_preventive.py
+Plan resumed. | maintenance/views_preventive.py
+Plan archived. | maintenance/views_preventive.py
+Maintenance scheduled for now. | maintenance/views_preventive.py
+Confirm batch PM spawn | templates/maintenance/pm_batch_spawn_confirm.html
+Review the schedules below and confirm to spawn a work order for each. | templates/maintenance/pm_batch_spawn_confirm.html
+Estimated | templates/maintenance/pm_batch_spawn_confirm.html
+Spawn %(counter)s PM work order? | templates/maintenance/pm_batch_spawn_confirm.html
+✓ Confirm — Spawn %(counter)s Work Order | templates/maintenance/pm_batch_spawn_confirm.html
+No valid schedules to spawn. | templates/maintenance/pm_batch_spawn_confirm.html
+Add | templates/maintenance/pm_batch_spawn_confirm.html
+to the URL to see a confirmation. | templates/maintenance/pm_batch_spawn_confirm.html
+← Back to PM list | templates/maintenance/pm_batch_spawn_confirm.html
+PM Compliance Dashboard | templates/maintenance/pm_dashboard.html
+Compliance | templates/maintenance/pm_dashboard.html
+Scheduled PMs in window | templates/maintenance/pm_dashboard.html
+Completed on time | templates/maintenance/pm_dashboard.html
+Completed late (after grace) | templates/maintenance/pm_dashboard.html
+&mdash; (no scheduled PMs in window) | templates/maintenance/pm_dashboard.html
+Per-Machine Compliance | templates/maintenance/pm_dashboard.html
+Scheduled (90d) | templates/maintenance/pm_dashboard.html
+On time | templates/maintenance/pm_dashboard.html
+View PMs | templates/maintenance/pm_dashboard.html
+No machines with PMs. | templates/maintenance/pm_dashboard.html
+&larr; All PM schedules | templates/maintenance/pm_dashboard.html
+Manage templates | templates/maintenance/pm_dashboard.html
+PM schedule | templates/maintenance/pm_form.html
+Define preventive task frequency and next due date for a machine or component. | templates/maintenance/pm_form.html
+Component (optional): | templates/maintenance/pm_form.html
+— leave blank to apply the PM to the whole machine | templates/maintenance/pm_form.html
+Reference Photos | templates/maintenance/pm_form.html
+Preventive maintenance | templates/maintenance/pm_list.html
+Schedules drive PM work orders. Spawn a WO when due. | templates/maintenance/pm_list.html
+New schedule | templates/maintenance/pm_list.html
+Compliance dashboard | templates/maintenance/pm_list.html
+Active only | templates/maintenance/pm_list.html
+Inactive only | templates/maintenance/pm_list.html
+Due this week | templates/maintenance/pm_list.html
+Future | templates/maintenance/pm_list.html
+All machines | templates/maintenance/pm_list.html
+Reset | templates/maintenance/pm_list.html
+Select all overdue | templates/maintenance/pm_list.html
+Days until due | templates/maintenance/pm_list.html
+No PM schedules match the filter. | templates/maintenance/pm_list.html
+Create PM work orders for all selected schedules? | templates/maintenance/pm_list.html
+Spawn WOs for selected | templates/maintenance/pm_list.html
+Tip: only overdue schedules are checkable for batch spawn. | templates/maintenance/pm_list.html
+Work Order & Schedule | templates/maintenance/pm_review.html
+PM Template | templates/maintenance/pm_review.html
+Schedule | templates/maintenance/pm_review.html
+Scheduled due | templates/maintenance/pm_review.html
+Execution sequence | templates/maintenance/pm_review.html
+Completion time | templates/maintenance/pm_review.html
+Item | templates/maintenance/pm_review.html
+Required | templates/maintenance/pm_review.html
+Technician note | templates/maintenance/pm_review.html
+✓ Done | templates/maintenance/pm_review.html
+✗ Not done | templates/maintenance/pm_review.html
+No checklist items. | templates/maintenance/pm_review.html
+No checklist data recorded. | templates/maintenance/pm_review.html
+📦 Template Snapshot (immutable) | templates/maintenance/pm_review.html
+Title (at spawn) | templates/maintenance/pm_review.html
+Code (at spawn) | templates/maintenance/pm_review.html
+Priority (at spawn) | templates/maintenance/pm_review.html
+Duration (at spawn) | templates/maintenance/pm_review.html
+Captured at | templates/maintenance/pm_review.html
+✓ Approved | templates/maintenance/pm_review.html
+✗ Rejected | templates/maintenance/pm_review.html
+⚖️ Manager Decision | templates/maintenance/pm_review.html
+Rejection reason (required if rejecting) | templates/maintenance/pm_review.html
+What needs to be redone? | templates/maintenance/pm_review.html
+Approve this PM and close the work order? | templates/maintenance/pm_review.html
+✓ Approve & Close WO | templates/maintenance/pm_review.html
+Reject and return to technician? | templates/maintenance/pm_review.html
+✗ Reject & Return | templates/maintenance/pm_review.html
+← Back to WO | templates/maintenance/pm_review.html
+Estimated duration | templates/maintenance/pm_spawn_wo.html
+Create this PM work order now? | templates/maintenance/pm_spawn_wo.html
+Create PM Work Order | templates/maintenance/pm_spawn_wo.html
+Procedure metadata | templates/maintenance/pm_template_detail.html
+Manager review | templates/maintenance/pm_template_detail.html
+required | templates/maintenance/pm_template_detail.html
+No checklist items defined. | templates/maintenance/pm_template_detail.html
+No schedules using this template yet. | templates/maintenance/pm_template_detail.html
+Edit template | templates/maintenance/pm_template_detail.html
+Assign to machine | templates/maintenance/pm_template_detail.html
+← All templates | templates/maintenance/pm_template_detail.html
+Procedure details | templates/maintenance/pm_template_form.html
+Checklist items | templates/maintenance/pm_template_form.html
+One line item per inspection step. Mark required items that must be completed. Use the  | templates/maintenance/pm_template_form.html
++ Add another item | templates/maintenance/pm_template_form.html
+ button to add more rows. | templates/maintenance/pm_template_form.html
+Order | templates/maintenance/pm_template_form.html
+Text | templates/maintenance/pm_template_form.html
+Required? | templates/maintenance/pm_template_form.html
+new | templates/maintenance/pm_template_form.html
+(empty rows are ignored on save) | templates/maintenance/pm_template_form.html
+PM templates | templates/maintenance/pm_template_list.html
+Reusable preventive maintenance procedures. Each template can be assigned to many machines via PMSchedule. | templates/maintenance/pm_template_list.html
+New template | templates/maintenance/pm_template_list.html
+Duration | templates/maintenance/pm_template_list.html
+Items | templates/maintenance/pm_template_list.html
+Schedules | templates/maintenance/pm_template_list.html
+No PM templates. | templates/maintenance/pm_template_list.html
+⚠ Returned | templates/maintenance/preventive/execute.html
+Elapsed | templates/maintenance/preventive/execute.html
+Expected | templates/maintenance/preventive/execute.html
+Checklist | templates/maintenance/preventive/execute.html
+Overall notes (optional, but counts as completion) | templates/maintenance/preventive/execute.html
+Photos | templates/maintenance/preventive/execute.html
+No photos uploaded yet. | templates/maintenance/preventive/execute.html
++ Add photo | templates/maintenance/preventive/execute.html
+Today | templates/maintenance/preventive/mgr_dashboard.html
+Due Today | templates/maintenance/preventive/mgr_dashboard.html
+Waiting Review | templates/maintenance/preventive/mgr_dashboard.html
+Unassigned | templates/maintenance/preventive/mgr_dashboard.html
+Completed Today | templates/maintenance/preventive/mgr_dashboard.html
+Any | templates/maintenance/preventive/mgr_history.html
+Date range | templates/maintenance/preventive/mgr_history.html
+Last 7 days | templates/maintenance/preventive/mgr_history.html
+Last 30 days | templates/maintenance/preventive/mgr_history.html
+Last 90 days | templates/maintenance/preventive/mgr_history.html
+Last year | templates/maintenance/preventive/mgr_history.html
+Actual vs Expected | templates/maintenance/preventive/mgr_history.html
+✗ Returned | templates/maintenance/preventive/mgr_history.html
+Plan Information | templates/maintenance/preventive/mgr_plan_detail.html
+Ends | templates/maintenance/preventive/mgr_plan_detail.html
+Quick Actions | templates/maintenance/preventive/mgr_plan_detail.html
+Run Now | templates/maintenance/preventive/mgr_plan_detail.html
+Archive this plan? | templates/maintenance/preventive/mgr_plan_detail.html
+View Machine | templates/maintenance/preventive/mgr_plan_detail.html
+Upcoming Schedule | templates/maintenance/preventive/mgr_plan_detail.html
+Last completed | templates/maintenance/preventive/mgr_plan_detail.html
+Recent Executions | templates/maintenance/preventive/mgr_plan_detail.html
+View all history → | templates/maintenance/preventive/mgr_plan_detail.html
+No executions yet. | templates/maintenance/preventive/mgr_plan_detail.html
+Archived | templates/maintenance/preventive/mgr_plans.html
++ New Plan | templates/maintenance/preventive/mgr_plans.html
+Due | templates/maintenance/preventive/mgr_plans.html
+No plans in this filter. | templates/maintenance/preventive/mgr_plans.html
+pending | templates/maintenance/preventive/mgr_reviews.html
+Return reason (required) | templates/maintenance/preventive/mgr_reviews.html
+Return to technician | templates/maintenance/preventive/mgr_reviews.html
+No pending reviews. | templates/maintenance/preventive/mgr_reviews.html
++ Add row | templates/maintenance/preventive/mgr_template_form.html
++ New Template | templates/maintenance/preventive/mgr_templates.html
+Checks | templates/maintenance/preventive/mgr_templates.html
+No templates yet. | templates/maintenance/preventive/mgr_templates.html
+Select... | templates/maintenance/preventive/mgr_today.html
+Assign | templates/maintenance/preventive/mgr_today.html
+Reassign to... | templates/maintenance/preventive/mgr_today.html
+Reassign | templates/maintenance/preventive/mgr_today.html
+No maintenance scheduled today. | templates/maintenance/preventive/mgr_today.html
+My Maintenance | templates/maintenance/preventive/my.html
+Resume | templates/maintenance/preventive/my.html
+TODAY | templates/maintenance/preventive/my.html
+YOUR TASKS | templates/maintenance/preventive/my.html
+UNASSIGNED — PICK UP | templates/maintenance/preventive/my.html
+Pick up | templates/maintenance/preventive/my.html
+UPCOMING | templates/maintenance/preventive/my.html
+Nothing upcoming. | templates/maintenance/preventive/my.html
+COMPLETED | templates/maintenance/preventive/my.html
+Waiting for approval | templates/maintenance/preventive/my.html
+No completed maintenance today. | templates/maintenance/preventive/my.html

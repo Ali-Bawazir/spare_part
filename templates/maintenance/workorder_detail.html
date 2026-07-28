@@ -1,162 +1,399 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% load mms_extras %}
+{% i18n_json "last_received_prefix" "Last received: " "per_unit_suffix" " / unit (" "date_separator" ", " %}
 {% block title %}WO-{{ wo.number }}{% endblock %}
 {% block page_heading %}WO-{{ wo.number }}{% endblock %}
 {% block content %}
 {% if perm_view_work_orders %}
 <p class="mms-actions" style="margin:0 0 0.75rem">
-  <a href="{% url 'work_order_list' %}" class="mms-btn mms-btn--ghost mms-btn--sm">Back to work orders</a>
+  <a href="{% url 'work_order_list' %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Back to work orders" %}</a>
 </p>
 {% endif %}
 <p class="mms-page-lead">
   {{ wo.machine.name }}
-  <span class="{{ wo.status|wo_status_badge_class }}">{{ wo.get_status_display }}</span>
+  {% if wo.component %}
+    → Component: {{ wo.component.name }} ({{ wo.component.asset_code }})
+  {% endif %}
+  <span class="{{ wo.lifecycle_status|wo_status_badge_class }}">{{ wo.get_lifecycle_status_display }}</span>
   <span class="mms-badge mms-badge--muted">{{ wo.get_category_display }}</span>
-  {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">Emergency</span>{% endif %}
+  {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">{% trans "Emergency" %}</span>{% endif %}
   {% if wo.issue %}<span class="mms-badge mms-badge--info">Issue #{{ wo.issue.id }}</span>{% endif %}
   {% if wo.issue and wo.issue.priority %}<span class="{{ wo.issue.priority|priority_badge_class }}">{{ wo.issue.get_priority_display }}</span>{% endif %}
+  {% if wo.pm_execution %}<span class="mms-badge mms-badge--muted">PM: {{ wo.pm_execution.get_status_display }}</span>{% endif %}
+  {% if wo.is_archived %}
+<span class="mms-badge mms-badge--archived" title="Archived by {{ wo.archived_by }} on {{ wo.archived_at|date:'Y-m-d H:i' }}">
+  Archived
+</span>
+{% endif %}
 </p>
+
+{% if wo.category == 'preventive' and wo.pm_execution %}
+  {% if wo.lifecycle_status == 'pending_review' %}
+    {% if user.role == 'manager' or user.role == 'super_admin' %}
+      <p style="margin-top:0.5rem">
+        <a class="mms-btn mms-btn--primary" href="{% url 'pm_review' wo.pk %}">{% trans "⚖️ Review PM" %}</a>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'pm_wo_detail' wo.pk %}">{% trans "📋 View PM Work Order" %}</a>
+      </p>
+    {% endif %}
+  {% else %}
+    {% if wo.lifecycle_status == 'assigned' or wo.lifecycle_status == 'in_progress' %}
+      {% if user.role == 'technician' or user.role == 'manager' or user.role == 'super_admin' or user.role == 'supervisor' %}
+        <p style="margin-top:0.5rem">
+          <a class="mms-btn mms-btn--primary" href="{% url 'pm_wo_detail' wo.pk %}">{% trans "▶ Execute PM (with checklist)" %}</a>
+        </p>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endif %}
 
 <div class="mms-grid mms-grid--2">
   <div class="mms-card">
-    <div class="mms-card-header">Work details</div>
+    <div class="mms-card-header">{% trans "Work details" %}</div>
     <div class="mms-card-body mms-stack">
       {% if wo.issue %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Issue description</span><br>{{ wo.issue.description|linebreaksbr }}</div>
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Reporter / validator</span><br>{{ wo.issue.reported_by.username }}{% if wo.issue.validated_by %} / {{ wo.issue.validated_by.username }}{% endif %}</div>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Issue description" %}</span><br>{{ wo.issue.description|linebreaksbr }}</div>
+      {% if issue_attachments %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Issue photos" %}</span><br>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.25rem">
+          {% for att in issue_attachments %}
+            {% if att.mime_type|slice:":5" == "audio" %}
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:80px;height:80px;background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:4px">
+                <span style="font-size:1.2rem">🎤</span>
+                <span style="font-size:0.6rem;color:#166534;font-weight:600">{% trans "AUDIO" %}</span>
+                <audio src="{{ att.file.url }}" controls style="height:24px;width:70px;margin-top:2px"></audio>
+              </div>
+            {% else %}
+    <a href="{{ att.file.url }}" target="_blank" title="{{ att.filename }}">
+      <img src="{% if att.thumbnail %}{{ att.thumbnail.url }}{% else %}{{ att.file.url }}{% endif %}" alt="{{ att.filename }}" style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #ddd">
+    </a>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Reporter / validator" %}</span><br>{{ wo.issue.reported_by.username }}{% if wo.issue.validated_by %} / {{ wo.issue.validated_by.username }}{% endif %}</div>
       <div class="mms-divider"></div>
       {% endif %}
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Technician</span><br>{{ wo.assigned_technician|default:"-" }}</div>
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Labor</span><br>
-        Started: {{ wo.labor_started_at|default:"-" }}<br>
-        Stopped: {{ wo.labor_stopped_at|default:"-" }}
+      {% if wo.component %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Component" %}</span><br>{{ wo.component.name }} ({{ wo.component.asset_code }})</div>
+      {% endif %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Technician" %}</span><br>{{ wo.assigned_technician|default:"-" }}</div>
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Labor" %}</span><br>
+        {% trans "Started:" %} {{ wo.labor_started_at|mms_datetime }}<br>
+        {% trans "Stopped:" %} {{ wo.labor_stopped_at|mms_datetime }}
       </div>
-      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">Downtime window</span><br>
-        {{ wo.downtime_started_at|default:"-" }} -> {{ wo.downtime_ended_at|default:"-" }}
+      {% if wo.operational_status == 'paused' %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Pause reason" %}</span><br>
+        <span class="mms-badge mms-badge--warning">{% trans "Paused" %}</span>
+      </div>
+      {% endif %}
+      <div><span class="text-muted" style="font-size:.75rem;font-weight:600">{% trans "Downtime window" %}</span><br>
+        {{ wo.downtime_started_at|mms_datetime }} -> {{ wo.downtime_ended_at|mms_datetime }}
       </div>
       <div class="mms-divider"></div>
-      <div><strong>Root cause</strong><br>{{ wo.root_cause|default:"-"|linebreaksbr }}</div>
-      <div><strong>Action taken</strong><br>{{ wo.action_taken|default:"-"|linebreaksbr }}</div>
-      <div><strong>Notes</strong><br>{{ wo.notes|default:"-"|linebreaksbr }}</div>
+      <div><strong>{% trans "Root cause" %}</strong><br>{{ wo.root_cause|default:"-"|linebreaksbr }}</div>
+      <div><strong>{% trans "Action taken" %}</strong><br>{{ wo.action_taken|default:"-"|linebreaksbr }}</div>
+      <div><strong>{% trans "Notes" %}</strong><br>{{ wo.notes|default:"-"|linebreaksbr }}</div>
     </div>
   </div>
 
+  {# Phase 3A: Health card + Active Blockers panel (full-width, between Work details and Actions) #}
+  {% include "maintenance/_wo_health_card.html" %}
+  {% include "maintenance/_wo_blockers_panel.html" %}
+
+  {# Cost dashboard — visible to roles that plan around cost. #}
+  {% if can_see_cost %}{% include "maintenance/_wo_costs.html" %}{% endif %}
+
   <div class="mms-card">
-    <div class="mms-card-header">Actions</div>
+    <div class="mms-card-header">{% trans "Actions" %}</div>
     <div class="mms-card-body mms-stack">
       {% if active_conflict %}
-      <div class="mms-form-tip">You already have an active work order: <a href="{% url 'work_order_detail' active_conflict.pk %}">WO-{{ active_conflict.number }}</a>. Starting this one will pause that task to keep only one active technician job.</div>
+      <div class="mms-form-tip">{% trans "You already have an active work order:" %}<a href="{% url 'work_order_detail' active_conflict.pk %}">WO-{{ active_conflict.number }}</a>{% trans ". Starting this one will pause that task to keep only one active technician job." %}</div>
       {% endif %}
 
-      {% if perm_assign_technician or perm_issue_parts_to_wo or perm_create_purchase_request %}
-        {% if wo.status != 'closed' %}
-          {% if perm_assign_technician %}
-            {% if wo.status == 'approved' or wo.status == 'assigned' or wo.status == 'paused' %}
-          <form method="post" action="{% url 'work_order_assign' wo.pk %}" class="mms-stack">
-            {% csrf_token %}
-            <div class="mms-form-row">{{ assign_form.technician.label_tag }}{{ assign_form.technician }}</div>
-            <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Assign / reassign technician</button>
-          </form>
-          <div class="mms-divider"></div>
-            {% endif %}
-          {% endif %}
-          {% if perm_issue_parts_to_wo %}
-          <form method="post" action="{% url 'work_order_issue_part' wo.pk %}" class="mms-stack">
-            {% csrf_token %}
-            <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Issue spare part (full, partial, or procurement fallback)</p>
-            {% for field in issue_part_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
-            <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">Issue to WO</button>
-          </form>
-          {% endif %}
-          {% if perm_create_purchase_request %}
-          <p style="font-size:.8rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_create' %}?wo={{ wo.pk }}">New purchase request for this WO</a></p>
-          {% endif %}
-        {% endif %}
-      {% endif %}
-
-      {% if perm_super_full or perm_execute_work_order and wo.assigned_technician_id == user.id %}
-        <div class="mms-actions">
-          {% if wo.status == 'assigned' or wo.status == 'paused' or wo.status == 'pending_parts' or wo.status == 'waiting_vendor' or wo.status == 'in_progress' %}
-          <form method="post" action="{% url 'work_order_start' wo.pk %}">
-            {% csrf_token %}
-            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">
-              {% if wo.status == 'in_progress' %}
-              Resume labor
-              {% elif active_conflict %}
-              Start work / switch task
-              {% else %}
-              Start work
-              {% endif %}
-            </button>
-          </form>
-          {% endif %}
-          {% if wo.status == 'in_progress' %}
-          <form method="post" action="{% url 'work_order_pause' wo.pk %}">{% csrf_token %}<button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Pause</button></form>
-          {% endif %}
-        </div>
-        {% if wo.status == 'in_progress' %}
-        <div class="mms-divider"></div>
-        <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Execution flow</p>
-        <div class="mms-grid" style="gap:.75rem">
-          <form method="post" action="{% url 'work_order_mark_parts' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed">
-            <div class="mms-card-body">
-              {% csrf_token %}
-              <div class="mms-form-row">{{ tech_parts_note.note.label_tag }}{{ tech_parts_note.note }}</div>
-              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Waiting for parts</button>
-            </div>
-          </form>
-          <form method="post" action="{% url 'work_order_mark_vendor' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed">
-            <div class="mms-card-body">
-              {% csrf_token %}
-              <div class="mms-form-row">{{ tech_vendor_note.note.label_tag }}{{ tech_vendor_note.note }}</div>
-              <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">Waiting for vendor</button>
-            </div>
-          </form>
-        </div>
-        <div class="mms-divider"></div>
-        <form method="post" action="{% url 'work_order_submit' wo.pk %}" class="mms-stack">
-          {% csrf_token %}
-          <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">Completion submission</p>
-          {% for field in complete_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
-          <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">Submit for review</button>
-        </form>
-        {% endif %}
-      {% endif %}
-
-      {% if perm_close_or_review_wo and wo.status == 'pending_review' %}
-      <div class="mms-divider"></div>
-      <div class="mms-form-tip">Manager review checklist: repair quality, parts used, notes, labor time, and downtime before final closure.</div>
-      <form method="post" action="{% url 'work_order_close' wo.pk %}" class="mms-actions">
-        {% csrf_token %}
-        <button class="mms-btn mms-btn--primary mms-btn--sm" name="action" value="approve" type="submit">Approve and close</button>
-        <button class="mms-btn mms-btn--danger mms-btn--sm" name="action" value="reject" type="submit">Reject back to tech</button>
-      </form>
-      {% endif %}
+      {% include "maintenance/_wo_actions_manager.html" %}
+      {% include "maintenance/_wo_actions_technician.html" %}
+      {% include "maintenance/_wo_review_manager.html" %}
     </div>
   </div>
 </div>
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Parts issued</div>
+  <div class="mms-card-header">{% trans "Parts issued / requested" %}</div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Part</th><th>Qty</th><th>Unit cost</th><th>By</th></tr></thead>
+      <thead><tr><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th><th>{% trans "Requested by" %}</th><th>{% trans "Issued / Approved by" %}</th><th>{% trans "Committed" %}</th><th>{% trans "Issued" %}</th><th>{% trans "Notes" %}</th></tr></thead>
       <tbody>
-      {% for p in part_issues %}<tr><td>{{ p.part.name }}</td><td>{{ p.quantity }}</td><td>{{ p.unit_cost }}</td><td>{{ p.issued_by }}</td></tr>
-      {% empty %}<tr><td colspan="4" class="mms-empty">No parts issued.</td></tr>{% endfor %}
+      {% for item in parts_display %}
+      <tr>
+        <td>
+          {% part_primary_image item.line.part as img %}
+          {% if img %}
+            <a href="{{ item.line.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:6px;">
+            </a>
+          {% endif %}
+          {{ item.line.part.name }}
+        </td>
+        <td>{{ item.line.quantity }}</td>
+        <td>
+          <span class="{{ item.line.status|part_status_badge_class }}">{{ item.line.get_status_display }}</span>
+          {% if item.line.status == 'approved' and item.line.is_emergency_auto_approved %}<span class="mms-badge mms-badge--danger" title={% trans "Auto-approved due to emergency" %}>{% trans "EMRG" %}</span>{% endif %}
+          {% if item.line.shortage_qty and item.line.shortage_qty > 0 and item.has_pending_shortage %}
+            <a href="#shortage-{{ item.line.id }}"
+               class="mms-badge mms-badge--warning"
+               style="margin-left:.35rem; text-decoration:none"
+               title="Click to review shortage decision for {{ item.line.part.name }}">
+              ⚠ {{ item.line.shortage_qty|qty_no_zeros }} in shortage
+            </a>
+          {% endif %}
+        </td>
+        <td>{{ item.line.requested_by|default:"—" }}</td>
+        <td>
+          {% if item.line.status == 'approved' %}{{ item.line.approved_by|default:item.line.issued_by }}{% else %}{{ item.line.issued_by|default:"—" }}{% endif %}
+        </td>
+        <td>
+          {% if item.committed_amount %}
+            {{ item.committed_amount|floatformat:2 }} SAR
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if item.issued_amount %}
+            {{ item.issued_amount|floatformat:2 }} SAR
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if item.line.status == 'rejected' %}<span style="color:var(--mms-muted);font-size:.75rem">{{ item.line.rejection_reason|truncatechars:50 }}</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="8" class="mms-empty">{% trans "No parts issued or requested." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-{% if linked_prs %}
+{% if pending_part_requests %}
+<div class="mms-card" style="margin-top:1rem;border-left:4px solid #f0ad4e">
+  <div class="mms-card-header" style="background:#fff8e1">
+    Pending part requests ({{ pending_part_requests.count }})
+    {% if not perm_approve_part_request %}
+    <span style="font-size:.75rem;color:#6b7280;font-weight:normal;margin-left:.5rem">{% trans "read-only" %}</span>
+    {% endif %}
+  </div>
+  <div class="mms-card-body mms-stack">
+    {% for req in pending_part_requests %}
+    <div class="mms-card" style="box-shadow:none;border-style:dashed">
+      <div class="mms-card-body mms-stack">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          {% part_primary_image req.part as img %}
+          {% if img %}
+            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+            </a>
+          {% endif %}
+          <strong>{{ req.part.name }}</strong>
+          <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
+          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|mms_datetime }}</span>
+        </div>
+        {% if perm_approve_part_request %}
+        <form method="post" action="{% url 'work_order_decide_part' wo.pk req.pk %}">
+          {% csrf_token %}
+          <div class="mms-form-row">
+            <label>{% trans "Action" %}</label>
+            <select name="action" class="form-select" required>
+              <option value="approve">{% trans "Approve (deduct stock)" %}</option>
+              <option value="edit">{% trans "Edit quantity" %}</option>
+              <option value="reject">{% trans "Reject" %}</option>
+            </select>
+          </div>
+          <div class="mms-form-row">
+            <label>{% trans "New qty (when editing)" %}</label>
+            <input type="number" name="new_qty" min="0.001" step="0.001" class="form-control" value="{{ req.quantity }}">
+          </div>
+          <div class="mms-form-row">
+            <label>{% trans "Rejection reason (required when rejecting)" %}</label>
+            <textarea name="rejection_reason" rows="2" class="form-control" maxlength="1000"></textarea>
+          </div>
+          <div class="mms-actions">
+            <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "Submit decision" %}</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if refused_part_requests %}
+<div class="mms-card" style="margin-top:1rem;border-left:4px solid #dc2626">
+  <div class="mms-card-header" style="background:#fef2f2">
+    Refused part requests ({{ refused_part_requests.count }})
+  </div>
+  <div class="mms-card-body mms-stack">
+    {% for req in refused_part_requests %}
+    <div class="mms-card" style="box-shadow:none;border-style:dashed">
+      <div class="mms-card-body mms-stack">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          {% part_primary_image req.part as img %}
+          {% if img %}
+            <a href="{{ req.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+              <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+            </a>
+          {% endif %}
+          <strong>{{ req.part.name }}</strong>
+          <span class="mms-badge mms-badge--muted">qty {{ req.quantity }}</span>
+          <span class="mms-badge mms-badge--danger">{% trans "Refused" %}</span>
+          <span style="font-size:.75rem;color:var(--mms-muted)">requested by {{ req.requested_by|default:"—" }} at {{ req.created_at|mms_datetime }}</span>
+        </div>
+        {% if req.rejection_reason %}
+        <div style="font-size:.85rem;color:#7f1d1d">
+          <strong>{% trans "Reason:" %}</strong> {{ req.rejection_reason }}
+        </div>
+        {% endif %}
+        {% if request.user == req.requested_by %}
+        <a href="{% url 'work_order_request_part_re_review' req.pk %}" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "✏️ Edit & re-submit" %}</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ------------------------------------------------------------------ #}
+{# External Repair Request flow (Phase 2.2)                          #}
+{#   - Technician of own WO can submit a PENDING request             #}
+{#   - Manager sees pending requests and approves/rejects            #}
+{# ------------------------------------------------------------------ #}
+{% if wo.assigned_technician_id == request.user.id and wo.lifecycle_status != 'closed' %}
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">Linked procurement requests</div>
+  <div class="mms-card-header" style="background:#e3f2fd">{% trans "Request external repair (vendor)" %}</div>
+  <div class="mms-card-body">
+    <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">
+      The Maintenance Manager will review your request and create the
+      External Repair Order (ERO). The supply officer will then send the
+      part to the vendor.
+    </p>
+    <form method="post" action="{% url 'work_order_request_external_repair' wo.pk %}">
+      {% csrf_token %}
+      <div class="mms-stack">
+        <div class="mms-form-row">
+          {{ external_repair_request_form.diagnosis_note.label_tag }}
+          {{ external_repair_request_form.diagnosis_note }}
+          {% if external_repair_request_form.diagnosis_note.errors %}
+            <div class="text-danger" style="font-size:.75rem">{{ external_repair_request_form.diagnosis_note.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mms-form-row">
+          {{ external_repair_request_form.part_description.label_tag }}
+          {{ external_repair_request_form.part_description }}
+          {% if external_repair_request_form.part_description.errors %}
+            <div class="text-danger" style="font-size:.75rem">{{ external_repair_request_form.part_description.errors }}</div>
+          {% endif %}
+        </div>
+        <div>
+          <button class="mms-btn mms-btn-primary" type="submit">{% trans "Submit request" %}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if pending_external_repair_requests %}
+  {% if request.user.role == 'manager' or request.user.is_superuser %}
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header" style="background:#fff8e1">
+    Manager queue — pending external-repair requests ({{ pending_external_repair_requests.count }})
+  </div>
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>PR</th><th>Part</th><th>Qty</th><th>Status</th></tr></thead>
+      <thead><tr>
+        <th>{% trans "Requested" %}</th>
+        <th>{% trans "Technician" %}</th>
+        <th>{% trans "Diagnosis" %}</th>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "Action" %}</th>
+      </tr></thead>
       <tbody>
-      {% for pr in linked_prs %}<tr><td>#{{ pr.id }}</td><td>{{ pr.part.sku }}</td><td>{{ pr.quantity }}</td><td>{{ pr.get_status_display }}</td></tr>{% endfor %}
+      {% for err in pending_external_repair_requests %}
+        <tr>
+          <td>{{ err.created_at|mms_datetime }}</td>
+          <td>{{ err.requested_by.get_full_name|default:err.requested_by.username }}</td>
+          <td style="max-width:240px;white-space:normal">{{ err.diagnosis_note|truncatechars:120 }}</td>
+          <td style="max-width:200px;white-space:normal">{{ err.part_description|truncatechars:80 }}</td>
+          <td>
+            <form method="post" action="{% url 'work_order_decide_external_repair' wo.pk err.pk %}" style="display:flex;flex-direction:column;gap:.35rem;min-width:220px">
+              {% csrf_token %}
+              <select name="action" class="form-select form-select-sm">
+                <option value="approve">{% trans "Approve (create ERO)" %}</option>
+                <option value="reject">{% trans "Reject" %}</option>
+              </select>
+              <textarea name="manager_note" class="form-control form-control-sm" rows="2" placeholder={% trans "Reason (required on reject)" %}></textarea>
+              <button class="mms-btn mms-btn-sm mms-btn-primary" type="submit">{% trans "Submit" %}</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+  {% endif %}
+{% endif %}
+
+{% if external_repair_requests %}
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">{% trans "External-repair history" %}</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>{% trans "Submitted" %}</th>
+        <th>{% trans "Technician" %}</th>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "Request" %}</th>
+        <th>{% trans "ERO" %}</th>
+      </tr></thead>
+      <tbody>
+      {% for err in external_repair_requests %}
+        <tr>
+          <td>{{ err.created_at|mms_datetime }}</td>
+          <td>{{ err.requested_by.get_full_name|default:err.requested_by.username }}</td>
+          <td style="max-width:200px;white-space:normal">{{ err.part_description|truncatechars:60 }}</td>
+          <td>
+            {% if err.status == 'pending' %}<span class="mms-badge mms-badge--warning">{% trans "Pending" %}</span>
+            {% elif err.status == 'approved' %}<span class="mms-badge mms-badge--success">{% trans "Approved" %}</span>
+            {% else %}<span class="mms-badge mms-badge--muted">{% trans "Rejected" %}</span>{% endif %}
+            {% if err.manager_note %}<div class="text-muted" style="font-size:.7rem">"{{ err.manager_note|truncatechars:80 }}"</div>{% endif %}
+          </td>
+          <td>{% if err.repair_order %}<a href="{% url 'repair_list' %}?rwo={{ err.repair_order.pk }}">ERO #{{ err.repair_order.pk }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if linked_prs %}
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">{% trans "Linked procurement requests" %}</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr><th>PR</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th></tr></thead>
+      <tbody>
+      {% for pr in linked_prs %}<tr><td>#{{ pr.id }}</td><td>
+        {% part_primary_image pr.part as img %}
+        {% if img %}
+          <a href="{{ pr.part.image_url|default:img }}" target="_blank" rel="noopener" title={% trans "Click to view full size in new tab" %} style="display:inline-block;">
+            <img src="{{ img }}" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:4px;">
+          </a>
+        {% endif %}
+        {{ pr.part.name }} ({{ pr.part.sku }})
+      </td><td>{{ pr.quantity }}</td><td><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -164,15 +401,314 @@
 {% endif %}
 
 <div class="mms-card" style="margin-top:1rem">
-  <div class="mms-card-header">State log</div>
+  <div class="mms-card-header">{% trans "State log" %}</div>
   <div class="mms-card-body mms-stack">
     {% for l in logs %}
     <div style="font-size:.8125rem;border-left:3px solid var(--mms-accent);padding-left:.75rem">
-      <strong>{{ l.created_at|date:"Y-m-d H:i" }}</strong>
+      <strong>{{ l.created_at|mms_datetime }}</strong>
       {{ l.from_status|default:"-" }} -> <strong>{{ l.to_status }}</strong>
       - {{ l.actor|default:"-" }}{% if l.note %} <span class="text-muted">({{ l.note }})</span>{% endif %}
     </div>
-    {% empty %}<div class="mms-empty">No transitions yet.</div>{% endfor %}
+    {% empty %}<div class="mms-empty">{% trans "No transitions yet." %}</div>{% endfor %}
   </div>
 </div>
+
+{# Phase 3A: Blocker history (resolved/cancelled blockers with event timeline) #}
+{% include "maintenance/_wo_blocker_history.html" %}
+
+{# Phase 7.8: per-WO reservation panel #}
+{% include "maintenance/_wo_reservation_history.html" %}
+
+{# Phase 12: Reconciliation card (stale reservations, outstanding shortages, cost) #}
+{% include "maintenance/_wo_reconciliation_card.html" %}
+
+{% if wo.assignment_history.exists %}
+<section class="mms-section mms-assignment-history">
+  <h3>{% trans "Assignment History" %}</h3>
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>{% trans "Technician" %}</th>
+        <th>{% trans "Action" %}</th>
+        <th>{% trans "Assigned At" %}</th>
+        <th>{% trans "Released At" %}</th>
+        <th>{% trans "Duration" %}</th>
+        <th>{% trans "Reason" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in wo.assignment_history.all %}
+      <tr>
+        <td>{{ record.technician.get_full_name|default:record.technician.username }}</td>
+        <td>{{ record.get_action_display }}</td>
+        <td>{{ record.assigned_at|mms_datetime }}</td>
+        <td>{% if record.unassigned_at %}{{ record.unassigned_at|mms_datetime }}{% else %}<em>{% trans "Active" %}</em>{% endif %}</td>
+        <td>
+          {% if record.unassigned_at %}
+            {{ record.unassigned_at|timesince:record.assigned_at }}
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ record.reason|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if wo.downtime_records.exists %}
+<section class="mms-section mms-downtime">
+  <h3>{% trans "Downtime History" %}</h3>
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>{% trans "Type" %}</th>
+        <th>{% trans "Start" %}</th>
+        <th>{% trans "End" %}</th>
+        <th>{% trans "Duration" %}</th>
+        <th>{% trans "Reason" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for dt in wo.downtime_records.all %}
+      <tr class="{% if dt.is_open %}mms-row-warn{% endif %}">
+        <td>{{ dt.get_downtime_type_display }}</td>
+        <td>{{ dt.start_time|mms_datetime }}</td>
+        <td>{% if dt.end_time %}{{ dt.end_time|mms_datetime }}{% else %}<em>{% trans "Still down" %}</em>{% endif %}</td>
+        <td>{% if dt.total_minutes %}{{ dt.total_minutes }} min{% else %}—{% endif %}</td>
+        <td>{{ dt.reason|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="mms-total-row">
+        <td colspan="3"><strong>{% trans "Total Downtime" %}</strong></td>
+        <td><strong>{{ wo.total_downtime_minutes }} min</strong></td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</section>
+{% endif %}
+
+{% if perm_request_part_on_wo or perm_close_or_review_wo or perm_approve_part_request or perm_decide_part_shortage_report %}
+<div class="mms-card" style="margin-top:1rem;border-left:4px solid #16a34a">
+  <div class="mms-card-header" style="background:#f0fdf4">{% trans "🎤 Add voice note" %}</div>
+  <div class="mms-card-body">
+    <p class="text-muted" style="margin:0 0 .75rem 0;font-size:.85rem">
+      {% trans "Record a verbal note (e.g. supplier update, vendor callback, work log) and save it as an attachment to this WO." %}
+      {% blocktrans with n=wo.number %}The recording is auto-stopped at 60s and the file is linked to WO-{{ n }}.{% endblocktrans %}
+    </p>
+    <form method="post" action="{% url 'work_order_add_voice' wo.pk %}">
+      {% csrf_token %}
+      <div class="mms-form-row" style="margin-bottom:.5rem">
+        <label for="wo-voice-note-input" style="font-size:.85rem">{% trans "Note (optional, shown alongside the recording)" %}</label>
+        <input type="text" name="note" id="wo-voice-note-input" maxlength="500"
+               class="form-control" placeholder={% trans "e.g. 'Called supplier ABC, they will deliver Friday'" %}>
+      </div>
+      {% include "maintenance/_voice_recorder.html" %}
+      <div class="mms-form-actions" style="margin-top:.5rem">
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">{% trans "📤 Save voice note" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<section class="mms-section mms-attachments">
+  <h3>{% trans "Attachments" %}</h3>
+  <div id="attachment-list"
+       data-entity="work_order"
+       data-id="{{ wo.pk }}"
+       data-perm-upload="{% if perm_issue_parts_to_wo %}true{% else %}false{% endif %}">
+    <div class="mms-loading">{% trans "Loading..." %}</div>
+  </div>
+
+  {% if perm_issue_parts_to_wo %}
+  <form class="mms-attachment-upload" method="post" enctype="multipart/form-data"
+        action="{% url 'attachment_upload' %}" id="attachment-upload-form">
+    {% csrf_token %}
+    <input type="hidden" name="entity_type" value="work_order">
+    <input type="hidden" name="entity_id" value="{{ wo.pk }}">
+    <div class="mms-form-row">
+      <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" required>
+      <input type="text" name="note" placeholder={% trans "Optional note" %} maxlength="500">
+      <button type="submit" class="btn btn-sm btn-primary">{% trans "Upload" %}</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+<style>
+.mms-downtime { margin-top: 2rem; }
+.mms-downtime .mms-row-warn { background: #fff3cd; }
+.mms-assignment-history { margin-top: 2rem; }
+.mms-assignment-history .mms-empty { color: #999; font-style: italic; }
+.mms-attachments { margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+.mms-attachment-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+.mms-attachment-item:last-child { border-bottom: none; }
+.mms-attachment-info { display: flex; align-items: center; gap: 0.5rem; }
+.mms-form-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+.mms-form-row input[type="file"] { flex: 1; min-width: 200px; }
+.mms-badge--archived { background: #e0e0e0; color: #666; }
+
+/* ============ Voice recorder (Sprint 1 UX) ============ */
+.mms-voice-recorder {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .75rem;
+  background: #f6f7f9;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  flex: 1;
+  min-width: 260px;
+}
+.mms-voice-recorder.mms-voice-recording {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+.mms-voice-recorder.mms-voice-uploaded {
+  border-color: #198754;
+  background: #f1f9f4;
+}
+.mms-voice-recorder.mms-voice-error {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+.mms-voice-controls {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.mms-voice-timer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #212529;
+  min-width: 3ch;
+}
+.mms-voice-recorder.mms-voice-recording .mms-voice-timer {
+  color: #dc3545;
+}
+.mms-voice-pulse {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc3545;
+  animation: mms-pulse 1s ease-in-out infinite;
+}
+@keyframes mms-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(1.4); }
+}
+.mms-voice-status {
+  font-size: .85em;
+  color: var(--mms-muted);
+}
+.mms-voice-recorder.mms-voice-recording .mms-voice-status {
+  color: #dc3545;
+  font-weight: 700;
+}
+.mms-shortage-table details[open] > summary { background: #eef2f7; }
+.mms-shortage-table details form { max-width: 960px; }
+
+/* Phase 12: reconciliation card */
+.mms-reconciliation-card { margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+.mms-reconciliation-card h3 { margin: 0 0 0.75rem 0; }
+.mms-reconciliation-row { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem; margin-bottom: 0.5rem; background: #fff; border-radius: 6px; border: 1px solid #e5e7eb; }
+.mms-reconciliation-row:last-child { margin-bottom: 0; }
+.mms-reconciliation-row--warn { border-left: 4px solid #f0ad4e; }
+.mms-reconciliation-row--action { border-left: 4px solid #2563eb; }
+.mms-reconciliation-row--clean { border-left: 4px solid #16a34a; }
+.mms-reconciliation-row__icon { font-size: 1.25rem; line-height: 1; padding-top: 0.15rem; }
+.mms-reconciliation-row__body { flex: 1; }
+.mms-reconciliation-row__title { font-weight: 600; margin-bottom: 0.25rem; }
+.mms-reconciliation-row__body .mms-table { background: #fff; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // P3.1 P1.5: show last received supplier price for the selected part.
+  const partSelect = document.getElementById('id_part');
+  const hintEl = document.getElementById('id_part_last_price');
+  const i18nEl = document.getElementById('i18n-json');
+  const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
+  if (partSelect && hintEl) {
+    let lastPrices = {};
+    try { lastPrices = JSON.parse(partSelect.dataset.lastPrices || '{}'); } catch (_) { lastPrices = {}; }
+    function updateHint() {
+      const v = partSelect.value;
+      const info = lastPrices[v];
+      if (!info) { hintEl.textContent = ''; return; }
+      hintEl.textContent = (T.last_received_prefix || 'Last received: ') + info.unit_cost + (T.per_unit_suffix || ' / unit (')
+        + info.supplier_name + (T.date_separator || ', ') + info.date + ')';
+    }
+    partSelect.addEventListener('change', updateHint);
+    updateHint();
+  }
+
+  const listEl = document.getElementById('attachment-list');
+  if (!listEl) return;
+
+  const entity = listEl.dataset.entity;
+  const id = listEl.dataset.id;
+
+  // Load attachments
+  fetch(`/attachments/${entity}/${id}/`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.attachments.length) {
+        listEl.innerHTML = '<p class="mms-empty">{% trans "No attachments yet." %}</p>';
+        return;
+      }
+      listEl.innerHTML = data.attachments.map(a => {
+        const isAudio = a.mime_type && a.mime_type.startsWith('audio/');
+        const player = isAudio
+          ? `<audio controls style="width:100%;max-width:400px;margin-top:4px"><source src="${a.url}" type="${a.mime_type}"></audio>`
+          : '';
+        return `
+        <div class="mms-attachment-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+          <div class="mms-attachment-info" style="width:100%">
+            <a href="${a.url}" target="_blank">{% trans "${a.filename}" %}</a>
+            <span class="mms-meta">{% trans "${(a.size/1024).toFixed(1)} KB" %}</span>
+            <span class="mms-meta">{% trans "${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}" %}</span>
+          </div>
+          ${player}
+          ${listEl.dataset.permUpload === 'true' ? `<button class="btn btn-sm btn-danger" onclick="deleteAtt(${a.id})">×</button>` : ''}
+        </div>
+        `;
+      }).join('');
+    });
+
+  // Upload form
+  const form = document.getElementById('attachment-upload-form');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fd = new FormData(form);
+      fetch(form.action, { method: 'POST', body: fd, headers: {'X-CSRFToken': fd.get('csrfmiddlewaretoken')} })
+        .then(r => r.json())
+        .then(data => {
+          if (data.id) {
+            listEl.querySelector('.mms-empty')?.remove();
+            location.reload();
+          }
+        });
+    });
+  }
+});
+
+function deleteAtt(id) {
+  if (!confirm('{% trans 'Delete this attachment?' %}')) return;
+  fetch(`/attachments/${id}/delete/`, { method: 'POST', headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''} })
+    .then(r => r.json())
+    .then(() => location.reload());
+}
+</script>
+
+{% include "maintenance/_asset_tree.html" %}
+{% include "maintenance/_part_request_js.html" %}
 {% endblock %}

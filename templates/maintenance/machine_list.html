@@ -1,34 +1,83 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}Machines{% endblock %}
-{% block page_heading %}Machines{% endblock %}
+{% block page_heading %}{% trans "Machines" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Maintain the machine master used by issue reporting, work orders, preventive tasks, and QR-based intake.</p>
-<div class="mms-actions" style="margin-bottom:1rem">
-  <a class="mms-btn mms-btn--primary" href="{% url 'machine_create' %}">Add machine</a>
-  <a class="mms-btn mms-btn--ghost" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">Open QR scanner</a>
+<p class="mms-page-lead">{% trans "Maintain the machine master used by issue reporting, work orders, preventive tasks, and QR-based intake." %}</p>
+<div class="mms-actions" style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+  <a class="mms-btn mms-btn--primary" href="{% url 'machine_create' %}">{% trans "Add machine" %}</a>
+  <a class="mms-btn mms-btn--ghost" href="{% url 'qr_scan' %}?next={% url 'issue_create' %}&param=qr&label=machine+QR">{% trans "Open QR scanner" %}</a>
+  <span style="flex:1"></span>
+  {% if view_mode == 'tree' %}
+    <a class="mms-btn mms-btn--primary" href="{% url 'machine_list' %}">{% trans "📋 List view" %}</a>
+    <a class="mms-btn mms-btn--ghost" href="{% url 'machine_list' %}?view=tree">{% trans "🌳 Tree view (active)" %}</a>
+  {% else %}
+    <a class="mms-btn mms-btn--ghost" href="{% url 'machine_list' %}">{% trans "📋 List view (active)" %}</a>
+    <a class="mms-btn mms-btn--primary" href="{% url 'machine_list' %}?view=tree">{% trans "🌳 Tree view" %}</a>
+  {% endif %}
 </div>
+{% if view_mode == 'tree' %}
+  <div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">{% trans "Asset Hierarchy" %}</div>
+    <div class="mms-card-body">
+      {% if asset_tree %}
+        <ul class="mms-asset-tree" style="list-style:none;padding:0;margin:0">
+          {% for node in asset_tree %}
+            {% include "maintenance/_asset_tree_browser_node.html" with node=node level=0 %}
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">{% trans "No machines yet." %}</p>
+      {% endif %}
+    </div>
+  </div>
+{% else %}
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Name</th><th>QR code</th><th>Location</th><th>Open WO</th><th>Issues</th><th></th></tr></thead>
+      <thead><tr><th>{% trans "Name" %}</th><th>{% trans "QR code" %}</th><th>{% trans "Location" %}</th><th>{% trans "Site" %}</th><th>{% trans "Level" %}</th><th>{% trans "Asset Code" %}</th><th>{% trans "Hierarchy" %}</th><th>{% trans "Tree" %}</th><th>{% trans "Open WO" %}</th><th>{% trans "Issues" %}</th><th></th></tr></thead>
       <tbody>
       {% for machine in machines %}
       <tr>
-        <td>{{ machine.name }}</td>
+        <td>
+          <a href="{% url 'machine_detail' machine.pk %}" style="font-weight:600;color:#0f766e;text-decoration:none">
+            {{ machine.name }}
+          </a>
+        </td>
         <td><code>{{ machine.qr_code }}</code></td>
-        <td>{{ machine.location|default:"â€”" }}</td>
+        <td>{{ machine.location|default:"—" }}</td>
+        <td>{{ machine.site.name|default:"—" }}</td>
+        <td>
+          {% if machine.asset_level == 1 %}Area
+          {% elif machine.asset_level == 2 %}Line
+          {% elif machine.asset_level == 3 %}Machine
+          {% elif machine.asset_level == 4 %}Subassembly
+          {% elif machine.asset_level == 5 %}Component
+          {% else %}{{ machine.asset_level }}{% endif %}
+        </td>
+        <td>{{ machine.asset_code|default:"—" }}</td>
+        <td>{{ machine.full_path }}</td>
+        <td>
+          {% if machine.children.exists %}
+            <span class="mms-badge mms-badge--info" title="{{ machine.children.count }} child machines">
+              {{ machine.children.count }} sub
+            </span>
+          {% endif %}
+        </td>
         <td>{{ machine.open_work_orders }}</td>
         <td>{{ machine.issue_count }}</td>
         <td class="mms-actions">
-          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_create' %}?qr={{ machine.qr_code }}">Report issue</a>
-          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_edit' machine.pk %}">Edit</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_detail' machine.pk %}">{% trans "View" %}</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_create' %}?qr={{ machine.qr_code }}">{% trans "Report issue" %}</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_edit' machine.pk %}">{% trans "Edit" %}</a>
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="6" class="mms-empty">No machines yet.</td></tr>
+      <tr><td colspan="11" class="mms-empty">{% trans "No machines yet." %}</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,31 @@
+{% load i18n %}
+{% comment %}
+   Single row in the compact History timeline. Renders:
+   - Type-colored dot (left)
+   - Top line: type badge (small) + summary
+   - Bottom line (smaller, muted): details (if present) + author + relative time
+{% endcomment %}
+<li class="mms-history-row"
+    id="log-{{ log.pk }}"
+    style="display:flex;gap:.5rem;padding:.4rem 0;border-bottom:1px solid #f1f5f9;align-items:flex-start">
+  <span class="mms-history-dot mms-history-dot--{{ log.type }}"
+        style="display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:.45rem;
+               background:{% if log.type == 'observation' %}#16a34a
+                        {% elif log.type == 'maintenance_note' %}#2563eb
+                        {% else %}#ea580c{% endif %};"
+        title="{{ log.get_type_display }}"></span>
+  <div style="flex:1;min-width:0;line-height:1.35">
+    <div style="display:flex;gap:.4rem;align-items:baseline;flex-wrap:wrap">
+      <span class="mms-badge mms-badge--muted"
+            style="font-size:.7em;padding:.1em .4em">{{ log.get_type_display }}</span>
+      <span style="font-weight:500;color:#0f172a">{{ log.summary }}</span>
+      <span style="font-size:.75em;color:#94a3b8;margin-left:auto;flex-shrink:0">
+        {{ log.author.username }} · {{ log.created_at|timesince }} {% trans "ago" %}
+      </span>
+    </div>
+    {% if log.details %}
+      <div style="font-size:.85em;color:#64748b;margin-top:.1rem;white-space:pre-wrap;line-height:1.4">{{ log.details }}</div>
+    {% endif %}
+    {% include "maintenance/_partials/_log_attachment.html" with log=log %}
+  </div>
+</li>

@@ -1,0 +1,323 @@
+# Untranslated msgids: OTHER (321 entries)
+
+Report Issue | templates/maintenance/_asset_tree.html
+Create WO | templates/maintenance/_asset_tree.html
+Create PM | templates/maintenance/_asset_tree.html
+Create ERO | templates/maintenance/_asset_tree.html
+Create PR | templates/maintenance/_asset_tree.html
+No asset linked. | templates/maintenance/_asset_tree.html
+Click to view this asset | templates/maintenance/_asset_tree_node.html
+When | templates/maintenance/_cost_ledger_table.html
+Source | templates/maintenance/_cost_ledger_table.html
+REVERSAL | templates/maintenance/_cost_ledger_table.html
+No cost ledger entries yet for WO-%(n)s. | templates/maintenance/_cost_ledger_table.html
+Maintenance costs | templates/maintenance/_cost_tab.html
+Select time period | templates/maintenance/_cost_tab.html
+No maintenance cost recorded in the last %(d)s days | templates/maintenance/_cost_tab.html
+Costs will appear here after work orders are closed. | templates/maintenance/_cost_tab.html
+Total cost &middot; last %(d)s days | templates/maintenance/_cost_tab.html
+&mdash; | templates/maintenance/_cost_tab.html
+no prior comparison | templates/maintenance/_cost_tab.html
+Cost distribution across categories | templates/maintenance/_cost_tab.html
+Failures | templates/maintenance/_cost_tab.html
+Cost per failure | templates/maintenance/_cost_tab.html
+No failures recorded | templates/maintenance/_cost_tab.html
+' + fmtPct(pct) + ' ' + priorLabel + ' | templates/maintenance/_cost_tab.html
+Recording auto-stops at 60s. Voice is uploaded and attached to the record. | templates/maintenance/_voice_recorder.html
+🗑 Discard | templates/maintenance/_voice_recorder.html
+Active WorkOrder Blockers | templates/maintenance/active_blockers_dashboard.html
+No active blockers. All clear! | templates/maintenance/active_blockers_dashboard.html
+Blocker Kind | templates/maintenance/active_blockers_dashboard.html
+All | templates/maintenance/active_blockers_dashboard.html
+Search | templates/maintenance/active_blockers_dashboard.html
+WO number or machine name | templates/maintenance/active_blockers_dashboard.html
+Impact Level | templates/maintenance/active_blockers_dashboard.html
+Apply | templates/maintenance/active_blockers_dashboard.html
+Clear | templates/maintenance/active_blockers_dashboard.html
+Work Order | templates/maintenance/active_blockers_dashboard.html
+External Reference | templates/maintenance/active_blockers_dashboard.html
+Impact Score | templates/maintenance/active_blockers_dashboard.html
+Age | templates/maintenance/active_blockers_dashboard.html
+Opened By | templates/maintenance/active_blockers_dashboard.html
+No blockers match the current filters. | templates/maintenance/active_blockers_dashboard.html
+&laquo; Previous | templates/maintenance/active_blockers_dashboard.html
+Page %(n)s of %(t)s | templates/maintenance/active_blockers_dashboard.html
+Next &raquo; | templates/maintenance/active_blockers_dashboard.html
+← Back to dashboard | templates/maintenance/active_blockers_dashboard.html
+Immutable record of key actions (who did what, and when). | templates/maintenance/audit_log.html
+Action | templates/maintenance/audit_log.html
+Entity | templates/maintenance/audit_log.html
+No entries. | templates/maintenance/audit_log.html
+Previous | templates/maintenance/audit_log.html
+Next | templates/maintenance/audit_log.html
+— quick access based on your permissions. | templates/maintenance/dashboard.html
+New issues | templates/maintenance/dashboard.html
+Open work orders | templates/maintenance/dashboard.html
+Open emergency WO | templates/maintenance/dashboard.html
+Pending part requests | templates/maintenance/dashboard.html
+Pending ext. repair req. | templates/maintenance/dashboard.html
+Paused WO | templates/maintenance/dashboard.html
+Overdue WO (&gt;7d) | templates/maintenance/dashboard.html
+Pending PRs | templates/maintenance/dashboard.html
+Shortages awaiting decision | templates/maintenance/dashboard.html
+Shortages in fulfillment | templates/maintenance/dashboard.html
+Stuck in fulfillment &gt;7d | templates/maintenance/dashboard.html
+Low stock items | templates/maintenance/dashboard.html
+Open vendor orders | templates/maintenance/dashboard.html
+Monthly purchasing cost | templates/maintenance/dashboard.html
+Issues NEW &gt; 24h | templates/maintenance/dashboard.html
+PM schedules overdue | templates/maintenance/dashboard.html
+My in-progress WO | templates/maintenance/dashboard.html
+My pending part req. | templates/maintenance/dashboard.html
+Parts Missing Image | templates/maintenance/dashboard.html
+Review now → | templates/maintenance/dashboard.html
+Review → | templates/maintenance/dashboard.html
+Open shortage dashboard → | templates/maintenance/dashboard.html
+Needs attention | templates/maintenance/dashboard.html
+issue(s) still in | templates/maintenance/dashboard.html
+after 24h — | templates/maintenance/dashboard.html
+review issues | templates/maintenance/dashboard.html
+Overdue PM (next due) | templates/maintenance/dashboard.html
+PM schedules | templates/maintenance/dashboard.html
+Quick actions — manager queue | templates/maintenance/dashboard.html
+%(counter)s part request awaiting your approval | templates/maintenance/dashboard.html
+%(counter)s ext. repair request to review | templates/maintenance/dashboard.html
+%(counter)s WO pending your review | templates/maintenance/dashboard.html
+%(counter)s paused WO | templates/maintenance/dashboard.html
+%(counter)s overdue WO (>7d) | templates/maintenance/dashboard.html
+%(counter)s returned repair awaiting acceptance | templates/maintenance/dashboard.html
+All caught up. Nothing pending your decision. | templates/maintenance/dashboard.html
+Quick actions — supply | templates/maintenance/dashboard.html
+All caught up. Nothing pending your action. | templates/maintenance/dashboard.html
+Shortcuts | templates/maintenance/dashboard.html
+Report issue | templates/maintenance/dashboard.html
+My work orders | templates/maintenance/dashboard.html
+Recent notifications | templates/maintenance/dashboard.html
+All notifications | templates/maintenance/dashboard.html
+No notifications yet. | templates/maintenance/dashboard.html
+Your queue | templates/maintenance/dashboard.html
+Your issues | templates/maintenance/dashboard.html
+Issues you reported in the last 30 days | templates/maintenance/dashboard.html
+Issues you reported in the last 7 days | templates/maintenance/dashboard.html
+Your open issues | templates/maintenance/dashboard.html
+Issues awaiting your validation | templates/maintenance/dashboard.html
+Sent | templates/maintenance/dashboard.html
+Returned from vendor | templates/maintenance/dashboard.html
+All caught up. | templates/maintenance/dashboard.html
+No personal queue items. | templates/maintenance/dashboard.html
+Create a breakdown / emergency work order without a prior issue (UC-08 style). | templates/maintenance/emergency_wo.html
+🔒 Asset locked: | templates/maintenance/emergency_wo.html
+The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there. | templates/maintenance/emergency_wo.html
+Component: | templates/maintenance/emergency_wo.html
+Optional. Only components under the selected machine are shown. | templates/maintenance/emergency_wo.html
+Create emergency WO | templates/maintenance/emergency_wo.html
+Converted | templates/maintenance/issue_detail.html
+Priority | templates/maintenance/issue_detail.html
+Reported By | templates/maintenance/issue_detail.html
+Reported At | templates/maintenance/issue_detail.html
+Validated By | templates/maintenance/issue_detail.html
+Validated At | templates/maintenance/issue_detail.html
+Linked WO | templates/maintenance/issue_detail.html
+Issue Photos | templates/maintenance/issue_detail.html
+Loading... | templates/maintenance/issue_detail.html
+← Back to My Issues | templates/maintenance/issue_detail.html
+This action will: | templates/maintenance/issue_detail.html
+Set priority to | templates/maintenance/issue_detail.html
+CRITICAL | templates/maintenance/issue_detail.html
+and tag the issue as | templates/maintenance/issue_detail.html
+Page the on-call technician and the maintenance manager | templates/maintenance/issue_detail.html
+Auto-prioritise this issue at the top of the work-order queue | templates/maintenance/issue_detail.html
+If a work order is later created from this issue, it will be created with | templates/maintenance/issue_detail.html
+This action is logged in the audit trail. It cannot be undone from this page. | templates/maintenance/issue_detail.html
+Yes, escalate to emergency | templates/maintenance/issue_detail.html
+No photos yet. | templates/maintenance/issue_detail.html
+AUDIO | templates/maintenance/issue_detail.html
+▶ Play | templates/maintenance/issue_detail.html
+${thumbTag} | templates/maintenance/issue_detail.html
+▶ VIDEO | templates/maintenance/issue_detail.html
+PDF | templates/maintenance/issue_detail.html
+Report machine issue | templates/maintenance/issue_form.html
+View machines | templates/maintenance/issue_form.html
+Scanned code: | templates/maintenance/issue_form.html
+No machine matched this QR code yet. Add it in Machines, then retry. | templates/maintenance/issue_form.html
+Optional. Pick a specific sub-assembly / component inside the selected machine. | templates/maintenance/issue_form.html
+Photos &amp; Videos (optional) | templates/maintenance/issue_form.html
+Max 10 files. Images/PDF: 5MB each. Videos: 30MB each. JPG, PNG, WEBP, PDF, MP4, MOV. | templates/maintenance/issue_form.html
+Submit | templates/maintenance/issue_form.html
+Tip: QR deep link | templates/maintenance/issue_form.html
+pre-selects the machine, and the scanner page can fill it for you. | templates/maintenance/issue_form.html
+Remove | templates/maintenance/issue_form.html
+&times; | templates/maintenance/issue_form.html
+Preview | templates/maintenance/issue_form.html
+Failed to submit issue. Please try again. | templates/maintenance/issue_form.html
+Reporter | templates/maintenance/issue_list.html
+Validate | templates/maintenance/issue_list.html
+Archive issue #%(n)s? This cannot be undone. | templates/maintenance/issue_list.html
+Archive | templates/maintenance/issue_list.html
+No issues. | templates/maintenance/issue_list.html
+Machine: | templates/maintenance/issue_validate.html
+Issue Type: | templates/maintenance/issue_validate.html
+Description: | templates/maintenance/issue_validate.html
+Validate &amp; set priority | templates/maintenance/issue_validate.html
+Legacy Work Order Reconciliation | templates/maintenance/legacy_reconciliation.html
+Total WOs | templates/maintenance/legacy_reconciliation.html
+Legacy (v0) | templates/maintenance/legacy_reconciliation.html
+Blocker system (v1) | templates/maintenance/legacy_reconciliation.html
+All Work Orders are on the blocker system (v1). | templates/maintenance/legacy_reconciliation.html
+WO# | templates/maintenance/legacy_reconciliation.html
+Lifecycle | templates/maintenance/legacy_reconciliation.html
+Days since created | templates/maintenance/legacy_reconciliation.html
+No legacy WOs found. | templates/maintenance/legacy_reconciliation.html
+In-app alerts: new issues, validated issues, | templates/maintenance/notifications.html
+emergency work orders | templates/maintenance/notifications.html
+, assignments, manager review, | templates/maintenance/notifications.html
+overdue PM | templates/maintenance/notifications.html
+, low stock, purchase requests, and repair returns. Unread count appears in the sidebar. | templates/maintenance/notifications.html
+Mark all read | templates/maintenance/notifications.html
+Read | templates/maintenance/notifications.html
+Current quantity | templates/maintenance/part_adjust.html
+New quantity * | templates/maintenance/part_adjust.html
+Reason * | templates/maintenance/part_adjust.html
+Select a reason… | templates/maintenance/part_adjust.html
+Audit correction | templates/maintenance/part_adjust.html
+Damaged goods | templates/maintenance/part_adjust.html
+Expired material | templates/maintenance/part_adjust.html
+Suspected theft/loss | templates/maintenance/part_adjust.html
+Cycle count | templates/maintenance/part_adjust.html
+Additional details… | templates/maintenance/part_adjust.html
+e.g. A-01-03 | templates/maintenance/part_adjust.html
+Specify reason | templates/maintenance/part_adjust.html
+Describe the reason… | templates/maintenance/part_adjust.html
+Planned cycle count (vs emergency correction) | templates/maintenance/part_adjust.html
+Note: | templates/maintenance/part_adjust.html
+Adjustments are logged with | templates/maintenance/part_adjust.html
+Record adjustment | templates/maintenance/part_adjust.html
+Evidence Photo | templates/maintenance/part_adjust.html
+${att.filename} | templates/maintenance/part_adjust.html
+${att.filename} (${formatFileSize(att.size)}) | templates/maintenance/part_adjust.html
+${att.uploaded_by} - ${att.uploaded_at} | templates/maintenance/part_adjust.html
+${att.note} | templates/maintenance/part_adjust.html
+QR scanner | templates/maintenance/qr_scan.html
+Camera scan | templates/maintenance/qr_scan.html
+Waiting to start camera. | templates/maintenance/qr_scan.html
+Start camera | templates/maintenance/qr_scan.html
+Stop | templates/maintenance/qr_scan.html
+Upload or manual fallback | templates/maintenance/qr_scan.html
+Upload QR image | templates/maintenance/qr_scan.html
+Upload and read | templates/maintenance/qr_scan.html
+Enter scanned value | templates/maintenance/qr_scan.html
+Use code | templates/maintenance/qr_scan.html
+Quick maintenance log | templates/maintenance/quick_log.html
+Ad-hoc notes on a machine without opening a full issue or work order. | templates/maintenance/quick_log.html
+Legacy WorkOrder Reconciliation | templates/maintenance/reconciliation_dashboard.html
+All WorkOrders are on the blocker system (version 1+). | templates/maintenance/reconciliation_dashboard.html
+Legacy WOs | templates/maintenance/reconciliation_dashboard.html
+Lifecycle Status | templates/maintenance/reconciliation_dashboard.html
+Created after | templates/maintenance/reconciliation_dashboard.html
+Created before | templates/maintenance/reconciliation_dashboard.html
+Created At | templates/maintenance/reconciliation_dashboard.html
+Version | templates/maintenance/reconciliation_dashboard.html
+Image | templates/maintenance/reorder_suggestions.html
+Current | templates/maintenance/reorder_suggestions.html
+Min | templates/maintenance/reorder_suggestions.html
+Max | templates/maintenance/reorder_suggestions.html
+Suggested | templates/maintenance/reorder_suggestions.html
+Last cost | templates/maintenance/reorder_suggestions.html
+Click to view full size in new tab | templates/maintenance/reorder_suggestions.html
+This part has no primary image. Upload one in the part detail page. | templates/maintenance/reorder_suggestions.html
+⚠ Missing Image | templates/maintenance/reorder_suggestions.html
+All parts are above minimum stock. | templates/maintenance/reorder_suggestions.html
+Manager acceptance (UC-20) | templates/maintenance/repair_accept.html
+Verify the asset returned from vendor, record the vendor invoice, and close the repair record. | templates/maintenance/repair_accept.html
+Status: | templates/maintenance/repair_accept.html
+Vendor: | templates/maintenance/repair_accept.html
+Linked WO: | templates/maintenance/repair_accept.html
+Estimated cost: | templates/maintenance/repair_accept.html
+UC-20: | templates/maintenance/repair_accept.html
+Verify and close | templates/maintenance/repair_accept.html
+Create repair request | templates/maintenance/repair_form.html
+Send equipment to an external vendor (UC-19). Supply Officer will progress the order. | templates/maintenance/repair_form.html
+Create | templates/maintenance/repair_form.html
+External repair orders | templates/maintenance/repair_list.html
+Vendor repairs (UC-19/20). Supply Officer updates status; maintenance manager accepts after return. | templates/maintenance/repair_list.html
+New repair request | templates/maintenance/repair_list.html
+Officer | templates/maintenance/repair_list.html
+Accept | templates/maintenance/repair_list.html
+None. | templates/maintenance/repair_list.html
+Update vendor status, costs, and return workflow. | templates/maintenance/repair_officer.html
+📄 Download PDF | templates/maintenance/repair_officer.html
+Before Repair Photos | templates/maintenance/repair_officer.html
+After Repair Photos | templates/maintenance/repair_officer.html
+ACTIVE | templates/maintenance/reservations_dashboard.html
+RELEASED | templates/maintenance/reservations_dashboard.html
+By part (active only, top 25) | templates/maintenance/reservations_dashboard.html
+Total reserved | templates/maintenance/reservations_dashboard.html
+# WOs | templates/maintenance/reservations_dashboard.html
+No active reservations. | templates/maintenance/reservations_dashboard.html
+active | templates/maintenance/reservations_dashboard.html
+Showing the first 200 rows. | templates/maintenance/reservations_dashboard.html
+No reservations matching this filter. | templates/maintenance/reservations_dashboard.html
+📊 Shortage Dashboard | templates/maintenance/shortage_dashboard.html
+Shortage lifecycle overview — every shortage moves from | templates/maintenance/shortage_dashboard.html
+approved | templates/maintenance/shortage_dashboard.html
+in fulfillment | templates/maintenance/shortage_dashboard.html
+fulfilled | templates/maintenance/shortage_dashboard.html
+closed | templates/maintenance/shortage_dashboard.html
+<strong>📦 %(pending)s shortage awaiting your decision.</strong> | templates/maintenance/shortage_dashboard.html
+Review oldest pending → | templates/maintenance/shortage_dashboard.html
+<strong>⚠ %(blocked)s shortage blocked</strong> — operational problem flagged. | templates/maintenance/shortage_dashboard.html
+Review in-fulfillment list → | templates/maintenance/shortage_dashboard.html
+⏳ Awaiting decision | templates/maintenance/shortage_dashboard.html
+✅ Approved (editable) | templates/maintenance/shortage_dashboard.html
+🔄 In fulfillment | templates/maintenance/shortage_dashboard.html
+✓ Fulfilled (awaiting close) | templates/maintenance/shortage_dashboard.html
+🗙 Closed (terminal) | templates/maintenance/shortage_dashboard.html
+❌ Rejected (terminal) | templates/maintenance/shortage_dashboard.html
+⚠ Blocked (operational) | templates/maintenance/shortage_dashboard.html
+⏳ Oldest pending decisions | templates/maintenance/shortage_dashboard.html
+Requested | templates/maintenance/shortage_dashboard.html
+Reported by | templates/maintenance/shortage_dashboard.html
+✅ No pending decisions. All caught up! | templates/maintenance/shortage_dashboard.html
+Progress | templates/maintenance/shortage_dashboard.html
+Started | templates/maintenance/shortage_dashboard.html
+Ready to fulfill | templates/maintenance/shortage_dashboard.html
+No active fulfillment right now. | templates/maintenance/shortage_dashboard.html
+🔝 Top parts with active shortages (pending + approved + in_fulfillment) | templates/maintenance/shortage_dashboard.html
+Active reports | templates/maintenance/shortage_dashboard.html
+View part | templates/maintenance/shortage_dashboard.html
+No active shortages. 🎉 | templates/maintenance/shortage_dashboard.html
+📋 All states breakdown | templates/maintenance/shortage_dashboard.html
+State | templates/maintenance/shortage_dashboard.html
+Meaning | templates/maintenance/shortage_dashboard.html
+Next action | templates/maintenance/shortage_dashboard.html
+Tech raised a shortage. Manager decision needed. | templates/maintenance/shortage_dashboard.html
+Manager approved. Awaiting warehouse issue. | templates/maintenance/shortage_dashboard.html
+Warehouse or procurement in progress. | templates/maintenance/shortage_dashboard.html
+All units delivered. Manager should close. | templates/maintenance/shortage_dashboard.html
+Operational problem flagged. Investigate. | templates/maintenance/shortage_dashboard.html
+Terminal. Reservation released, PRs cancelled. | templates/maintenance/shortage_dashboard.html
+Terminal. Line stays PENDING for tech to act on. | templates/maintenance/shortage_dashboard.html
+View WOs | templates/maintenance/shortage_dashboard.html
+📋 WOs with any shortage | templates/maintenance/shortage_dashboard.html
+Create and maintain the reusable tools list before assigning tools to operators or technicians. | templates/maintenance/tool_form.html
+Save tool | templates/maintenance/tool_form.html
+Tool code: | templates/maintenance/tool_form.html
+Record return condition so the tool goes back to available stock. | templates/maintenance/tool_return.html
+Confirm return | templates/maintenance/tool_return.html
+Reusable tools | templates/maintenance/tools.html
+Assign calibrated or shared tools to technicians; return with condition. | templates/maintenance/tools.html
+Scan tool code | templates/maintenance/tools.html
+Scanned tool code: | templates/maintenance/tools.html
+This tool cannot be assigned right now because it is not in | templates/maintenance/tools.html
+status. | templates/maintenance/tools.html
+Open return form | templates/maintenance/tools.html
+No tool matched that code. | templates/maintenance/tools.html
+Assign tool | templates/maintenance/tools.html
+No tools are currently in Available status. Add a tool or edit an existing tool and set its status to Available. | templates/maintenance/tools.html
+Open assignments | templates/maintenance/tools.html
+Tool | templates/maintenance/tools.html
+User | templates/maintenance/tools.html
+Since | templates/maintenance/tools.html
+Return | templates/maintenance/tools.html
+All tools | templates/maintenance/tools.html
+No tools. | templates/maintenance/tools.html

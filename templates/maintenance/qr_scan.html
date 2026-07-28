@@ -1,24 +1,25 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}QR scanner{% endblock %}
-{% block page_heading %}QR scanner{% endblock %}
+{% block page_heading %}{% trans "QR scanner" %}{% endblock %}
 {% block content %}
 <p class="mms-page-lead">Scan a {{ scan_label }} with the device camera, upload a QR image, or paste the code manually if camera scanning is unavailable.</p>
 
 <div class="mms-grid mms-grid--2" id="qr-scan-app" data-next-path="{{ next_path }}" data-param-name="{{ param_name }}" data-decode-url="{% url 'qr_scan_decode' %}">
   <div class="mms-card">
-    <div class="mms-card-header">Camera scan</div>
+    <div class="mms-card-header">{% trans "Camera scan" %}</div>
     <div class="mms-card-body mms-stack">
       <video id="qr-video" autoplay playsinline muted style="width:100%;border-radius:18px;background:#0f172a;min-height:260px"></video>
-      <div id="qr-status" class="mms-form-tip">Waiting to start camera.</div>
+      <div id="qr-status" class="mms-form-tip">{% trans "Waiting to start camera." %}</div>
       <div class="mms-actions">
-        <button type="button" class="mms-btn mms-btn--primary mms-btn--sm" id="qr-start">Start camera</button>
-        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="qr-stop">Stop</button>
+        <button type="button" class="mms-btn mms-btn--primary mms-btn--sm" id="qr-start">{% trans "Start camera" %}</button>
+        <button type="button" class="mms-btn mms-btn--ghost mms-btn--sm" id="qr-stop">{% trans "Stop" %}</button>
       </div>
     </div>
   </div>
 
   <div class="mms-card">
-    <div class="mms-card-header">Upload or manual fallback</div>
+    <div class="mms-card-header">{% trans "Upload or manual fallback" %}</div>
     <div class="mms-card-body">
       <form method="post" enctype="multipart/form-data" class="mms-form" style="margin-bottom:1rem">
         {% csrf_token %}
@@ -26,21 +27,21 @@
         <input type="hidden" name="param" value="{{ param_name }}">
         <input type="hidden" name="label" value="{{ scan_label }}">
         <div class="mms-form-row">
-          <label for="qr-upload-input">Upload QR image</label>
+          <label for="qr-upload-input">{% trans "Upload QR image" %}</label>
           <input id="qr-upload-input" class="form-control" type="file" name="qr_image" accept="image/*">
         </div>
         <div class="mms-form-actions">
-          <button type="submit" class="mms-btn mms-btn--primary">Upload and read</button>
+          <button type="submit" class="mms-btn mms-btn--primary">{% trans "Upload and read" %}</button>
         </div>
       </form>
       <form id="qr-manual-form" class="mms-form">
         <div class="mms-form-row">
           <label for="qr-manual-input">{{ scan_label|capfirst }}</label>
-          <input id="qr-manual-input" class="form-control" type="text" placeholder="Enter scanned value">
+          <input id="qr-manual-input" class="form-control" type="text" placeholder={% trans "Enter scanned value" %}>
         </div>
         <div class="mms-form-actions">
-          <button type="submit" class="mms-btn mms-btn--primary">Use code</button>
-          <a class="mms-btn mms-btn--ghost" href="{{ next_path }}">Cancel</a>
+          <button type="submit" class="mms-btn mms-btn--primary">{% trans "Use code" %}</button>
+          <a class="mms-btn mms-btn--ghost" href="{{ next_path }}">{% trans "Cancel" %}</a>
         </div>
       </form>
     </div>

@@ -1,0 +1,70 @@
+# Untranslated msgids: SERVICES (68 entries)
+
+No default site configured. Please create a Site first. | inventory/services.py
+Duplicate stock-in detected. Please wait before submitting again. | inventory/services.py
+Issued to WO-%(wo)s | inventory/services.py
+No default site configured. | inventory/services.py
+Cannot issue parts to a closed work order. | inventory/services.py
+Parts already issued for this work order and part combination. | inventory/services.py
+Part issued: %(name)s x %(qty)s | inventory/services.py
+Issued full quantity (%(qty)s). | inventory/services.py
+Part issued (partial): %(name)s x %(qty)s | inventory/services.py
+Partial issue: %(available)s issued; %(short)s short. Manager should open a PurchaseRequest manually. | inventory/services.py
+Out of stock for %(sku)s: 0 available, requested %(qty).1f. Manager must open a PurchaseRequest to procure this part. | inventory/services.py
+Selected part is not marked as consumable. | inventory/services.py
+This item is not available for operator self-service. | inventory/services.py
+Duplicate consumable log detected. Please wait. | inventory/services.py
+Cannot exceed stock. | inventory/services.py
+Consumable: %(name)s x %(qty)s | inventory/services.py
+Logged %(qty)s x %(name)s. | inventory/services.py
+Issued %(qty)s x %(name)s to %(user)s. | inventory/services.py
+Cannot request parts on a closed work order. | inventory/services.py
+Only PENDING requests can be approved. | inventory/services.py
+Only PENDING requests can be rejected. | inventory/services.py
+Only APPROVED or ALLOCATED requests can be cancelled (this line is %(status)s). | inventory/services.py
+Cannot cancel a line that has already been issued from stock. | inventory/services.py
+Cancellation reason must be at least 15 characters. | inventory/services.py
+Line cancelled: %(reason)s | inventory/services.py
+Only PENDING requests can be edited. | inventory/services.py
+Reservation qty must be positive. | inventory/services.py
+Cannot reserve %(qty).1f × %(sku)s: only %(unreserved).1f unreserved (%(available).1f on hand). Missing %(missing).1f unit(s). | inventory/services.py
+legacy reserve_stock() call | inventory/services.py
+Release qty must be positive. | inventory/services.py
+legacy release_reservation() call by %(actor)s | inventory/services.py
+Partial release on legacy release_reservation() by %(actor)s | inventory/services.py
+Cannot release %(qty).1f × %(sku)s: only %(released).1f released from legacy reservations; %(remaining).1f requested but no matching reservation rows. Live reserved = %(live_reserved).1f. | inventory/services.py
+Invalid shortage status transition: %(old)s → %(new)s. Valid transitions from %(old2)s: %(valid)s | inventory/services.py
+Shortage report closed (was %(old)s); releasing %(released).1f unit(s) | inventory/services.py
+Only PENDING_REVIEW reports can receive a decision. Current status: %(status)s. | inventory/services.py
+Decision is locked: report is in %(status)s. Close this report and create a new shortage if fulfillment needs to change. | inventory/services.py
+Report has no decision to edit. | inventory/services.py
+Cannot edit procurement qty: PR #%(pk)s already created for this shortage. Close this shortage and create a new one, or manually edit PR #%(pk2)s. | inventory/services.py
+Only IN_FULFILLMENT reports can be marked fulfilled. Current status: %(status)s. | inventory/services.py
+Only approved shortages can be marked fulfilled. | inventory/services.py
+Cannot mark fulfilled: only %(issued).1f of %(approved).1f stock units issued. Issue the remaining %(missing).1f from stock first. | inventory/services.py
+Manager verified full fulfillment (procurement verification deferred to Sprint 4) | inventory/services.py
+Manager verified full fulfillment | inventory/services.py
+Line is %(status)s, cannot issue. | inventory/services.py
+Line has no approved_qty (status=%(status)s). Manager must approve before warehouse issue. | inventory/services.py
+Issue qty must be positive. | inventory/services.py
+Out of stock for %(sku)s: 0 available, requested %(qty).1f. | inventory/services.py
+Cannot issue %(qty).1f × %(sku)s: only %(available).1f available. Missing %(missing).1f unit(s). Manager must decide. | inventory/services.py
+Warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s | inventory/services.py
+Partial release on warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s | inventory/services.py
+Warehouse issue %(qty).1f × %(sku)s to WO-%(wo)s (legacy reserve) | inventory/services.py
+Partial release on warehouse issue (legacy reserve) %(qty).1f × %(sku)s to WO-%(wo)s | inventory/services.py
+Warehouse issued %(qty).1f × %(sku)s | inventory/services.py
+Warehouse issued to WO-%(wo)s (released %(released).1f reservation) | inventory/services.py
+Warehouse issued to WO-%(wo)s: %(name)s x %(qty).1f | inventory/services.py
+Transition the WO to WAITING_FOR_PARTS or WAITING_FOR_VENDOR instead. | maintenance/services.py
+Start work | maintenance/services.py
+now | maintenance/services.py
+Submitted for review | maintenance/services.py
+Work order must be in progress. | maintenance/services.py
+Approved & closed | maintenance/services.py
+Work order is already archived. | maintenance/services.py
+Work order is not archived. | maintenance/services.py
+Issue is already archived. | maintenance/services.py
+Only the assigned technician can request external repair. | maintenance/services.py
+PM execution has no associated work order. | maintenance/services.py
+Work order is not pending review. | maintenance/services.py

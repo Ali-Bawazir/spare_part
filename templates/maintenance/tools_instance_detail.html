@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{{ tool.display_name }} · {% trans "Tools" %}{% endblock %}
+{% block content %}
+<div class="mms-page">
+  <div class="mms-page-header">
+    <div>
+      <a href="{% url 'tools_list' %}" class="mms-back-link">← {% trans "Tools" %}</a>
+      <h1 class="mms-page-title">{{ tool.display_name }}</h1>
+      <div class="mms-page-meta">
+        <span class="mms-badge mms-badge--{{ tool.status }}">
+          {{ tool.get_status_display }}
+        </span>
+        {% if tool.purchase_cost %}
+          <span class="mms-meta-item">{% trans "Cost" %}: {{ tool.purchase_cost }}</span>
+        {% endif %}
+        <span class="mms-meta-item">{% trans "Created" %}: {{tool.created_at|mms_datetime}}</span>
+      </div>
+    </div>
+    <div class="mms-page-actions">
+      {% if tool.status == 'available' and perms.maintenance.tools_assign or tool.status == 'available' and perms.maintenance.tools_self_assign %}
+        <a href="{% url 'tools_assign' tool.pk %}" class="mms-btn mms-btn--primary">
+          {% trans "Assign" %}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if active_assignment %}
+    <div class="mms-card mms-card--accent">
+      <div class="mms-card-body">
+        <h3 class="mms-card-title">{% trans "Currently held by" %} {{ active_assignment.operator.username }}</h3>
+        <p>
+          <strong>{% trans "Machine" %}:</strong> {{ active_assignment.machine.name }} ·
+          <strong>{% trans "Since" %}:</strong> {{active_assignment.checkout_at|mms_datetime}} ·
+          <strong>{% trans "Condition out" %}:</strong> {{ active_assignment.get_condition_out_display }}
+        </p>
+        <a href="{% url 'tools_return' active_assignment.pk %}" class="mms-btn mms-btn--warning">
+          {% trans "Return" %}
+        </a>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="mms-tabs">
+    <a href="?tab=current" class="mms-tab{% if tab == 'current' %} is-active{% endif %}">{% trans "Current" %}</a>
+    <a href="?tab=history" class="mms-tab{% if tab == 'history' %} is-active{% endif %}">{% trans "History" %}</a>
+    <a href="?tab=damage" class="mms-tab{% if tab == 'damage' %} is-active{% endif %}">{% trans "Damage" %}</a>
+  </div>
+
+  {% if tab == 'current' %}
+    <div class="mms-card">
+      <div class="mms-card-body">
+        <h3 class="mms-card-title">{% trans "Status" %}</h3>
+        <dl class="mms-detail-list">
+          <dt>{% trans "Status" %}</dt><dd>{{ tool.get_status_display }}</dd>
+          <dt>{% trans "Holder" %}</dt><dd>{{ active_assignment.operator|default:"—" }}</dd>
+          <dt>{% trans "Machine" %}</dt><dd>{{ active_assignment.machine|default:"—" }}</dd>
+          <dt>{% trans "Cost" %}</dt><dd>{{ tool.purchase_cost|default:"—" }}</dd>
+          <dt>{% trans "Issued" %}</dt><dd>{{tool.created_at|mms_datetime}}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {% if movements %}
+      <div class="mms-card">
+        <div class="mms-card-body">
+          <h3 class="mms-card-title">{% trans "Recent movements" %}</h3>
+          <table class="mms-table">
+            <thead>
+              <tr>
+                <th>{% trans "When" %}</th>
+                <th>{% trans "Action" %}</th>
+                <th>{% trans "Actor" %}</th>
+                <th>{% trans "Note" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in movements %}
+                <tr>
+                  <td>{{m.created_at|mms_datetime}}</td>
+                  <td>{{ m.get_movement_type_display }}</td>
+                  <td>{{ m.actor.username }}</td>
+                  <td>{{ m.note|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+  {% elif tab == 'history' %}
+    <div class="mms-card">
+      <div class="mms-card-body">
+        <h3 class="mms-card-title">{% trans "Assignment history" %}</h3>
+        {% if history %}
+          <table class="mms-table">
+            <thead>
+              <tr>
+                <th>{% trans "Operator" %}</th>
+                <th>{% trans "Machine" %}</th>
+                <th>{% trans "Out" %}</th>
+                <th>{% trans "In" %}</th>
+                <th>{% trans "Condition out" %}</th>
+                <th>{% trans "Condition in" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in history %}
+                <tr>
+                  <td>{{ h.operator.username }}</td>
+                  <td>{{ h.machine.name }}</td>
+                  <td>{{h.checkout_at|mms_datetime}}</td>
+                  <td>{{ h.return_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                  <td>{{ h.get_condition_out_display }}</td>
+                  <td>{{ h.get_condition_in_display|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="mms-help-text">{% trans "No assignments yet." %}</p>
+        {% endif %}
+      </div>
+    </div>
+
+  {% elif tab == 'damage' %}
+    <div class="mms-card">
+      <div class="mms-card-body">
+        <h3 class="mms-card-title">{% trans "Damage reports" %}</h3>
+        {% if damage_reports %}
+          <table class="mms-table">
+            <thead>
+              <tr>
+                <th>{% trans "Date" %}</th>
+                <th>{% trans "Reported by" %}</th>
+                <th>{% trans "Reason" %}</th>
+                <th>{% trans "Status" %}</th>
+                <th>{% trans "Repair cost" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in damage_reports %}
+                <tr>
+                  <td>{{r.damage_date|mms_datetime}}</td>
+                  <td>{{ r.reported_by.username }}</td>
+                  <td>{{ r.reason }}</td>
+                  <td>{{ r.get_status_display }}</td>
+                  <td>
+                    {{ r.repair_cost|default:"—" }}
+                    {% if r.status == 'open' %}
+                      <a href="{% url 'tools_damage_resolve' r.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+                        {% trans "Resolve" %}
+                      </a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="mms-help-text">{% trans "No damage reports." %}</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

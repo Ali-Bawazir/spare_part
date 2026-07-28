@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}Failing assets report{% endblock %}
+{% block page_heading %}{% trans "Failing assets report" %}{% endblock %}
+{% block content %}
+
+<p class="mms-link-back">
+  <a href="{% url 'kpi_dashboard' %}">{% trans "← Back to KPIs" %}</a>
+</p>
+<p class="mms-page-lead">
+  All assets with closed corrective work orders in the last {{ period_days }} days, ranked by failure count.
+  {{ total_failures }} failure{{ total_failures|pluralize }} · {{ total_cost|floatformat:2 }} SAR total cost.
+</p>
+
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body" style="padding:0">
+    {% if assets %}
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th>{% trans "Asset" %}</th>
+            <th>{% trans "Code" %}</th>
+            <th class="text-right">{% trans "Failures" %}</th>
+            <th class="text-right">{% trans "Total cost" %}</th>
+            <th class="text-right">{% trans "Cost / failure" %}</th>
+            <th>{% trans "Last failure" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assets %}
+            <tr>
+              <td>
+                {% if a.machine_id %}
+                  <a href="{% url 'machine_detail' a.machine_id %}">{{ a.name }}</a>
+                {% else %}
+                  {{ a.name }}
+                {% endif %}
+              </td>
+              <td><code style="font-size:.8rem">{{ a.asset_code }}</code></td>
+              <td class="text-right"><strong>{{ a.failure_count }}</strong></td>
+              <td class="text-right">{{ a.total_cost|floatformat:2 }} SAR</td>
+              <td class="text-right">
+                {% if a.cost_per_failure %}
+                  {{ a.cost_per_failure|floatformat:2 }} SAR
+                {% else %}
+                  <span style="color:var(--mms-muted)">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if a.last_failure %}
+                  <span style="color:var(--mms-muted);font-size:.85rem">{{ a.last_failure|mms_datetime }}</span>
+                {% else %}
+                  <span style="color:var(--mms-muted)">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot style="background:#f8f9fa;font-weight:600">
+          <tr>
+            <td colspan="2" class="text-right">{% trans "Total" %}</td>
+            <td class="text-right">{{ total_failures }}</td>
+            <td class="text-right">{{ total_cost|floatformat:2 }} SAR</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    {% else %}
+      <div style="padding:1.5rem;text-align:center;color:var(--mms-muted)">
+        No closed corrective work orders in the last {{ period_days }} days.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .text-right { text-align: right; }
+</style>
+{% endblock %}

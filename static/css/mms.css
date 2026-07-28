@@ -1,4 +1,5 @@
 /* Bawazir MMS — Factory maintenance UI */
+.mms-row--archived { opacity: 0.6; }
 :root {
   --mms-bg: #f1f5f9;
   --mms-surface: #ffffff;
@@ -199,6 +200,18 @@ body.mms-body {
   border-radius: 0 0 10px 10px;
 }
 
+.mms-nav-link--sub {
+  padding-left: 1.75rem;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.mms-nav-link--sub.is-active {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-left-color: #2563eb;
+}
+
 .mms-nav-badge {
   font-size: 0.65rem;
   font-weight: 700;
@@ -215,6 +228,11 @@ body.mms-body {
 
 .mms-nav-badge--accent {
   background: var(--mms-accent);
+  color: #fff;
+}
+
+.mms-nav-badge--danger {
+  background: #dc2626;
   color: #fff;
 }
 
@@ -394,6 +412,12 @@ body.mms-body {
   background: #fef2f2;
   color: var(--mms-danger);
   border-color: #fecaca;
+}
+
+.badge-rejected {
+  background: #ffc107;
+  color: #000;
+  font-size: 0.75em;
 }
 
 .mms-btn--sm { padding: 0.35rem 0.65rem; font-size: 0.75rem; }
@@ -767,6 +791,14 @@ form.mms-actions {
 
 .mms-notif-row--unread {
   background: linear-gradient(90deg, rgba(13, 148, 136, 0.06) 0%, transparent 12px);
+  margin: 0 -0.35rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
+.mms-notif-row--critical {
+  background: #fff3cd;
+  border-left: 4px solid #dc3545;
   margin: 0 -0.35rem;
   padding-left: 0.35rem;
   padding-right: 0.35rem;
@@ -1264,3 +1296,972 @@ body.mms-nav-locked {
 .text-muted { color: var(--mms-muted); }
 .text-danger { color: var(--mms-danger); }
 .small { font-size: 0.8125rem; }
+
+.mms-alert { padding: 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.95rem; }
+.mms-alert--error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.mms-alert--warn { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+.mms-alert--info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+.mms-alert-link { font-weight: bold; margin-left: 0.5rem; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.badge--mech { background: #e3a008; color: #fff; }
+.badge--electr { background: #0066cc; color: #fff; }
+.badge--hyd { background: #00a8cc; color: #fff; }
+.badge--instr { background: #7b1fa2; color: #fff; }
+.badge--proc { background: #388e3c; color: #fff; }
+.badge--other { background: #757575; color: #fff; }
+
+/* ============================================
+   Mobile Bottom Navigation (Operator UX)
+   ============================================ */
+
+@media (max-width: 1023px) {
+    /* Hide sidebar on mobile */
+    .mms-sidebar {
+        display: none !important;
+    }
+    
+    /* Show bottom nav bar on mobile */
+    .mms-mobile-bottom-nav {
+        display: flex !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 64px;
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        justify-content: space-around;
+        align-items: center;
+        padding: 0;
+    }
+    
+    .mms-mobile-bottom-nav a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 48px;
+        min-width: 48px;
+        padding: 8px 4px;
+        color: #64748b;
+        text-decoration: none;
+        font-size: 0.75rem;
+        gap: 4px;
+    }
+    
+    .mms-mobile-bottom-nav a:hover,
+    .mms-mobile-bottom-nav a.is-active {
+        color: #2563eb;
+    }
+    
+    .mms-mobile-bottom-nav a .mms-nav-icon {
+        font-size: 1.25rem;
+    }
+    
+    /* Main content needs bottom padding for bottom nav */
+    .mms-content {
+        padding-bottom: 80px !important;
+    }
+    
+    /* Touch targets - ensure minimum 48px */
+    .mms-btn,
+    button,
+    input[type="submit"],
+    input[type="button"],
+    .mms-nav-link {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    /* Form inputs on mobile */
+    .mms-form input,
+    .mms-form select,
+    .mms-form textarea {
+        min-height: 48px;
+        font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+    
+    /* Spinbutton/number inputs */
+    input[type="number"],
+    input[type="text"],
+    input[type="tel"],
+    select {
+        min-height: 48px !important;
+    }
+    
+    /* Cards spacing on mobile */
+    .mms-card {
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Form rows more spacing on mobile */
+    .mms-form-row {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Desktop: hide bottom nav */
+@media (min-width: 1024px) {
+    .mms-mobile-bottom-nav {
+        display: none !important;
+    }
+}
+
+/* ===== Machine detail page: hero stats, tabs, child grid ===== */
+.mms-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 0.5rem 0 1.25rem 0;
+}
+.mms-stat {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  text-align: center;
+  transition: box-shadow 0.15s;
+}
+.mms-stat:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+.mms-stat-num {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.1;
+}
+.mms-stat-lbl {
+  display: block;
+  font-size: 0.78em;
+  color: #64748b;
+  margin-top: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.mms-dl {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+.mms-dl dt {
+  color: #6b7280;
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+.mms-dl dd {
+  margin: 0;
+  padding: 0.25rem 0;
+  color: #0f172a;
+}
+.mms-text-muted { color: #6b7280; }
+
+.mms-card-footer {
+  border-top: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mms-tabs {
+  display: flex;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.mms-tab {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.95em;
+  transition: color 0.1s;
+}
+.mms-tab:hover { color: #0f172a; }
+.mms-tab--active {
+  color: #0f172a;
+  border-bottom-color: #0f172a;
+  font-weight: 600;
+}
+.mms-tab-panel { display: none; }
+.mms-tab-panel--active { display: block; }
+
+.mms-cost-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mms-cost-cell--warn { color: #b45309; font-weight: 600; }
+.mms-days-open--warn { color: #b91c1c; font-weight: 600; }
+
+.mms-child-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+.mms-child-card {
+  display: block;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s;
+}
+.mms-child-card:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+.mms-child-icon { font-size: 1.5em; margin-bottom: 0.25rem; }
+.mms-child-name { font-weight: 600; color: #0f172a; }
+.mms-child-meta { font-size: 0.8em; color: #64748b; margin-top: 0.15rem; }
+
+.mms-empty {
+  color: #94a3b8;
+  font-style: italic;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+
+/* i18n language switcher (Commit 1) */
+.mms-lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .5rem;
+  border: 1px solid var(--mms-border, #e2e8f0);
+  border-radius: .5rem;
+  background: rgba(255,255,255,.6);
+  font-size: .85rem;
+  margin-inline-start: auto;
+}
+.mms-lang-switch select {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+[dir="rtl"] .mms-lang-switch { direction: rtl; }
+
+/* ==========================================================================
+   i18n RTL support (Commit 4)
+   When [dir="rtl"] is set (Arabic locale), mirror LTR-specific properties.
+   Only target the most visible layout-affecting rules. Per-chart RTL fixes
+   added on-demand when charts actually render wrong.
+   ========================================================================== */
+
+[dir="rtl"] body {
+  text-align: right;
+}
+
+/* Sidebar flip */
+[dir="rtl"] .mms-sidebar {
+  right: 0;
+  left: auto;
+}
+[dir="rtl"] .mms-main {
+  margin-left: 0;
+  margin-right: var(--mms-sidebar-w, 250px);
+}
+
+/* Nav links: align icon on the right in RTL */
+[dir="rtl"] .mms-nav-link {
+  text-align: right;
+}
+
+/* Topbar order: language switcher goes to the LEFT in RTL (mirrored) */
+[dir="rtl"] .mms-topbar {
+  flex-direction: row-reverse;
+}
+
+/* Border accents that were left-rails become right-rails */
+[dir="rtl"] .border-left {
+  border-left: 0 !important;
+  border-right: 4px solid #dc3545;
+}
+
+/* Asset tree chevrons: flip arrow direction */
+[dir="rtl"] .mms-asset-tree-chevron,
+[dir="rtl"] .mms-tree-toggle,
+[dir="rtl"] .mms-tree-arrow {
+  transform: scaleX(-1);
+}
+
+/* Mobile bottom nav: reverse order visually (HTML order unchanged) */
+[dir="rtl"] .mms-mobile-bottom-nav {
+  flex-direction: row-reverse;
+}
+
+/* Tables: numeric columns stay LTR even in RTL context */
+[dir="rtl"] td.numeric,
+[dir="rtl"] th.numeric,
+[dir="rtl"] .mms-numeric {
+  direction: ltr;
+  text-align: right;
+}
+
+/* Inputs and form controls */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="number"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"],
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+/* Inline help icons: icon should be on the LEFT of label in RTL */
+[dir="rtl"] .mms-help-icon {
+  margin-left: 0;
+  margin-right: .25rem;
+}
+
+/* Margin/padding utilities that were absolute become inline */
+[dir="rtl"] .ml-1, [dir="rtl"] .ml-2, [dir="rtl"] .ml-3 {
+  margin-left: 0;
+}
+[dir="rtl"] .mr-1, [dir="rtl"] .mr-2, [dir="rtl"] .mr-3 {
+  margin-right: 0;
+}
+
+/* Brand mark and logo: keep LTR for branded text */
+[dir="rtl"] .mms-brand-title,
+[dir="rtl"] .mms-brand-sub {
+  direction: ltr;
+  text-align: right;
+}
+
+/* KPI cards and badges stay LTR for numbers */
+[dir="rtl"] .mms-kpi-value {
+  direction: ltr;
+}
+
+/* Modal / dialog: flip header icon */
+[dir="rtl"] .modal-header .close {
+  margin-left: -1rem;
+  margin-right: auto;
+}
+
+/* Login brand centered stays centered regardless of dir */
+
+/* Charts: default LTR; per-chart RTL fix added on-demand (per plan: 
+   only fix charts that actually render incorrectly) */
+
+/* Form checkboxes and radios */
+[dir="rtl"] .form-check {
+  padding-left: 0;
+  padding-right: 1.25rem;
+}
+[dir="rtl"] .form-check-input {
+  margin-left: 0;
+  margin-right: -1.25rem;
+}
+
+/* Alerts / flash messages */
+[dir="rtl"] .alert {
+  text-align: right;
+}
+[dir="rtl"] .alert .mms-alert-link {
+  margin-left: 0;
+  margin-right: .5rem;
+}
+
+/* Tables: header text alignment */
+[dir="rtl"] th {
+  text-align: right;
+}
+
+/* Dropdown menus */
+[dir="rtl"] .dropdown-menu {
+  right: 0;
+  left: auto;
+  text-align: right;
+}
+
+/* List groups */
+[dir="rtl"] .list-group {
+  padding-right: 0;
+}
+
+/* Generic inline-block helpers */
+[dir="rtl"] .mms-flip {
+  transform: scaleX(-1);
+}
+
+/* =========================================================================
+   Form sections — group related fields into bordered cards
+   ========================================================================= */
+.mms-form-section {
+  background: var(--mms-surface, #fff);
+  border: 1px solid var(--mms-border, #e2e8f0);
+  border-radius: var(--mms-radius, 10px);
+  padding: 1.1rem 1.25rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--mms-shadow, 0 1px 2px rgba(15, 23, 42, .04));
+}
+.mms-form-section-title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mms-muted, #64748b);
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+.mms-form-section-sub {
+  font-size: 0.8rem;
+  color: var(--mms-muted, #94a3b8);
+  margin-bottom: 0.85rem;
+}
+
+/* =========================================================================
+   Radio tiles — large, clickable cards for Item Type selection
+   ========================================================================= */
+.mms-radio-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.mms-radio-tile {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border: 1.5px solid var(--mms-border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--mms-surface, #fff);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.mms-radio-tile:hover {
+  border-color: var(--mms-accent, #0ea5e9);
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+.mms-radio-tile.is-checked {
+  border-color: var(--mms-accent, #0ea5e9);
+  background: #f0f9ff;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+.mms-radio-tile input[type="radio"] {
+  margin-top: 0.25rem;
+  accent-color: var(--mms-accent, #0ea5e9);
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+}
+.mms-radio-tile-body { flex: 1; min-width: 0; }
+.mms-radio-tile-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--mms-text, #0f172a);
+  margin-bottom: 0.15rem;
+}
+.mms-radio-tile-desc {
+  font-size: 0.78rem;
+  color: var(--mms-muted, #64748b);
+  line-height: 1.35;
+}
+
+/* =========================================================================
+   Tools dashboard — KPI ribbon, split layout, refined cards
+   ========================================================================= */
+.mms-tools-ribbon {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 900px) { .mms-tools-ribbon { grid-template-columns: repeat(2, 1fr); } }
+
+.mms-tool-kpi {
+  position: relative;
+  background: var(--mms-surface, #fff);
+  border: 1px solid var(--mms-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 1rem 1.1rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  overflow: hidden;
+}
+.mms-tool-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--mms-accent, #0ea5e9);
+}
+.mms-tool-kpi--available::before  { background: #16a34a; }
+.mms-tool-kpi--in_use::before     { background: #2563eb; }
+.mms-tool-kpi--oos::before        { background: #dc2626; }
+.mms-tool-kpi--value::before      { background: #7c3aed; }
+
+.mms-tool-kpi-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--mms-muted, #64748b);
+  font-weight: 700;
+}
+.mms-tool-kpi-value {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--mms-text, #0f172a);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.mms-tool-kpi-foot {
+  font-size: 0.74rem;
+  color: var(--mms-muted, #94a3b8);
+}
+.mms-tool-kpi-foot strong { color: var(--mms-text, #0f172a); font-weight: 600; }
+
+.mms-tools-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 1100px) { .mms-tools-grid { grid-template-columns: 1fr; } }
+
+.mms-tools-list-card .mms-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+}
+.mms-tools-list-card .mms-card-header h3 { font-size: 0.95rem; }
+.mms-tools-list-card .mms-card-header .mms-tools-list-count {
+  font-size: 0.78rem;
+  color: var(--mms-muted, #64748b);
+  font-weight: 500;
+}
+
+.mms-tools-section-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--mms-muted, #94a3b8);
+}
+.mms-tools-section-empty .mms-tools-section-empty-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mms-tools-search {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: var(--mms-bg, #f8fafc);
+  border: 1px solid var(--mms-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.85rem;
+}
+.mms-tools-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  color: var(--mms-text, #0f172a);
+  padding: 0.25rem 0.25rem;
+}
+.mms-tools-search-icon { color: var(--mms-muted, #94a3b8); }
+
+.mms-tool-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--mms-border, #f1f5f9);
+  transition: background 0.1s;
+}
+.mms-tool-row:last-child { border-bottom: none; }
+.mms-tool-row:hover { background: #f8fafc; }
+
+.mms-tool-row-link {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.6fr 1.2fr 1fr 1fr auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  text-decoration: none;
+  color: inherit;
+}
+.mms-tool-row-link:hover { background: inherit; }
+
+.mms-tool-row-action {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  border-left: 1px solid var(--mms-border, #f1f5f9);
+  background: #fcfcfd;
+  min-width: 130px;
+  justify-content: flex-end;
+}
+.mms-tool-row-action .mms-btn { white-space: nowrap; }
+.mms-tool-row-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--mms-text, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.mms-tool-row-name .mms-tool-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--mms-muted, #64748b);
+  background: #f1f5f9;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+}
+.mms-tool-row-meta {
+  font-size: 0.78rem;
+  color: var(--mms-muted, #64748b);
+}
+.mms-tool-row-meta strong { color: var(--mms-text, #0f172a); font-weight: 600; }
+.mms-tool-row-time {
+  font-size: 0.78rem;
+  color: var(--mms-muted, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+.mms-tool-row-time strong { color: var(--mms-text, #0f172a); font-weight: 600; display: block; }
+
+.mms-tool-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+}
+.mms-tool-status--available     { background: #dcfce7; color: #166534; }
+.mms-tool-status--in_use        { background: #dbeafe; color: #1d4ed8; }
+.mms-tool-status--out_of_service{ background: #fee2e2; color: #b91c1c; }
+
+/* Filter chips row */
+.mms-tools-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+.mms-tools-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid var(--mms-border, #e2e8f0);
+  background: var(--mms-surface, #fff);
+  color: var(--mms-text, #0f172a);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s, border-color 0.12s;
+}
+.mms-tools-chip:hover { background: #f8fafc; border-color: #cbd5e1; }
+.mms-tools-chip.is-active {
+  background: var(--mms-accent, #0ea5e9);
+  border-color: var(--mms-accent, #0ea5e9);
+  color: #fff;
+}
+.mms-tools-chip .count {
+  font-size: 0.72rem;
+  background: rgba(15, 23, 42, .06);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.mms-tools-chip.is-active .count {
+  background: rgba(255, 255, 255, .25);
+}
+
+/* Page header actions */
+.mms-page-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mms-page-actions .mms-btn { white-space: nowrap; }
+
+/* Damage row visual urgency */
+.mms-damage-row { padding: 0.65rem 0.25rem; }
+.mms-damage-row .mms-damage-pill { font-size: 0.7rem; }
+
+/* Make the tools list responsive on small screens */
+@media (max-width: 820px) {
+  .mms-tool-row-link {
+    grid-template-columns: 1.4fr 1fr auto;
+    gap: 0.5rem;
+  }
+  .mms-tool-row-link .mms-tool-row-time { display: none; }
+}
+@media (max-width: 600px) {
+  .mms-tool-row { flex-direction: column; align-items: stretch; }
+  .mms-tool-row-link { grid-template-columns: 1fr; }
+  .mms-tool-row-link .mms-tool-row-meta,
+  .mms-tool-row-link .mms-tool-row-time,
+  .mms-tool-row-link .mms-tool-status { display: block; padding-top: 0.15rem; }
+  .mms-tool-row-action {
+    border-left: none;
+    border-top: 1px solid var(--mms-border, #f1f5f9);
+    justify-content: stretch;
+  }
+  .mms-tool-row-action .mms-btn { flex: 1; }
+}
+
+/* =========================================================================
+   Assign / Return / Resolve forms — two-column layout + sticky actions
+   ========================================================================= */
+.mms-form--two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .mms-form--two-col { grid-template-columns: 1fr; }
+}
+
+.mms-form-col { display: flex; flex-direction: column; gap: 0.85rem; min-width: 0; }
+.mms-form-col--main { gap: 0.85rem; }
+.mms-form-col--side { gap: 0.85rem; position: sticky; top: 0.85rem; }
+@media (max-width: 900px) { .mms-form-col--side { position: static; } }
+
+/* Sticky actions row at the bottom of the main column */
+.mms-form-sticky-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  background: var(--mms-surface, #fff);
+  border: 1px solid var(--mms-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .06);
+  margin-top: 0.25rem;
+}
+
+/* Page title emphasis (for "Assign: Knife Punch #7") */
+.mms-page-title-emph {
+  color: var(--mms-accent, #0ea5e9);
+  font-weight: 700;
+}
+
+/* Page meta (badges + small details) */
+.mms-page-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.85rem;
+  margin-top: 0.4rem;
+  color: var(--mms-muted, #64748b);
+  font-size: 0.85rem;
+}
+.mms-page-meta code {
+  background: #f1f5f9;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
+/* Pill badge for required indicator */
+.mms-form-required-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.45rem;
+  margin-left: 0.4rem;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+/* Locked field visual */
+.mms-form-row--locked .form-control,
+.mms-form-row--locked select[disabled] {
+  background: #f0f9ff;
+  color: #0c4a6e;
+  font-weight: 600;
+  cursor: not-allowed;
+  border-color: #bae6fd;
+}
+.mms-form-help--ok {
+  color: #0c4a6e !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 500;
+}
+
+/* Radio pills (large, clickable) */
+.mms-radio-pills {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.mms-radio-pill {
+  flex: 1;
+  min-width: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  border: 1.5px solid var(--mms-border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--mms-surface, #fff);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--mms-text, #0f172a);
+  transition: all 0.12s;
+}
+.mms-radio-pill:hover {
+  border-color: var(--mms-accent, #0ea5e9);
+  background: #f8fafc;
+}
+.mms-radio-pill input[type="radio"] {
+  accent-color: var(--mms-accent, #0ea5e9);
+  margin: 0;
+}
+.mms-radio-pill:has(input:checked) {
+  border-color: var(--mms-accent, #0ea5e9);
+  background: #f0f9ff;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+.mms-radio-pill .mms-radio-pill-label { font-weight: 600; }
+
+/* Compact detail list (used in sidebar cards) */
+.mms-detail-list--compact {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 0.85rem;
+  font-size: 0.82rem;
+  margin: 0;
+}
+.mms-detail-list--compact dt {
+  color: var(--mms-muted, #64748b);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mms-detail-list--compact dd {
+  color: var(--mms-text, #0f172a);
+  margin: 0;
+}
+
+/* Accent card for sidebar */
+.mms-card--accent {
+  border-color: #bae6fd;
+  background: linear-gradient(180deg, #f0f9ff 0%, #fff 100%);
+}
+
+/* Callout boxes */
+.mms-callout {
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.mms-callout strong { display: block; margin-bottom: 0.25rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.mms-callout p { margin: 0; }
+.mms-callout--info {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0c4a6e;
+}
+.mms-callout--info strong { color: #075985; }
+
+/* Larger primary button variant */
+.mms-btn--lg {
+  padding: 0.6rem 1.4rem;
+  font-size: 0.9rem;
+}
+
+/* Status badge for "Available" badge in form header */
+.mms-tool-status--available {
+  background: #dcfce7;
+  color: #166534;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+}
+
+/* Tighter form rows inside .mms-form-section */
+.mms-form-section .mms-form-row {
+  margin-bottom: 0.85rem;
+}
+.mms-form-section .mms-form-row:last-child {
+  margin-bottom: 0;
+}
+.mms-form-section label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--mms-text, #0f172a);
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+}
+.mms-form-section .form-control,
+.mms-form-section select,
+.mms-form-section textarea {
+  width: 100%;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--mms-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--mms-surface, #fff);
+  color: var(--mms-text, #0f172a);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.mms-form-section .form-control:focus,
+.mms-form-section select:focus,
+.mms-form-section textarea:focus {
+  outline: none;
+  border-color: var(--mms-accent, #0ea5e9);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+}
+.mms-form-section textarea { min-height: 70px; resize: vertical; }
+.mms-form-section .mms-form-help {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--mms-muted, #64748b);
+  font-size: 0.74rem;
+}
+.mms-form-section .mms-field-error {
+  display: block;
+  margin-top: 0.3rem;
+  color: #b91c1c;
+  font-size: 0.78rem;
+}

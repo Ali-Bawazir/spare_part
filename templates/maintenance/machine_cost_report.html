@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}Machine Cost Report{% endblock %}
+{% block page_heading %}{% trans "Machine Cost Report" %}{% endblock %}
+{% block content %}
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body" style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap">
+        <form method="get" style="display:flex; gap:0.5rem; align-items:center">
+            <label>{% trans "Period:" %}</label>
+            <select name="period" class="form-control" style="width:auto" onchange="this.form.submit()">
+                {% for p in period_choices %}
+                <option value="{{ p }}" {% if period_days == p %}selected{% endif %}>{{ p }} days</option>
+                {% endfor %}
+            </select>
+        </form>
+        <span class="text-muted">From {{ period_start|mms_date }} to today</span>
+    </div>
+</div>
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">
+        <h5 style="margin:0">{% trans "Current Inventory Value" %}</h5>
+    </div>
+    <div class="mms-card-body">
+        <p class="text-muted" style="margin:0 0 1rem 0; font-size:0.85rem">
+            This is a balance-sheet view of stock on hand. It decreases when parts are issued to a work order.
+        </p>
+        <div style="display:flex; gap:2rem; flex-wrap:wrap; align-items:flex-end">
+            <div>
+                <div class="text-muted" style="font-size:0.85rem">{% trans "Total Quantity on Hand" %}</div>
+                <div style="font-size:1.75rem; font-weight:600">
+                    {{ stock_summary.total_qty|floatformat:0 }}
+                </div>
+            </div>
+            <div>
+                <div class="text-muted" style="font-size:0.85rem">{% trans "Total Inventory Value" %}</div>
+                <div style="font-size:1.75rem; font-weight:600">
+                    ${{ stock_summary.total_value|floatformat:2 }}
+                </div>
+            </div>
+            <div>
+                <div class="text-muted" style="font-size:0.85rem">{% trans "Site" %}</div>
+                <div style="font-size:1.25rem; font-weight:500">
+                    {{ site_label }}
+                </div>
+            </div>
+        </div>
+        {% if stock_summary.sites %}
+        <div style="margin-top:1rem">
+            <table class="mms-table">
+                <thead>
+                    <tr>
+                        <th>{% trans "Site" %}</th>
+                        <th class="text-right">{% trans "Quantity" %}</th>
+                        <th class="text-right">{% trans "Value" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in stock_summary.sites %}
+                    <tr>
+                        <td>{{ s.site.name }}</td>
+                        <td class="text-right">{{ s.qty|floatformat:0 }}</td>
+                        <td class="text-right">${{ s.value|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5 style="margin:0">Asset Maintenance Costs — Last {{ period_days }} Days</h5>
+    </div>
+    <div class="mms-card-body" style="padding:0">
+        <table class="mms-table">
+            <thead>
+                <tr>
+                    <th style="width:3rem">#</th>
+                    <th>{% trans "Asset" %}</th>
+                    <th>{% trans "Level" %}</th>
+                    <th class="text-right">{% trans "WOs" %}</th>
+                    <th class="text-right">{% trans "Parts" %}</th>
+                    <th class="text-right">{% trans "Vendor" %}</th>
+                    <th class="text-right">{% trans "Consumables" %}</th>
+                    <th class="text-right">{% trans "Additional" %}</th>
+                    <th class="text-right">{% trans "Total" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if flat_rows %}
+                    {% for row in flat_rows %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td style="padding-left:{% if row.machine.asset_level == 3 %}0{% elif row.machine.asset_level == 4 %}1.5rem{% else %}3rem{% endif %}">
+                            <a href="{% url 'machine_detail' row.machine.pk %}">{{ row.machine.name }}</a>
+                            <br><small class="text-muted">{{ row.machine.qr_code }}</small>
+                        </td>
+                        <td>{{ row.machine.get_asset_level_display }}</td>
+                        <td class="text-right">{{ row.total.wo_count }}</td>
+                        <td class="text-right">${{ row.total.parts|floatformat:2 }}</td>
+                        <td class="text-right">${{ row.total.vendor|floatformat:2 }}</td>
+                        <td class="text-right">${{ row.total.consumables|floatformat:2 }}</td>
+                        <td class="text-right">${{ row.total.additional|floatformat:2 }}</td>
+                        <td class="text-right"><strong>${{ row.total.total|floatformat:2 }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align:center; padding:1.5rem" class="text-muted">
+                            No closed work orders in this period. Costs will appear here after WOs are closed.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+            <tfoot style="background:#f8f9fa; font-weight:bold">
+                <tr>
+                    <td colspan="3" class="text-right">{% trans "GRAND TOTAL" %}</td>
+                    <td class="text-right">{{ grand_wo_count }}</td>
+                    <td class="text-right">${{ grand_parts|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_vendor|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_consumables|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_additional|floatformat:2 }}</td>
+                    <td class="text-right">${{ grand_total|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<style>
+.text-right { text-align: right; }
+</style>
+{% endblock %}

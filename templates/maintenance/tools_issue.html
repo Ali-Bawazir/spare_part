@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{% trans "Issue to Tool Pool" %}: {{ part.name }}{% endblock %}
+{% block content %}
+<div class="mms-page">
+  <div class="mms-page-header">
+    <h1 class="mms-page-title">
+      {% trans "Issue to Tool Pool" %}: {{ part.name }}
+    </h1>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-body">
+      <dl class="mms-detail-list">
+        <dt>{% trans "Part" %}</dt><dd>{{ part.name }} ({{ part.sku }})</dd>
+        <dt>{% trans "On hand" %}</dt><dd>{{ on_hand }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <form method="post" class="mms-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mms-form-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="mms-form-field">
+      <label for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}</label>
+      {{ form.quantity }}
+      <small class="mms-form-help">{{ form.quantity.help_text }}</small>
+      {{ form.quantity.errors }}
+    </div>
+    <div class="mms-form-field">
+      <label for="{{ form.note.id_for_label }}">{{ form.note.label }}</label>
+      {{ form.note }}
+      {{ form.note.errors }}
+    </div>
+    <div class="mms-form-actions">
+      <a href="{% url 'spare_part_detail' part.pk %}" class="mms-btn mms-btn--ghost">
+        {% trans "Cancel" %}
+      </a>
+      <button type="submit" class="mms-btn mms-btn--primary">
+        {% trans "Issue to Tool Pool" %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

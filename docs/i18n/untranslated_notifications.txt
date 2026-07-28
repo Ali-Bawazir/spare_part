@@ -1,0 +1,21 @@
+# Untranslated msgids: NOTIFICATIONS (19 entries)
+
+Verify repair quality and cost, then accept (UC-20). | maintenance/notifications.py
+A new external repair order is awaiting vendor assignment.  | maintenance/notifications.py
+The maintenance supply officer has sent this repair to  | maintenance/notifications.py
+tomorrow | maintenance/notifications.py
+You can pick it up from the warehouse. | maintenance/notifications.py
+You can re-install it on the asset. | maintenance/notifications.py
+No reason given | maintenance/notifications.py
+Edit & re-submit, switch parts, or use the shortage flow. | maintenance/notifications.py
+part | maintenance/services_notifications.py
+shortage | maintenance/services_notifications.py
+vendor repair | maintenance/services_notifications.py
+operational pause | maintenance/services_notifications.py
+Manager rejected the part request. | maintenance/services_notifications.py
+Procurement / warehouse fulfilled the shortage. | maintenance/services_notifications.py
+External repair order created. | maintenance/services_notifications.py
+Vendor repair accepted. | maintenance/services_notifications.py
+Technician resumed work on this WO. | maintenance/services_notifications.py
+Lines received. | maintenance/services_notifications.py
+PO received. | maintenance/services_notifications.py

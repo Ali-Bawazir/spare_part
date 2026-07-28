@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Begin Maintenance — {{ template.title }}{% endblock %}
+{% block page_heading %}{{ template.title }}{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <div class="text-muted">
+        {{ sched.machine.name }} ·
+        {{ sched.get_frequency_type_display }}{% if sched.interval != 1 %} × {{ sched.interval }}{% endif %}
+    </div>
+</div>
+
+{% if is_returned %}
+<div class="mms-card" style="border-left:4px solid #f0ad4e; margin-bottom:1rem">
+    <div class="mms-card-body">
+        <strong>{% trans "⚠ Returned" %}</strong> — "{{ pm_execution.rejection_reason }}" by {{ pm_execution.rejected_by.username|default_if_none:"Manager" }}
+    </div>
+</div>
+{% endif %}
+
+{# ──── Timer ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+                <span class="text-muted" style="font-size:.85rem">{% trans "Elapsed" %}</span><br>
+                <span id="pm-elapsed" style="font-size:1.4rem;font-weight:700">00:00</span>
+            </div>
+            <div style="text-align:right">
+                <span class="text-muted" style="font-size:.85rem">{% trans "Expected" %}</span><br>
+                <span style="font-size:1.1rem">{{ sched.effective_duration_minutes }} min</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {# ──── Checklist ──── #}
+    <div class="mms-card" style="margin-bottom:1rem">
+        <div class="mms-card-header"><strong>{% trans "Checklist" %}</strong></div>
+        <div class="mms-card-body">
+            {% for item in checklist %}
+            <div class="mms-form-row" style="border-bottom:1px solid #eee;padding:0.5rem 0">
+                <label style="display:flex;gap:0.5rem;align-items:flex-start;font-weight:500">
+                    <input type="checkbox"
+                           name="checklist_{{ forloop.counter0 }}"
+                           id="checklist_{{ forloop.counter0 }}"
+                           style="margin-top:4px">
+                    <span>{{ item.text }}</span>
+                </label>
+                <input type="text"
+                       name="note_{{ forloop.counter0 }}"
+                       id="note_{{ forloop.counter0 }}"
+                       class="form-control form-control-sm"
+                       placeholder={% trans "Add note (optional)" %}
+                       style="max-width:400px;margin-top:0.25rem">
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ──── Notes ──── #}
+    <div class="mms-card" style="margin-bottom:1rem">
+        <div class="mms-card-body">
+            <label for="notes"><strong>{% trans "Notes" %}</strong></label>
+            <textarea name="notes" id="notes" class="form-control" rows="3"
+                      placeholder={% trans "Overall notes (optional, but counts as completion)" %}></textarea>
+        </div>
+    </div>
+        </div>
+    </div>
+
+    {# ──── Complete button ──── #}
+    <div class="mms-form-actions" style="display:flex;gap:0.5rem;align-items:center;margin-top:1rem">
+        <button type="submit" name="action" value="complete" class="mms-btn mms-btn--primary">
+            {% if is_returned %}{% trans "Resubmit for review" %}{% else %}{% trans "Complete Maintenance" %}{% endif %}
+        </button>
+        <a href="{% url 'preventive:my' %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
+    </div>
+</form>
+
+{# ──── Photos (separate form — auto-submits on file selection, OUTSIDE main form) ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">
+        <strong>{% trans "Photos" %}</strong>
+        {% if required_photo_count > 0 %}
+        <span style="font-size:.85rem;color:{% if photo_count >= required_photo_count %}#28a745{% else %}#dc3545{% endif %}">
+            · {{ photo_count }} / {{ required_photo_count }} required
+        </span>
+        {% endif %}
+    </div>
+    <div class="mms-card-body">
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+            {% for att in wo_attachments %}
+            <div style="position:relative">
+                {% if att.thumbnail %}
+                <img src="{{ att.thumbnail.url }}" alt="{{ att.filename }}"
+                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
+                {% else %}
+                <img src="{{ att.file.url }}" alt="{{ att.filename }}"
+                     style="width:80px;height:80px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb">
+                {% endif %}
+            </div>
+            {% empty %}
+            <span class="text-muted" style="font-size:.85rem">{% trans "No photos uploaded yet." %}</span>
+            {% endfor %}
+        </div>
+        <form method="post"
+              enctype="multipart/form-data"
+              action="{% url 'preventive:add_photo' pm_execution.pk %}"
+              id="photo-upload-form"
+              style="display:flex;gap:0.5rem;align-items:center">
+            {% csrf_token %}
+            <label class="mms-btn mms-btn--ghost mms-btn--sm" style="cursor:pointer;margin:0">
+                <span id="photo-label">{% trans "+ Add photo" %}</span>
+                <input type="file" name="photo" accept="image/*,video/*"
+                       style="display:none"
+                       onchange="document.getElementById('photo-upload-form').submit()">
+            </label>
+            <span id="photo-status" class="text-muted" style="font-size:.8rem"></span>
+        </form>
+        <div class="text-muted" style="font-size:.75rem;margin-top:0.25rem">
+            Tap to upload. Photo uploads immediately. Multiple photos supported.
+        </div>
+    </div>
+</div>
+
+{# ──── Timer JS ──── #}
+<script>
+(function() {
+    var startedAt = {{ wo.labor_started_at|mms_date }};  // unix seconds
+    var expectedMin = {{ sched.effective_duration_minutes }};
+    var elapsedEl = document.getElementById("pm-elapsed");
+
+    function tick() {
+        var now = Math.floor(Date.now() / 1000);
+        var sec = Math.max(0, now - startedAt);
+        var mm = Math.floor(sec / 60);
+        var ss = sec % 60;
+        elapsedEl.textContent =
+            String(mm).padStart(2, "0") + ":" + String(ss).padStart(2, "0");
+        // Color thresholds
+        if (sec > expectedMin * 60) {
+            elapsedEl.style.color = "#dc3545";  // red
+        } else if (sec > expectedMin * 60 * 0.8) {
+            elapsedEl.style.color = "#f0ad4e";  // amber
+        } else {
+            elapsedEl.style.color = "#28a745";  // green
+        }
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+</script>
+
+{% endblock %}

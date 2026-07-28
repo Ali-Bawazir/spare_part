@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{{ machine.name }} — {{ machine.get_asset_level_display }}{% endblock %}
+{% block content %}
+
+<!-- Breadcrumb -->
+<p class="mms-page-lead">
+  {% for a in ancestors %}
+    <a href="{% url 'machine_detail' a.pk %}">{{ a.name }}</a> ›
+  {% endfor %}
+  <strong>{{ machine.name }}</strong>
+  <span class="mms-text-muted">({{ machine.get_asset_level_display }})</span>
+</p>
+
+<!-- HERO STATS STRIP -->
+<div class="mms-stats-strip">
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.total_wo_count }}</span>
+    <span class="mms-stat-lbl">{% trans "Work Orders" %}</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.cost_90d_total|floatformat:0 }}</span>
+    <span class="mms-stat-lbl">{% trans "SAR · last 90 days" %}</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.failure_count_90d }}</span>
+    <span class="mms-stat-lbl">{% trans "Failures · 90d" %}</span>
+  </div>
+  <div class="mms-stat">
+    <span class="mms-stat-num">{{ hero_stats.last_activity_days }}</span>
+    <span class="mms-stat-lbl">{% trans "Days since last activity" %}</span>
+  </div>
+</div>
+
+<!-- ASSET DETAILS CARD (polished) -->
+<div class="mms-card">
+  <div class="mms-card-header">
+    {% if is_machine_level %}⚙️ Machine Details{% endif %}
+    {% if is_subassembly_level %}🔧 Subassembly Details{% endif %}
+    {% if is_component_level %}🔩 Component Details{% endif %}
+  </div>
+  <div class="mms-card-body">
+    <dl class="mms-dl">
+      <dt>{% trans "QR Code" %}</dt><dd><code>{{ machine.qr_code }}</code></dd>
+      <dt>{% trans "Asset Code" %}</dt><dd>{% if machine.asset_code %}<code>{{ machine.asset_code }}</code>{% else %}—{% endif %}</dd>
+      <dt>{% trans "Level" %}</dt><dd>{{ machine.get_asset_level_display }}</dd>
+      <dt>{% trans "Site" %}</dt><dd>{{ machine.site.name|default:"—" }}</dd>
+      <dt>{% trans "Location" %}</dt><dd>{{ machine.location|default:"—" }}</dd>
+      <dt>{% trans "Status" %}</dt><dd>{% if machine.is_active %}<span class="mms-badge mms-badge--success">{% trans "Active" %}</span>{% else %}<span class="mms-badge mms-badge--muted">{% trans "Inactive" %}</span>{% endif %}</dd>
+    </dl>
+    {% if is_component_level %}
+      <h4 style="margin:1rem 0 0.5rem 0;font-size:0.9rem">{% trans "Specifications" %}</h4>
+      <dl class="mms-dl">
+        <dt>{% trans "Serial" %}</dt><dd>{{ machine.serial_number|default:"—" }}</dd>
+        <dt>{% trans "Manufacturer" %}</dt><dd>{{ machine.manufacturer|default:"—" }}</dd>
+        <dt>{% trans "Model" %}</dt><dd>{{ machine.model_number|default:"—" }}</dd>
+        <dt>{% trans "Criticality" %}</dt><dd>{{ machine.get_criticality_display|default:"—" }}</dd>
+      </dl>
+    {% endif %}
+  </div>
+  <div class="mms-card-footer">
+    {% if can_edit_machine %}<a href="{% url 'machine_edit' machine.pk %}" class="mms-btn mms-btn--ghost">{% trans "Edit" %}</a>{% endif %}
+    <a href="{% url 'machine_list' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to machines" %}</a>
+  </div>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div class="mms-card">
+  <div class="mms-card-header">{% trans "⚡ Quick Actions" %}</div>
+  <div class="mms-card-body">
+    <a href="{% url 'issue_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🚨 Report Issue" %}</a>
+    {% if can_create_wo %}<a href="{% url 'emergency_wo_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🔧 Create Work Order" %}</a>{% endif %}
+    {% if can_create_pm %}<a href="{% url 'pm_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--primary">{% trans "🛡️ Create PM" %}</a>{% endif %}
+    {% if can_create_ero %}<a href="{% url 'repair_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "🔩 Create ERO" %}</a>{% endif %}
+    {% if can_create_pr %}<a href="{% url 'purchase_create' %}?machine={{ machine.pk }}{% if machine.asset_level == 5 %}&component={{ machine.pk }}{% endif %}" class="mms-btn mms-btn--ghost">{% trans "📦 Create PR" %}</a>{% endif %}
+  </div>
+</div>
+
+<!-- RECENT ACTIVITY (Quick Log — compact 3 most-recent entries) -->
+{% include "maintenance/_partials/_recent_activity.html" %}
+
+<!-- ASSET PHOTOS (unchanged) -->
+<div class="mms-card">
+  <div class="mms-card-header">{% trans "📷 Asset Photos" %}</div>
+  <div class="mms-card-body">
+    {% trans "Asset Photos" as asset_photos_title %}{% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True title=asset_photos_title %}
+  </div>
+</div>
+
+<!-- RELATED RECORDS WITH TABS -->
+<div class="mms-card">
+  <div class="mms-card-header">{% trans "🔗 Related Records" %}</div>
+  <div class="mms-card-body">
+    <div class="mms-tabs" role="tablist">
+      <button class="mms-tab mms-tab--active" data-tab="tab-wos">
+        🔧 Work Orders ({{ related_wos|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-issues">
+        ⚠️ Issues ({{ related_issues|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-pms">
+        🛡️ PM Schedules ({{ related_pms|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-eros">
+        🔩 External Repairs ({{ related_eros|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-prs">
+        📦 Purchase Requests ({{ related_prs|length }})
+      </button>
+      <button class="mms-tab" data-tab="tab-history">
+        📜 History ({{ history_total }})
+      </button>
+    </div>
+
+    <!-- Work Orders tab (the main one) -->
+    <div id="tab-wos" class="mms-tab-panel mms-tab-panel--active">
+      {% if related_wos %}
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th>{% trans "WO#" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Component" %}</th>
+            <th>{% trans "Opened" %}</th>
+            <th>{% trans "Technician" %}</th>
+            <th class="mms-cost-cell">{% trans "Cost" %}</th>
+            <th>{% trans "Days open" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for wo in related_wos %}
+            <tr>
+              <td><a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a></td>
+              <td>
+                {% if wo.lifecycle_status == 'closed' %}<span class="mms-badge mms-badge--success">{% trans "Closed" %}</span>
+                {% elif wo.lifecycle_status == 'in_progress' %}<span class="mms-badge mms-badge--info">{% trans "In progress" %}</span>
+                {% elif wo.lifecycle_status == 'pending_review' %}<span class="mms-badge mms-badge--warning">{% trans "Pending review" %}</span>
+                {% else %}<span class="mms-badge mms-badge--muted">{{ wo.get_lifecycle_status_display }}</span>{% endif %}
+              </td>
+              <td>{% if wo.component %}{{ wo.component.name }}{% else %}—{% endif %}</td>
+              <td><span class="mms-text-muted">{{ wo.created_at|mms_date }}</span></td>
+              <td>{% if wo.assigned_technician %}{{ wo.assigned_technician.username }}{% else %}—{% endif %}</td>
+              <td class="mms-cost-cell {% if wo.cost_record and wo.cost_record.total_cost > 1000 %}mms-cost-cell--warn{% endif %}">
+                {% if wo.cost_record %}{{ wo.cost_record.total_cost|floatformat:2 }} SAR{% else %}—{% endif %}
+              </td>
+              <td>{% if wo.lifecycle_status == 'closed' %}—{% else %}{{ wo.created_at|timesince }}{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="mms-empty">{% trans "No work orders yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="mms-empty">{% trans "No work orders yet." %}</div>
+      {% endif %}
+    </div>
+
+    <!-- Issues tab -->
+    <div id="tab-issues" class="mms-tab-panel">
+      {% if related_issues %}
+      <table class="mms-table">
+        <thead>
+          <tr><th>#</th><th>{% trans "Priority" %}</th><th>{% trans "Status" %}</th><th>{% trans "Reporter" %}</th><th>{% trans "Description" %}</th><th>{% trans "Date" %}</th></tr>
+        </thead>
+        <tbody>
+          {% for iss in related_issues %}
+            <tr>
+              <td><a href="{% url 'issue_detail' iss.pk %}">#{{ iss.pk }}</a></td>
+              <td>{% if iss.priority == 'critical' %}<span class="mms-badge mms-badge--danger">{% trans "Critical" %}</span>
+                  {% elif iss.priority == 'high' %}<span class="mms-badge mms-badge--warning">{% trans "High" %}</span>
+                  {% elif iss.priority == 'medium' %}<span class="mms-badge mms-badge--info">{% trans "Medium" %}</span>
+                  {% else %}<span class="mms-badge mms-badge--muted">{% trans "Low" %}</span>{% endif %}</td>
+              <td>{{ iss.get_status_display }}</td>
+              <td>{% if iss.reported_by %}{{ iss.reported_by.username }}{% else %}—{% endif %}</td>
+              <td>{{ iss.description|truncatechars:60 }}</td>
+              <td><span class="mms-text-muted">{{ iss.created_at|mms_date }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="mms-empty">{% trans "No issues yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">{% trans "No issues yet." %}</div>{% endif %}
+    </div>
+
+    <!-- PM Schedules tab -->
+    <div id="tab-pms" class="mms-tab-panel">
+      <div class="mms-stats-strip" style="margin-bottom:1rem">
+        <div class="mms-stat">
+          <span class="mms-stat-num">{{ pm_stats.active_count }}</span>
+          <span class="mms-stat-lbl">{% trans "Active PMs" %}</span>
+        </div>
+        <div class="mms-stat">
+          <span class="mms-stat-num">{{ pm_stats.due_this_week_count }}</span>
+          <span class="mms-stat-lbl">{% trans "Due This Week" %}</span>
+        </div>
+        <div class="mms-stat">
+          <span class="mms-stat-num" style="{% if pm_stats.overdue_count > 0 %}color:#dc2626{% endif %}">{{ pm_stats.overdue_count }}</span>
+          <span class="mms-stat-lbl">{% trans "Overdue" %}</span>
+        </div>
+        <div class="mms-stat">
+          <span class="mms-stat-num">
+            {% if pm_stats.compliance_pct is not None %}{{ pm_stats.compliance_pct }}%{% else %}—{% endif %}
+          </span>
+          <span class="mms-stat-lbl">{% trans "Compliance (90d)" %}</span>
+        </div>
+      </div>
+
+      {% if related_pms %}
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th>{% trans "Template" %}</th>
+            <th>{% trans "Frequency" %}</th>
+            <th>{% trans "Next due" %}</th>
+            <th>{% trans "Priority" %}</th>
+            <th>{% trans "Last execution" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pm in related_pms %}
+            {% with last_exec=pm_last_executions|get_item:pm.pk %}
+            <tr>
+              <td>
+                <a href="{% url 'pm_template_detail' pm.template.pk %}"><code>{{ pm.template.code }}</code></a><br>
+                <small class="mms-text-muted">{{ pm.template.title }}</small>
+              </td>
+              <td>{{ pm.get_frequency_type_display }}{% if pm.interval != 1 %} × {{ pm.interval }}{% endif %}</td>
+              <td>
+                <span style="{% if pm.next_due_at < now %}color:#dc2626;font-weight:600{% endif %}">
+                  {{ pm.next_due_at|mms_datetime }}
+                </span>
+                {% if pm.next_due_at < now %}<br><small class="mms-badge mms-badge--danger">{% trans "OVERDUE" %}</small>{% endif %}
+              </td>
+              <td>
+                {% with eff=pm.effective_priority %}
+                  {% if eff == 'critical' %}<span class="mms-badge mms-badge--danger">{% trans "Critical" %}</span>
+                  {% elif eff == 'high' %}<span class="mms-badge mms-badge--warning">{% trans "High" %}</span>
+                  {% elif eff == 'medium' %}<span class="mms-badge mms-badge--info">{% trans "Medium" %}</span>
+                  {% else %}<span class="mms-badge mms-badge--muted">{% trans "Low" %}</span>{% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                {% if last_exec %}
+                  <small>
+                    {{ last_exec.get_status_display }}<br>
+                    <span class="mms-text-muted">{{ last_exec.scheduled_due_at|mms_date }}</span>
+                  </small>
+                {% else %}<span class="mms-text-muted">—</span>{% endif %}
+              </td>
+              <td>{% if pm.is_active %}<span class="mms-badge mms-badge--success">{% trans "Active" %}</span>{% else %}<span class="mms-badge mms-badge--muted">{% trans "Inactive" %}</span>{% endif %}</td>
+              <td>
+                {% if perm_pm_schedule_manage %}
+                  <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_spawn_wo' pm.pk %}">{% trans "Create PM WO" %}</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr><td colspan="7" class="mms-empty">{% trans "No PM schedules yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">{% trans "No PM schedules yet." %}</div>{% endif %}
+    </div>
+
+    <!-- External Repairs tab -->
+    <div id="tab-eros" class="mms-tab-panel">
+      {% if related_eros %}
+      <table class="mms-table">
+        <thead>
+          <tr><th>{% trans "Title" %}</th><th>{% trans "Status" %}</th><th>{% trans "Vendor" %}</th><th>{% trans "Cost" %}</th><th>{% trans "Sent" %}</th></tr>
+        </thead>
+        <tbody>
+          {% for ero in related_eros %}
+            <tr>
+              <td><a href="{% url 'repair_officer' ero.pk %}">{{ ero.title|default:ero.pk }}</a></td>
+              <td>{{ ero.get_status_display }}</td>
+              <td>{{ ero.vendor_name|default:"—" }}</td>
+              <td class="mms-cost-cell">{% if ero.actual_cost %}{{ ero.actual_cost|floatformat:2 }} SAR{% else %}—{% endif %}</td>
+              <td><span class="mms-text-muted">{{ ero.sent_at|mms_date|default:"—" }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="mms-empty">{% trans "No external repairs yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">{% trans "No external repairs yet." %}</div>{% endif %}
+    </div>
+
+    <!-- Purchase Requests tab -->
+    <div id="tab-prs" class="mms-tab-panel">
+      {% if related_prs %}
+      <table class="mms-table">
+        <thead>
+          <tr><th>#</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Status" %}</th><th>{% trans "Supplier" %}</th></tr>
+        </thead>
+        <tbody>
+          {% for pr in related_prs %}
+            <tr>
+              <td><a href="{% url 'pr_detail' pr.pk %}">#{{ pr.pk }}</a></td>
+              <td>{{ pr.part.name }} <small class="mms-text-muted">({{ pr.part.sku }})</small></td>
+              <td>{{ pr.quantity|floatformat:3 }}</td>
+              <td>{{ pr.get_status_display }}</td>
+              <td>{% if pr.supplier %}{{ pr.supplier.name }}{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="mms-empty">{% trans "No purchase requests yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="mms-empty">{% trans "No purchase requests yet." %}</div>{% endif %}
+    </div>
+
+    <!-- History tab (Quick Log timeline) -->
+    <div id="tab-history" class="mms-tab-panel">
+      {% include "maintenance/_partials/_history_timeline.html" with logs=history_logs machine=machine page_obj=history_page today=today_date yesterday=yesterday_date %}
+    </div>
+  </div>
+</div>
+
+<!-- COSTS TAB (visible only to roles with cost visibility) -->
+{% if can_see_cost %}{% include "maintenance/_cost_tab.html" %}{% endif %}
+
+<!-- SUBASSEMBLIES & COMPONENTS GRID -->
+{% if machine.children.exists %}
+<div class="mms-card">
+  <div class="mms-card-header">
+    {% if is_machine_level %}🧩 Subassemblies & Components ({{ machine.children.count }}){% endif %}
+    {% if is_subassembly_level %}🔩 Components ({{ machine.children.count }}){% endif %}
+  </div>
+  <div class="mms-card-body">
+    <div class="mms-child-grid">
+      {% for child in machine.children.all %}
+        <a href="{% url 'machine_detail' child.pk %}" class="mms-child-card">
+          <div class="mms-child-icon">{% if child.asset_level == 4 %}🔧{% else %}🔩{% endif %}</div>
+          <div class="mms-child-name">{{ child.name }}</div>
+          <div class="mms-child-meta">{{ child.get_asset_level_display }}{% if child.asset_code %} · {{ child.asset_code }}{% endif %}</div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ASSET TREE (CONTEXT.md: required on every asset-targeting page) -->
+{% include "maintenance/_asset_tree.html" %}
+
+<script>
+(function() {
+  document.querySelectorAll('.mms-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tabId = this.dataset.tab;
+      document.querySelectorAll('.mms-tab').forEach(function(t) { t.classList.remove('mms-tab--active'); });
+      document.querySelectorAll('.mms-tab-panel').forEach(function(p) { p.classList.remove('mms-tab-panel--active'); });
+      this.classList.add('mms-tab--active');
+      var panel = document.getElementById(tabId);
+      if (panel) panel.classList.add('mms-tab-panel--active');
+    });
+  });
+})();
+</script>
+
+{% endblock %}

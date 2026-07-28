@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}Reporters report{% endblock %}
+{% block page_heading %}{% trans "Reporters report" %}{% endblock %}
+{% block content %}
+
+<p class="mms-link-back">
+  <a href="{% url 'kpi_dashboard' %}">{% trans "← Back to KPIs" %}</a>
+</p>
+<p class="mms-page-lead">
+  All operators who reported issues in the last {{ period_days }} days, ranked by report count.
+  {{ total_reports }} report{{ total_reports|pluralize }} · {{ total_converted }} converted to work order{{ total_converted|pluralize }}.
+</p>
+
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-body" style="padding:0">
+    {% if reporters %}
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th>{% trans "Operator" %}</th>
+            <th>{% trans "Role" %}</th>
+            <th class="text-right">{% trans "Reports" %}</th>
+            <th class="text-right">{% trans "Converted to WO" %}</th>
+            <th class="text-right">{% trans "Conversion rate" %}</th>
+            <th>{% trans "Share" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reporters %}
+            {% widthratio r.reports total_reports 100 as share %}
+            <tr>
+              <td>
+                <strong>{{ r.display }}</strong>
+                <span style="color:var(--mms-muted);font-size:.85rem">@{{ r.username }}</span>
+              </td>
+              <td>
+                <span class="mms-badge mms-badge--muted">{{ r.role }}</span>
+              </td>
+              <td class="text-right"><strong>{{ r.reports }}</strong></td>
+              <td class="text-right">{{ r.converted }}</td>
+              <td class="text-right">
+                {% if r.conversion_rate %}
+                  <div style="display:flex;align-items:center;gap:.5rem;justify-content:flex-end">
+                    <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+                      <div style="width: {{ r.conversion_rate }}%;height:100%;background:#16a34a"></div>
+                    </div>
+                    <span style="min-width:40px;font-variant-numeric:tabular-nums">{{ r.conversion_rate }}%</span>
+                  </div>
+                {% else %}
+                  <span style="color:var(--mms-muted)">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <div style="width:80px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+                    <div style="width: {{ share }}%;height:100%;background:var(--mms-accent,#0d6efd)"></div>
+                  </div>
+                  <span style="font-size:.85rem;color:var(--mms-muted);font-variant-numeric:tabular-nums">{{ share }}%</span>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot style="background:#f8f9fa;font-weight:600">
+          <tr>
+            <td colspan="2" class="text-right">{% trans "Total" %}</td>
+            <td class="text-right">{{ total_reports }}</td>
+            <td class="text-right">{{ total_converted }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    {% else %}
+      <div style="padding:1.5rem;text-align:center;color:var(--mms-muted)">
+        No issues reported in the last {{ period_days }} days.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .text-right { text-align: right; }
+</style>
+{% endblock %}

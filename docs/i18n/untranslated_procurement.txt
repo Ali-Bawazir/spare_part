@@ -1,0 +1,150 @@
+# Untranslated msgids: PROCUREMENT (148 entries)
+
+Contact | procurement/admin.py
+Vendor type | procurement/admin.py
+QR Code | procurement/admin.py
+Unit price | procurement/forms.py
+Supplier code is required. | procurement/forms.py
+Supplier code '%(code)s' is already in use. | procurement/forms.py
+Also handles external repairs | procurement/models.py
+Unique supplier code. Use letters, digits, and dashes (e.g. SUP-001 or MWRD-001). Used in QR format SUPPLIER:{code}. | procurement/models.py
+Pending officer | procurement/models.py
+Converted to PO | procurement/models.py
+Partially fulfilled | procurement/models.py
+Fulfilled | procurement/models.py
+Set when this PR was auto-created from a shortage decision. Null for manual PRs. SET_NULL on delete (closing the shortage does not delete the PR). | procurement/models.py
+Sent to supplier | procurement/models.py
+Partial received | procurement/models.py
+Fully received | procurement/models.py
+Closed short | procurement/models.py
+PO currency → site currency at receive time | procurement/models.py
+Damaged (quarantine) | procurement/models.py
+Rejected at inspection | procurement/models.py
+Price agreed on the PO. Renamed from unit_price. | procurement/models.py
+What was actually invoiced by the supplier. Used for weighted-avg cost recompute. | procurement/models.py
+Units the supplier owes but hasn't delivered. ordered_qty = received_qty + backordered_qty + cancelled_qty. | procurement/models.py
+purchase order items | procurement/models.py
+Auto-created from shortage decision #%(decision_pk)s (qty requested: %(qty_requested)s, procurement qty: %(approved_qty)s) | procurement/services.py
+Purchase request sent to procurement. | procurement/views.py
+Purchase request updated. | procurement/views.py
+Voice note added to PR #%(pk)d. | procurement/views.py
+Purchase order %(po)s created. | procurement/views.py
+New purchase order | procurement/views.py
+PO %(po)s created from PR #%(pk)d. | procurement/views.py
+New PO from PR #%(pk)d | procurement/views.py
+This PO is locked and cannot be edited. | procurement/views.py
+Purchase order updated. | procurement/views.py
+PO is %(status)s — cannot receive. | procurement/views.py
+%(sku)s: receiving %(arrived)s exceeds remaining %(remaining)s — capped. | procurement/views.py
+Received: %(items)s | procurement/views.py
+Supplier invoice ref: %(ref)s | procurement/views.py
+Auto-issued to WOs: %(items)s | procurement/views.py
+PURCHASE ORDER | procurement/views.py
+POST required | procurement/views.py
+PO cannot be closed short in current status. | procurement/views.py
+PO %(po)s closed short. | procurement/views.py
+← Back to suppliers | templates/maintenance/supplier_detail.html
+Contact information | templates/maintenance/supplier_detail.html
+Contact person | templates/maintenance/supplier_detail.html
+Phone | templates/maintenance/supplier_detail.html
+Address | templates/maintenance/supplier_detail.html
+Repair vendor | templates/maintenance/supplier_detail.html
+Yes — handles external repairs | templates/maintenance/supplier_detail.html
+Edit supplier | templates/maintenance/supplier_detail.html
+Is consumable | templates/maintenance/supplier_detail.html
+Supplier code * | templates/maintenance/supplier_form.html
+Unique code e.g. SUP-001. Used in QR format. | templates/maintenance/supplier_form.html
+Supplier name * | templates/maintenance/supplier_form.html
+Active (deactivate to hide from lists) | templates/maintenance/supplier_form.html
++ New supplier | templates/maintenance/supplier_list.html
+Clear search | templates/maintenance/supplier_list.html
+No suppliers found. | templates/maintenance/supplier_list.html
+You are about to | templates/procurement/po_close_short.html
+close short | templates/procurement/po_close_short.html
+Current status: | templates/procurement/po_close_short.html
+This will cancel all remaining undelivered quantities for this PO. | templates/procurement/po_close_short.html
+Ordered | templates/procurement/po_close_short.html
+Received | templates/procurement/po_close_short.html
+Remaining | templates/procurement/po_close_short.html
+Confirm Close Short | templates/procurement/po_close_short.html
+Supplier Invoice | templates/procurement/po_detail.html
+Internal Ref | templates/procurement/po_detail.html
+Expected Delivery | templates/procurement/po_detail.html
+Handled By | templates/procurement/po_detail.html
+Created By | templates/procurement/po_detail.html
+Total Value | templates/procurement/po_detail.html
+Received Value | templates/procurement/po_detail.html
+Notes: | templates/procurement/po_detail.html
+This PO is locked. | templates/procurement/po_detail.html
+Receive Items | templates/procurement/po_detail.html
+Close Short | templates/procurement/po_detail.html
+← Back | templates/procurement/po_detail.html
+Line Items | templates/procurement/po_detail.html
+Ordered Qty | templates/procurement/po_detail.html
+Received Qty | templates/procurement/po_detail.html
+Unit Price | templates/procurement/po_detail.html
+(actual / negotiated) | templates/procurement/po_detail.html
+No line items. | templates/procurement/po_detail.html
+Add items from PO detail page in Phase 2 | templates/procurement/po_detail.html
+Add item | templates/procurement/po_detail.html
+To add line items, use  | templates/procurement/po_detail.html
+Create from PR | templates/procurement/po_detail.html
+ or contact admin. | templates/procurement/po_detail.html
+Photos & Attachments | templates/procurement/po_detail.html
+${att.filename} (${formatFileSize(att.size)}) — ${att.uploaded_by} | templates/procurement/po_detail.html
++ Add New Supplier | templates/procurement/po_form.html
+Merge from Purchase Requests | templates/procurement/po_form.html
+Select | templates/procurement/po_form.html
+PR# | templates/procurement/po_form.html
+Save Purchase Order | templates/procurement/po_form.html
+Add New Supplier | templates/procurement/po_form.html
+SUP-001 or MWRD-001 | templates/procurement/po_form.html
+Supplier name | templates/procurement/po_form.html
+Save Supplier | templates/procurement/po_form.html
+Track every PO from creation through receiving. Filter by status, jump to detail, or open a new one. | templates/procurement/po_list.html
++ New PO | templates/procurement/po_list.html
+Filter by status: | templates/procurement/po_list.html
+× clear period | templates/procurement/po_list.html
+Gross spend by supplier | templates/procurement/po_list.html
+POs | templates/procurement/po_list.html
+Line items | templates/procurement/po_list.html
+Total spent (SAR) | templates/procurement/po_list.html
+CSV | templates/procurement/po_list.html
+📥 CSV | templates/procurement/po_list.html
+No purchase orders for this filter. | templates/procurement/po_list.html
+Grand total | templates/procurement/po_list.html
+All purchase orders | templates/procurement/po_list.html
+PO Number | templates/procurement/po_list.html
+Invoice | templates/procurement/po_list.html
+Receive | templates/procurement/po_list.html
+Current Status | templates/procurement/po_receive.html
+Supplier invoice reference | templates/procurement/po_receive.html
+e.g. INV-2026-0042 | templates/procurement/po_receive.html
+Receive Line Items | templates/procurement/po_receive.html
+Already Received | templates/procurement/po_receive.html
+Actual Unit Price | templates/procurement/po_receive.html
+Negotiated | templates/procurement/po_receive.html
+Confirm Receipt | templates/procurement/po_receive.html
+🎤 Voice notes | templates/procurement/pr_detail.html
+All voice recordings attached to this PR (manager's context, officer's voicemail, etc.). | templates/procurement/pr_detail.html
+Linked Work Order | templates/procurement/pr_detail.html
+Linked PO | templates/procurement/pr_detail.html
+Create PO from this PR | templates/procurement/pr_detail.html
+← Back to PR List | templates/procurement/pr_detail.html
+New purchase request | templates/procurement/pr_form.html
+Request spare parts or services. Link to a work order when the shortage came from maintenance. | templates/procurement/pr_form.html
+Attachments can be added after saving the purchase request. | templates/procurement/pr_form.html
+Purchase requests | templates/procurement/pr_list.html
+New request | templates/procurement/pr_list.html
+Update | templates/procurement/pr_list.html
+Create PO | templates/procurement/pr_list.html
+No requests. | templates/procurement/pr_list.html
+← Back to requests | templates/procurement/pr_officer.html
+SUP-001 | templates/procurement/pr_officer.html
+Total spend | templates/procurement/supplier_analytics.html
+Avg on-time | templates/procurement/supplier_analytics.html
+Per-supplier breakdown | templates/procurement/supplier_analytics.html
+On-time %% | templates/procurement/supplier_analytics.html
+Avg cycle (days) | templates/procurement/supplier_analytics.html
+No supplier activity in the last %(d)s days. | templates/procurement/supplier_analytics.html
+Try a wider range, or create and receive a PO. | templates/procurement/supplier_analytics.html

@@ -1,84 +1,298 @@
 {% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
 {% block title %}Dashboard{% endblock %}
-{% block page_heading %}Dashboard{% endblock %}
+{% block page_heading %}{% trans "Dashboard" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Role: <strong>{{ role }}</strong> — quick access based on your permissions.</p>
+<p class="mms-page-lead"><strong>{{ role }}</strong>{% trans "— quick access based on your permissions." %}</p>
 
 <div class="mms-grid mms-grid--kpis">
   {% if open_issues is not None %}
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_issues }}</div><div class="mms-kpi-label">New issues</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_issues }}</div><div class="mms-kpi-label">{% trans "New issues" %}</div></div>
   {% endif %}
   {% if open_wos is not None %}
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_wos }}</div><div class="mms-kpi-label">Open work orders</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ open_wos }}</div><div class="mms-kpi-label">{% trans "Open work orders" %}</div></div>
   {% endif %}
   {% if pending_review is not None %}
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_review }}</div><div class="mms-kpi-label">Pending review</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_review }}</div><div class="mms-kpi-label">{% trans "Pending review" %}</div></div>
   {% endif %}
   {% if emergency_open is not None %}
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ emergency_open }}</div><div class="mms-kpi-label">Open emergency WO</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ emergency_open }}</div><div class="mms-kpi-label">{% trans "Open emergency WO" %}</div></div>
+  {% endif %}
+  {% if pending_part_requests is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_part_requests }}</div><div class="mms-kpi-label">{% trans "Pending part requests" %}</div></div>
+  {% endif %}
+  {% if pending_external_repair_requests is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_external_repair_requests }}</div><div class="mms-kpi-label">{% trans "Pending ext. repair req." %}</div></div>
+  {% endif %}
+  {% if paused_wos is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ paused_wos }}</div><div class="mms-kpi-label">{% trans "Paused WO" %}</div></div>
+  {% endif %}
+  {% if overdue_wos is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ overdue_wos }}</div><div class="mms-kpi-label">{% trans "Overdue WO (&gt;7d)" %}</div></div>
   {% endif %}
   {% if pending_procurement %}
-  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_procurement }}</div><div class="mms-kpi-label">PR pending (officer)</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ pending_procurement }}</div><div class="mms-kpi-label">{% trans "Pending PRs" %}</div></div>
+  {% endif %}
+  {% if nav_shortage_pending is not None and perm_decide_part_shortage_report %}
+  <a class="mms-kpi mms-kpi--link" href="{% url 'shortage_dashboard' %}" style="text-decoration:none;color:inherit">
+    <div class="mms-kpi-value" style="color:{% if nav_shortage_pending %}#dc3545{% else %}#16a34a{% endif %}">{{ nav_shortage_pending }}</div>
+    <div class="mms-kpi-label">{% trans "Shortages awaiting decision" %}</div>
+  </a>
+  {% endif %}
+  {% if nav_shortage_in_fulfillment is not None and perm_decide_part_shortage_report %}
+  <a class="mms-kpi mms-kpi--link" href="{% url 'shortage_dashboard' %}" style="text-decoration:none;color:inherit">
+    <div class="mms-kpi-value" style="color:{% if nav_shortage_in_fulfillment %}#0d6efd{% else %}#16a34a{% endif %}">{{ nav_shortage_in_fulfillment }}</div>
+    <div class="mms-kpi-label">{% trans "Shortages in fulfillment" %}</div>
+  </a>
+  {% endif %}
+  {% if nav_shortage_overdue and perm_decide_part_shortage_report %}
+  <a class="mms-kpi mms-kpi--link" href="{% url 'shortage_dashboard' %}" style="text-decoration:none;color:inherit">
+    <div class="mms-kpi-value" style="color:#dc3545">{{ nav_shortage_overdue }}</div>
+    <div class="mms-kpi-label">{% trans "Stuck in fulfillment &gt;7d" %}</div>
+  </a>
+  {% endif %}
+  {% if supply_low_stock is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ supply_low_stock }}</div><div class="mms-kpi-label">{% trans "Low stock items" %}</div></div>
+  {% endif %}
+  {% if supply_draft_eros is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ supply_draft_eros }}</div><div class="mms-kpi-label">{% trans "Draft EROs" %}</div></div>
+  {% endif %}
+  {% if supply_returned_eros is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ supply_returned_eros }}</div><div class="mms-kpi-label">{% trans "Returned EROs" %}</div></div>
+  {% endif %}
+  {% if supply_open_vendor_orders is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ supply_open_vendor_orders }}</div><div class="mms-kpi-label">{% trans "Open vendor orders" %}</div></div>
+  {% endif %}
+  {% if supply_monthly_cost is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ supply_monthly_cost|floatformat:2 }}</div><div class="mms-kpi-label">{% trans "Monthly purchasing cost" %}</div></div>
   {% endif %}
   {% if stale_new_issues %}
-  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ stale_new_issues }}</div><div class="mms-kpi-label">Issues NEW &gt; 24h</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ stale_new_issues }}</div><div class="mms-kpi-label">{% trans "Issues NEW &gt; 24h" %}</div></div>
   {% endif %}
   {% if overdue_pm %}
-  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ overdue_pm|length }}</div><div class="mms-kpi-label">PM schedules overdue</div></div>
+  <div class="mms-kpi"><div class="mms-kpi-value" style="color:#b45309">{{ overdue_pm|length }}</div><div class="mms-kpi-label">{% trans "PM schedules overdue" %}</div></div>
+  {% endif %}
+  {% if my_in_progress_wos is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ my_in_progress_wos }}</div><div class="mms-kpi-label">{% trans "My in-progress WO" %}</div></div>
+  {% endif %}
+  {% if my_pending_requests is not None %}
+  <div class="mms-kpi"><div class="mms-kpi-value">{{ my_pending_requests }}</div><div class="mms-kpi-label">{% trans "My pending part req." %}</div></div>
+  {% endif %}
+  {% if missing_image_count is not None %}
+  <a class="mms-kpi mms-kpi--link" href="{% url 'stock_dashboard' %}?missing_image=1" style="text-decoration:none;color:inherit">
+    <div class="mms-kpi-value" style="color:{% if missing_image_count %}#b45309{% else %}#16a34a{% endif %}">{{ missing_image_count }}</div>
+    <div class="mms-kpi-label">{% trans "Parts Missing Image" %}</div>
+  </a>
   {% endif %}
 </div>
 
+{# Stale Issue Alerts #}
+{% if stale_red_count %}
+<div class="mms-alert mms-alert--error">
+  <strong>⚠️ {{ stale_red_count }} urgent stale issue{{ stale_red_count|pluralize }}</strong>
+  — CRITICAL/HIGH priority issues have been NEW for too long.
+  <a href="{% url 'issue_list' %}?status=new&priority=critical,high" class="mms-alert-link">{% trans "Review now →" %}</a>
+</div>
+{% endif %}
+
+{% if stale_yellow_count %}
+<div class="mms-alert mms-alert--warn">
+  <strong>⚡ {{ stale_yellow_count }} medium/low stale issue{{ stale_yellow_count|pluralize }}</strong>
+  — needs validation.
+  <a href="{% url 'issue_list' %}?status=new&priority=medium,low" class="mms-alert-link">{% trans "Review →" %}</a>
+</div>
+{% endif %}
+
+{# v4.8: Shortage action required alerts #}
+{% if nav_shortage_pending and perm_decide_part_shortage_report %}
+<div class="mms-alert mms-alert--error">
+  <strong>📦 {{ nav_shortage_pending }} shortage report{{ nav_shortage_pending|pluralize }} awaiting your decision.</strong>
+  {% if nav_shortage_overdue %}
+  &nbsp;<span style="color:#dc3545;font-weight:600">⚠️ {{ nav_shortage_overdue }} stuck in fulfillment &gt;7 days.</span>
+  {% endif %}
+  &nbsp;<a href="{% url 'shortage_dashboard' %}" class="mms-alert-link">{% trans "Open shortage dashboard →" %}</a>
+</div>
+{% endif %}
+
 {% if stale_new_issues or overdue_pm %}
 <div class="mms-card" style="margin-top:1rem;border:1px solid rgba(180,83,9,.35)">
-  <div class="mms-card-header">Needs attention</div>
+  <div class="mms-card-header">{% trans "Needs attention" %}</div>
   <div class="mms-card-body">
-    {% if stale_new_issues and perm_view_issues %}<p><strong>{{ stale_new_issues }}</strong> issue(s) still in <em>New</em> after 24h — <a href="{% url 'issue_list' %}">review issues</a>.</p>{% endif %}
+    {% if stale_new_issues and perm_view_issues %}<p><strong>{{ stale_new_issues }}</strong> {% trans "issue(s) still in" %} <em>{% trans "New" %}</em> {% trans "after 24h —" %} <a href="{% url 'issue_list' %}">{% trans "review issues" %}</a>.</p>{% endif %}
     {% if overdue_pm and perm_pm_schedule_manage %}
-    <p style="margin-top:.75rem;font-size:.85rem;font-weight:600">Overdue PM (next due)</p>
-    <ul style="margin:.35rem 0 0 1.1rem;font-size:.875rem">{% for s in overdue_pm %}<li>{{ s.machine.name }} — {{ s.title }} (due {{ s.next_due_at|date:"Y-m-d H:i" }})</li>{% endfor %}</ul>
-    <p style="margin-top:.5rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_list' %}">PM schedules</a></p>
+    <p style="margin-top:.75rem;font-size:.85rem;font-weight:600">{% trans "Overdue PM (next due)" %}</p>
+    <ul style="margin:.35rem 0 0 1.1rem;font-size:.875rem">{% for s in overdue_pm %}<li>{{ s.machine.name }} — {{ s.title }} (due {{ s.next_due_at|mms_datetime }})</li>{% endfor %}</ul>
+    <p style="margin-top:.5rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'pm_list' %}">{% trans "PM schedules" %}</a></p>
     {% endif %}
   </div>
 </div>
 {% endif %}
 
 <div class="mms-grid mms-grid--2" style="margin-top:1.25rem">
-  <div class="mms-card">
-    <div class="mms-card-header">Shortcuts</div>
+  {% if perm_approve_part_request or perm_approve_external_repair_request or perm_close_or_review_wo %}
+  <div class="mms-card" style="border:2px solid var(--mms-accent,#0d6efd)">
+    <div class="mms-card-header">{% trans "Quick actions — manager queue" %}</div>
     <div class="mms-card-body mms-stack">
-      {% if perm_view_issues %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_list' %}">Issues</a>{% endif %}
-      {% if perm_report_issue %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_create' %}">Report issue</a>{% endif %}
-      {% if perm_view_work_orders %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}">Work orders</a>{% endif %}
-      {% if perm_view_stock %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'stock_dashboard' %}">Stock</a>{% endif %}
-      {% if perm_machine_manage %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">Machines</a>{% endif %}
-      {% if perm_consumables %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'consumables' %}">Consumables</a>{% endif %}
-      {% if perm_view_procurement_requests %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_list' %}">Procurement</a>{% endif %}
-      {% if perm_reports %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'reports' %}">Reports</a>{% endif %}
-      {% if perm_kpi_dashboard %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'kpi_dashboard' %}">KPIs</a>{% endif %}
-      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'notification_list' %}">Notifications</a>
+      {% if pending_part_requests %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_list' %}?has_pending_part=1">
+        {% blocktrans count counter=pending_part_requests %}{{ counter }} part request awaiting your approval{% plural %}{{ counter }} part requests awaiting your approval{% endblocktrans %}
+      </a>
+      {% endif %}
+      {% if pending_external_repair_requests %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}">
+        {% blocktrans count counter=pending_external_repair_requests %}{{ counter }} ext. repair request to review{% plural %}{{ counter }} ext. repair requests to review{% endblocktrans %}
+      </a>
+      {% endif %}
+      {% if pending_review %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'work_order_list' %}?status=pending_review">
+        {% blocktrans count counter=pending_review %}{{ counter }} WO pending your review{% plural %}{{ counter }} WOs pending your review{% endblocktrans %}
+      </a>
+      {% endif %}
+      {% if paused_wos %}
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?status=paused">
+        {% blocktrans count counter=paused_wos %}{{ counter }} paused WO{% plural %}{{ counter }} paused WOs{% endblocktrans %}
+      </a>
+      {% endif %}
+      {% if overdue_wos %}
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?overdue=1">
+        {% blocktrans count counter=overdue_wos %}{{ counter }} overdue WO (>7d){% plural %}{{ counter }} overdue WOs (>7d){% endblocktrans %}
+      </a>
+      {% endif %}
+      {% if nav_ero_returned %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}?status=returned">
+        {% blocktrans count counter=nav_ero_returned %}{{ counter }} returned repair awaiting acceptance{% plural %}{{ counter }} returned repairs awaiting acceptance{% endblocktrans %}
+      </a>
+      {% endif %}
+      {% if not pending_part_requests and not pending_external_repair_requests and not pending_review and not paused_wos and not overdue_wos and not nav_ero_returned %}
+      <div class="mms-empty">{% trans "All caught up. Nothing pending your decision." %}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if role == 'procurement' %}
+  <div class="mms-card" style="border:2px solid var(--mms-accent,#0d6efd)">
+    <div class="mms-card-header">{% trans "Quick actions — supply" %}</div>
+    <div class="mms-card-body mms-stack">
+      {% if supply_draft_eros %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}?status=draft">
+        {{ supply_draft_eros }} draft ERO{{ supply_draft_eros|pluralize }} needing vendor
+      </a>
+      {% endif %}
+      {% if supply_pending_prs %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'purchase_list' %}?status=pending">
+        {{ supply_pending_prs }} pending PR{{ supply_pending_prs|pluralize }} to process
+      </a>
+      {% endif %}
+      {% if supply_returned_eros %}
+      <a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_list' %}?status=returned">
+        {{ supply_returned_eros }} returned repair{{ supply_returned_eros|pluralize }} to verify
+      </a>
+      {% endif %}
+      {% if supply_low_stock %}
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'stock_dashboard' %}?low_stock=1">
+        {{ supply_low_stock }} low stock item{{ supply_low_stock|pluralize }}
+      </a>
+      {% endif %}
+      {% if not supply_draft_eros and not supply_pending_prs and not supply_returned_eros and not supply_low_stock %}
+      <div class="mms-empty">{% trans "All caught up. Nothing pending your action." %}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Shortcuts" %}</div>
+    <div class="mms-card-body mms-stack">
+      {% if perm_view_issues %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_list' %}">{% trans "Issues" %}</a>{% endif %}
+      {% if perm_report_issue %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'issue_create' %}">{% trans "Report issue" %}</a>{% endif %}
+      {% if perm_view_work_orders %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}">{% trans "Work orders" %}</a>{% endif %}
+      {% if role == 'technician' %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'my_work_orders' %}">{% trans "My work orders" %}</a>{% endif %}
+      {% if perm_view_stock %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'stock_dashboard' %}">{% trans "Stock" %}</a>{% endif %}
+      {% if perm_machine_manage %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_list' %}">{% trans "Machines" %}</a>{% endif %}
+      {% if perm_view_consumables %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'consumables' %}">{% trans "Consumables" %}</a>{% endif %}
+      {% if perm_view_procurement_requests %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'purchase_list' %}">{% trans "Supply" %}</a>{% endif %}
+      {% if perm_reports %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'reports' %}">{% trans "Reports" %}</a>{% endif %}
+      {% if perm_kpi_dashboard %}<a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'kpi_dashboard' %}">{% trans "KPIs" %}</a>{% endif %}
+      {% if perm_close_or_review_wo %}
+        <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'machine_cost_report' %}">{% trans "Machine cost report" %}</a>
+        <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'repair_list' %}?status=returned">Pending repairs{% if nav_ero_returned %} ({{ nav_ero_returned }}){% endif %}</a>
+        <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'work_order_list' %}?status=pending_review">Pending approvals{% if nav_wo_review %} ({{ nav_wo_review }}){% endif %}</a>
+      {% endif %}
+      <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'notification_list' %}">{% trans "Notifications" %}</a>
     </div>
   </div>
   <div class="mms-card">
-    <div class="mms-card-header">Recent notifications</div>
+    <div class="mms-card-header">{% trans "Recent notifications" %}</div>
     <div class="mms-card-body">
       {% if notif_feed %}
       <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for n in notif_feed %}<li style="margin-bottom:.35rem">{% if n.link %}<a href="{{ n.link }}">{{ n.title }}</a>{% else %}{{ n.title }}{% endif %} <span class="mms-badge mms-badge--muted">{{ n.created_at|timesince }} ago</span></li>{% endfor %}</ul>
-      <p style="margin-top:.75rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'notification_list' %}">All notifications</a></p>
+      <p style="margin-top:.75rem"><a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'notification_list' %}">{% trans "All notifications" %}</a></p>
       {% else %}
-      <div class="mms-empty">No notifications yet.</div>
+      <div class="mms-empty">{% trans "No notifications yet." %}</div>
       {% endif %}
     </div>
   </div>
   <div class="mms-card">
-    <div class="mms-card-header">Your queue</div>
+    <div class="mms-card-header">{% trans "Your queue" %}</div>
     <div class="mms-card-body">
       {% if my_issues %}
-      <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted)">Your issues</p>
+      <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted)">{% trans "Your issues" %}</p>
+      {# Phase 6: per-user report counts. Operators see how many issues #}
+      {# they reported this week / month, with a drill-down link. #}
+      {% if my_issues_count_30d is not None %}
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem">
+        <a href="{% url 'issue_list' %}?mine=1&period=30" class="mms-badge mms-badge--muted" title={% trans "Issues you reported in the last 30 days" %}>
+          30d: <strong>{{ my_issues_count_30d }}</strong>
+        </a>
+        <a href="{% url 'issue_list' %}?mine=1&period=7" class="mms-badge mms-badge--muted" title={% trans "Issues you reported in the last 7 days" %}>
+          7d: <strong>{{ my_issues_count_7d }}</strong>
+        </a>
+        {% if my_issues_count_unresolved %}
+        <a href="{% url 'issue_list' %}?mine=1" class="mms-badge mms-badge--warn" title={% trans "Your open issues" %}>
+          open: <strong>{{ my_issues_count_unresolved }}</strong>
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
       <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for i in my_issues %}<li><a href="{% url 'issue_list' %}">#{{ i.id }}</a> {{ i.machine }} — {{ i.get_status_display }}</li>{% endfor %}</ul>
       {% elif my_queue %}
       <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for w in my_queue %}<li><a href="{% url 'work_order_detail' w.pk %}">WO-{{ w.number }}</a> — {{ w.machine }} <span class="mms-badge mms-badge--muted">{{ w.get_status_display }}</span></li>{% endfor %}</ul>
+      {% elif issues_pending_validation %}
+      <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted)">{% trans "Issues awaiting your validation" %}</p>
+      <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for i in issues_pending_validation %}<li><a href="{% url 'issue_detail' i.pk %}">#{{ i.id }}</a> {{ i.machine }} — {{ i.get_priority_display }}</li>{% endfor %}</ul>
+      {% elif role == 'procurement' %}
+      <div class="mms-stack">
+        {% if supply_queue_pr %}
+        <div>
+          <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted);margin-bottom:.25rem">{% trans "Purchase Requests" %}</p>
+          <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for pr in supply_queue_pr %}<li><a href="{% url 'pr_detail' pr.pk %}">PR#{{ pr.id }}</a> — {{ pr.part.name }} × {{ pr.quantity }} <span class="mms-badge mms-badge--muted">{{ pr.get_status_display }}</span></li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if supply_queue_ero_draft %}
+        <div style="margin-top:.5rem">
+          <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted);margin-bottom:.25rem">{% trans "Draft EROs" %}</p>
+          <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for ero in supply_queue_ero_draft %}<li><a href="{% url 'repair_officer' ero.pk %}">{{ ero.title }}</a> <span class="mms-badge mms-badge--muted">{% trans "Draft" %}</span></li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if supply_queue_ero_sent %}
+        <div style="margin-top:.5rem">
+          <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted);margin-bottom:.25rem">{% trans "Sent to vendor" %}</p>
+          <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for ero in supply_queue_ero_sent %}<li><a href="{% url 'repair_officer' ero.pk %}">{{ ero.title }}</a> <span class="mms-badge mms-badge--info">{% trans "Sent" %}</span></li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if supply_queue_ero_returned %}
+        <div style="margin-top:.5rem">
+          <p style="font-size:.75rem;font-weight:600;color:var(--mms-muted);margin-bottom:.25rem">{% trans "Returned from vendor" %}</p>
+          <ul style="margin:0;padding-left:1.1rem;font-size:.875rem">{% for ero in supply_queue_ero_returned %}<li><a href="{% url 'repair_officer' ero.pk %}">{{ ero.title }}</a> <span class="mms-badge mms-badge--warning">{% trans "Returned" %}</span></li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if not supply_queue_pr and not supply_queue_ero_draft and not supply_queue_ero_sent and not supply_queue_ero_returned %}
+        <div class="mms-empty">{% trans "All caught up." %}</div>
+        {% endif %}
+      </div>
       {% else %}
-      <div class="mms-empty">No personal queue items.</div>
+      <div class="mms-empty">{% trans "No personal queue items." %}</div>
       {% endif %}
     </div>
   </div>

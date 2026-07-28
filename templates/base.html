@@ -1,7 +1,8 @@
 {% load static %}
+{% load i18n %}
 {% load mms_extras %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,116 +11,221 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/mms.css' %}">
+  <script src="{% static 'js/mms-confirm.js' %}" defer></script>
 </head>
-<body class="mms-body" data-nav-user="{% if user.is_authenticated %}{{ user.username }}{% else %}anon{% endif %}">
+<body class="mms-body" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}" data-nav-user="{% if user.is_authenticated %}{{ user.username }}{% else %}anon{% endif %}">
 <div class="mms-app" id="mms-app">
   <aside class="mms-sidebar" id="mms-sidebar">
     <div class="mms-brand">
-      <div class="mms-brand-title">Bawazir MMS</div>
-      <div class="mms-brand-sub">Maintenance &amp; spare parts</div>
+      <div class="mms-brand-title">{% trans "Bawazir MMS" %}</div>
+      <div class="mms-brand-sub">{% trans "Maintenance & spare parts" %}</div>
     </div>
     <nav class="mms-nav">
-      <div class="mms-nav-section" data-section="overview">Overview</div>
-      <a href="{% url 'dashboard' %}" class="mms-nav-link{% if current_url_name == 'dashboard' %} is-active{% endif %}">Dashboard</a>
+      <div class="mms-nav-section" data-section="overview">{% trans "Overview" %}</div>
+      <a href="{% url 'dashboard' %}" class="mms-nav-link{% if current_url_name == 'dashboard' %} is-active{% endif %}">{% trans "Dashboard" %}</a>
 
-      {% if perm_view_issues %}
-      <div class="mms-nav-section" data-section="maintenance">Maintenance</div>
+      {% if perm_view_issues or user.role == 'operator' %}
+      <div class="mms-nav-section" data-section="maintenance">{% trans "Maintenance" %}</div>
       <a href="{% url 'issue_list' %}" class="mms-nav-link{% if current_url_name and 'issue' in current_url_name %} is-active{% endif %}">
-        <span>Issues</span>
+        <span>{% trans "Issues" %}</span>
         {% if nav_issues_new %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_issues_new }}</span>{% endif %}
       </a>
       {% endif %}
       {% if perm_view_work_orders %}
-      <a href="{% url 'work_order_list' %}" class="mms-nav-link{% if current_url_name and 'work_order' in current_url_name %} is-active{% endif %}">Work orders</a>
+      <a href="{% url 'work_order_list' %}" class="mms-nav-link{% if current_url_name and 'work_order' in current_url_name %} is-active{% endif %}">{% trans "Work orders" %}</a>
+      {% endif %}
+      {% if user.role == 'technician' %}
+      <a href="{% url 'my_work_orders' %}" class="mms-nav-link{% if current_url_name == 'my_work_orders' %} is-active{% endif %}">{% trans "My queue" %}</a>
       {% endif %}
       {% if perm_emergency_wo %}
-      <a href="{% url 'emergency_wo_create' %}" class="mms-nav-link{% if current_url_name == 'emergency_wo_create' %} is-active{% endif %}">Emergency WO</a>
+      <a href="{% url 'emergency_wo_create' %}" class="mms-nav-link{% if current_url_name == 'emergency_wo_create' %} is-active{% endif %}">{% trans "Emergency WO" %}</a>
       {% endif %}
       {% if perm_quick_log %}
-      <a href="{% url 'quick_log' %}" class="mms-nav-link{% if current_url_name == 'quick_log' %} is-active{% endif %}">Quick log</a>
+      <a href="{% url 'quick_log' %}" class="mms-nav-link{% if current_url_name == 'quick_log' %} is-active{% endif %}">{% trans "Quick log" %}</a>
       {% endif %}
 
-      {% if perm_view_stock or perm_consumables %}
-      <div class="mms-nav-section" data-section="inventory">Inventory</div>
+      {% if perm_view_stock or perm_view_consumables %}
+      <div class="mms-nav-section" data-section="inventory">{% trans "Inventory" %}</div>
       {% if perm_view_stock %}
-      <a href="{% url 'stock_dashboard' %}" class="mms-nav-link{% if current_url_name and 'stock' in current_url_name %} is-active{% endif %}">Stock</a>
+      <a href="{% url 'stock_dashboard' %}" class="mms-nav-link{% if current_url_name and 'stock' in current_url_name %} is-active{% endif %}">{% trans "Stock" %}</a>
       {% endif %}
-      {% if perm_consumables %}
-      <a href="{% url 'consumables' %}" class="mms-nav-link{% if current_url_name == 'consumables' %} is-active{% endif %}">Consumables</a>
+      {% if perm_view_consumables %}
+      <a href="{% url 'consumables' %}" class="mms-nav-link{% if current_url_name == 'consumables' %} is-active{% endif %}">{% trans "Consumables" %}</a>
+      {% endif %}
+      {% if user.role == 'technician' or user.role == 'supervisor' %}
+      <a href="{% url 'stock_lookup' %}" class="mms-nav-link{% if current_url_name == 'stock_lookup' %} is-active{% endif %}">{% trans "Inventory Lookup" %}</a>
+      {% endif %}
+      {% if user.role == 'manager' or user.role == 'procurement' or user.role == 'super_admin' %}
+      <a href="{% url 'supplier_list' %}" class="mms-nav-link{% if current_url_name and 'supplier' in current_url_name %} is-active{% endif %}">{% trans "Suppliers" %}</a>
+      <a href="{% url 'reservations_dashboard' %}" class="mms-nav-link{% if current_url_name == 'reservations_dashboard' %} is-active{% endif %}">{% trans "Reservations" %}</a>
       {% endif %}
       {% endif %}
 
       {% if perm_view_procurement_requests %}
-      <div class="mms-nav-section" data-section="procurement">Procurement</div>
+      <div class="mms-nav-section" data-section="supply">{% trans "Supply" %}</div>
       <a href="{% url 'purchase_list' %}" class="mms-nav-link{% if current_url_name and 'purchase' in current_url_name %} is-active{% endif %}">
-        <span>Requests</span>
+        <span>{% trans "Purchase Requests" %}</span>
+        {% if nav_pr_pending %}<span class="mms-nav-badge">{{ nav_pr_pending }}</span>{% endif %}
+      </a>
+      {% if perm_view_purchase_orders %}
+      <a href="{% url 'purchase_order_list' %}" class="mms-nav-link{% if current_url_name and 'purchase_order' in current_url_name %} is-active{% endif %}">
+        <span>{% trans "Purchase Orders" %}</span>
+        {% if nav_po_open %}<span class="mms-nav-badge">{{ nav_po_open }}</span>{% endif %}
+      </a>
+      <a href="{% url 'purchase_order_by_supplier' %}" class="mms-nav-link{% if current_url_name == 'purchase_order_by_supplier' %} is-active{% endif %}">
+        <span>{% trans "By Supplier" %}</span>
+      </a>
+      {% if user.role == 'manager' or user.role == 'procurement' or user.role == 'super_admin' %}
+      <a href="{% url 'supplier_analytics' %}" class="mms-nav-link{% if current_url_name == 'supplier_analytics' %} is-active{% endif %}">
+        <span>{% trans "Supplier analytics" %}</span>
+      </a>
+      {% endif %}
+      {% endif %}
+      {% if user.role == 'procurement' %}
+      <a href="{% url 'repair_list' %}" class="mms-nav-link{% if current_url_name and 'repair' in current_url_name %} is-active{% endif %}">
+        <span>{% trans "External Repairs" %}</span>
+        {% if nav_ero_draft %}<span class="mms-nav-badge" title={% trans "Draft EROs" %}>{{ nav_ero_draft }}</span>{% endif %}
+        {% if nav_ero_returned %}<span class="mms-nav-badge mms-nav-badge--accent" title={% trans "Returned EROs" %}>{{ nav_ero_returned }}</span>{% endif %}
+      </a>
+      <a href="{% url 'reorder_suggestions' %}" class="mms-nav-link{% if current_url_name == 'reorder_suggestions' %} is-active{% endif %}">
+        <span>{% trans "Reorder Suggestions" %}</span>
         {% if nav_pr_pending %}<span class="mms-nav-badge">{{ nav_pr_pending }}</span>{% endif %}
       </a>
       {% endif %}
+      {% endif %}
 
-      {% if perm_machine_manage or perm_pm_schedule_manage or perm_tool_page or perm_repair_list %}
-      <div class="mms-nav-section" data-section="assets">Assets</div>
+      {% if perm_machine_manage or perm_pm_schedule_manage or perm_tools_search or perm_repair_list %}
+      {% if user.role != 'procurement' %}
+      <div class="mms-nav-section" data-section="assets">{% trans "Assets" %}</div>
+      {% endif %}
       {% if perm_machine_manage %}
-      <a href="{% url 'machine_list' %}" class="mms-nav-link{% if current_url_name and 'machine' in current_url_name %} is-active{% endif %}">Machines</a>
+      <a href="{% url 'machine_list' %}" class="mms-nav-link{% if current_url_name and 'machine' in current_url_name %} is-active{% endif %}">{% trans "Machines" %}</a>
       {% endif %}
       {% if perm_pm_schedule_manage %}
-      <a href="{% url 'pm_list' %}" class="mms-nav-link{% if current_url_name and 'pm' in current_url_name %} is-active{% endif %}">Preventive</a>
+      <div class="mms-nav-section" data-section="preventive">{% trans "Preventive Maintenance" %}</div>
+      <a href="{% url 'preventive:mgr_dashboard' %}" class="mms-nav-link{% if current_url_name == 'mgr_dashboard' %} is-active{% endif %}">
+        {% trans "Dashboard" %}
+      </a>
+      <a href="{% url 'preventive:mgr_today' %}" class="mms-nav-link{% if current_url_name == 'mgr_today' %} is-active{% endif %}">
+        {% trans "Today's Schedule" %}
+      </a>
+      <a href="{% url 'preventive:mgr_reviews' %}" class="mms-nav-link{% if current_url_name == 'mgr_reviews' %} is-active{% endif %}">
+        {% trans "Reviews" %}
+        {% if nav_pm_reviews_pending %}<span class="mms-nav-badge mms-nav-badge--danger">{{ nav_pm_reviews_pending }}</span>{% endif %}
+      </a>
+      <a href="{% url 'preventive:mgr_plans' %}" class="mms-nav-link{% if current_url_name == 'mgr_plans' %} is-active{% endif %}">
+        {% trans "Maintenance Plans" %}
+      </a>
+      <a href="{% url 'preventive:mgr_templates' %}" class="mms-nav-link{% if current_url_name == 'mgr_templates' %} is-active{% endif %}">
+        {% trans "Templates" %}
+      </a>
+      <a href="{% url 'preventive:mgr_history' %}" class="mms-nav-link{% if current_url_name == 'mgr_history' %} is-active{% endif %}">
+        {% trans "History" %}
+      </a>
       {% endif %}
-      {% if perm_tool_page %}
-      <a href="{% url 'tool_list' %}" class="mms-nav-link{% if current_url_name and 'tool' in current_url_name %} is-active{% endif %}">Tools</a>
+      {% if user.role == 'technician' or user.role == 'supervisor' or user.role == 'super_admin' %}
+      <a href="{% url 'preventive:my' %}" class="mms-nav-link{% if current_url_name == 'my' %} is-active{% endif %}">
+        {% trans "Preventive Maintenance" %}
+        {% if nav_pm_today_count %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_pm_today_count }}</span>{% endif %}
+      </a>
       {% endif %}
-      {% if perm_repair_list %}
-      <a href="{% url 'repair_list' %}" class="mms-nav-link{% if current_url_name and 'repair' in current_url_name %} is-active{% endif %}">External repairs</a>
+      {% if perm_tools_search %}
+      <a href="{% url 'tools_list' %}" class="mms-nav-link{% if current_url_name == 'tools_list' %} is-active{% endif %}">{% trans "Tools" %}</a>
+      {% if user.role == 'manager' or user.role == 'super_admin' %}
+      <a href="{% url 'tools_dashboard' %}" class="mms-nav-link{% if current_url_name == 'tools_dashboard' %} is-active{% endif %}">
+        {% trans "Tools dashboard" %}
+      </a>
+      {% endif %}
+      {% endif %}
+      {% if perm_repair_list and user.role != 'procurement' %}
+      <a href="{% url 'repair_list' %}" class="mms-nav-link{% if current_url_name and 'repair' in current_url_name %} is-active{% endif %}">{% trans "External repairs" %}</a>
       {% endif %}
       {% endif %}
 
       {% if perm_manage_system_users %}
-      <div class="mms-nav-section" data-section="system">System</div>
-      <a href="{% url 'mms_user_list' %}" class="mms-nav-link{% if current_url_name == 'mms_user_list' or current_url_name == 'mms_user_create' or current_url_name == 'mms_user_edit' or current_url_name == 'mms_user_delete' or current_url_name == 'mms_user_deactivate' %} is-active{% endif %}">Users</a>
+      <div class="mms-nav-section" data-section="system">{% trans "System" %}</div>
+      <a href="{% url 'mms_user_list' %}" class="mms-nav-link{% if current_url_name == 'mms_user_list' or current_url_name == 'mms_user_create' or current_url_name == 'mms_user_edit' or current_url_name == 'mms_user_delete' or current_url_name == 'mms_user_deactivate' %} is-active{% endif %}">{% trans "Users" %}</a>
       {% endif %}
 
-      <div class="mms-nav-section" data-section="insights">Insights</div>
+      <div class="mms-nav-section" data-section="insights">{% trans "Insights" %}</div>
       <a href="{% url 'notification_list' %}" class="mms-nav-link{% if current_url_name == 'notification_list' or current_url_name == 'notification_mark_read' or current_url_name == 'notification_mark_all_read' %} is-active{% endif %}">
-        <span>Notifications</span>
+        <span>{% trans "Notifications" %}</span>
         {% if nav_notif_unread %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_notif_unread }}</span>{% endif %}
       </a>
       {% if perm_kpi_dashboard %}
-      <a href="{% url 'kpi_dashboard' %}" class="mms-nav-link{% if current_url_name == 'kpi_dashboard' %} is-active{% endif %}">KPIs</a>
+      <a href="{% url 'kpi_dashboard' %}" class="mms-nav-link{% if current_url_name == 'kpi_dashboard' %} is-active{% endif %}">{% trans "KPIs" %}</a>
       {% endif %}
       {% if perm_audit_log %}
-      <a href="{% url 'audit_log_list' %}" class="mms-nav-link{% if current_url_name == 'audit_log_list' %} is-active{% endif %}">Audit log</a>
+      <a href="{% url 'audit_log_list' %}" class="mms-nav-link{% if current_url_name == 'audit_log_list' %} is-active{% endif %}">{% trans "Audit log" %}</a>
       {% endif %}
       {% if perm_reports %}
-      <a href="{% url 'reports' %}" class="mms-nav-link{% if current_url_name == 'reports' %} is-active{% endif %}">Reports</a>
+      <a href="{% url 'reports' %}" class="mms-nav-link{% if current_url_name == 'reports' %} is-active{% endif %}">{% trans "Reports" %}</a>
+      {% endif %}
+      {% if perm_close_or_review_wo %}
+      <a href="{% url 'machine_cost_report' %}" class="mms-nav-link{% if current_url_name == 'machine_cost_report' %} is-active{% endif %}">
+        <span>{% trans "Machine cost report" %}</span>
+      </a>
+      <a href="{% url 'repair_list' %}?status=returned" class="mms-nav-link{% if current_url_name == 'repair_list' %} is-active{% endif %}">
+        <span>{% trans "Pending repairs" %}</span>
+        {% if nav_ero_returned %}<span class="mms-nav-badge mms-nav-badge--accent" title={% trans "Returned EROs awaiting manager acceptance" %}>{{ nav_ero_returned }}</span>{% endif %}
+      </a>
+      <a href="{% url 'work_order_list' %}?status=pending_review" class="mms-nav-link{% if current_url_name == 'work_order_list' %} is-active{% endif %}">
+        <span>{% trans "Pending approvals" %}</span>
+        {% if nav_wo_review %}<span class="mms-nav-badge mms-nav-badge--accent" title="{% trans 'Work orders awaiting manager review/close' %}">{{ nav_wo_review }}</span>{% endif %}
+      </a>
+      {% if perm_decide_part_shortage_report %}
+      <a href="{% url 'shortage_dashboard' %}" class="mms-nav-link{% if current_url_name == 'shortage_dashboard' %} is-active{% endif %}">
+        <span>{% trans "Shortage dashboard" %}</span>
+        {% if nav_shortage_pending %}<span class="mms-nav-badge mms-nav-badge--accent" title={% trans "Pending shortage reports awaiting decision" %}>{{ nav_shortage_pending }}</span>
+        {% elif nav_shortage_in_fulfillment %}<span class="mms-nav-badge" title={% trans "In-fulfillment shortages" %}>{{ nav_shortage_in_fulfillment }}</span>
+        {% elif nav_shortage_overdue %}<span class="mms-nav-badge mms-nav-badge--danger" title={% trans "Stuck in fulfillment >7 days" %}>{{ nav_shortage_overdue }}</span>
+        {% endif %}
+      </a>
+      {% endif %}
+      {% if user.role == 'manager' or user.role == 'super_admin' %}
+      <a href="{% url 'legacy_reconciliation' %}" class="mms-nav-link{% if current_url_name == 'legacy_reconciliation' %} is-active{% endif %}">
+        <span>{% trans "Legacy reconciliation" %}</span>
+        {% if nav_legacy_count %}<span class="mms-nav-badge mms-nav-badge--accent" title={% trans "Work orders still on the legacy state model" %}>{{ nav_legacy_count }}</span>{% endif %}
+      </a>
+      {% endif %}
       {% endif %}
     </nav>
     <div class="mms-sidebar-footer">
       {% if user.is_authenticated %}
-      <div style="margin-bottom:.5rem"><strong>{{ user.username }}</strong><br><span style="opacity:.85">{{ user.get_role_display }}</span></div>
-      {% if user.is_staff %}
-      <a href="{% url 'admin:index' %}" class="mms-nav-link">Admin</a>
-      {% endif %}
-      <a href="{% url 'logout' %}" class="mms-nav-link">Sign out</a>
+      <div style="margin-bottom:.5rem"><strong>{{ user.username }}</strong><br><span style="opacity:.85">{{ user|user_role }}</span></div>
+       {% if user.is_superuser or user.role == 'super_admin' %}
+       <a href="{% url 'admin:index' %}" class="mms-nav-link">{% trans "Admin" %}</a>
+       {% endif %}
+      <a href="{% url 'logout' %}" class="mms-nav-link">{% trans "Sign out" %}</a>
       {% endif %}
     </div>
   </aside>
-  <button type="button" class="mms-nav-backdrop" id="mms-nav-backdrop" aria-label="Close navigation" tabindex="-1"></button>
+  <button type="button" class="mms-nav-backdrop" id="mms-nav-backdrop" aria-label={% trans "Close navigation" %} tabindex="-1"></button>
   <div class="mms-main">
     <header class="mms-topbar">
       <div class="mms-topbar-start">
-        <button type="button" class="mms-menu-btn" id="mms-nav-toggle" aria-controls="mms-sidebar" aria-expanded="false" aria-label="Open navigation menu">
+        <button type="button" class="mms-menu-btn" id="mms-nav-toggle" aria-controls="mms-sidebar" aria-expanded="false" aria-label={% trans "Open navigation menu" %}>
           <span class="mms-menu-btn__bars" aria-hidden="true"></span>
         </button>
-        <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+        <h1>{% block page_heading %}{% trans "Dashboard" %}{% endblock %}</h1>
       </div>
       <div class="mms-user">
-        {% if perm_close_or_review_wo and nav_wo_review %}
-        <span class="mms-badge mms-badge--accent" title="Pending manager review">{{ nav_wo_review }} review</span>
-        {% endif %}
         {% if user.role == 'technician' and nav_my_open_wo %}
-        <span class="mms-badge mms-badge--info">{{ nav_my_open_wo }} open WO</span>
+        <span class="mms-badge mms-badge--info">{% blocktrans count counter=nav_my_open_wo %}{{ counter }} open WO{% plural %}{{ counter }} open WOs{% endblocktrans %}</span>
         {% endif %}
       </div>
+      <form action="{% url 'set_language' %}" method="post" class="mms-lang-switch" aria-label="{% trans 'Language' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <span aria-hidden="true">🌐</span>
+        <select name="language" class="mms-lang-switch__select" onchange="this.form.submit()">
+          {% get_available_languages as available_languages %}
+          {% get_current_language as current_lang %}
+          {% for lang_code, lang_name in available_languages %}
+            <option value="{{ lang_code }}"{% if lang_code == current_lang %} selected{% endif %}>{{ lang_name }}</option>
+          {% endfor %}
+        </select>
+      </form>
     </header>
     <div class="mms-content">
       {% if messages %}
@@ -276,5 +382,147 @@
   }
 })();
 </script>
+<!-- Mobile Bottom Navigation for Operators -->
+{% if user.role == 'operator' %}
+<nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
+    <a href="{% url 'issue_list' %}" class="{% if current_url_name and 'issue' in current_url_name %}is-active{% endif %}">
+        <span class="mms-nav-icon">📋</span>
+        <span>{% trans "Issues" %}</span>
+    </a>
+    <a href="{% url 'issue_create' %}" class="{% if current_url_name == 'issue_create' %}is-active{% endif %}">
+        <span class="mms-nav-icon">⚠️</span>
+        <span>{% trans "Report" %}</span>
+    </a>
+    <a href="{% url 'consumables' %}" class="{% if current_url_name == 'consumables' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🧴</span>
+        <span>{% trans "Consume" %}</span>
+    </a>
+    <a href="{% url 'tools_list' %}" class="{% if current_url_name == 'tools_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🔧</span>
+        <span>{% trans "Tools" %}</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Technicians -->
+{% if user.role == 'technician' %}
+<nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>{% trans "Home" %}</span>
+    </a>
+    <a href="{% url 'my_work_orders' %}" class="{% if current_url_name == 'my_work_orders' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>{% trans "My queue" %}</span>
+        {% if nav_my_open_wo %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_my_open_wo }}</span>{% endif %}
+    </a>
+    <a href="{% url 'work_order_list' %}" class="{% if current_url_name == 'work_order_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📑</span>
+        <span>{% trans "All WO" %}</span>
+    </a>
+    <a href="{% url 'stock_lookup' %}" class="{% if current_url_name == 'stock_lookup' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📦</span>
+        <span>{% trans "Stock" %}</span>
+    </a>
+    <a href="{% url 'quick_log' %}" class="{% if current_url_name == 'quick_log' %}is-active{% endif %}">
+        <span class="mms-nav-icon">⚡</span>
+        <span>{% trans "Quick log" %}</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Maintenance Manager -->
+{% if user.role == 'manager' %}
+<nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>{% trans "Home" %}</span>
+    </a>
+    <a href="{% url 'work_order_list' %}" class="{% if current_url_name == 'work_order_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>WO</span>
+        {% if nav_wo_review %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_wo_review }}</span>{% endif %}
+    </a>
+    <a href="{% url 'issue_list' %}" class="{% if current_url_name == 'issue_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📋</span>
+        <span>{% trans "Issues" %}</span>
+    </a>
+    <a href="{% url 'shortage_dashboard' %}" class="{% if current_url_name == 'shortage_dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📦</span>
+        <span>{% trans "Shortages" %}</span>
+        {% if nav_shortage_pending %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_shortage_pending }}</span>
+        {% elif nav_shortage_in_fulfillment %}<span class="mms-nav-badge">{{ nav_shortage_in_fulfillment }}</span>
+        {% endif %}
+    </a>
+    <a href="{% url 'emergency_wo_create' %}" class="{% if current_url_name == 'emergency_wo_create' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🚨</span>
+        <span>{% trans "Emergency" %}</span>
+    </a>
+    <a href="{% url 'reports' %}" class="{% if current_url_name == 'reports' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📊</span>
+        <span>{% trans "Reports" %}</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Maintenance Supply Officer -->
+{% if user.role == 'procurement' %}
+<nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>{% trans "Home" %}</span>
+    </a>
+    <a href="{% url 'purchase_list' %}" class="{% if current_url_name == 'purchase_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📑</span>
+        <span>{% trans "Requests" %}</span>
+        {% if nav_pr_pending %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_pr_pending }}</span>{% endif %}
+    </a>
+    <a href="{% url 'purchase_order_list' %}" class="{% if current_url_name == 'purchase_order_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📦</span>
+        <span>{% trans "Orders" %}</span>
+    </a>
+    <a href="{% url 'stock_dashboard' %}" class="{% if current_url_name == 'stock_dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📦</span>
+        <span>{% trans "Stock" %}</span>
+    </a>
+    <a href="{% url 'repair_list' %}" class="{% if current_url_name == 'repair_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>{% trans "Repairs" %}</span>
+        {% if nav_ero_draft %}<span class="mms-nav-badge mms-nav-badge--accent" title={% trans "Draft EROs" %}>{{ nav_ero_draft }}</span>{% endif %}
+        {% if nav_ero_returned %}<span class="mms-nav-badge" title={% trans "Returned EROs" %}>{{ nav_ero_returned }}</span>{% endif %}
+    </a>
+    <a href="{% url 'supplier_list' %}" class="{% if current_url_name == 'supplier_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🤝</span>
+        <span>{% trans "Suppliers" %}</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- Mobile Bottom Navigation for Supervisor -->
+{% if user.role == 'supervisor' %}
+<nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
+    <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🏠</span>
+        <span>{% trans "Home" %}</span>
+    </a>
+    <a href="{% url 'issue_list' %}" class="{% if current_url_name == 'issue_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📋</span>
+        <span>{% trans "Issues" %}</span>
+        {% if nav_issues_new %}<span class="mms-nav-badge mms-nav-badge--accent">{{ nav_issues_new }}</span>{% endif %}
+    </a>
+    <a href="{% url 'work_order_list' %}" class="{% if current_url_name == 'work_order_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🛠️</span>
+        <span>WO</span>
+    </a>
+    <a href="{% url 'tools_list' %}" class="{% if current_url_name == 'tools_list' %}is-active{% endif %}">
+        <span class="mms-nav-icon">🔧</span>
+        <span>{% trans "Tools" %}</span>
+    </a>
+    <a href="{% url 'reports' %}" class="{% if current_url_name == 'reports' %}is-active{% endif %}">
+        <span class="mms-nav-icon">📊</span>
+        <span>{% trans "Reports" %}</span>
+    </a>
+</nav>
+{% endif %}
 </body>
 </html>

@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{{ page_heading }}{% endblock %}
+{% block page_heading %}{{ page_heading }}{% endblock %}
+{% block content %}
+
+{% if pr %}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <strong>Creating PO from Purchase Request #{{ pr.pk }}</strong><br>
+        Part: {{ pr.part.name }} ({{ pr.part.sku }})<br>
+        Quantity needed: {{ pr.quantity }}<br>
+        {% if pr.work_order %}<a href="{% url 'work_order_detail' pr.work_order.pk %}">Linked WO-{{ pr.work_order.number }}</a>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="mms-card">
+    <div class="mms-card-body">
+        <form method="post" class="mms-form">
+            {% csrf_token %}
+
+            <div class="mms-form-row">
+                {{ form.supplier.label_tag }}
+                {{ form.supplier }}
+                <button type="button" onclick="document.getElementById('addSupplierModal').style.display='block'">{% trans "+ Add New Supplier" %}</button>
+                {% if form.supplier.errors %}<div class="mms-field-error">{{ form.supplier.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.invoice_ref.label_tag }}
+                {{ form.invoice_ref }}
+                {% if form.invoice_ref.errors %}<div class="mms-field-error">{{ form.invoice_ref.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.expected_delivery.label_tag }}
+                {{ form.expected_delivery }}
+                {% if form.expected_delivery.errors %}<div class="mms-field-error">{{ form.expected_delivery.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mms-form-row">
+                {{ form.notes.label_tag }}
+                {{ form.notes }}
+                {% if form.notes.errors %}<div class="mms-field-error">{{ form.notes.errors }}</div>{% endif %}
+            </div>
+
+            {% if form.handled_by %}
+            <div class="mms-form-row">
+                {{ form.handled_by.label_tag }}
+                {{ form.handled_by }}
+                {% if form.handled_by.errors %}<div class="mms-field-error">{{ form.handled_by.errors }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            {% if form.status %}
+            <div class="mms-form-row">
+                {{ form.status.label_tag }}
+                {{ form.status }}
+                {% if form.status.errors %}<div class="mms-field-error">{{ form.status.errors }}</div>{% endif %}
+            </div>
+            {% endif %}
+
+            <h3>{% trans "Line Items" %}</h3>
+            {{ formset.management_form }}
+            <div id="items-formset">
+                {% for item_form in formset.forms %}
+                <div class="item-row" style="display:flex; gap:0.5rem; align-items:end; margin-bottom:0.5rem">
+                    {{ item_form.id }}
+                    <div>
+                      {{ item_form.part.label_tag }}{{ item_form.part }}
+                      <span id="po-items-stock-badge-{{ forloop.counter0 }}" class="mms-badge mms-badge--info" style="display:none; margin-left:.5rem">
+                        {% trans "In stock" %}: <strong id="po-items-stock-qty-{{ forloop.counter0 }}">0</strong>
+                      </span>
+                    </div>
+                    <div>{{ item_form.tool.label_tag }}{{ item_form.tool }}</div>
+                    <div>{{ item_form.ordered_qty.label_tag }}{{ item_form.ordered_qty }}</div>
+                    <div>{{ item_form.negotiated_unit_price.label_tag }}{{ item_form.negotiated_unit_price }}</div>
+                    <div>{{ item_form.line_note.label_tag }}{{ item_form.line_note }}</div>
+                    {% if item_form.DELETE %}<label>{{ item_form.DELETE }} Delete</label>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if pending_prs %}
+            <h3>{% trans "Merge from Purchase Requests" %}</h3>
+            <table class="mms-table">
+                <thead><tr><th>{% trans "Select" %}</th><th>{% trans "PR#" %}</th><th>{% trans "Part" %}</th><th>{% trans "Qty" %}</th><th>{% trans "Work Order" %}</th><th>{% trans "Status" %}</th></tr></thead>
+                <tbody>
+                {% for pr in pending_prs %}
+                <tr>
+                    <td><input type="checkbox" name="selected_prs" value="{{ pr.pk }}"></td>
+                    <td><a href="{% url 'pr_detail' pr.pk %}">PR#{{ pr.pk }}</a></td>
+                    <td>{{ pr.part.name }}</td>
+                    <td>{{ pr.quantity }}</td>
+                    <td>{% if pr.work_order %}WO-{{ pr.work_order.number }}{% else %}—{% endif %}</td>
+                    <td><span class="{{ pr.status|pr_status_badge_class }}">{{ pr.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <div class="mms-form-actions" style="margin-top:1rem">
+                <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save Purchase Order" %}</button>
+                <a href="{% url 'purchase_order_list' %}" class="mms-btn mms-btn--ghost">{% trans "Cancel" %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Supplier Modal -->
+<div id="addSupplierModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+  <div style="background:white; margin:10% auto; padding:20px; max-width:400px; border-radius:8px;">
+    <h3>{% trans "Add New Supplier" %}</h3>
+    <form id="quickSupplierForm" method="post" action="{% url 'supplier_quick_create' %}">
+      {% csrf_token %}
+      <p><input type="text" name="code" placeholder="{% trans 'SUP-001 or MWRD-001' %}" required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="name" placeholder="{% trans 'Supplier name' %}" required style="width:100%" dir="auto"></p>
+      <p><input type="text" name="phone" placeholder="{% trans 'Phone' %}" style="width:100%" dir="auto"></p>
+      <p><input type="email" name="email" placeholder="{% trans 'Email' %}" style="width:100%" dir="auto"></p>
+      <button type="submit">{% trans "Save Supplier" %}</button>
+      <button type="button" onclick="document.getElementById('addSupplierModal').style.display='none'">{% trans "Cancel" %}</button>
+    </form>
+  </div>
+</div>
+<script>
+(function() {
+    var stockData = {{ stock_data_json|safe }};
+    if (!stockData) return;
+    // Find all part selectors in the items formset. Their IDs look like
+    // "id_items-N-part" (one per row). Match each to its row's data dict.
+    var selects = document.querySelectorAll('select[name="items-N-part"]'.replace(/N/g, '\\d+'));
+    // Fallback: scan all selects in the items-formset container.
+    var formsetContainer = document.getElementById('items-formset');
+    if (formsetContainer) {
+        selects = formsetContainer.querySelectorAll('select[name="items-0-part"], select[name="items-1-part"], select[name="items-2-part"], select[name="items-3-part"]');
+    }
+    selects.forEach(function(select) {
+        var name = select.name;
+        var m = name.match(/^items-(\d+)-part$/);
+        if (!m) return;
+        var rowIdx = m[1];
+        var rowData = stockData[rowIdx];
+        if (!rowData) return;
+        var badge = document.getElementById('po-items-stock-badge-' + rowIdx);
+        var qtyEl = document.getElementById('po-items-stock-qty-' + rowIdx);
+        if (!badge || !qtyEl) return;
+        function update() {
+            var q = rowData[select.value];
+            if (q === undefined || q === null) { badge.style.display = 'none'; return; }
+            qtyEl.textContent = q;
+            badge.style.display = 'inline';
+        }
+        select.addEventListener('change', update);
+        update();
+    });
+})();
+</script>
+<script>
+(function() {
+    var form = document.getElementById('quickSupplierForm');
+    var modal = document.getElementById('addSupplierModal');
+    if (!form || !modal) return;
+
+    function showError(msg) {
+        var existing = modal.querySelector('.quick-supplier-error');
+        if (existing) existing.remove();
+        var box = document.createElement('div');
+        box.className = 'quick-supplier-error mms-field-error';
+        box.style.marginTop = '0.5rem';
+        box.textContent = msg;
+        form.appendChild(box);
+    }
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        var action = form.getAttribute('action');
+        var csrfInput = form.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfInput) { showError('CSRF token missing'); return; }
+        var errorBox = modal.querySelector('.quick-supplier-error');
+        if (errorBox) errorBox.remove();
+
+        fetch(action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {'X-CSRFToken': csrfInput.value}
+        }).then(function(response) {
+            return response.json().then(function(data) { return {ok: response.ok, data: data}; });
+        }).then(function(result) {
+            if (!result.ok || result.data.error) {
+                showError(result.data.error || 'Failed to save supplier');
+                return;
+            }
+            var supplier = result.data;
+            var parentSelect = document.querySelector('select[name="supplier"]');
+            if (parentSelect) {
+                var opt = document.createElement('option');
+                opt.value = supplier.id;
+                opt.textContent = supplier.name + ' (' + supplier.code + ')';
+                opt.selected = true;
+                parentSelect.appendChild(opt);
+            }
+            form.reset();
+            modal.style.display = 'none';
+        }).catch(function() {
+            showError('Network error saving supplier');
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{% trans "Return" %}: {{ assignment.instance.display_name }}{% endblock %}
+{% block content %}
+<div class="mms-page">
+  <div class="mms-page-header">
+    <h1 class="mms-page-title">
+      {% trans "Return" %}: {{ assignment.instance.display_name }}
+    </h1>
+    <div class="mms-page-meta">
+      <span>{% trans "Operator" %}: {{ assignment.operator.username }}</span>
+      <span>{% trans "Machine" %}: {{ assignment.machine.name }}</span>
+      <span>{% trans "Out at" %}: {{assignment.checkout_at|mms_datetime}}</span>
+    </div>
+  </div>
+
+  <form method="post" class="mms-form" id="tool-return-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mms-form-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="mms-form-field">
+      <label>{{ form.condition_in.label }}</label>
+      {{ form.condition_in }}
+      {{ form.condition_in.errors }}
+    </div>
+    <div class="mms-form-field" id="damage-fields" style="display: none;">
+      <label for="{{ form.damage_reason.id_for_label }}">{{ form.damage_reason.label }}</label>
+      {{ form.damage_reason }}
+      <small class="mms-form-help">{{ form.damage_reason.help_text }}</small>
+      {{ form.damage_reason.errors }}
+    </div>
+    <div class="mms-form-actions">
+      <a href="{% url 'tools_instance_detail' assignment.instance.pk %}" class="mms-btn mms-btn--ghost">
+        {% trans "Cancel" %}
+      </a>
+      <button type="submit" class="mms-btn mms-btn--primary">
+        {% trans "Return" %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const radios = document.querySelectorAll('input[name="condition_in"]');
+  const damageFields = document.getElementById('damage-fields');
+  function toggle() {
+    const damaged = Array.from(radios).find(r => r.value === 'damaged' && r.checked);
+    damageFields.style.display = damaged ? 'block' : 'none';
+  }
+  radios.forEach(r => r.addEventListener('change', toggle));
+  toggle();
+});
+</script>
+{% endblock %}

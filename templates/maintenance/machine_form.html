@@ -1,28 +1,141 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}{{ page_title }}{% endblock %}
 {% block page_heading %}{{ page_title }}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Keep machine names and QR codes aligned with the shop-floor labels so issue reporting stays fast and accurate.</p>
+<style>
+.mms-form-section { margin: 1.5rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+.mms-form-section h4 { margin-bottom: 1rem; }
+.mms-form-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.mms-form-row > div { flex: 1; min-width: 200px; }
+.mms-help { font-size: 0.85em; color: #666; }
+</style>
+<p class="mms-page-lead">{% trans "Keep machine names and QR codes aligned with the shop-floor labels so issue reporting stays fast and accurate." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
-      {% for field in form %}
-      <div class="mms-form-row">
-        {{ field.label_tag }}
-        {{ field }}
-        {% if field.help_text %}<div class="mms-form-tip">{{ field.help_text }}</div>{% endif %}
-        {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+      {% if preselected_parent %}
+        <div class="mms-alert mms-alert--info" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#e0f2fe;border-left:3px solid #0284c7;border-radius:4px;color:#0c4a6e">
+          <strong>{% trans "Will be created under:" %}</strong>
+          <a href="{% url 'machine_detail' preselected_parent.pk %}" style="color:#0c4a6e;text-decoration:underline">
+            {{ preselected_parent.name }} ({{ preselected_parent.qr_code }})
+          </a>
+        </div>
+      {% endif %}
+      <div class="mms-form-section">
+        <h4>{% trans "Basic Information" %}</h4>
+        <div class="mms-form-row">
+          <div>
+            <label for="{{ form.name.id_for_label }}">{% trans "Name *" %}</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="mms-field-error">{{ form.name.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.qr_code.id_for_label }}">{% trans "QR Code *" %}</label>
+            {{ form.qr_code }}
+            <small class="mms-help">{% trans "Unique code used for QR-based issue reporting" %}</small>
+            {% if form.qr_code.errors %}<div class="mms-field-error">{{ form.qr_code.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label for="{{ form.location.id_for_label }}">{% trans "Location" %}</label>
+            {{ form.location }}
+            <small class="mms-help">{% trans "e.g. Hall A, Floor 2, Bay 3" %}</small>
+            {% if form.location.errors %}<div class="mms-field-error">{{ form.location.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label>
+              {{ form.is_active }} Active
+            </label>
+            <small class="mms-help">{% trans "Inactive assets are hidden from issue reporting" %}</small>
+            {% if form.is_active.errors %}<div class="mms-field-error">{{ form.is_active.errors }}</div>{% endif %}
+          </div>
+        </div>
       </div>
-      {% endfor %}
+      <div class="mms-form-section">
+        <h4>{% trans "Asset Hierarchy" %}</h4>
+        <div class="mms-form-row">
+          <div>
+            <label>{% trans "Site" %}</label>
+            {{ form.site }}
+          </div>
+          <div>
+            <label>{% trans "Parent Machine" %}</label>
+            {{ form.parent }}
+            <small class="mms-help">{% trans "Leave blank if this is a top-level machine" %}</small>
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>{% trans "Asset Level" %}</label>
+            {{ form.asset_level }}
+          </div>
+          <div>
+            <label>{% trans "Asset Type" %}</label>
+            {{ form.asset_type }}
+          </div>
+        </div>
+      </div>
+      <div class="mms-form-section">
+        <h4>{% trans "Component Tracking" %}</h4>
+        <p class="mms-help">{% trans "These fields apply to Component-level (level-5) assets — optional for other levels" %}</p>
+        <div class="mms-form-row">
+          <div>
+            <label>{% trans "Serial Number" %}</label>
+            {{ form.serial_number }}
+          </div>
+          <div>
+            <label>{% trans "Manufacturer" %}</label>
+            {{ form.manufacturer }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>{% trans "Model Number" %}</label>
+            {{ form.model_number }}
+          </div>
+          <div>
+            <label>{% trans "Install Date" %}</label>
+            {{ form.install_date }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>{% trans "Expected Life (days)" %}</label>
+            {{ form.expected_life_days }}
+          </div>
+          <div>
+            <label>{% trans "Criticality" %}</label>
+            {{ form.criticality }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>{% trans "Status" %}</label>
+            {{ form.status }}
+          </div>
+          <div>
+            <label>{% trans "Asset Code" %}</label>
+            {{ form.asset_code }}
+          </div>
+        </div>
+        <div class="mms-form-row">
+          <div>
+            <label>{% trans "Failure Category" %}</label>
+            {{ form.failure_category }}
+          </div>
+        </div>
+      </div>
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Save machine</button>
-        <a class="mms-btn mms-btn--ghost" href="{% url 'machine_list' %}">Back</a>
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save machine" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'machine_list' %}">{% trans "Back" %}</a>
       </div>
     </form>
   </div>
 </div>
 {% if machine %}
-<p class="mms-form-tip">Quick issue link: <code>{% url 'issue_create' %}?qr={{ machine.qr_code }}</code></p>
+<p class="mms-form-tip">{% trans "Quick issue link:" %}<code>{% url 'issue_create' %}?qr={{ machine.qr_code }}</code></p>
 {% endif %}
 {% endblock %}

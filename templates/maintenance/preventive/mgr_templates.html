@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}Templates — Bawazir MMS{% endblock %}
+{% block page_heading %}{% trans "Templates" %}{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:1rem">
+    <a href="{% url 'preventive:mgr_template_create' %}" class="mms-btn mms-btn--primary">{% trans "+ New Template" %}</a>
+</div>
+
+<div class="mms-card">
+    <div class="mms-card-body">
+        <table class="mms-table" style="width:100%">
+            <thead>
+                <tr>
+                    <th>{% trans "Code" %}</th>
+                    <th>{% trans "Title" %}</th>
+                    <th>{% trans "Duration" %}</th>
+                    <th>{% trans "Checks" %}</th>
+                    <th>{% trans "Photos" %}</th>
+                    <th>{% trans "Active" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in templates %}
+                <tr>
+                    <td><code>{{ t.code }}</code></td>
+                    <td>{{ t.title }}</td>
+                    <td>{{ t.estimated_duration_minutes }} min</td>
+                    <td>{{ t.checklist_items.count }}</td>
+                    <td>{% if t.requires_photo_min_count > 0 %}{{ t.requires_photo_min_count }} required{% else %}—{% endif %}</td>
+                    <td>{% if t.is_active %}✓{% else %}—{% endif %}</td>
+                    <td>
+                        <a href="{% url 'preventive:mgr_template_edit' t.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Edit" %}</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-muted">{% trans "No templates yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

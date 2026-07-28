@@ -1,0 +1,337 @@
+{% load i18n %}
+{% load mms_extras %}
+{% i18n_json "error_prefix" "Error: " %}
+{% comment %}
+   Reusable attachment uploader partial.
+   Usage:
+     {% include "maintenance/_attachment_uploader.html" with entity_type="machine" entity_id=machine.pk editable=True %}
+
+   Required context:
+     - entity_type: string (Attachment.EntityType value, e.g. "machine", "pm_schedule", "pm_execution", "repair_order")
+     - entity_id: int (PK of the parent entity)
+   Optional context:
+     - editable: bool (default True). When False, only the read-only gallery is rendered.
+     - title: string (default "Documents & Attachments") — card header.
+     - default_category: string (default "PRODUCT") — pre-selected category.
+{% endcomment %}
+<div class="mms-card" style="margin-bottom:1rem">
+  <div class="mms-card-header">{{ title|default:"Documents &amp; Attachments" }}</div>
+  <div class="mms-card-body">
+    <div id="attachment-list-{{ entity_type }}-{{ entity_id }}">
+      <span class="text-muted">{% trans "Loading attachments…" %}</span>
+    </div>
+
+    {% if editable|default_if_none:True %}
+    <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem;border-top:1px solid #e5e7eb;padding-top:0.75rem">
+      <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <input type="file"
+               id="attachment-file-input-{{ entity_type }}-{{ entity_id }}"
+               accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/quicktime"
+               multiple
+               class="form-control"
+               style="flex:1">
+      </div>
+      <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:0.4rem;margin:0">
+          <input type="checkbox"
+                 id="attachment-is-primary-{{ entity_type }}-{{ entity_id }}"
+                 checked>
+          <span>{% trans "Set as primary" %}</span>
+        </label>
+        <select id="attachment-category-{{ entity_type }}-{{ entity_id }}"
+                class="form-select"
+                style="width:auto">
+          <option value="PRODUCT" {% if default_category|default:"PRODUCT" == "PRODUCT" %}selected{% endif %}>{% trans "Product shot" %}</option>
+          <option value="LABEL" {% if default_category == "LABEL" %}selected{% endif %}>{% trans "Manufacturer label" %}</option>
+          <option value="PACKAGING" {% if default_category == "PACKAGING" %}selected{% endif %}>{% trans "Packaging" %}</option>
+          <option value="INSTALLED" {% if default_category == "INSTALLED" %}selected{% endif %}>{% trans "Installed in machine" %}</option>
+          <option value="DOCUMENT" {% if default_category == "DOCUMENT" %}selected{% endif %}>{% trans "Document / datasheet" %}</option>
+        </select>
+        <input type="text"
+               id="attachment-note-{{ entity_type }}-{{ entity_id }}"
+               placeholder={% trans "Note (optional)" %}
+               class="form-control"
+               style="width:200px">
+        <button type="button"
+                class="mms-btn mms-btn--primary"
+                data-entity-type="{{ entity_type }}"
+                data-entity-id="{{ entity_id }}"
+                data-action="upload">
+          Upload
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  const i18nEl = document.getElementById('i18n-json');
+  const T = i18nEl ? JSON.parse(i18nEl.textContent) : {};
+  const ENTITY_TYPE = {{ entity_type|stringformat:'s'|escapejs }};
+  const ENTITY_ID = {{ entity_id|stringformat:'s'|escapejs }};
+  const EDITABLE = {{ editable|default_if_none:True|yesno:"true,false" }};
+  const LIST_ID = 'attachment-list-' + ENTITY_TYPE + '-' + ENTITY_ID;
+  const FILE_INPUT_ID = 'attachment-file-input-' + ENTITY_TYPE + '-' + ENTITY_ID;
+  const IS_PRIMARY_ID = 'attachment-is-primary-' + ENTITY_TYPE + '-' + ENTITY_ID;
+  const CATEGORY_ID = 'attachment-category-' + ENTITY_TYPE + '-' + ENTITY_ID;
+  const NOTE_ID = 'attachment-note-' + ENTITY_TYPE + '-' + ENTITY_ID;
+
+  function getCookie(name) {
+    let value = null;
+    document.cookie.split(';').forEach(cookie => {
+      const c = cookie.trim();
+      if (c.startsWith(name + '=')) {
+        value = decodeURIComponent(c.substring(name.length + 1));
+      }
+    });
+    return value;
+  }
+
+  function formatFileSize(bytes) {
+    if (typeof bytes !== 'number') return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderAttachment(att) {
+    const mime = (att.mime_type || '').toLowerCase();
+    const fileUrl = att.url || '';
+    const thumbUrl = att.thumbnail_url || fileUrl;
+    const filename = escapeHtml(att.filename || 'file');
+    const uploader = escapeHtml(att.uploaded_by || '');
+    const note = escapeHtml(att.note || '');
+    const category = escapeHtml(att.category || 'PRODUCT');
+    const size = formatFileSize(att.size);
+    let uploadedAt = '';
+    if (att.uploaded_at) {
+      try { uploadedAt = new Date(att.uploaded_at).toLocaleString(); }
+      catch (e) { uploadedAt = String(att.uploaded_at); }
+    }
+
+    let mediaHtml;
+    if (mime.startsWith('image/')) {
+      mediaHtml = `<a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener"
+                       title="{% trans 'Open full size in new tab' %}"
+                       style="flex-shrink:0;display:inline-block;">
+                      <img src="${escapeHtml(thumbUrl || fileUrl)}" alt="${filename}"
+                           style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:zoom-in;display:block;">
+                  </a>`;
+    } else if (mime === 'video/mp4' || mime === 'video/quicktime') {
+      mediaHtml = `<a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener"
+                       title="{% trans 'Open video in new tab' %}"
+                       style="flex-shrink:0;display:inline-block;">
+                      <video src="${escapeHtml(fileUrl)}" controls
+                             style="width:160px;max-height:120px;border-radius:4px;display:block;background:#000;">
+                      </video>
+                  </a>`;
+    } else if (mime === 'application/pdf') {
+      mediaHtml = `<a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener"
+                       class="mms-btn mms-btn--ghost"
+                       style="flex-shrink:0;width:80px;height:80px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0.25rem;font-size:0.75em;line-height:1.1;">
+                      View PDF
+                  </a>`;
+    } else {
+      const ext = (att.filename || '').split('.').pop().toUpperCase();
+      mediaHtml = `<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:4px;flex-shrink:0;font-size:0.8em;color:#666">{% trans "${escapeHtml(ext)}" %}</div>`;
+    }
+
+    const primaryBadge = att.is_primary
+      ? `<span style="display:inline-block;background:#fef9c3;color:#854d0e;font-size:0.75em;padding:0.1rem 0.4rem;border-radius:4px;margin-right:0.4rem;">{% trans "★ primary" %}</span>`
+      : '';
+
+    let actionsHtml = '';
+    if (EDITABLE) {
+      const setPrimaryBtn = att.is_primary
+        ? ''
+        : `<button type="button" class="mms-btn mms-btn--ghost"
+                       style="font-size:0.8em;padding:0.2rem 0.5rem"
+                       data-action="set-primary" data-att-id="${att.id}">
+                  Set primary
+                </button>`;
+      actionsHtml = `
+        <div style="margin-top:0.4rem;display:flex;gap:0.4rem;flex-wrap:wrap">
+          ${setPrimaryBtn}
+          <button type="button" class="mms-btn mms-btn--ghost"
+                  style="font-size:0.8em;padding:0.2rem 0.5rem;color:#dc2626"
+                  data-action="delete" data-att-id="${att.id}">
+            Delete
+          </button>
+        </div>`;
+    }
+
+    return `
+      <div class="attachment-item" data-att-id="${att.id}"
+           style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.5rem;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:0.5rem;${att.is_primary ? 'background:#fef9c3;' : ''}">
+        ${mediaHtml}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;word-break:break-all">{% trans "${filename}" %}</div>
+          <div style="font-size:0.8em;color:#6b7280;margin-top:0.15rem">
+            ${primaryBadge}${category} · ${size}${uploader ? ' · ' + uploader : ''}${uploadedAt ? ' · ' + escapeHtml(uploadedAt) : ''}
+          </div>
+          ${note ? `<div style="font-size:0.85em;color:#6b7280;margin-top:0.25rem">{% trans "${note}" %}</div>` : ''}
+          ${actionsHtml}
+        </div>
+      </div>`;
+  }
+
+  async function loadAttachments() {
+    const container = document.getElementById(LIST_ID);
+    if (!container) return;
+    container.innerHTML = '<span class="text-muted">{% trans "Loading attachments…" %}</span>';
+    try {
+      const response = await fetch('/attachments/' + ENTITY_TYPE + '/' + ENTITY_ID + '/', {
+        credentials: 'same-origin',
+      });
+      const data = await response.json();
+      if (data.attachments && data.attachments.length > 0) {
+        container.innerHTML = data.attachments.map(renderAttachment).join('');
+      } else {
+        container.innerHTML = '<p class="text-muted mb-0" style="color:#6b7280">{% trans "No attachments yet." %}</p>';
+      }
+    } catch (e) {
+      console.error('Failed to load attachments:', e);
+      container.innerHTML = '<p class="text-muted" style="color:#dc2626">{% trans "Failed to load attachments." %}</p>';
+    }
+  }
+
+  async function uploadFiles() {
+    const fileInput = document.getElementById(FILE_INPUT_ID);
+    const isPrimaryInput = document.getElementById(IS_PRIMARY_ID);
+    const categorySelect = document.getElementById(CATEGORY_ID);
+    const noteInput = document.getElementById(NOTE_ID);
+
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+      alert('{% trans 'Please select a file first.' %}');
+      return;
+    }
+
+    const csrf = getCookie('csrftoken');
+    const category = categorySelect ? categorySelect.value : 'PRODUCT';
+    const isPrimary = isPrimaryInput && isPrimaryInput.checked;
+    const note = noteInput ? noteInput.value : '';
+
+    const files = Array.from(fileInput.files);
+    let lastError = null;
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('entity_type', ENTITY_TYPE);
+      formData.append('entity_id', ENTITY_ID);
+      formData.append('file', file);
+      formData.append('is_primary', isPrimary ? 'true' : 'false');
+      formData.append('category', category);
+      if (note) formData.append('note', note);
+
+      try {
+        const response = await fetch('/attachments/upload/', {
+          method: 'POST',
+          body: formData,
+          headers: { 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          let msg = `Upload failed (${response.status})`;
+          try { const err = JSON.parse(text); msg = err.error || msg; } catch (_) {}
+          lastError = msg;
+        }
+      } catch (e) {
+        lastError = e.message;
+      }
+    }
+
+    if (lastError) {
+      alert(lastError);
+    }
+
+    fileInput.value = '';
+    if (noteInput) noteInput.value = '';
+    await loadAttachments();
+  }
+
+  async function setPrimary(attId) {
+    const csrf = getCookie('csrftoken');
+    try {
+      const response = await fetch('/attachments/' + attId + '/set-primary/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        let msg = `Request failed (${response.status})`;
+        try { const err = JSON.parse(text); msg = err.error || msg; } catch (_) {}
+        alert(msg);
+        return;
+      }
+      await loadAttachments();
+    } catch (e) {
+      alert((T.error_prefix || 'Error: ') + e.message);
+    }
+  }
+
+  async function deleteAttachment(attId) {
+    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
+    const csrf = getCookie('csrftoken');
+    try {
+      const response = await fetch('/attachments/' + attId + '/delete/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        let msg = `Request failed (${response.status})`;
+        try { const err = JSON.parse(text); msg = err.error || msg; } catch (_) {}
+        alert(msg);
+        return;
+      }
+      await loadAttachments();
+    } catch (e) {
+      alert((T.error_prefix || 'Error: ') + e.message);
+    }
+  }
+
+  // Event delegation for the upload button and per-item actions.
+  document.addEventListener('click', function (ev) {
+    const target = ev.target.closest('[data-action]');
+    if (!target) return;
+    const list = document.getElementById(LIST_ID);
+    if (list && !list.contains(target) && target.getAttribute('data-action') === 'upload') {
+      // Upload button is outside the gallery container; allow it.
+    } else if (list && !list.contains(target)) {
+      return;
+    }
+    const action = target.getAttribute('data-action');
+    if (action === 'upload') {
+      ev.preventDefault();
+      uploadFiles();
+    } else if (action === 'set-primary') {
+      ev.preventDefault();
+      setPrimary(target.getAttribute('data-att-id'));
+    } else if (action === 'delete') {
+      ev.preventDefault();
+      deleteAttachment(target.getAttribute('data-att-id'));
+    }
+  });
+
+  // Auto-load on DOM ready (works for both editable and read-only).
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAttachments);
+  } else {
+    loadAttachments();
+  }
+})();
+</script>

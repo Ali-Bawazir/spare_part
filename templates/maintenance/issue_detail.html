@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}Issue #{{ issue.pk }}{% endblock %}
+{% block page_heading %}Issue #{{ issue.pk }}{% endblock %}
+{% block content %}
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-body">
+        <dl style="margin:0; display:grid; grid-template-columns: 150px 1fr; gap:0.5rem">
+            <dt>{% trans "Machine" %}</dt>
+            <dd>
+                {{ issue.machine.name }}
+                {% if issue.machine.qr_code %}<br><small class="text-muted">{{ issue.machine.qr_code }}</small>{% endif %}
+            </dd>
+            <dt>{% trans "Component" %}</dt>
+            <dd>
+                {% if issue.component %}
+                    {{ issue.component.name }}
+                    {% if issue.component.asset_code %}<br><small class="text-muted">{{ issue.component.asset_code }}</small>{% endif %}
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </dd>
+            <dt>{% trans "Failure Category" %}</dt>
+            <dd>{% if issue.issue_type %}{{ issue.issue_type.name }}{% else %}—{% endif %}</dd>
+            <dt>{% trans "Failure Mode" %}</dt>
+            <dd>{% if issue.failure_mode %}{{ issue.failure_mode.code }} — {{ issue.failure_mode.name }}{% else %}—{% endif %}</dd>
+            <dt>{% trans "Status" %}</dt>
+            <dd>
+                {% if issue.status == 'new' %}<span class="status-badge status-new">{% trans "New" %}</span>
+                {% elif issue.status == 'validated' %}<span class="status-badge status-validated">{% trans "Validated" %}</span>
+                {% elif issue.status == 'converted' %}<span class="status-badge status-converted">{% trans "Converted" %}</span>
+                {% endif %}
+            </dd>
+            <dt>{% trans "Priority" %}</dt>
+            <dd>
+                {{ issue.priority|upper }}
+                {% if issue.is_emergency %}
+                    <span class="status-badge" style="background:#dc3545;color:#fff;margin-left:.5rem">{% trans "EMERGENCY" %}</span>
+                    {% if issue.escalated_by %}
+                        <br><small class="text-muted">Escalated by {{ issue.escalated_by.username }} at {{ issue.escalated_at|mms_datetime }}</small>
+                    {% endif %}
+                {% endif %}
+            </dd>
+            <dt>{% trans "Description" %}</dt><dd>{{ issue.description|linebreaks }}</dd>
+            <dt>{% trans "Reported By" %}</dt><dd>{{ issue.reported_by.get_full_name|default:issue.reported_by.username }}</dd>
+            <dt>{% trans "Reported At" %}</dt><dd>{{ issue.created_at|mms_datetime }}</dd>
+            {% if issue.validated_by %}
+            <dt>{% trans "Validated By" %}</dt><dd>{{ issue.validated_by.get_full_name|default:issue.validated_by.username }}</dd>
+            <dt>{% trans "Validated At" %}</dt><dd>{{ issue.validated_at|mms_datetime }}</dd>
+            {% endif %}
+            <dt>{% trans "Linked WO" %}</dt>
+            <dd>
+                {% if issue.work_order %}
+                    <a href="{% url 'work_order_detail' issue.work_order.pk %}">WO-{{ issue.work_order.number }}</a>
+                {% else %}
+                    —
+                {% endif %}
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">{% trans "Issue Photos" %}</div>
+    <div class="mms-card-body">
+        <div id="issue-photo-list"
+             data-entity="maintenance_issue"
+             data-id="{{ issue.pk }}">
+            <div class="mms-loading">{% trans "Loading..." %}</div>
+        </div>
+    </div>
+</div>
+
+<div class="mms-form-actions">
+    {% if not issue.is_archived and not issue.is_emergency and request.user.role in 'supervisor,manager,super_admin' %}
+    <button type="button" class="mms-btn mms-btn--danger" id="escalate-trigger">
+        Escalate to emergency
+    </button>
+    {% endif %}
+    <a href="{% url 'issue_list' %}" class="mms-btn mms-btn--ghost">{% trans "← Back to My Issues" %}</a>
+</div>
+
+{% if not issue.is_archived and not issue.is_emergency and request.user.role in 'supervisor,manager,super_admin' %}
+<div id="escalate-confirm-card" class="mms-card mms-card--danger" hidden style="margin-bottom:1rem">
+    <div class="mms-card-header" style="background:#dc3545;color:#fff">
+        Confirm emergency escalation
+    </div>
+    <div class="mms-card-body">
+        <p><strong>{% trans "This action will:" %}</strong></p>
+        <ul>
+            <li>{% trans "Set priority to" %}<strong>{% trans "CRITICAL" %}</strong>{% trans "and tag the issue as" %}<strong>{% trans "EMERGENCY" %}</strong></li>
+            <li>{% trans "Page the on-call technician and the maintenance manager" %}</li>
+            <li>{% trans "Auto-prioritise this issue at the top of the work-order queue" %}</li>
+            <li>{% trans "If a work order is later created from this issue, it will be created with" %}<code>is_emergency=True</code></li>
+        </ul>
+        <p class="text-muted">{% trans "This action is logged in the audit trail. It cannot be undone from this page." %}</p>
+        <form method="post" action="{% url 'issue_escalate' issue.pk %}" style="display:flex;gap:.5rem;margin-top:1rem">
+            {% csrf_token %}
+            <button type="submit" class="mms-btn mms-btn--danger">{% trans "Yes, escalate to emergency" %}</button>
+            <button type="button" class="mms-btn mms-btn--ghost" id="escalate-cancel">{% trans "Cancel" %}</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+.status-new { background: #e9ecef; color: #495057; }
+.status-validated { background: #cfe2ff; color: #084; }
+.status-converted { background: #d4edda; color: #155724; }
+.mms-photo-gallery { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.mms-photo-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; transition: opacity 0.2s; }
+.mms-photo-thumb:hover { opacity: 0.8; }
+.mms-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.mms-lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; }
+.mms-lightbox-close { position: absolute; top: 1rem; right: 1rem; color: white; font-size: 2rem; cursor: pointer; background: none; border: none; }
+.mms-card--danger { border-left: 4px solid #dc3545; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const listEl = document.getElementById('issue-photo-list');
+    if (listEl) {
+        const entity = listEl.dataset.entity;
+        const id = listEl.dataset.id;
+
+        fetch(`/attachments/${entity}/${id}/`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.attachments.length) {
+                    listEl.innerHTML = '<p class="mms-empty">{% trans "No photos yet." %}</p>';
+                    return;
+                }
+                listEl.innerHTML = '<div class="mms-photo-gallery">' +
+                    data.attachments.map(a => {
+                        const mime = a.mime_type || a.content_type || '';
+                        const isVideo = mime.startsWith('video/');
+                        const isPdf = mime === 'application/pdf';
+                        const isAudio = mime.startsWith('audio/');
+                        if (isAudio) {
+                            return `<div class="mms-photo-thumb" style="position:relative;display:flex;align-items:center;justify-content:center;background:#f0fdf4;font-size:0.7rem;font-weight:600;color:#166534;flex-direction:column;padding:4px" title="${a.filename}">
+                                <span style="font-size:1.2rem">🎤</span>
+                                <span style="font-size:0.65rem;margin-top:2px">{% trans "AUDIO" %}</span>
+                                <audio src="${a.url}" controls style="display:none" id="audio-${a.id}"></audio>
+                                <button type="button" onclick="document.getElementById('audio-${a.id}').play();event.stopPropagation();" style="position:absolute;bottom:2px;right:2px;background:rgba(22,101,52,0.9);color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:0.6rem;cursor:pointer">{% trans "▶ Play" %}</button>
+                            </div>`;
+                        }
+                        const thumbTag = isVideo
+                            ? `<video src="${a.url}" class="mms-photo-thumb" muted></video>`
+                            : `<img src="${a.thumbnail_url || a.url}"
+                                  alt="${a.filename}"
+                                  class="mms-photo-thumb"
+                                  onclick="openLightbox('${a.url}', '${a.filename}', '${mime}')">`;
+                        return isVideo
+                            ? `<div class="mms-photo-thumb" style="position:relative;cursor:pointer" onclick="openLightbox('${a.url}', '${a.filename}', '${mime}')">{% trans "${thumbTag}" %}<span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:0.7rem;padding:2px 5px;border-radius:3px">{% trans "▶ VIDEO" %}</span></div>`
+                            : isPdf
+                            ? `<div class="mms-photo-thumb" style="position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#f1f3f5;font-size:0.7rem;font-weight:600;color:#495057" onclick="openLightbox('${a.url}', '${a.filename}', '${mime}')">{% trans "PDF" %}<span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:0.7rem;padding:2px 5px;border-radius:3px">📄</span></div>`
+                            : thumbTag;
+                    }).join('') + '</div>';
+            });
+    }
+
+    window.openLightbox = function(src, name, mime) {
+        const lb = document.createElement('div');
+        lb.className = 'mms-lightbox';
+        if (mime && mime.startsWith('video/')) {
+            lb.innerHTML = `<button class="mms-lightbox-close" onclick="this.closest('.mms-lightbox').remove()">×</button><video src="${src}" controls autoplay style="max-width:100%;max-height:100%"></video>`;
+        } else if (mime === 'application/pdf') {
+            lb.innerHTML = `<button class="mms-lightbox-close" onclick="this.closest('.mms-lightbox').remove()">×</button><iframe src="${src}" style="width:80vw;height:80vh;border:0"></iframe>`;
+        } else {
+            lb.innerHTML = `<button class="mms-lightbox-close" onclick="this.closest('.mms-lightbox').remove()">×</button><img src="${src}" alt="${name}">`;
+        }
+        lb.addEventListener('click', function(e) { if (e.target === lb) lb.remove(); });
+        document.body.appendChild(lb);
+    };
+
+    const trigger = document.getElementById('escalate-trigger');
+    const card = document.getElementById('escalate-confirm-card');
+    const cancel = document.getElementById('escalate-cancel');
+    if (trigger && card) {
+        trigger.addEventListener('click', function() {
+            card.hidden = false;
+            card.scrollIntoView({behavior: 'smooth', block: 'center'});
+            trigger.disabled = true;
+        });
+    }
+    if (cancel && card && trigger) {
+        cancel.addEventListener('click', function() {
+            card.hidden = true;
+            trigger.disabled = false;
+        });
+    }
+});
+</script>
+
+{% include "maintenance/_asset_tree.html" %}
+{% endblock %}

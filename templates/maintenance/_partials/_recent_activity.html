@@ -1,0 +1,35 @@
+{% load i18n %}
+{% comment %}
+   Compact one-line-per-row variant of the history timeline.
+   Used by the "Recent activity" card on the machine Overview tab.
+   Shows last 3 logs only — no details, no pagination, no inline form.
+   Single line per log: dot + type + summary + author + relative time.
+{% endcomment %}
+{% if recent_logs %}
+  <div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header" style="padding:.4rem .9rem">{% trans "Recent activity" %}</div>
+    <div style="padding:0 .9rem .5rem .9rem">
+      <ul class="mms-recent-activity-list" style="list-style:none;margin:0;padding:0">
+        {% for log in recent_logs %}
+          <li class="mms-recent-activity-item"
+              style="display:flex;gap:.5rem;align-items:center;padding:.35rem 0;border-bottom:1px solid #f1f5f9;font-size:.85em">
+            <span class="mms-history-dot mms-history-dot--{{ log.type }}"
+                  style="display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;
+                         background:{% if log.type == 'observation' %}#16a34a
+                                  {% elif log.type == 'maintenance_note' %}#2563eb
+                                  {% else %}#ea580c{% endif %};"
+                  title="{{ log.get_type_display }}"></span>
+            <span class="mms-badge mms-badge--muted"
+                  style="font-size:.7em;padding:.05em .35em;flex-shrink:0">{{ log.get_type_display }}</span>
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              {{ log.summary }}
+            </span>
+            <span style="font-size:.85em;color:#94a3b8;flex-shrink:0">
+              {{ log.author.username }} · {{ log.created_at|timesince }} {% trans "ago" %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+{% endif %}

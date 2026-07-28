@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}Active WorkOrder Blockers{% endblock %}
+{% block page_heading %}{% trans "Active WorkOrder Blockers" %}{% endblock %}
+{% block content %}
+
+<p class="mms-page-lead">
+  All currently open WorkOrder blockers, sorted by impact.
+</p>
+
+{% if total_open == 0 %}
+<div class="mms-alert mms-alert--success" style="margin-bottom:1rem">
+  <strong>{% trans "No active blockers. All clear!" %}</strong>
+</div>
+{% else %}
+<div class="mms-grid mms-grid--kpis" style="margin-bottom:1rem">
+  <div class="mms-kpi">
+    <div class="mms-kpi-value">🔴 {{ total_open }}</div>
+    <div class="mms-kpi-label">Open Blockers across {{ blockers|length }} Work Orders</div>
+  </div>
+</div>
+
+<form method="GET" class="mms-form mms-form--inline" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">
+  <div>
+    <label class="mms-label" for="id_kind">{% trans "Blocker Kind" %}</label>
+    <select name="kind" id="id_kind" class="mms-input">
+      <option value="">{% trans "All" %}</option>
+      {% for value, label in kind_choices %}
+      <option value="{{ value }}" {% if filters.kind == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="mms-label" for="id_q">{% trans "Search" %}</label>
+    <input type="text" name="q" id="id_q" class="mms-input" placeholder={% trans "WO number or machine name" %} value="{{ filters.q|default:'' }}">
+  </div>
+  <div>
+    <label class="mms-label" for="id_impact_level">{% trans "Impact Level" %}</label>
+    <select name="impact_level" id="id_impact_level" class="mms-input">
+      <option value="">{% trans "All" %}</option>
+      {% for value, label in impact_level_choices %}
+      <option value="{{ value }}" {% if filters.impact_level == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <button type="submit" class="mms-btn mms-btn--primary">{% trans "Apply" %}</button>
+    <a href="{% url 'active_blockers_dashboard' %}" class="mms-btn mms-btn--ghost">{% trans "Clear" %}</a>
+  </div>
+</form>
+
+<div class="mms-table-wrap">
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>{% trans "Blocker Kind" %}</th>
+        <th>{% trans "Work Order" %}</th>
+        <th>{% trans "Machine" %}</th>
+        <th>{% trans "External Reference" %}</th>
+        <th>{% trans "Impact Score" %}</th>
+        <th>{% trans "Age" %}</th>
+        <th>{% trans "Opened By" %}</th>
+        <th>{% trans "Note" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in blockers %}
+      {% with blocker=item.blocker impact=item.impact %}
+      <tr>
+        <td>
+          {% if blocker.kind == 'part' %}⏳ Part
+          {% elif blocker.kind == 'shortage' %}📋 Shortage
+          {% elif blocker.kind == 'vendor_repair' %}🔧 Vendor Repair
+          {% elif blocker.kind == 'operational' %}⏸ Paused
+          {% else %}{{ blocker.kind }}{% endif %}
+        </td>
+        <td><a href="{% url 'work_order_detail' blocker.work_order.pk %}">WO-{{ blocker.work_order.number }}</a></td>
+        <td>{% if blocker.work_order.machine %}<a href="{% url 'machine_detail' blocker.work_order.machine.pk %}">{{ blocker.work_order.machine.name }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>{{ blocker.external_label|default:"—" }}</td>
+        <td>
+          {% if impact %}
+          <span class="mms-badge mms-badge--{% if impact.level == 'HIGH' %}danger{% elif impact.level == 'MEDIUM' %}warning{% else %}success{% endif %}">
+            {{ impact.score }}
+          </span>
+          <small>({{ impact.level }})</small>
+          {% else %}
+          <span class="mms-badge mms-badge--muted">—</span>
+          {% endif %}
+        </td>
+        <td><small>{{ blocker.opened_at|timesince }} ago</small></td>
+        <td>{{ blocker.opened_by.username|default:"—" }}</td>
+        <td><small>{% if blocker.note %}{{ blocker.note|truncatechars:100 }}{% else %}—{% endif %}</small></td>
+      </tr>
+      {% endwith %}
+      {% empty %}
+      <tr>
+        <td colspan="8" style="text-align:center;color:var(--mms-muted)">{% trans "No blockers match the current filters." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if blockers.paginator.num_pages > 1 %}
+<div class="mms-pagination" style="margin-top:1rem;display:flex;gap:.5rem;justify-content:center">
+  {% if blockers.has_previous %}
+  <a href="?page={{ blockers.previous_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "&laquo; Previous" %}</a>
+  {% endif %}
+  <span style="padding:.25rem .5rem">{% blocktrans with n=blockers.number t=blockers.paginator.num_pages %}Page {{ n }} of {{ t }}{% endblocktrans %}</span>
+  {% if blockers.has_next %}
+  <a href="?page={{ blockers.next_page_number }}{% for k, v in filters.items %}&{{ k }}={{ v }}{% endfor %}" class="mms-btn mms-btn--sm mms-btn--ghost">{% trans "Next &raquo;" %}</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+<div style="margin-top:1.5rem">
+  <a href="{% url 'dashboard' %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "← Back to dashboard" %}</a>
+</div>
+
+{% endblock %}

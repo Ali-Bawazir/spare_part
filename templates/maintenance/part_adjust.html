@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}Adjust quantity — {{ part.name }}{% endblock %}
+{% block page_heading %}Adjust inventory — {{ part.name }}{% endblock %}
+{% block content %}
+<div class="mms-link-back">
+  <a href="{% url 'spare_part_detail' part.pk %}?site={{ selected_site.pk }}">← Back to {{ part.name }}</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem">
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Current quantity" %}</div>
+    <div class="mms-card-body">
+      <div style="font-size:2rem;font-weight:700">{{ current_qty }}</div>
+      <div class="text-muted small">at {{ selected_site.name }}</div>
+      <div class="text-muted small" style="margin-top:0.5rem">
+        Rack: {{ inv.rack_location|default:"—" }}
+      </div>
+      {% if inv and inv.last_counted_at %}
+        <div class="text-muted small" style="margin-top:0.5rem">
+          Last counted: {{ inv.last_counted_at|mms_datetime }} by {{ inv.last_counted_by.username }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Site" %}</div>
+    <div class="mms-card-body">
+      <form method="get">
+        <select name="site" class="form-select" onchange="this.form.submit()">
+          {% for s in sites %}
+            <option value="{{ s.pk }}" {% if s.pk == selected_site.pk %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="mms-form-stack" style="margin-top:1rem">
+  <form method="post" class="mms-form">
+    {% csrf_token %}
+    <div class="mms-form-row">
+      <label for="new_quantity">{% trans "New quantity *" %}</label>
+      <input type="number" name="new_quantity" id="new_quantity"
+             class="form-control"
+             step="0.001" min="0"
+             value="{{ current_qty }}" required>
+    </div>
+    <div class="mms-form-row">
+      <label for="reason">{% trans "Reason *" %}</label>
+      <select name="reason" id="reason" class="form-select" required>
+        <option value="">{% trans "Select a reason…" %}</option>
+        <option value="audit_correction">{% trans "Audit correction" %}</option>
+        <option value="damaged_goods">{% trans "Damaged goods" %}</option>
+        <option value="expired">{% trans "Expired material" %}</option>
+        <option value="theft">{% trans "Suspected theft/loss" %}</option>
+        <option value="cycle_count">{% trans "Cycle count" %}</option>
+        <option value="other">{% trans "Other" %}</option>
+      </select>
+    </div>
+    <div class="mms-form-row">
+      <label for="note">{% trans "Note" %}</label>
+      <textarea name="note" id="note" class="form-control" rows="2"
+                placeholder={% trans "Additional details…" %}></textarea>
+    </div>
+    <div class="mms-form-row">
+      <label for="rack_location">{% trans "Rack location" %}</label>
+      <input type="text" name="rack_location" id="rack_location"
+             class="form-control" maxlength="64"
+             value="{{ inv.rack_location|default:"" }}"
+             placeholder={% trans "e.g. A-01-03" %}>
+    </div>
+    <div id="reason_other_row" class="mms-form-row" style="display:none">
+      <label for="reason_other">{% trans "Specify reason" %}</label>
+      <input type="text" name="reason_other" id="reason_other"
+             class="form-control" maxlength="128"
+             placeholder={% trans "Describe the reason…" %}>
+    </div>
+    <div class="mms-form-row mms-form-row--checkbox">
+      <div>
+        <input type="checkbox" name="is_cycle_count" id="is_cycle_count" value="on">
+        <label for="is_cycle_count">{% trans "Planned cycle count (vs emergency correction)" %}</label>
+      </div>
+    </div>
+    <div class="alert alert-warning" style="margin-bottom:1rem">
+      <strong>{% trans "Note:" %}</strong>{% trans "Adjustments are logged with" %}<code>approved_by={{ request.user.username }}</code>.
+      All adjustments are permanently recorded in the stock movement history.
+      Rack location changes are also logged.
+    </div>
+    <div class="mms-form-actions">
+      <button type="submit" class="mms-btn mms-btn--primary">{% trans "Record adjustment" %}</button>
+      <a class="mms-btn mms-btn--ghost" href="{% url 'spare_part_detail' part.pk %}?site={{ selected_site.pk }}">{% trans "Cancel" %}</a>
+    </div>
+  </form>
+</div>
+
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">{% trans "Evidence Photo" %}</div>
+  <div class="mms-card-body">
+    <div id="attachment-list-spare_part-{{ part.pk }}">
+      <span class="text-muted">{% trans "Loading..." %}</span>
+    </div>
+    <div class="mt-2">
+      <input type="file" id="attachment-file-input-spare_part-{{ part.pk }}"
+             accept="image/jpeg,image/png,image/webp,application/pdf"
+             class="d-none" multiple
+             onchange="handleAttachmentSelect(this)">
+      <button type="button" class="btn btn-sm btn-outline-primary"
+              onclick="document.getElementById('attachment-file-input-spare_part-{{ part.pk }}').click()">
+        <i class="bi bi-paperclip"></i> Add Evidence Photo
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadAttachments(entityType, entityId, containerId) {
+    try {
+        const response = await fetch(`/attachments/${entityType}/${entityId}/`, {
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.attachments && data.attachments.length > 0) {
+            container.innerHTML = data.attachments.map(att => `
+                <div class="attachment-item mb-2 p-2 border rounded" data-att-id="${att.id}">
+                    ${att.mime_type && att.mime_type.startsWith('image/')
+                        ? `<img src="${att.thumbnail_url || att.url}" alt="${att.filename}"
+                             style="max-width:200px; max-height:150px; object-fit:cover;"
+                             class="mb-2">`
+                        : `<div class="file-icon mb-2"><i class="bi bi-file-earmark"></i>{% trans "${att.filename}" %}</div>`
+                    }
+                    <div class="small text-muted">{% trans "${att.filename} (${formatFileSize(att.size)})" %}</div>
+                    <div class="small text-muted">{% trans "${att.uploaded_by} - ${att.uploaded_at}" %}</div>
+                    ${att.note ? `<div class="small">{% trans "${att.note}" %}</div>` : ''}
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-1"
+                            onclick="deleteAttachment(${att.id}, '${containerId}', '${entityType}', ${entityId})">
+                        Delete
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-muted mb-0">{% trans "No attachments yet." %}</p>';
+        }
+    } catch (e) {
+        console.error('Failed to load attachments:', e);
+    }
+}
+
+async function handleAttachmentSelect(input) {
+    const files = input.files;
+    if (!files.length) return;
+    const parts = input.id.replace('attachment-file-input-', '').split('-');
+    const entityType = parts.slice(0, -1).join('-');
+    const entityId = parts[parts.length - 1];
+    for (const file of files) {
+        await uploadAttachment(file, entityType, entityId);
+    }
+    loadAttachments(entityType, entityId, `attachment-list-${entityType}-${entityId}`);
+    input.value = '';
+}
+
+async function uploadAttachment(file, entityType, entityId) {
+    const formData = new FormData();
+    formData.append('entity_type', entityType);
+    formData.append('entity_id', entityId);
+    formData.append('file', file);
+    const response = await fetch('/attachments/upload/', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        let msg = `Upload failed (${response.status})`;
+        try { const err = JSON.parse(text); msg = err.error || msg; } catch (_) {}
+        alert(msg);
+    }
+    return response.json();
+}
+
+async function deleteAttachment(attId, containerId, entityType, entityId) {
+    if (!confirm('{% trans 'Delete this attachment?' %}')) return;
+    const response = await fetch(`/attachments/${attId}/delete/`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': getCSRFToken() }
+    });
+    if (response.ok) {
+        loadAttachments(entityType, entityId, containerId);
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getCSRFToken() {
+    let value = null;
+    document.cookie.split(';').forEach(cookie => {
+        const c = cookie.trim();
+        if (c.startsWith('csrftoken=')) {
+            value = decodeURIComponent(c.substring('csrftoken='.length));
+        }
+    });
+    return value || '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  loadAttachments('spare_part', {{ part.pk }}, 'attachment-list-spare_part-{{ part.pk }}');
+  var reasonSel = document.getElementById('reason');
+  var otherRow = document.getElementById('reason_other_row');
+  if (reasonSel && otherRow) {
+    reasonSel.addEventListener('change', function() {
+      otherRow.style.display = reasonSel.value === 'other' ? '' : 'none';
+    });
+  }
+});
+</script>
+{% endblock %}

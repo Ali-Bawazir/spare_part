@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{% trans "Resolve damage" %}: {{ report.instance.display_name }}{% endblock %}
+{% block content %}
+<div class="mms-page">
+  <div class="mms-page-header">
+    <h1 class="mms-page-title">
+      {% trans "Resolve damage" %}: {{ report.instance.display_name }}
+    </h1>
+  </div>
+
+  <div class="mms-card">
+    <div class="mms-card-body">
+      <dl class="mms-detail-list">
+        <dt>{% trans "Reported by" %}</dt><dd>{{ report.reported_by.username }}</dd>
+        <dt>{% trans "Date" %}</dt><dd>{{report.damage_date|mms_datetime}}</dd>
+        <dt>{% trans "Machine" %}</dt><dd>{{ report.machine|default:"—" }}</dd>
+        <dt>{% trans "Reason" %}</dt><dd>{{ report.reason }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <form method="post" class="mms-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mms-form-errors">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="mms-form-field">
+      <label>{{ form.action.label }}</label>
+      {{ form.action }}
+      {{ form.action.errors }}
+    </div>
+    <div class="mms-form-field" id="repair-cost-field" style="display: none;">
+      <label for="{{ form.repair_cost.id_for_label }}">{{ form.repair_cost.label }}</label>
+      {{ form.repair_cost }}
+      <small class="mms-form-help">{{ form.repair_cost.help_text }}</small>
+      {{ form.repair_cost.errors }}
+    </div>
+    <div class="mms-form-actions">
+      <a href="{% url 'tools_instance_detail' report.instance.pk %}" class="mms-btn mms-btn--ghost">
+        {% trans "Cancel" %}
+      </a>
+      <button type="submit" class="mms-btn mms-btn--primary">
+        {% trans "Submit" %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const radios = document.querySelectorAll('input[name="action"]');
+  const costField = document.getElementById('repair-cost-field');
+  function toggle() {
+    const repair = Array.from(radios).find(r => r.value === 'repair' && r.checked);
+    costField.style.display = repair ? 'block' : 'none';
+  }
+  radios.forEach(r => r.addEventListener('change', toggle));
+  toggle();
+});
+</script>
+{% endblock %}

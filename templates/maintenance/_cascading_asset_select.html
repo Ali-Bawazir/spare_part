@@ -1,0 +1,63 @@
+{% load i18n %}
+{% comment %}
+  Shared JS for cascading Machine → Component dropdown.
+  Renders NOTHING in the DOM. Must be included AFTER the form, just before </form>'s grandparent.
+  Expects: #id_machine and #id_component to exist in the DOM.
+  Expects: /machines/<pk>/components/ endpoint to return {components: [{id,name,asset_code}], has_components: bool}.
+  Skips itself if #id_machine is not present (e.g. on detail pages).
+{% endcomment %}
+<script>
+(function() {
+  'use strict';
+  var machineSelect = document.getElementById('id_machine');
+  var componentRow = document.getElementById('component-row');
+  var componentSelect = document.getElementById('id_component');
+  if (!machineSelect || !componentRow || !componentSelect) return;
+
+  function getCsrfToken() {
+    var value = document.cookie.split('; ').find(function(row) { return row.indexOf('csrftoken=') === 0; });
+    return value ? decodeURIComponent(value.split('=').slice(1).join('=')) : '';
+  }
+
+  function updateComponentRow(machineId, preserveSelection) {
+    if (!machineId) {
+      componentRow.style.display = 'none';
+      while (componentSelect.options.length > 1) componentSelect.remove(1);
+      componentSelect.value = '';
+      return;
+    }
+    fetch('/machines/' + encodeURIComponent(machineId) + '/components/', {
+      headers: { 'X-CSRFToken': getCsrfToken() }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      while (componentSelect.options.length > 1) componentSelect.remove(1);
+      (data.components || []).forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name + (c.asset_code ? ' (' + c.asset_code + ')' : '');
+        componentSelect.appendChild(opt);
+      });
+      componentRow.style.display = data.has_components ? '' : 'none';
+      if (preserveSelection) {
+        var stillExists = Array.from(componentSelect.options).some(function(o) { return o.value === preserveSelection; });
+        if (stillExists) {
+          componentSelect.value = preserveSelection;
+        } else {
+          componentSelect.value = '';
+        }
+      }
+    })
+    .catch(function() {
+      componentRow.style.display = 'none';
+    });
+  }
+
+  machineSelect.addEventListener('change', function() {
+    updateComponentRow(machineSelect.value, null);
+  });
+  if (machineSelect.value) {
+    updateComponentRow(machineSelect.value, componentSelect.value || null);
+  }
+})();
+</script>

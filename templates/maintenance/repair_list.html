@@ -1,33 +1,36 @@
 {% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
 {% block title %}Repairs{% endblock %}
-{% block page_heading %}External repair orders{% endblock %}
+{% block page_heading %}{% trans "External repair orders" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Vendor repairs (UC-19/20). Procurement updates status; maintenance manager accepts after return.</p>
+<p class="mms-page-lead">{% trans "Vendor repairs (UC-19/20). Supply Officer updates status; maintenance manager accepts after return." %}</p>
 {% if perm_repair_create %}
-<p class="mms-actions"><a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_create' %}">New repair request</a></p>
+<p class="mms-actions"><a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'repair_create' %}">{% trans "New repair request" %}</a></p>
 {% endif %}
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Title</th><th>Status</th><th>Vendor</th><th></th></tr></thead>
+      <thead><tr><th>{% trans "Title" %}</th><th>{% trans "Status" %}</th><th>{% trans "Vendor" %}</th><th></th></tr></thead>
       <tbody>
       {% for r in repairs %}
       <tr>
         <td>{{ r.title }}</td>
-        <td>{{ r.get_status_display }}</td>
+        <td><span class="{{ r.status|ero_status_badge_class }}">{{ r.get_status_display }}</span></td>
         <td>{{ r.vendor_name|default:"—" }}</td>
         <td style="white-space:nowrap">
           {% if perm_repair_officer %}
-          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'repair_officer' r.pk %}">Officer</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'repair_officer' r.pk %}">{% trans "Officer" %}</a>
+          <a class="mms-btn mms-btn--ghost mms-btn--sm" href="{% url 'repair_order_pdf' r.pk %}" target="_blank">{% trans "PDF" %}</a>
           {% endif %}
           {% if perm_repair_manager_accept %}
             {% if r.status == 'returned' %}
-            <a class="mms-btn mms-btn--sm" href="{% url 'repair_manager_accept' r.pk %}">Accept</a>
+            <a class="mms-btn mms-btn--sm" href="{% url 'repair_manager_accept' r.pk %}">{% trans "Accept" %}</a>
             {% endif %}
           {% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="4" class="mms-empty">None.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="4" class="mms-empty">{% trans "None." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

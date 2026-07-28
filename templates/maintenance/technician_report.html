@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{{ technician.get_full_name|default:technician.username }} — Performance{% endblock %}
+{% block page_heading %}
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <div>
+      <h1 style="margin:0">{{ technician.get_full_name|default:technician.username }}</h1>
+      <p class="mms-page-lead" style="margin:.25rem 0 0 0">
+        Per-technician performance: completed WOs, average repair duration,
+        response time, reopened jobs, and external-repair count.
+      </p>
+    </div>
+    <a href="{% url 'reports' %}" class="mms-btn mms-btn--ghost mms-btn--sm">
+      ← Back to reports
+    </a>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="mms-grid mms-grid--4">
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Completed WOs" %}</div>
+    <div class="mms-card-body" style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:700">{{ stats.completed_count }}</div>
+      <div class="text-muted" style="font-size:.8rem">{% trans "work orders closed" %}</div>
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "In progress" %}</div>
+    <div class="mms-card-body" style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:700">{{ stats.in_progress_count }}</div>
+      <div class="text-muted" style="font-size:.8rem">{% trans "actively being worked" %}</div>
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Reopened (rejections)" %}</div>
+    <div class="mms-card-body" style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:700;
+                  color:{% if stats.reopened_count > 0 %}var(--mms-danger){% else %}var(--mms-muted){% endif %}">
+        {{ stats.reopened_count }}
+      </div>
+      <div class="text-muted" style="font-size:.8rem">{% trans "total rejected returns" %}</div>
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "External repairs" %}</div>
+    <div class="mms-card-body" style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:700">{{ stats.external_repair_count }}</div>
+      <div class="text-muted" style="font-size:.8rem">{% trans "WOs sent to vendor" %}</div>
+    </div>
+  </div>
+</div>
+
+<div class="mms-grid mms-grid--2" style="margin-top:1rem">
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Avg. repair duration" %}</div>
+    <div class="mms-card-body" style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:700">
+        {% if stats.avg_repair_minutes is not None %}{{ stats.avg_repair_minutes }}<span style="font-size:1rem;color:var(--mms-muted)">{% trans "min" %}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+      </div>
+      <div class="text-muted" style="font-size:.8rem">{% trans "mean labor time on closed WOs" %}</div>
+    </div>
+  </div>
+  <div class="mms-card">
+    <div class="mms-card-header">{% trans "Avg. response time" %}</div>
+    <div class="mms-card-body" style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:700">
+        {% if stats.avg_response_minutes is not None %}{{ stats.avg_response_minutes }}<span style="font-size:1rem;color:var(--mms-muted)">{% trans "min" %}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+      </div>
+      <div class="text-muted" style="font-size:.8rem">{% trans "assignment → first start" %}</div>
+    </div>
+  </div>
+</div>
+
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">{% trans "Recent closed work orders" %}</div>
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>{% trans "Work Order" %}</th>
+        <th>{% trans "Machine" %}</th>
+        <th>{% trans "Closed" %}</th>
+        <th>{% trans "Labor" %}</th>
+        <th>{% trans "Rejections" %}</th>
+      </tr></thead>
+      <tbody>
+      {% for wo in stats.recent %}
+        <tr>
+          <td>
+            <a href="{% url 'work_order_detail' wo.pk %}">WO-{{ wo.number }}</a>
+            {% if wo.is_emergency %}<span class="mms-badge mms-badge--danger">{% trans "EMRG" %}</span>{% endif %}
+          </td>
+          <td>{{ wo.machine.name }}</td>
+          <td><span class="text-muted" style="font-size:.8rem">{{ wo.updated_at|mms_datetime }}</span></td>
+          <td>
+            {% if wo.labor_started_at and wo.labor_stopped_at %}
+              <span class="text-muted" style="font-size:.8rem">{{ wo.labor_started_at|mms_time }} → {{ wo.labor_stopped_at|mms_time }}</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>
+            {% if wo.rejection_count > 0 %}
+              <span class="badge badge-rejected">↩ {{ wo.rejection_count }}</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="mms-empty">{% trans "No closed work orders yet." %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

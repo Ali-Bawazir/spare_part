@@ -1,17 +1,148 @@
 {% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% i18n_json "upload_failed_prefix" "Upload failed: " "unknown_error" "Unknown error" %}
 {% block title %}Repair officer{% endblock %}
 {% block page_heading %}Repair: {{ rwo.title }}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Update vendor status, costs, and return workflow.</p>
+<p class="mms-page-lead">{% trans "Update vendor status, costs, and return workflow." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
-      {{ form.as_p }}
+      {% for field in form %}
+        <div class="mms-form-group">
+          <label class="mms-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="mms-form-help">{{ field.help_text }}</span>{% endif %}
+          {% if field.errors %}<div class="mms-form-error">{{ field.errors }}</div>{% endif %}
+          {% if field.name == "supplier" %}
+            <div class="mms-form-help">
+              <a href="{% url 'supplier_create' %}?next={{ request.path }}" target="_blank" rel="noopener">{% trans "+ New repair vendor" %}</a>
+              <span class="text-muted small">{% trans "(opens in new tab; tick 'Repair vendor' in the supplier form)" %}</span>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
       <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Save</button>
+        <button class="mms-btn mms-btn--primary" type="submit">{% trans "Save" %}</button>
+        <a href="{% url 'repair_order_pdf' rwo.pk %}" class="mms-btn mms-btn--ghost" target="_blank">{% trans "Download PDF" %}</a>
+        {% if rwo.status == "draft" or rwo.status == "sent" %}
+          <a href="{% url 'repair_mark_diagnosed' rwo.pk %}" class="mms-btn mms-btn--ghost">{% trans "Mark diagnosed" %}</a>
+        {% endif %}
+        {% if rwo.status == "sent" %}
+          <a href="{% url 'repair_mark_returned' rwo.pk %}" class="mms-btn mms-btn--ghost">{% trans "Mark returned" %}</a>
+        {% endif %}
       </div>
     </form>
   </div>
 </div>
+
+<div class="mms-card" style="margin-top:1rem">
+  <div class="mms-card-header">{% trans "Repair Timeline" %}</div>
+  <div class="mms-card-body">
+    {% if timeline %}
+    <ol class="mms-timeline">
+      {% for event in timeline %}
+      <li>
+        <span class="mms-timeline-date">{{ event.occurred_at|mms_datetime }}</span>
+        <span class="mms-timeline-label">{{ event.label }}</span>
+        {% if event.note %}<span class="mms-timeline-note text-muted">— {{ event.note }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="text-muted">{% trans "No timeline events yet." %}</p>
+    {% endif %}
+  </div>
+</div>
+
+<section class="mms-section mms-attachments">
+  <h3>{% trans "Repair Photos" %}</h3>
+  <div id="attachment-list"
+       data-entity="repair_order"
+       data-id="{{ rwo.pk }}"
+       data-perm-upload="true">
+    <div class="mms-loading">{% trans "Loading..." %}</div>
+  </div>
+  <form class="mms-attachment-upload" method="post"
+        enctype="multipart/form-data" action="{% url 'attachment_upload' %}">
+    {% csrf_token %}
+    <input type="hidden" name="entity_type" value="repair_order">
+    <input type="hidden" name="entity_id" value="{{ rwo.pk }}">
+    <input type="hidden" name="category" value="DOCUMENT">
+    <div class="mms-form-row">
+      <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" required>
+      <input type="text" name="note" placeholder={% trans "Optional note (e.g. 'before repair' or 'after repair')" %} maxlength="500">
+      <button type="submit" class="btn btn-sm btn-primary">{% trans "Upload" %}</button>
+    </div>
+  </form>
+</section>
+
+<style>
+.mms-attachments { margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+.mms-attachment-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+.mms-attachment-item:last-child { border-bottom: none; }
+.mms-attachment-info { display: flex; align-items: center; gap: 0.5rem; }
+.mms-form-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+.mms-form-row input[type="file"] { flex: 1; min-width: 200px; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const listEl = document.getElementById('attachment-list');
+  if (!listEl) return;
+  const entity = listEl.dataset.entity;
+  const id = listEl.dataset.id;
+  fetch(`/attachments/${entity}/${id}/`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.attachments.length) {
+        listEl.innerHTML = '<p class="mms-empty">{% trans "No attachments yet." %}</p>';
+        return;
+      }
+      listEl.innerHTML = data.attachments.map(a => {
+        const isAudio = a.mime_type && a.mime_type.startsWith('audio/');
+        const player = isAudio
+          ? `<audio controls style="width:100%;max-width:400px;margin-top:4px"><source src="${a.url}" type="${a.mime_type}"></audio>`
+          : '';
+        return `
+        <div class="mms-attachment-item" style="flex-direction:column;align-items:flex-start;gap:4px">
+          <div class="mms-attachment-info" style="width:100%">
+            <a href="${a.url}" target="_blank">${a.filename}</a>
+            <span class="mms-meta">${(a.size/1024).toFixed(1)} KB</span>
+            <span class="mms-meta">${a.uploaded_by} · ${new Date(a.uploaded_at).toLocaleDateString()}</span>
+          </div>
+          ${player}
+          ${listEl.dataset.permUpload === 'true' ? `<button class="btn btn-sm btn-danger" onclick="deleteAtt(${a.id})">×</button>` : ''}
+        </div>
+        `;
+      }).join('');
+    });
+  const form = document.querySelector('.mms-attachment-upload');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fd = new FormData(form);
+      fetch(form.action, { method: 'POST', body: fd, headers: {'X-CSRFToken': fd.get('csrfmiddlewaretoken')} })
+        .then(r => r.json())
+        .then(data => {
+          if (data.id) {
+            listEl.querySelector('.mms-empty')?.remove();
+            location.reload();
+          }
+        });
+    });
+  }
+});
+
+function deleteAtt(id) {
+  if (!confirm('{% trans 'Delete this attachment?' %}')) return;
+  fetch(`/attachments/${id}/delete/`, { method: 'POST', headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''} })
+    .then(r => r.json())
+    .then(() => location.reload());
+}
+</script>
+
+{% include "maintenance/_asset_tree.html" %}
 {% endblock %}

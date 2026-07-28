@@ -1,19 +1,43 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}Accept repair{% endblock %}
-{% block page_heading %}Manager acceptance (UC-20){% endblock %}
+{% block page_heading %}{% trans "Manager acceptance (UC-20)" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Confirm the asset returned from vendor meets expectations, then close the repair record.</p>
+<p class="mms-page-lead">{% trans "Verify the asset returned from vendor, record the vendor invoice, and close the repair record." %}</p>
 <div class="mms-card">
   <div class="mms-card-header">{{ rwo.title }}</div>
   <div class="mms-card-body mms-stack">
-    <p><strong>Status:</strong> {{ rwo.get_status_display }}</p>
-    {% if rwo.vendor_name %}<p><strong>Vendor:</strong> {{ rwo.vendor_name }}</p>{% endif %}
-    {% if rwo.work_order %}<p><strong>Linked WO:</strong> <a href="{% url 'work_order_detail' rwo.work_order.pk %}">WO-{{ rwo.work_order.number }}</a></p>{% endif %}
+    <p><strong>{% trans "Status:" %}</strong> {{ rwo.get_status_display }}</p>
+    {% if rwo.vendor_name %}<p><strong>{% trans "Vendor:" %}</strong> {{ rwo.vendor_name }}</p>{% endif %}
+    {% if rwo.work_order %}<p><strong>{% trans "Linked WO:" %}</strong> <a href="{% url 'work_order_detail' rwo.work_order.pk %}">WO-{{ rwo.work_order.number }}</a></p>{% endif %}
+    {% if rwo.estimated_cost %}<p><strong>{% trans "Estimated cost:" %}</strong> {{ rwo.estimated_cost }}</p>{% endif %}
     <p style="white-space:pre-wrap">{{ rwo.description }}</p>
-    <form method="post">
+    <form method="post" class="mms-stack">
       {% csrf_token %}
-      <button type="submit" class="mms-btn mms-btn--primary">Verify and close</button>
-      <a class="mms-btn mms-btn--ghost" href="{% url 'repair_list' %}">Cancel</a>
+      <div class="mms-alert mms-alert--info">
+        <strong>{% trans "UC-20:" %}</strong> every accepted repair must record the vendor invoice number and the actual cost.
+        These flow into the work order's cost rollup and the machine cost report.
+      </div>
+      <div class="mms-form-row">
+        {{ form.actual_cost.label_tag }}
+        {{ form.actual_cost }}
+        <small class="mms-form-hint">{{ form.actual_cost.help_text }}</small>
+        {% if form.actual_cost.errors %}<small class="mms-form-error">{{ form.actual_cost.errors|join:"; " }}</small>{% endif %}
+      </div>
+      <div class="mms-form-row">
+        {{ form.invoice_ref.label_tag }}
+        {{ form.invoice_ref }}
+        <small class="mms-form-hint">{{ form.invoice_ref.help_text }}</small>
+        {% if form.invoice_ref.errors %}<small class="mms-form-error">{{ form.invoice_ref.errors|join:"; " }}</small>{% endif %}
+      </div>
+      <div class="mms-form-row">
+        {{ form.note.label_tag }}
+        {{ form.note }}
+      </div>
+      <div class="mms-form-row">
+        <button type="submit" class="mms-btn mms-btn--primary">{% trans "Verify and close" %}</button>
+        <a class="mms-btn mms-btn--ghost" href="{% url 'repair_list' %}">{% trans "Cancel" %}</a>
+      </div>
     </form>
   </div>
 </div>

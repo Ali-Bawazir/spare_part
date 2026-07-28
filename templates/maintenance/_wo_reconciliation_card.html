@@ -1,0 +1,148 @@
+{% load i18n %}
+{% load mms_extras %}
+{% comment %}
+  Phase 12: WO reconciliation card.
+  Surfaces:
+    - Stale active reservations (should be 0 after WO close sweep).
+    - Outstanding shortages (closed with shortage_qty > 0 and no PR).
+    - Cost reconciliation (material + vendor + estimated pending backorder).
+
+  Each section is shown only when it has content (no noise on clean WOs).
+{% endcomment %}
+<section class="mms-section mms-reconciliation-card">
+  <h3>{% trans "Reconciliation" %}</h3>
+
+  {# 1. Stale active reservations #}
+  {% if active_reservations %}
+  <div class="mms-reconciliation-row mms-reconciliation-row--warn">
+    <div class="mms-reconciliation-row__icon">🗃️</div>
+    <div class="mms-reconciliation-row__body">
+      <div class="mms-reconciliation-row__title">
+        {% blocktrans count n=active_reservations|length %}{{ n }} active reservation still holding stock{% plural %}{{ n }} active reservations still holding stock{% endblocktrans %}
+      </div>
+      <table class="mms-table" style="margin-top:.5rem">
+        <thead>
+          <tr>
+            <th>{% trans "Part" %}</th>
+            <th>{% trans "SKU" %}</th>
+            <th style="text-align:right">{% trans "Qty" %}</th>
+            <th>{% trans "Source line" %}</th>
+            <th>{% trans "Created" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in active_reservations %}
+          <tr>
+            <td>{{ r.part.name }}</td>
+            <td><code>{{ r.part.sku }}</code></td>
+            <td style="text-align:right">{{ r.quantity|floatformat:3 }}</td>
+            <td>
+              {% if r.source_line_id %}
+                L-{{ r.source_line_id }}
+              {% else %}
+                <span class="text-muted">{% trans "(legacy)" %}</span>
+              {% endif %}
+            </td>
+            <td>{{ r.created_at|mms_datetime }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# 2. Outstanding shortages needing procurement action #}
+  {% if outstanding_shortages %}
+  <div class="mms-reconciliation-row mms-reconciliation-row--action">
+    <div class="mms-reconciliation-row__icon">📦</div>
+    <div class="mms-reconciliation-row__body">
+      <div class="mms-reconciliation-row__title">
+        {% blocktrans count n=outstanding_shortages|length %}Supply Required — {{ n }} outstanding shortage{% plural %}Supply Required — {{ n }} outstanding shortages{% endblocktrans %}
+      </div>
+      <p class="mms-form-tip" style="margin:.25rem 0 .5rem 0">
+        {% trans "Closed shortage with shortfall that has no Purchase Request yet. Buy, transfer, or pick an alternative — the manager decides." %}
+      </p>
+      <table class="mms-table">
+        <thead>
+          <tr>
+            <th>{% trans "Part" %}</th>
+            <th>{% trans "SKU" %}</th>
+            <th style="text-align:right">{% trans "Shortage qty" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in outstanding_shortages %}
+          <tr>
+            <td>{{ s.part.name }}</td>
+            <td><code>{{ s.part.sku }}</code></td>
+            <td style="text-align:right"><strong>{{ s.shortage_qty|qty_no_zeros }}</strong></td>
+            <td><span class="mms-badge mms-badge--muted">{{ s.get_status_display }}</span></td>
+            <td>
+              {% if can_create_pr_from_shortage %}
+                <form method="post" action="{% url 'shortage_create_pr' s.pk %}" style="display:inline">
+                  {% csrf_token %}
+                  <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm"
+                          onclick="return confirm('{% trans 'Create a Purchase Request for this shortage?' %}')">
+                    {% trans "Create Purchase Request" %}
+                  </button>
+                </form>
+              {% else %}
+                <span class="text-muted">{% trans "Manager / procurement can create the backorder PR" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# 3. Cost reconciliation summary #}
+  {% if cost %}
+  <div class="mms-reconciliation-row">
+    <div class="mms-reconciliation-row__icon">💰</div>
+    <div class="mms-reconciliation-row__body">
+      <div class="mms-reconciliation-row__title">{% trans "Cost reconciliation" %}</div>
+      <table class="mms-table" style="margin-top:.5rem">
+        <tbody>
+          <tr>
+            <td>{% trans "Material (issued)" %}</td>
+            <td style="text-align:right">{{ cost.material_cost|floatformat:2 }} SAR</td>
+          </tr>
+          <tr>
+            <td>{% trans "Vendor repair" %}</td>
+            <td style="text-align:right">{{ cost.vendor_repair_cost|floatformat:2 }} SAR</td>
+          </tr>
+          <tr>
+            <td>{% trans "Consumables" %}</td>
+            <td style="text-align:right">{{ cost.consumables_cost|floatformat:2 }} SAR</td>
+          </tr>
+          <tr>
+            <td>{% trans "Adjustments" %}</td>
+            <td style="text-align:right">{{ cost.additional_cost|floatformat:2 }} SAR</td>
+          </tr>
+          <tr style="background:#f3f4f6;font-weight:600">
+            <td>{% trans "Total committed" %}</td>
+            <td style="text-align:right">{{ cost.committed_material_cost|floatformat:2 }} SAR</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Reconciliation clean — only show if all 3 sections are empty AND cost exists #}
+  {% if not active_reservations and not outstanding_shortages %}
+  <div class="mms-reconciliation-row mms-reconciliation-row--clean">
+    <div class="mms-reconciliation-row__icon">✓</div>
+    <div class="mms-reconciliation-row__body">
+      <div class="mms-reconciliation-row__title">{% trans "Reconciliation clean" %}</div>
+      <div class="mms-form-tip">{% trans "No stale reservations, no outstanding shortages." %}</div>
+    </div>
+  </div>
+  {% endif %}
+</section>

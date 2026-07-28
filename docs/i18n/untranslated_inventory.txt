@@ -1,0 +1,93 @@
+# Untranslated msgids: INVENTORY (91 entries)
+
+Loading attachments… | templates/maintenance/_attachment_uploader.html
+Set as primary | templates/maintenance/_attachment_uploader.html
+Product shot | templates/maintenance/_attachment_uploader.html
+Manufacturer label | templates/maintenance/_attachment_uploader.html
+Installed in machine | templates/maintenance/_attachment_uploader.html
+Document / datasheet | templates/maintenance/_attachment_uploader.html
+Note (optional) | templates/maintenance/_attachment_uploader.html
+Open full size in new tab | templates/maintenance/_attachment_uploader.html
+Open video in new tab | templates/maintenance/_attachment_uploader.html
+${escapeHtml(ext)} | templates/maintenance/_attachment_uploader.html
+★ primary | templates/maintenance/_attachment_uploader.html
+${filename} | templates/maintenance/_attachment_uploader.html
+${note} | templates/maintenance/_attachment_uploader.html
+No attachments yet. | templates/maintenance/_attachment_uploader.html
+Failed to load attachments. | templates/maintenance/_attachment_uploader.html
+Please select a file first. | templates/maintenance/_attachment_uploader.html
+Delete this attachment? | templates/maintenance/_attachment_uploader.html
+Daily consumables | templates/maintenance/consumables.html
+Your consumption | templates/maintenance/consumables.html
+Items logged since midnight | templates/maintenance/consumables.html
+Items logged in the last 7 days | templates/maintenance/consumables.html
+Items logged in the last 30 days | templates/maintenance/consumables.html
+Self-consumption | templates/maintenance/consumables.html
+Log usage | templates/maintenance/consumables.html
+Issue to operator | templates/maintenance/consumables.html
+Issue | templates/maintenance/consumables.html
+My recent consumptions | templates/maintenance/consumables.html
+Time | templates/maintenance/consumables.html
+Items I issued | templates/maintenance/consumables.html
+Stock Analysis | templates/maintenance/reports_low_stock.html
+%(low)s of %(all)s active parts are at or below minimum stock level. | templates/maintenance/reports_low_stock.html
+All active parts | templates/maintenance/reports_low_stock.html
+Qty on hand | templates/maintenance/reports_low_stock.html
+Min stock | templates/maintenance/reports_low_stock.html
+No active parts. | templates/maintenance/reports_low_stock.html
+← Previous | templates/maintenance/reports_low_stock.html
+Page %(n)s of %(t)s (%(c)s total) | templates/maintenance/reports_low_stock.html
+Next → | templates/maintenance/reports_low_stock.html
+← Back to Reports | templates/maintenance/reports_low_stock.html
+⚠ This part has no primary image. | templates/maintenance/spare_part_detail.html
+SKU: | templates/maintenance/spare_part_detail.html
+📋 Print QR | templates/maintenance/spare_part_detail.html
+Reserved | templates/maintenance/spare_part_detail.html
+Rack | templates/maintenance/spare_part_detail.html
+Last counted | templates/maintenance/spare_part_detail.html
+No inventory record at this site. | templates/maintenance/spare_part_detail.html
++ Stock-in | templates/maintenance/spare_part_detail.html
+Adjust qty | templates/maintenance/spare_part_detail.html
+No movements recorded. | templates/maintenance/spare_part_detail.html
+Recent work orders using this part | templates/maintenance/spare_part_detail.html
+Pending purchase requests | templates/maintenance/spare_part_detail.html
+Documents & Attachments | templates/maintenance/spare_part_detail.html
+Mark as primary image | templates/maintenance/spare_part_detail.html
+${att.filename.split('.').pop().toUpperCase()} | templates/maintenance/spare_part_detail.html
+★ Primary | templates/maintenance/spare_part_detail.html
+Set as Primary | templates/maintenance/spare_part_detail.html
+No attachments yet. Upload an image to set as the primary part photo. | templates/maintenance/spare_part_detail.html
+← Back to stock | templates/maintenance/spare_part_detail.html
+SKU * | templates/maintenance/spare_part_form.html
+Unique part identifier (e.g. BRG-6006). Uppercase letters, numbers, dashes only. | templates/maintenance/spare_part_form.html
+e.g. Bearings, Filters, Electrical, Hydraulic | templates/maintenance/spare_part_form.html
+Unit | templates/maintenance/spare_part_form.html
+e.g. pcs, kg, liter, meter | templates/maintenance/spare_part_form.html
+Preferred supplier | templates/maintenance/spare_part_form.html
+Consumable (depletes on use) | templates/maintenance/spare_part_form.html
+Repairable (can be refurbished) | templates/maintenance/spare_part_form.html
+Min stock level | templates/maintenance/spare_part_form.html
+Max stock level | templates/maintenance/spare_part_form.html
+Avg cost (€) | templates/maintenance/spare_part_form.html
+Last purchase cost (€) | templates/maintenance/spare_part_form.html
+Most recent procurement unit price. | templates/maintenance/spare_part_form.html
+Datasheet / Certificate | templates/maintenance/spare_part_form.html
+Optional: PDF or image (datasheet, certificate, etc.) | templates/maintenance/spare_part_form.html
+Opening inventory (optional) | templates/maintenance/spare_part_form.html
+Initial stock at default site. | templates/maintenance/spare_part_form.html
+Storage location (e.g. A-01-03). | templates/maintenance/spare_part_form.html
+Search SKU or name… | templates/maintenance/stock_dashboard.html
+All categories | templates/maintenance/stock_dashboard.html
+Low stock only | templates/maintenance/stock_dashboard.html
+Consumables only | templates/maintenance/stock_dashboard.html
++ New part | templates/maintenance/stock_dashboard.html
+Qty available | templates/maintenance/stock_dashboard.html
+Consumable | templates/maintenance/stock_dashboard.html
+Out | templates/maintenance/stock_dashboard.html
+Print QR | templates/maintenance/stock_dashboard.html
+No parts found. | templates/maintenance/stock_dashboard.html
+Stock-in spare parts | templates/maintenance/stock_in.html
+Receive parts into inventory (goods receipt). | templates/maintenance/stock_in.html
+Invoice attachment | templates/maintenance/stock_in.html
+Optional: PDF or image of the invoice | templates/maintenance/stock_in.html
+Out of stock | templates/maintenance/stock_lookup.html

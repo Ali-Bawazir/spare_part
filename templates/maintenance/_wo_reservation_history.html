@@ -1,0 +1,96 @@
+{% load i18n %}
+{# Phase 7.8: per-WO inventory reservation panel.
+
+   Shows the ACTIVE soft-claim reservations for this WO (one row per
+   InventoryReservation, FIFO), plus recent RELEASED/CANCELLED rows for
+   lifecycle visibility. Mirrors the pattern of _wo_blocker_history.html. #}
+{% load mms_extras %}
+<section class="mms-section mms-reservation-history">
+  <h3>
+    🗃️ Inventory Reservations
+    {% if active_reservations %}
+      <span class="mms-badge mms-badge-amber">{{ active_reservations|length }} active</span>
+    {% endif %}
+  </h3>
+  <p class="text-muted" style="margin: 0 0 0.75rem 0; font-size: 0.9em;">
+    Soft-claim reservations. Stock is held for this WO but not yet deducted.
+    Released automatically on warehouse issue; cancelled on line rejection.
+  </p>
+
+  {# ACTIVE reservations table #}
+  {% if active_reservations %}
+  <h4 style="margin: 0.5rem 0; font-size: 0.95em;">{% trans "Active claims" %}</h4>
+  <table class="mms-table">
+    <thead>
+      <tr>
+        <th>{% trans "Part" %}</th>
+        <th>{% trans "SKU" %}</th>
+        <th>{% trans "Qty" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Source line" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in active_reservations %}
+      <tr>
+        <td>{{ r.part.name }}</td>
+        <td><code>{{ r.part.sku }}</code></td>
+        <td><strong>{{ r.quantity|floatformat:3 }}</strong></td>
+        <td>{{ r.created_at|mms_datetime }}</td>
+        <td>
+          {% if r.source_line_id %}
+            L-{{ r.source_line_id }}
+            {% if r.source_line.issued_qty and r.source_line.issued_qty > 0 %}
+              <span class="text-muted">(issued {{ r.source_line.issued_qty|floatformat:3 }})</span>
+            {% endif %}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <div class="mms-empty">{% trans "No active reservations on this WO." %}</div>
+  {% endif %}
+
+  {# Historical reservations (collapsed by default to keep the page tidy) #}
+  {% if historical_reservations %}
+  <details style="margin-top: 1rem;">
+    <summary style="cursor: pointer; font-size: 0.95em; color: #666;">
+      📜 Recent history ({{ historical_reservations|length }} rows)
+    </summary>
+    <table class="mms-table" style="margin-top: 0.5rem;">
+      <thead>
+        <tr>
+          <th>{% trans "Part" %}</th>
+          <th>{% trans "SKU" %}</th>
+          <th>{% trans "Qty" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "Released at" %}</th>
+          <th>{% trans "Reason" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in historical_reservations %}
+        <tr>
+          <td>{{ r.part.name }}</td>
+          <td><code>{{ r.part.sku }}</code></td>
+          <td>{{ r.quantity|floatformat:3 }}</td>
+          <td>
+            {% if r.status == "released" %}
+              <span class="mms-badge mms-badge-green">{% trans "released" %}</span>
+            {% else %}
+              <span class="mms-badge mms-badge-red">{% trans "cancelled" %}</span>
+            {% endif %}
+          </td>
+          <td>{{ r.released_at|mms_datetime|default:"-" }}</td>
+          <td><small>{{ r.release_reason|truncatechars:60 }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+</section>

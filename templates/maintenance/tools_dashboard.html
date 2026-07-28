@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mms_extras %}
+{% block title %}{% trans "Tools Dashboard" %}{% endblock %}
+{% block content %}
+<div class="mms-page">
+  <div class="mms-page-header">
+    <div>
+      <h1 class="mms-page-title">{% trans "Tools Dashboard" %}</h1>
+      <div class="mms-page-sub">{% trans "Reusable tool pool — assignment, damage, and value at a glance." %}</div>
+    </div>
+    <div class="mms-page-actions">
+      <a href="{% url 'tools_list' %}" class="mms-btn mms-btn--ghost">
+        {% trans "View all tools" %}
+      </a>
+      <a href="{% url 'tools_list' %}" class="mms-btn mms-btn--ghost">
+        🔍 {% trans "Search" %}
+      </a>
+    </div>
+  </div>
+
+  {# ─── KPI Ribbon ─── #}
+  <div class="mms-tools-ribbon">
+    <div class="mms-tool-kpi mms-tool-kpi--available">
+      <div class="mms-tool-kpi-label">{% trans "Available" %}</div>
+      <div class="mms-tool-kpi-value">{{ counts.available }}</div>
+      <div class="mms-tool-kpi-foot">{% trans "ready to issue" %}</div>
+    </div>
+    <div class="mms-tool-kpi mms-tool-kpi--in_use">
+      <div class="mms-tool-kpi-label">{% trans "In Use" %}</div>
+      <div class="mms-tool-kpi-value">{{ counts.in_use }}</div>
+      <div class="mms-tool-kpi-foot">{% trans "currently assigned" %}</div>
+    </div>
+    <div class="mms-tool-kpi mms-tool-kpi--oos">
+      <div class="mms-tool-kpi-label">{% trans "Out of Service" %}</div>
+      <div class="mms-tool-kpi-value">{{ counts.out_of_service }}</div>
+      <div class="mms-tool-kpi-foot">{% trans "damaged or written off" %}</div>
+    </div>
+    <div class="mms-tool-kpi mms-tool-kpi--value">
+      <div class="mms-tool-kpi-label">{% trans "Total Tool Value" %}</div>
+      <div class="mms-tool-kpi-value">{{ total_value|floatformat:2 }}</div>
+      <div class="mms-tool-kpi-foot">{% trans "sum of acquisition cost" %}</div>
+    </div>
+  </div>
+
+  {# ─── Split: Holders on the left, Pool summary + Open damage on the right ─── #}
+  <div class="mms-tools-grid">
+    <div class="mms-card mms-tools-list-card">
+      <div class="mms-card-header">
+        <h3 class="mms-card-title">{% trans "Currently held by" %}</h3>
+        <span class="mms-tools-list-count">{{ open_assignments|length }} {% trans "open assignment(s)" %}</span>
+      </div>
+      <div class="mms-card-body">
+        {% if open_assignments %}
+          <div class="mms-tools-list">
+            {% for a in open_assignments %}
+              <a class="mms-tool-row" href="{% url 'tools_instance_detail' a.instance.pk %}">
+                <div class="mms-tool-row-name">
+                  {{ a.instance.display_name }}
+                  <span class="mms-tool-num">#{{ a.instance.tool_number }}</span>
+                </div>
+                <div class="mms-tool-row-meta">
+                  <strong>{{ a.operator.username }}</strong>
+                </div>
+                <div class="mms-tool-row-meta">{{ a.machine.name }}</div>
+                <div class="mms-tool-row-time">
+                  <strong>{{ a.checkout_at|mms_time }}</strong>
+                  {{ a.checkout_at|mms_datetime }}
+                </div>
+                <span class="mms-tool-status mms-tool-status--in_use">{% trans "In Use" %}</span>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="mms-tools-section-empty">
+            <div class="mms-tools-section-empty-icon">🟢</div>
+            <div>{% trans "No tools are currently checked out." %}</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div>
+      <div class="mms-card" style="margin-bottom:1rem">
+        <div class="mms-card-header">
+          <h3 class="mms-card-title">{% trans "Tools in pool" %}</h3>
+          <span class="mms-tools-list-count">{{ pool_parts|length }} {% trans "part(s)" %}</span>
+        </div>
+        <div class="mms-card-body" style="padding:0">
+          {% if pool_parts %}
+            <table class="mms-table" style="min-width:0">
+              <thead>
+                <tr>
+                  <th>{% trans "Part" %}</th>
+                  <th style="text-align:right">{% trans "Avail" %}</th>
+                  <th style="text-align:right">{% trans "In Use" %}</th>
+                  <th style="text-align:right">{% trans "OOS" %}</th>
+                  <th style="text-align:right">{% trans "Total" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in pool_parts %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'spare_part_detail' p.pk %}" style="font-weight:600">{{ p.name }}</a>
+                      <div style="font-size:.72rem;color:var(--mms-muted,#64748b)">{{ p.sku }}</div>
+                    </td>
+                    <td style="text-align:right;font-variant-numeric:tabular-nums">
+                      <span class="mms-tool-status mms-tool-status--available">{{ p.n_available }}</span>
+                    </td>
+                    <td style="text-align:right;font-variant-numeric:tabular-nums">
+                      <span class="mms-tool-status mms-tool-status--in_use">{{ p.n_in_use }}</span>
+                    </td>
+                    <td style="text-align:right;font-variant-numeric:tabular-nums">
+                      <span class="mms-tool-status mms-tool-status--out_of_service">{{ p.n_oos }}</span>
+                    </td>
+                    <td style="text-align:right;font-weight:600">{{ p.n_total }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="mms-tools-section-empty">
+              <div class="mms-tools-section-empty-icon">📦</div>
+              <div>{% trans "No reusable tools in the pool yet." %}</div>
+              <div style="margin-top:.5rem">
+                <a href="{% url 'stock_dashboard' %}?reusable_tool=1" class="mms-btn mms-btn--primary mms-btn--sm">
+                  {% trans "Issue from inventory" %}
+                </a>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="mms-card">
+        <div class="mms-card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3 class="mms-card-title">{% trans "Open damage reports" %}</h3>
+          <span class="mms-badge mms-badge--danger">{{ open_damage|length }}</span>
+        </div>
+        <div class="mms-card-body" style="padding:0">
+          {% if open_damage %}
+            <table class="mms-table" style="min-width:0">
+              <thead>
+                <tr>
+                  <th>{% trans "Tool" %}</th>
+                  <th>{% trans "Reason" %}</th>
+                  <th style="text-align:right">{% trans "When" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in open_damage %}
+                  <tr>
+                    <td><a href="{% url 'tools_instance_detail' r.instance.pk %}">{{ r.instance.display_name }}</a></td>
+                    <td style="color:var(--mms-muted,#64748b);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.reason }}</td>
+                    <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--mms-muted,#64748b)">{{ r.damage_date|mms_datetime }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="mms-tools-section-empty">
+              <div class="mms-tools-section-empty-icon">✅</div>
+              <div>{% trans "No open damage reports. Tools are healthy." %}</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ─── Recent damage (resolved) ─── #}
+  <div class="mms-card" style="margin-top:1rem">
+    <div class="mms-card-header">
+      <h3 class="mms-card-title">{% trans "Recent damage activity" %}</h3>
+      <span class="mms-tools-list-count">{% trans "last 10 resolved reports" %}</span>
+    </div>
+    <div class="mms-card-body" style="padding:0">
+      {% if recent_damage %}
+        <table class="mms-table" style="min-width:0">
+          <thead>
+            <tr>
+              <th>{% trans "Tool" %}</th>
+              <th>{% trans "Reason" %}</th>
+              <th>{% trans "Status" %}</th>
+              <th style="text-align:right">{% trans "When" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent_damage %}
+              <tr>
+                <td><a href="{% url 'tools_instance_detail' r.instance.pk %}">{{ r.instance.display_name }}</a></td>
+                <td style="color:var(--mms-muted,#64748b);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.reason }}</td>
+                <td>
+                  {% if r.status == 'repaired' %}
+                    <span class="mms-badge mms-badge--success">{% trans "Repaired" %}</span>
+                  {% elif r.status == 'written_off' %}
+                    <span class="mms-badge mms-badge--danger">{% trans "Written Off" %}</span>
+                  {% else %}
+                    <span class="mms-badge mms-badge--muted">{{ r.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--mms-muted,#64748b)">{{ r.damage_date|mms_datetime }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="mms-tools-section-empty">
+          <div class="mms-tools-section-empty-icon">📋</div>
+          <div>{% trans "No damage reports yet." %}</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

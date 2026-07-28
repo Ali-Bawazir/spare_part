@@ -1,0 +1,198 @@
+{% load mms_extras %}
+{% load i18n %}
+{# Phase 3B: Technician actions block (extracted from workorder_detail.html). #}
+{# Self-gated to the assigned technician (or super-admin). Same gate as the original. #}
+{% if perm_super_full or perm_execute_work_order and wo.assigned_technician_id == user.id %}
+  <h3 class="mms-action-section" style="font-size:.85rem;font-weight:700;margin:0 0 .5rem 0;color:var(--mms-text)">{% trans "My actions (technician)" %}</h3>
+  {% if emergency_blocks_resume %}
+  <div class="mms-form-tip" style="background:#fff3cd;border-left:3px solid #f0ad4e;padding:.5rem .75rem">
+    <strong>{% trans "Emergency override:" %}</strong> You have another emergency work order currently IN_PROGRESS.
+    Finish it before starting or resuming this one.
+  </div>
+  {% endif %}
+  <div class="mms-actions">
+    {% if wo.lifecycle_status == 'assigned' or wo.operational_status == 'paused' or wo.operational_status == 'pending_parts' or wo.operational_status == 'waiting_vendor' or wo.lifecycle_status == 'in_progress' %}
+    <form method="post" action="{% url 'work_order_start' wo.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm" {% if emergency_blocks_resume %}disabled aria-disabled="true" title={% trans "Finish the active emergency WO first" %}{% endif %}>
+        {% if wo.lifecycle_status == 'in_progress' and wo.operational_status == 'active' %}
+        Resume labor
+        {% elif active_conflict %}
+        Start work / switch task
+        {% else %}
+        Start work
+        {% endif %}
+      </button>
+    </form>
+    {% endif %}
+    {% if wo.lifecycle_status == 'in_progress' %}
+    <form method="post" action="{% url 'work_order_pause' wo.pk %}" class="mms-card" style="box-shadow:none;border-style:dashed;margin-top:.5rem">
+      <div class="mms-card-body">
+        <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">{% trans "Pause work" %}</p>
+        {% csrf_token %}
+        <div class="mms-form-row">
+          <label for="id_pause_reason">{% trans "Reason" %}</label>
+          <select name="pause_reason" id="id_pause_reason" class="form-select" required>
+            <option value="">{% trans "— Select —" %}</option>
+            <option value="operational">{% trans "Operational interruption" %}</option>
+            <option value="other">{% trans "Other (note required)" %}</option>
+          </select>
+        </div>
+        <div class="mms-form-row">
+          <label for="id_pause_note">{% trans "Note" %}<span style="font-weight:400;color:var(--mms-muted)">{% trans "(required for Other)" %}</span></label>
+          <textarea name="pause_note" id="id_pause_note" rows="2" class="form-control" maxlength="500" placeholder={% trans "Optional context" %}></textarea>
+        </div>
+        <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Confirm pause" %}</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+  {% if wo.lifecycle_status == 'in_progress' or wo.category == 'preventive' and wo.lifecycle_status == 'assigned' %}
+  <div class="mms-divider"></div>
+  {% if wo.category == 'preventive' and pm_checklist_items %}
+  <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">PM Inspection Checklist ({{ pm_checklist_items|length }} item{{ pm_checklist_items|length|pluralize }})</p>
+  <p style="font-size:.75rem;color:var(--mms-muted);margin:.25rem 0 .5rem 0">
+    {% if wo.lifecycle_status == 'assigned' %}
+      Tick each step. Submitting will start labor and send for manager review in one click.
+    {% else %}
+      Tick each step. Add a note if something needs the manager's attention.
+    {% endif %}
+  </p>
+  <div class="mms-divider"></div>
+  {% endif %}
+  <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">{% trans "Execution flow" %}</p>
+  <div class="mms-divider"></div>
+  <form method="post" action="{% url 'work_order_submit' wo.pk %}" class="mms-stack">
+    {% csrf_token %}
+    {% if wo.category == 'preventive' and pm_checklist_items %}
+      {% for item in pm_checklist_items %}
+      <div class="mms-form-row" style="border-bottom:1px solid var(--mms-divider,#eee);padding-bottom:.5rem">
+        <label style="display:flex;gap:.5rem;align-items:flex-start;font-weight:500">
+          <input type="checkbox"
+                 name="checklist_{{ forloop.counter0 }}"
+                 id="checklist_inline_{{ forloop.counter0 }}"
+                 style="margin-top:4px">
+          <span>{{ item.text }}</span>
+        </label>
+        <input type="text"
+               name="note_{{ forloop.counter0 }}"
+               id="note_inline_{{ forloop.counter0 }}"
+               class="form-control form-control-sm"
+               placeholder={% trans "Add note (optional)" %}
+               style="max-width:400px;margin-top:.25rem">
+      </div>
+      {% endfor %}
+      <div class="mms-divider"></div>
+    {% endif %}
+    <p style="font-size:.8rem;font-weight:600;color:var(--mms-muted)">{% trans "Completion submission" %}</p>
+    {% for field in complete_form %}<div class="mms-form-row">{{ field.label_tag }}{{ field }}</div>{% endfor %}
+    <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">
+      {% if wo.category == 'preventive' and wo.lifecycle_status == 'assigned' %}
+        ✓ Start work & submit PM for review
+      {% else %}
+        Submit for review
+      {% endif %}
+    </button>
+    {% if wo.category == 'preventive' and pm_checklist_items %}
+    <a href="{% url 'pm_wo_detail' wo.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Open dedicated PM page →" %}</a>
+    {% endif %}
+  </form>
+  {% endif %}
+
+  {# ============ Sprint 1 (Step 6): component-first part-request form ============ #}
+  {% if perm_request_part_on_wo and wo.lifecycle_status != 'closed' %}
+  <div class="mms-divider"></div>
+  <h4 style="font-size:.8rem;margin:1rem 0 .5rem 0;color:var(--mms-muted)">{% trans "Request a part (manager will approve)" %}</h4>
+  <form method="post" action="{% url 'work_order_request_part' wo.pk %}" class="mms-stack" id="part-request-form">
+    {% csrf_token %}
+
+    <div class="mms-form-row">
+      <label for="part-select">{% trans "Part" %}</label>
+      <select id="part-select" name="part" class="form-select" required>
+        <option value="">{% trans "— Select a part —" %}</option>
+        {% for p in active_parts %}
+          {% if p.free_stock is not None %}
+            {# Phase 7.3: free_stock can be negative when reservations #}
+            {# exceed available stock. Show "0 (over-allocated)" to #}
+            {# signal the part is currently unavailable. #}
+            <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }}) — In stock: {% if p.free_stock < 0 %}0 (over-allocated){% else %}{{ p.free_stock }}{% endif %}</option>
+          {% else %}
+            <option value="{{ p.pk }}">{{ p.name }} ({{ p.sku }})</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <small style="color:var(--mms-muted)">{% trans "All active parts shown" %}</small>
+    </div>
+
+    <div id="part-availability-card" class="mms-card" style="display:none; margin:.5rem 0; padding:.75rem; background:#f8f9fa">
+      <div style="display:flex; align-items:center; gap:.75rem">
+        <img id="part-thumb" src="" alt="" style="width:56px; height:56px; object-fit:cover; border-radius:8px; display:none; background:#fff">
+        <div style="flex:1">
+          <div id="part-stock-state" style="font-weight:700; font-size:1.05rem"></div>
+          <div id="part-stock-detail" style="color:var(--mms-muted); font-size:.85em"></div>
+        </div>
+      </div>
+      <div id="part-history-line" style="margin-top:.5rem; font-size:.8em; color:var(--mms-muted)"></div>
+    </div>
+
+    <div class="mms-form-row">
+      <label for="quantity-input">{% trans "Quantity" %}</label>
+      <input type="number" name="quantity" id="quantity-input" min="0.001" step="0.001" required class="form-control">
+    </div>
+
+    <div class="mms-form-row">
+      <label for="note-input">{% trans "Note (optional, shown to manager)" %}</label>
+      <textarea name="note" id="note-input" rows="2" maxlength="500" class="form-control"></textarea>
+    </div>
+
+    {% if wo.is_emergency %}
+    <div class="mms-form-tip" style="background:#f8d7da;border-left:3px solid #dc3545;padding:.5rem .75rem">
+      <strong>{% trans "Emergency WO:" %}</strong> Your request will be auto-approved and stock will be deducted immediately. Manager will review the cost afterward.
+    </div>
+    {% endif %}
+
+    <button class="mms-btn mms-btn--primary" type="submit">{% trans "Submit part request" %}</button>
+  </form>
+
+  {# ============ Result message after submit (rendered server-side) ============ #}
+  {% if last_request_result %}
+    {% if last_request_result.suggested_action == "fully_issued" or last_request_result.suggested_action == "awaiting_manager_approval" %}
+      <div class="mms-alert mms-alert--success" style="margin-top:1rem; padding:.75rem; background:#d1e7dd; border-left:3px solid #198754; border-radius:4px">
+        <strong>✅ {{ last_request_result.line_quantity }} × {{ last_request_result.part_name }} requested. Awaiting manager approval.</strong>
+        <div style="font-size:.85em; margin-top:.25rem">{% trans "Stock is available; the manager will approve and deduct the stock." %}</div>
+      </div>
+    {% elif last_request_result.shortage %}
+      <div class="mms-alert mms-alert--warning" style="margin-top:1rem; padding:.75rem; background:#fff3cd; border-left:3px solid #f0ad4e; border-radius:4px">
+        <strong>⚠️ Requested {{ last_request_result.line_quantity }}, in stock {{ last_request_result.usable_qty_snapshot }} × {{ last_request_result.part_name }}.</strong>
+        <div style="font-size:.85em; margin-top:.25rem">
+          <strong>{% trans "The manager has NOT been notified yet." %}</strong> Click below to escalate the shortage.
+        </div>
+        <form method="post" action="{% url 'work_order_request_shortage' wo.pk %}" style="margin-top:.5rem; display:inline">
+          {% csrf_token %}
+          <input type="hidden" name="part_id" value="{{ last_request_result.part_id }}">
+          <button class="mms-btn mms-btn--primary mms-btn--sm" type="submit">
+            📦 Raise Shortage Request → Manager
+          </button>
+        </form>
+      </div>
+    {% endif %}
+  {% endif %}
+
+  {# ============ Awaiting Procurement (ETA display for tech) ============ #}
+  {% if approved_shortage_reports %}
+    <div class="mms-card" style="margin-top:1rem; border-left:3px solid #0d6efd">
+      <div class="mms-card-body">
+        <strong>{% trans "📦 Awaiting Procurement" %}</strong>
+        <ul style="margin: .25rem 0 0 1rem; padding: 0">
+          {% for r in approved_shortage_reports %}
+            <li>
+              {{ r.qty_requested }} × {{ r.part.name }} —
+              Expected: <strong>{{ r.expected_availability_date|default:"TBD"|mms_date }}</strong>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  {% endif %}
+  {% endif %}
+{% endif %}

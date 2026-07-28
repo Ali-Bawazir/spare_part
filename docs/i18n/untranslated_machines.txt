@@ -1,0 +1,76 @@
+# Untranslated msgids: MACHINES (74 entries)
+
+Work Orders | templates/maintenance/machine_detail.html
+SAR · last 90 days | templates/maintenance/machine_detail.html
+Failures · 90d | templates/maintenance/machine_detail.html
+Days since last activity | templates/maintenance/machine_detail.html
+Asset Code | templates/maintenance/machine_detail.html
+Location | templates/maintenance/machine_detail.html
+Specifications | templates/maintenance/machine_detail.html
+Serial | templates/maintenance/machine_detail.html
+Manufacturer | templates/maintenance/machine_detail.html
+Model | templates/maintenance/machine_detail.html
+Criticality | templates/maintenance/machine_detail.html
+← Back to machines | templates/maintenance/machine_detail.html
+⚡ Quick Actions | templates/maintenance/machine_detail.html
+🚨 Report Issue | templates/maintenance/machine_detail.html
+🔧 Create Work Order | templates/maintenance/machine_detail.html
+🛡️ Create PM | templates/maintenance/machine_detail.html
+🔩 Create ERO | templates/maintenance/machine_detail.html
+📦 Create PR | templates/maintenance/machine_detail.html
+📷 Asset Photos | templates/maintenance/machine_detail.html
+Asset Photos | templates/maintenance/machine_detail.html
+🔗 Related Records | templates/maintenance/machine_detail.html
+Opened | templates/maintenance/machine_detail.html
+Days open | templates/maintenance/machine_detail.html
+No work orders yet. | templates/maintenance/machine_detail.html
+Date | templates/maintenance/machine_detail.html
+No issues yet. | templates/maintenance/machine_detail.html
+Active PMs | templates/maintenance/machine_detail.html
+Due This Week | templates/maintenance/machine_detail.html
+Overdue | templates/maintenance/machine_detail.html
+Compliance (90d) | templates/maintenance/machine_detail.html
+Template | templates/maintenance/machine_detail.html
+Frequency | templates/maintenance/machine_detail.html
+Next due | templates/maintenance/machine_detail.html
+Last execution | templates/maintenance/machine_detail.html
+OVERDUE | templates/maintenance/machine_detail.html
+Create PM WO | templates/maintenance/machine_detail.html
+No PM schedules yet. | templates/maintenance/machine_detail.html
+Title | templates/maintenance/machine_detail.html
+No external repairs yet. | templates/maintenance/machine_detail.html
+Supplier | templates/maintenance/machine_detail.html
+No purchase requests yet. | templates/maintenance/machine_detail.html
+Keep machine names and QR codes aligned with the shop-floor labels so issue reporting stays fast and accurate. | templates/maintenance/machine_form.html
+Will be created under: | templates/maintenance/machine_form.html
+Basic Information | templates/maintenance/machine_form.html
+Name * | templates/maintenance/machine_form.html
+QR Code * | templates/maintenance/machine_form.html
+Unique code used for QR-based issue reporting | templates/maintenance/machine_form.html
+e.g. Hall A, Floor 2, Bay 3 | templates/maintenance/machine_form.html
+Inactive assets are hidden from issue reporting | templates/maintenance/machine_form.html
+Asset Hierarchy | templates/maintenance/machine_form.html
+Parent Machine | templates/maintenance/machine_form.html
+Leave blank if this is a top-level machine | templates/maintenance/machine_form.html
+Asset Level | templates/maintenance/machine_form.html
+Asset Type | templates/maintenance/machine_form.html
+Component Tracking | templates/maintenance/machine_form.html
+These fields apply to Component-level (level-5) assets — optional for other levels | templates/maintenance/machine_form.html
+Model Number | templates/maintenance/machine_form.html
+Install Date | templates/maintenance/machine_form.html
+Expected Life (days) | templates/maintenance/machine_form.html
+Save machine | templates/maintenance/machine_form.html
+Back | templates/maintenance/machine_form.html
+Quick issue link: | templates/maintenance/machine_form.html
+Maintain the machine master used by issue reporting, work orders, preventive tasks, and QR-based intake. | templates/maintenance/machine_list.html
+Open QR scanner | templates/maintenance/machine_list.html
+📋 List view | templates/maintenance/machine_list.html
+🌳 Tree view (active) | templates/maintenance/machine_list.html
+📋 List view (active) | templates/maintenance/machine_list.html
+🌳 Tree view | templates/maintenance/machine_list.html
+No machines yet. | templates/maintenance/machine_list.html
+QR code | templates/maintenance/machine_list.html
+Hierarchy | templates/maintenance/machine_list.html
+Tree | templates/maintenance/machine_list.html
+Open WO | templates/maintenance/machine_list.html
+View | templates/maintenance/machine_list.html

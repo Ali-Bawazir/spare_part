@@ -1,0 +1,4 @@
+# Untranslated msgids: UTILS (2 entries)
+
+Bawazir Maintenance | maintenance/pdf_utils.py
+Maintenance & Spare Parts Management | maintenance/pdf_utils.py

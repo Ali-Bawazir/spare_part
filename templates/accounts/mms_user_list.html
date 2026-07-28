@@ -1,31 +1,32 @@
 {% extends "base.html" %}
+{% load i18n mms_extras %}
 {% block title %}Users{% endblock %}
-{% block page_heading %}MMS users{% endblock %}
+{% block page_heading %}{% trans "MMS users" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Accounts for the maintenance app and optional Django admin access.</p>
-<p class="mms-actions"><a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'mms_user_create' %}">Create user</a></p>
+<p class="mms-page-lead">{% trans "Accounts for the maintenance app and optional Django admin access." %}</p>
+<p class="mms-actions"><a class="mms-btn mms-btn--primary mms-btn--sm" href="{% url 'mms_user_create' %}">{% trans "Create user" %}</a></p>
 <div class="mms-card">
   <div class="mms-table-wrap">
     <table class="mms-table">
-      <thead><tr><th>Username</th><th>Role</th><th>Staff</th><th>Active</th><th>Email</th><th>Actions</th></tr></thead>
+      <thead><tr><th>{% trans "Username" %}</th><th>{% trans "Role" %}</th><th>{% trans "Staff" %}</th><th>{% trans "Active" %}</th><th>{% trans "Email" %}</th><th>{% trans "Actions" %}</th></tr></thead>
       <tbody>
       {% for u in users %}
       <tr>
         <td>{{ u.username }}</td>
-        <td>{{ u.get_role_display }}</td>
+        <td>{{ u|user_role }}</td>
         <td>{% if u.is_staff %}Yes{% else %}No{% endif %}</td>
         <td>{% if u.is_active %}Yes{% else %}No{% endif %}</td>
         <td>{{ u.email|default:"—" }}</td>
         <td style="white-space:nowrap">
-          <a class="mms-btn mms-btn--sm mms-btn--ghost" href="{% url 'mms_user_edit' u.pk %}">Edit</a>
+          <a class="mms-btn mms-btn--sm mms-btn--ghost" href="{% url 'mms_user_edit' u.pk %}">{% trans "Edit" %}</a>
           {% if u.mms_delete_block %}
           <span style="font-size:.75rem;color:var(--mms-muted);margin-left:.35rem" title="{{ u.mms_delete_block }}">—</span>
           {% else %}
-          <a class="mms-btn mms-btn--sm mms-btn--ghost" href="{% url 'mms_user_delete' u.pk %}">Delete</a>
+          <a class="mms-btn mms-btn--sm mms-btn--ghost" href="{% url 'mms_user_delete' u.pk %}">{% trans "Delete" %}</a>
           {% endif %}
         </td>
       </tr>
-      {% empty %}<tr><td colspan="6" class="mms-empty">No users.</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="6" class="mms-empty">{% trans "No users." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

@@ -1,37 +1,38 @@
 {% load static %}
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Sign in — Bawazir MMS</title>
+  <title>{% trans "Sign in — Bawazir MMS" %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/mms.css' %}">
 </head>
-<body class="mms-login-body">
+<body class="mms-login-body" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}">
   <div class="mms-login-card">
     <div class="mms-login-brand">
-      <h1>Bawazir MMS</h1>
-      <p>Factory maintenance &amp; spare parts</p>
+      <h1>{% trans "Bawazir MMS" %}</h1>
+      <p>{% trans "Factory maintenance &amp; spare parts" %}</p>
     </div>
     {% if form.errors %}
-      <div class="mms-form-nonfield" role="alert">Invalid username or password.</div>
+      <div class="mms-form-nonfield" role="alert">{% trans "Invalid username or password." %}</div>
     {% endif %}
     <form method="post" action="{% url 'login' %}" class="mms-form">
       {% csrf_token %}
       <div class="mms-form-row">
-        <label for="id_username">Username</label>
+        <label for="id_username">{% trans "Username" %}</label>
         <input type="text" name="username" autofocus required class="mms-login-field" id="id_username" autocomplete="username">
       </div>
       <div class="mms-form-row">
-        <label for="id_password">Password</label>
+        <label for="id_password">{% trans "Password" %}</label>
         <input type="password" name="password" required class="mms-login-field" id="id_password" autocomplete="current-password">
       </div>
       <input type="hidden" name="next" value="{{ next|default:'' }}">
       <div class="mms-form-actions">
-        <button type="submit" class="mms-btn mms-btn--primary mms-btn--block">Sign in</button>
+        <button type="submit" class="mms-btn mms-btn--primary mms-btn--block">{% trans "Sign in" %}</button>
       </div>
     </form>
   </div>

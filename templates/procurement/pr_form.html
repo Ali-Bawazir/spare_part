@@ -1,17 +1,104 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}Purchase request{% endblock %}
-{% block page_heading %}New purchase request{% endblock %}
+{% block page_heading %}{% trans "New purchase request" %}{% endblock %}
 {% block content %}
-<p class="mms-page-lead">Request spare parts or services. Link to a work order when the shortage came from maintenance.</p>
+<p class="mms-page-lead">{% trans "Request spare parts or services. Link to a work order when the shortage came from maintenance." %}</p>
 <div class="mms-card mms-form-stack">
   <div class="mms-card-body">
     <form method="post" class="mms-form">
       {% csrf_token %}
-      {{ form.as_p }}
-      <div class="mms-form-actions">
-        <button class="mms-btn mms-btn--primary" type="submit">Submit</button>
-      </div>
-    </form>
+{% if locked_asset %}
+<div class="mms-alert" style="margin-bottom:1rem;padding:0.75rem 1rem;background:#dbeafe;border-left:3px solid #2563eb;border-radius:4px;color:#1e3a8a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+  <div style="flex:1;min-width:200px">
+    <strong>{% trans "🔒 Asset locked:" %}</strong>
+    This record will be attached to:
+    <strong style="color:#1e40af">{{ locked_asset.breadcrumb }}</strong>
+    <div style="font-size:0.85em;color:#475569;margin-top:0.25rem">{% trans "The machine and component fields below are read-only. To attach this record to a different asset, go to that asset's page and click the action from there." %}</div>
   </div>
+  <a href="{% if locked_asset.machine_pk %}{% url 'machine_detail' locked_asset.machine_pk %}{% endif %}" class="mms-btn mms-btn--ghost" style="font-size:0.85em;flex-shrink:0">
+    ← Change asset
+  </a>
 </div>
+{% endif %}
+      {% if locked_asset %}
+        <input type="hidden" name="machine" value="{{ locked_asset.machine_pk }}">
+        {% if locked_asset.component_pk %}
+          <input type="hidden" name="component" value="{{ locked_asset.component_pk }}">
+        {% endif %}
+      {% endif %}
+      {% for field in form %}
+        {% if field.name == 'component' %}{% else %}
+        <div class="mms-form-row">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.name == "part" %}
+            <span id="pr-stock-badge" class="mms-badge mms-badge--info" style="display:none; margin-left:.5rem">
+              {% trans "In stock" %}: <strong id="pr-stock-qty">0</strong>
+            </span>
+          {% endif %}
+          {% if field.errors %}<div class="mms-field-error">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+      <script>
+      (function() {
+          var stockData = {{ stock_data_json|safe }};
+          var partSelect = document.getElementById('{{ form.part.id_for_label }}');
+          var badge = document.getElementById('pr-stock-badge');
+          var qtyEl = document.getElementById('pr-stock-qty');
+          if (!partSelect || !badge || !qtyEl) return;
+          function update() {
+              var q = stockData[partSelect.value];
+              if (q === undefined || q === null) { badge.style.display = 'none'; return; }
+              qtyEl.textContent = q;
+              badge.style.display = 'inline';
+          }
+          partSelect.addEventListener('change', update);
+          update();
+      })();
+      </script>
+
+      {% if not locked_asset %}
+      <div class="mms-form-row" id="component-row" style="display:none">
+        <label for="id_component">{% trans "Component:" %}</label>
+        {{ form.component }}
+        <small class="form-text text-muted" style="color:#6b7280">{% trans "Optional. Only components under the selected machine are shown." %}</small>
+        {% if form.component.errors %}<div class="mms-field-error">{{ form.component.errors }}</div>{% endif %}
+      </div>
+      {% endif %}
+
+      {% include "maintenance/_voice_recorder.html" %}
+
+<div class="mms-form-actions">
+  <button class="mms-btn mms-btn--primary" type="submit">{% trans "Submit" %}</button>
+</div>
+</form>
+</div>
+
+<!-- Photos & Attachments -->
+<div class="mms-card">
+    <div class="mms-card-header">
+        <h5>{% trans "Photos & Attachments" %}</h5>
+    </div>
+    <div class="mms-card-body">
+        <p class="text-muted mb-0">{% trans "Attachments can be added after saving the purchase request." %}</p>
+        <div class="attachment-list" id="attachment-list-purchase_request-0"></div>
+        <div class="mt-2">
+            <input type="file" 
+                   id="attachment-file-input-purchase_request-0"
+                   accept="image/jpeg,image/png,image/webp,application/pdf"
+                   class="d-none" multiple
+                   onchange="handleAttachmentSelect(this)">
+            <button type="button" class="mms-btn mms-btn--ghost"
+                    onclick="document.getElementById('attachment-file-input-purchase_request-0').click()">
+                + Add Photo / File
+            </button>
+        </div>
+    </div>
+</div>
+{% if not locked_asset %}
+  {% include "maintenance/_cascading_asset_select.html" %}
+{% endif %}
+{% include "maintenance/_asset_tree.html" %}
 {% endblock %}

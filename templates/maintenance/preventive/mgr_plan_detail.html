@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load mms_extras %}
+{% load i18n %}
+{% block title %}Plan Details — {{ schedule.template.title }}{% endblock %}
+{% block page_heading %}{{ schedule.template.title }}{% endblock %}
+{% block content %}
+
+<div class="mms-banner" style="margin-bottom:1rem">
+    <div class="text-muted">
+        Plan #{{ schedule.pk }} · {{ schedule.machine.name }}
+        {% if schedule.component %} · {{ schedule.component.name }}{% endif %}
+    </div>
+</div>
+
+{# ──── Plan Information ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header"><strong>{% trans "Plan Information" %}</strong></div>
+    <div class="mms-card-body">
+        <dl style="display:grid;grid-template-columns:200px 1fr;gap:0.5rem;margin:0">
+            <dt>{% trans "Machine" %}</dt><dd>{{ schedule.machine.name }}</dd>
+            {% if schedule.component %}
+            <dt>{% trans "Component" %}</dt><dd>{{ schedule.component.name }}</dd>
+            {% endif %}
+            <dt>{% trans "Maintenance" %}</dt><dd>{{ schedule.template.title }}</dd>
+            <dt>{% trans "Frequency" %}</dt>
+            <dd>
+                {{ schedule.get_frequency_type_display }}
+                {% if schedule.interval != 1 %}× {{ schedule.interval }}{% endif %}
+                at {{ schedule.due_time|time:"H:i" }}
+            </dd>
+            <dt>{% trans "Priority" %}</dt><dd>{{ schedule.effective_priority|capfirst }}</dd>
+            <dt>{% trans "Active" %}</dt><dd>{% if schedule.is_active %}✓{% else %}—{% endif %}</dd>
+            {% if schedule.ends_at %}
+            <dt>{% trans "Ends" %}</dt><dd>{{ schedule.ends_at|mms_date }}</dd>
+            {% endif %}
+            <dt>{% trans "Created" %}</dt><dd>{{ schedule.created_at|mms_date }} by {{ schedule.created_by.username|default_if_none:"—" }}</dd>
+        </dl>
+    </div>
+</div>
+
+{# ──── Quick Actions ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header"><strong>{% trans "Quick Actions" %}</strong></div>
+    <div class="mms-card-body">
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <a href="{% url 'preventive:mgr_plan_edit' schedule.pk %}" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "Edit" %}</a>
+
+            <form method="post" action="{% url 'preventive:mgr_plan_assign' schedule.pk %}" style="display:inline-flex;gap:0.25rem;align-items:center">
+                {% csrf_token %}
+                <select name="technician_id" class="form-select form-select-sm" style="width:auto">
+                    <option value="">{% if schedule.assigned_technician %}Reassign...{% else %}Assign...{% endif %}</option>
+                    {% for t in technicians %}
+                    <option value="{{ t.pk }}">{{ t.username }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="mms-btn mms-btn--primary mms-btn--sm">
+                    {% if schedule.assigned_technician %}Reassign{% else %}Assign{% endif %}
+                </button>
+            </form>
+
+            <form method="post" action="{% url 'preventive:mgr_plan_pause' schedule.pk %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm">
+                    {% if schedule.is_active %}Pause{% else %}Resume{% endif %}
+                </button>
+            </form>
+
+            <form method="post" action="{% url 'preventive:mgr_plan_run_now' schedule.pk %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit" class="mms-btn mms-btn--warning mms-btn--sm">{% trans "Run Now" %}</button>
+            </form>
+
+            <form method="post" action="{% url 'preventive:mgr_plan_archive' schedule.pk %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit" class="mms-btn mms-btn--ghost mms-btn--sm"
+                        onclick="return confirm('{% trans 'Archive this plan?' %}')">{% trans "Archive" %}</button>
+            </form>
+
+            <a href="{% url 'machine_detail' schedule.machine.pk %}#preventive" class="mms-btn mms-btn--ghost mms-btn--sm">{% trans "View Machine" %}</a>
+        </div>
+    </div>
+</div>
+
+{# ──── Upcoming Schedule ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header"><strong>{% trans "Upcoming Schedule" %}</strong></div>
+    <div class="mms-card-body">
+        <dl style="display:grid;grid-template-columns:200px 1fr;gap:0.5rem;margin:0">
+            <dt>{% trans "Next due" %}</dt>
+            <dd>
+                {% if next_occ %}
+                    {{ next_occ.scheduled_due_at|mms_datetime }}
+                    {% if next_occ.assigned_technician %}
+                        · {{ next_occ.assigned_technician.username|default_if_none:"—" }}
+                    {% else %}
+                        · <span style="color:#dc3545">{% trans "Unassigned" %}</span>
+                    {% endif %}
+                {% elif schedule.next_due_at %}
+                    {{ schedule.next_due_at|mms_datetime }}
+                    <small class="text-muted">{% trans "(scheduled — occurrence not generated yet)" %}</small>
+                {% else %}
+                    —
+                {% endif %}
+            </dd>
+            <dt>{% trans "Last completed" %}</dt>
+            <dd>
+                {% if last_completed %}
+                    {{ last_completed.scheduled_due_at|mms_date }}
+                    {% if last_completed.completed_by %}
+                        by {{ last_completed.completed_by.username|default_if_none:"—" }}
+                    {% endif %}
+                    {% if last_completed.work_order.labor_started_at and last_completed.work_order.labor_stopped_at %}
+                        · {{ last_completed.work_order.labor_started_at|timesince:last_completed.work_order.labor_stopped_at }} elapsed
+                    {% endif %}
+                {% else %}
+                    —
+                {% endif %}
+            </dd>
+        </dl>
+    </div>
+</div>
+
+{# ──── Recent Executions ──── #}
+<div class="mms-card" style="margin-bottom:1rem">
+    <div class="mms-card-header">
+        <strong>{% trans "Recent Executions" %}</strong>
+        <a href="{% url 'preventive:mgr_history' %}?machine=&technician=&days=30&status="
+           style="margin-left:0.5rem;font-size:.85rem">{% trans "View all history →" %}</a>
+    </div>
+    <div class="mms-card-body">
+        {% if recent %}
+        <table class="mms-table" style="width:100%">
+            <thead>
+                <tr>
+                    <th>{% trans "Date" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Actual vs Expected" %}</th>
+                    <th>{% trans "Technician" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for occ in recent %}
+                <tr>
+                    <td>{{ occ.scheduled_due_at|mms_date }}</td>
+                    <td>
+                        {% if occ.status == 'approved' %}
+                            <span style="color:#28a745">{% trans "✓ Approved" %}</span>
+                        {% elif occ.status == 'rejected' %}
+                            <span style="color:#dc3545">{% trans "✗ Returned" %}</span>
+                        {% else %}
+                            {{ occ.get_status_display }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if occ.work_order.labor_started_at and occ.work_order.labor_stopped_at %}
+                            {{ occ.work_order.labor_started_at|timesince:occ.work_order.labor_stopped_at }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if occ.completed_by %}{{ occ.completed_by.username|default_if_none:"—" }}
+                        {% elif occ.assigned_technician %}{{ occ.assigned_technician.username|default_if_none:"—" }}
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">{% trans "No executions yet." %}</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

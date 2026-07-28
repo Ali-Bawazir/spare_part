@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}Suppliers — Stock{% endblock %}
+{% block page_heading %}{% trans "Suppliers" %}{% endblock %}
+{% block content %}
+<div class="mms-actions" style="margin-bottom:1rem">
+  <a class="mms-btn mms-btn--primary" href="{% url 'supplier_create' %}">{% trans "+ New supplier" %}</a>
+</div>
+
+{% if q %}
+<div class="mms-form-tip" style="margin-bottom:0.75rem">
+  Showing results for "<strong>{{ q }}</strong>" — <a href="{% url 'supplier_list' %}">{% trans "Clear search" %}</a>
+</div>
+{% endif %}
+
+<div class="mms-card">
+  <div class="mms-table-wrap">
+    <table class="mms-table">
+      <thead><tr>
+        <th>{% trans "Code" %}</th>
+        <th>{% trans "Name" %}</th>
+        <th>{% trans "Contact person" %}</th>
+        <th>{% trans "Phone" %}</th>
+        <th>{% trans "Email" %}</th>
+        <th>{% trans "Active" %}</th>
+        <th>{% trans "Type" %}</th>
+        <th>QR</th>
+      </tr></thead>
+      <tbody>
+      {% for s in suppliers %}
+      <tr>
+        <td><a href="{% url 'supplier_detail' s.pk %}"><code>{{ s.code }}</code></a></td>
+        <td>{{ s.name }}</td>
+        <td>{{ s.contact_person|default:"—" }}</td>
+        <td>{{ s.phone|default:"—" }}</td>
+        <td>{{ s.email|default:"—" }}</td>
+        <td>
+          {% if s.is_active %}
+            <span class="mms-badge mms-badge--success">{% trans "Active" %}</span>
+          {% else %}
+            <span class="mms-badge mms-badge--muted">{% trans "Inactive" %}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if s.supplier_type == "parts_supplier" %}
+            <span class="mms-badge mms-badge--muted">{% trans "Parts" %}</span>
+          {% elif s.supplier_type == "repair_vendor" %}
+            <span class="mms-badge mms-badge--info">{% trans "Repair" %}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if s.code %}
+          <a href="/media/qr/suppliers/SUPPLIER_{{ s.code }}.png" target="_blank" title="Print QR for {{ s.code }}">📋</a>
+          {% else %}
+          —
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="mms-empty">{% trans "No suppliers found." %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

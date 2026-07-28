@@ -4,7 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -15,6 +15,7 @@ from maintenance.models import (
     Machine,
     MaintenanceIssue,
     Notification,
+    PMTemplate,
     PMSchedule,
     QuickMaintenanceLog,
     Tool,
@@ -70,35 +71,38 @@ def _seed_transactional_demo(stdout, style) -> None:
             category=WorkOrder.Category.BREAKDOWN,
             issue=i_val,
             machine=i_val.machine,
-            status=WorkOrder.Status.APPROVED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
+            operational_status=WorkOrder.OperationalStatus.PAUSED,
             created_by=manager,
             notes=f"{DEMO_ISSUE_PREFIX} Created from validated issue.",
         )
         i_val.status = MaintenanceIssue.Status.CONVERTED
         i_val.save(update_fields=["status"])
-        transition_work_order(wo, WorkOrder.Status.APPROVED, actor=manager, note="Demo: created from issue")
+        transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=manager, note="Demo: created from issue")
 
         wo.assigned_technician = technician
         wo.save(update_fields=["assigned_technician", "updated_at"])
-        transition_work_order(wo, WorkOrder.Status.ASSIGNED, actor=manager, note="Demo assign")
+        transition_work_order(wo, WorkOrder.LifecycleStatus.ASSIGNED, actor=manager, note="Demo assign")
         notify_wo_assigned(wo)
 
         wo_em = WorkOrder.objects.create(
             category=WorkOrder.Category.EMERGENCY,
             is_emergency=True,
             machine=m1,
-            status=WorkOrder.Status.APPROVED,
+            lifecycle_status=WorkOrder.LifecycleStatus.ASSIGNED,
+            operational_status=WorkOrder.OperationalStatus.PAUSED,
             created_by=manager,
             notes=f"{DEMO_ISSUE_PREFIX} Line stop — motor overtemp trip.",
         )
-        transition_work_order(wo_em, WorkOrder.Status.APPROVED, actor=manager, note="Demo emergency WO")
+        transition_work_order(wo_em, WorkOrder.LifecycleStatus.ASSIGNED, actor=manager, note="Demo emergency WO")
         notify_emergency_work_order(wo_em)
 
         t0 = timezone.now() - timedelta(days=3)
         WorkOrder.objects.create(
             category=WorkOrder.Category.BREAKDOWN,
             machine=m2 or m1,
-            status=WorkOrder.Status.CLOSED,
+            lifecycle_status=WorkOrder.LifecycleStatus.CLOSED,
+            operational_status=WorkOrder.OperationalStatus.PAUSED,
             created_by=manager,
             notes=f"{DEMO_ISSUE_PREFIX} Historical WO for KPIs / reports.",
             downtime_started_at=t0,
@@ -118,13 +122,26 @@ def _seed_transactional_demo(stdout, style) -> None:
             )
             notify_procurement_request(pr)
 
+        pm_template, _ = PMTemplate.objects.get_or_create(
+            code="PMT-MONTHLY-PRESS-01",
+            defaults={
+                "title": "Monthly press inspection",
+                "description": "Monthly visual and lubrication inspection of the press line.",
+                "priority": PMTemplate.Priority.MEDIUM,
+                "estimated_duration_minutes": 30,
+                "is_active": True,
+            },
+        )
+
         PMSchedule.objects.create(
             machine=m1,
-            title="Monthly press inspection",
-            frequency_days=30,
-            checklist="Check guards\nLubricate slides\nInspect belts",
+            template=pm_template,
+            frequency_type=PMSchedule.FrequencyType.MONTHLY,
+            interval=1,
+            start_date=timezone.now().date(),
             next_due_at=timezone.now() - timedelta(days=2),
             is_active=True,
+            created_by=manager,
         )
 
         QuickMaintenanceLog.objects.create(
@@ -164,15 +181,37 @@ class Command(BaseCommand):
     help = "Load demo users, machines, parts, tools, suppliers. Use --full for issues/WOs/PR/PM sample rows."
 
     def add_arguments(self, parser):
-        parser.add_argument("--password", default="demo123", help="Password for demo users")
+        parser.add_argument("--password", default="demo123", help="Password for demo users (default: demo123 — used by all 8 demo users)")
         parser.add_argument(
             "--full",
             action="store_true",
             help="Also create demo issues, work orders, purchase request, PM schedule, quick log, repair order, notification.",
         )
+        parser.add_argument(
+            "--allow-in-production",
+            action="store_true",
+            help=(
+                "Acknowledged that this command is being run against a production "
+                "database. Refuses to run otherwise. Default password 'demo123' is "
+                "intentionally weak; never use the default against prod."
+            ),
+        )
 
     def handle(self, *args, **options):
+        from django.conf import settings
+
+        if not settings.DEBUG and not options["allow_in_production"]:
+            raise CommandError(
+                "Refusing to seed demo data when DEBUG=False. "
+                "Pass --allow-in-production if you really mean it."
+            )
+
         pwd = options["password"]
+        if pwd == "demo123" and not settings.DEBUG:
+            raise CommandError(
+                "Refusing to seed users with default password 'demo123' against "
+                "a non-DEBUG database. Pass --password=<a strong one>."
+            )
         User = get_user_model()
 
         roles = [
