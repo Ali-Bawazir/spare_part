@@ -78,7 +78,9 @@ services:
       - --error-logfile
       - "-"
       - --forwarded-allow-ips
-      - "*"
+      # TRUSTED_PROXY_CIDR comes from .env (default 127.0.0.1). MUST be the
+      # CranL edge / reverse-proxy CIDR — never "*" in production.
+      - "${TRUSTED_PROXY_CIDR:-127.0.0.1}"
     depends_on:
       db:
         condition: service_healthy
