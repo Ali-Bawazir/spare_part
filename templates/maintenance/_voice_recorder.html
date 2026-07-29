@@ -46,10 +46,46 @@ JS uploads to /attachments/upload-pending/ and stores returned Attachment.id in 
   let seconds = 0;
   let timerId = null;
 
+  // Pick the best audio MIME type the browser actually supports.
+  // iOS Safari only supports audio/mp4; Chrome prefers audio/webm;
+  // Firefox prefers audio/ogg. Without an explicit mimeType, MediaRecorder
+  // picks a default that may not match what the file extension we send
+  // suggests — and that mismatch made iOS Safari recordings store as
+  // .webm with audio/webm MIME but the body was MP4, breaking playback.
+  const PREFERRED_AUDIO_MIME_TYPES = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4;codecs=mp4a.40.2',
+    'audio/mp4',
+    'audio/ogg;codecs=opus',
+    'audio/ogg',
+  ];
+  function pickAudioMimeType() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) {
+      return '';
+    }
+    for (const t of PREFERRED_AUDIO_MIME_TYPES) {
+      try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (_) {}
+    }
+    return '';
+  }
+  function mimeToExt(mime) {
+    const m = (mime || '').toLowerCase();
+    if (m.includes('mp4') || m.includes('m4a') || m.includes('aac')) return 'm4a';
+    if (m.includes('webm')) return 'webm';
+    if (m.includes('ogg')) return 'ogg';
+    if (m.includes('wav')) return 'wav';
+    if (m.includes('mpeg') || m.includes('mp3')) return 'mp3';
+    return 'bin';
+  }
+
   async function start() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+      const chosenMime = pickAudioMimeType();
+      mediaRecorder = chosenMime
+        ? new MediaRecorder(stream, { mimeType: chosenMime })
+        : new MediaRecorder(stream);
       chunks = [];
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
       mediaRecorder.onstop = upload;
@@ -85,9 +121,14 @@ JS uploads to /attachments/upload-pending/ and stores returned Attachment.id in 
   async function upload() {
     status.textContent = T.voice_uploading || 'uploading…';
     status.style.color = '#6b7280';
-    const blob = new Blob(chunks, { type: 'audio/webm' });
+    // Use the actual MIME type the recorder produced, not a hardcoded one.
+    // iOS Safari records audio/mp4; Chrome records audio/webm; this ensures
+    // the server stores the correct MIME and the file extension matches.
+    const actualMime = (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
+    const ext = mimeToExt(actualMime);
+    const blob = new Blob(chunks, { type: actualMime });
     const form = new FormData();
-    form.append('file', blob, 'voice-note.webm');
+    form.append('file', blob, `voice-note.${ext}`);
     form.append('entity_type', 'pending_voice');
     try {
       const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
