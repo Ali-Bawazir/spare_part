@@ -29,6 +29,7 @@ SEED_SKUS = [
 
 def wipe_seed_data(apps, schema_editor):
     SparePart = apps.get_model("inventory", "SparePart")
+    Inventory = apps.get_model("inventory", "Inventory")
     PMTemplate = apps.get_model("maintenance", "PMTemplate")
     PMSchedule = apps.get_model("maintenance", "PMSchedule")
     PMChecklistItem = apps.get_model("maintenance", "PMChecklistItem")
@@ -40,8 +41,12 @@ def wipe_seed_data(apps, schema_editor):
     PMSchedule.objects.all().delete()
     PMTemplate.objects.all().delete()
 
-    # Delete seed SpareParts (Inventory/StockMovement cascade via FK)
-    SparePart.objects.filter(sku__in=SEED_SKUS).delete()
+    # Delete Inventory rows for seed SpareParts FIRST (SparePart has
+    # on_delete=PROTECT, so reverse-cascade via SparePart is blocked).
+    # Then delete the seed SpareParts themselves.
+    seed_parts = SparePart.objects.filter(sku__in=SEED_SKUS)
+    Inventory.objects.filter(part__in=seed_parts).delete()
+    seed_parts.delete()
 
 
 def reverse_noop(apps, schema_editor):
