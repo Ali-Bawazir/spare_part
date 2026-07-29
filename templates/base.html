@@ -382,9 +382,9 @@
   }
 })();
 </script>
-<!-- Mobile Bottom Navigation for Operators -->
+<!-- Mobile Bottom Navigation for Operators (shop-floor pattern) -->
 {% if user.role == 'operator' %}
-<nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
+<nav class="mms-mobile-bottom-nav mms-mobile-bottom-nav--shop" aria-label={% trans "Mobile navigation" %}>
     <a href="{% url 'issue_list' %}" class="{% if current_url_name and 'issue' in current_url_name %}is-active{% endif %}">
         <span class="mms-nav-icon">📋</span>
         <span>{% trans "Issues" %}</span>
@@ -404,9 +404,9 @@
 </nav>
 {% endif %}
 
-<!-- Mobile Bottom Navigation for Technicians -->
+<!-- Mobile Bottom Navigation for Technicians (shop-floor pattern) -->
 {% if user.role == 'technician' %}
-<nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
+<nav class="mms-mobile-bottom-nav mms-mobile-bottom-nav--shop" aria-label={% trans "Mobile navigation" %}>
     <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
         <span class="mms-nav-icon">🏠</span>
         <span>{% trans "Home" %}</span>
@@ -431,7 +431,15 @@
 </nav>
 {% endif %}
 
-<!-- Mobile Bottom Navigation for Maintenance Manager -->
+<!--
+  Bottom-nav blocks for manager / procurement / supervisor are kept for
+  reference but are HIDDEN on mobile by the .mms-mobile-bottom-nav { display: none }
+  rule in static/css/mms.css. These roles use the sidebar drawer instead
+  (see @media (max-width: 1023.98px) in mms.css), since their menu has
+  more items than fit in a phone bottom bar. Add the wrapper class
+  mms-mobile-bottom-nav--shop to re-enable.
+-->
+<!-- Mobile Bottom Navigation for Maintenance Manager (inactive on mobile; uses drawer) -->
 {% if user.role == 'manager' %}
 <nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
     <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
@@ -465,7 +473,7 @@
 </nav>
 {% endif %}
 
-<!-- Mobile Bottom Navigation for Maintenance Supply Officer -->
+<!-- Mobile Bottom Navigation for Maintenance Supply Officer (inactive on mobile; uses drawer) -->
 {% if user.role == 'procurement' %}
 <nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
     <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
@@ -498,7 +506,7 @@
 </nav>
 {% endif %}
 
-<!-- Mobile Bottom Navigation for Supervisor -->
+<!-- Mobile Bottom Navigation for Supervisor (inactive on mobile; uses drawer) -->
 {% if user.role == 'supervisor' %}
 <nav class="mms-mobile-bottom-nav" aria-label={% trans "Mobile navigation" %}>
     <a href="{% url 'dashboard' %}" class="{% if current_url_name == 'dashboard' %}is-active{% endif %}">
