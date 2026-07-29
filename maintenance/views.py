@@ -5224,29 +5224,22 @@ def repair_manager_accept(request, pk):
     )
 
 
-MAX_IMAGE_SIZE = 5 * 1024 * 1024       # 5MB for images and PDF
-MAX_VIDEO_SIZE = 30 * 1024 * 1024      # 30MB for video
-MAX_AUDIO_SIZE = 30 * 1024 * 1024     # 30MB for audio (Sprint 1 voice notes)
 MAX_ATTACHMENTS_PER_ENTITY = 10
-ALLOWED_CONTENT_TYPES = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'application/pdf',
-    'video/mp4',
-    'video/quicktime',
-    'audio/webm',   # Sprint 1: voice notes
-    'audio/mp4',    # Safari voice m4a
-    'audio/ogg',
-    'audio/wav',
-]
 
 
 @login_required
 @require_POST
 def attachment_upload(request):
-    """Handle file upload for any entity."""
+    """Handle file upload for any entity.
+
+    Validation rules (size limits + content-type allow-list + magic-byte
+    sniff) are centralized in ``mms.utils.uploads.validate_uploaded_file``
+    so other upload endpoints (voice notes, repair photos, …) reuse the
+    same logic.
+    """
     from .models import Attachment
+    from mms.utils.uploads import validate_uploaded_file
+
     entity_type = request.POST.get("entity_type")
     entity_id = request.POST.get("entity_id")
     file = request.FILES.get("file")
@@ -5255,71 +5248,11 @@ def attachment_upload(request):
     if not entity_type or not entity_id or not file:
         return JsonResponse({"error": "Missing entity_type, entity_id, or file."}, status=400)
 
-    # Get content type early so we can validate it and use it for size limits
-    content_type = getattr(file, 'content_type', '') or ''
+    content_type = getattr(file, "content_type", "") or ""
 
-    # Validate content type
-    if content_type not in ALLOWED_CONTENT_TYPES:
-        return JsonResponse(
-            {"error": "Only JPG, PNG, WEBP, PDF, MP4, and MOV files are allowed."},
-            status=400,
-        )
-
-    # Validate file size (split by MIME: images/PDF 5MB, video 30MB, audio 30MB)
-    content_type_lower = content_type.lower()
-    if content_type_lower.startswith('video/'):
-        max_size = MAX_VIDEO_SIZE
-        size_limit_mb = 30
-    elif content_type_lower.startswith('audio/'):
-        max_size = MAX_AUDIO_SIZE
-        size_limit_mb = 30
-    else:
-        max_size = MAX_IMAGE_SIZE
-        size_limit_mb = 5
-    if file.size > max_size:
-        return JsonResponse(
-            {"error": f"File exceeds {size_limit_mb}MB limit for this file type."},
-            status=400,
-        )
-
-    # Phase 1 v1.0.0 hardening — magic-byte validation. The MIME header
-    # above is client-supplied and trivially spoofable. Sniff the actual
-    # file bytes to confirm the declared MIME matches the real content.
-    # Image MIME sniffing via Pillow; PDF via header bytes. (No python-magic
-    # dependency — Pillow + a 4-byte PDF check covers the attack surface
-    # for the formats we accept.)
-    try:
-        if content_type_lower.startswith('image/'):
-            from PIL import Image
-            file.seek(0)
-            img = Image.open(file)
-            img.verify()
-            # verify() only checks structure, not format match — also confirm
-            # the decoded format matches the declared MIME.
-            declared_fmt = {
-                'image/jpeg': 'JPEG', 'image/png': 'PNG', 'image/webp': 'WEBP',
-            }.get(content_type_lower)
-            if declared_fmt and img.format != declared_fmt:
-                return JsonResponse(
-                    {"error": f"File content does not match declared MIME ({content_type})."},
-                    status=400,
-                )
-            file.seek(0)
-        elif content_type_lower == 'application/pdf':
-            file.seek(0)
-            head = file.read(4)
-            file.seek(0)
-            if head != b'%PDF':
-                return JsonResponse(
-                    {"error": "File is not a valid PDF."},
-                    status=400,
-                )
-    except Exception as exc:
-        log.warning("Magic-byte validation failed for upload: %s", exc)
-        return JsonResponse(
-            {"error": "File content could not be validated. Please upload a different file."},
-            status=400,
-        )
+    ok, msg = validate_uploaded_file(file, content_type=content_type)
+    if not ok:
+        return JsonResponse({"error": msg}, status=400)
 
     # Validate entity_type is a valid choice
     try:

@@ -229,16 +229,59 @@ LANGUAGE_COOKIE_SECURE = not DEBUG
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
 
-MEDIA_URL = "media/"
+# Media (uploads): FileSystemStorage for dev, S3 for production.
+# Selection is automatic: if MMS_MEDIA_BUCKET is set, use S3; otherwise
+# local FS. Dev works without any env vars.
+_MEDIA_BUCKET = os.environ.get("MMS_MEDIA_BUCKET", "").strip()
+
+if _MEDIA_BUCKET:
+    # Production: S3-compatible object storage (CranL Object Storage /
+    # Cloudflare R2 under the hood). MEDIA_URL is auto-derived from
+    # AWS_S3_CUSTOM_DOMAIN (the CDN host), so users never see the raw
+    # R2 endpoint.
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        },
+    }
+    AWS_STORAGE_BUCKET_NAME      = _MEDIA_BUCKET
+    AWS_S3_REGION_NAME            = os.environ.get("AWS_S3_REGION_NAME", "auto")
+    AWS_S3_ENDPOINT_URL           = os.environ["AWS_S3_ENDPOINT_URL"]
+    AWS_S3_CUSTOM_DOMAIN          = os.environ["AWS_S3_CUSTOM_DOMAIN"]
+    AWS_DEFAULT_ACL               = os.environ.get("MMS_MEDIA_ACL", "public-read")
+    AWS_QUERYSTRING_AUTH          = False
+    AWS_S3_ADDRESSING_STYLE       = "path"
+    # Uploaded media is immutable (filenames are uuid4 hexes), so cache
+    # for a year. CDN honors Cache-Control from the bucket.
+    AWS_S3_OBJECT_PARAMETERS      = {"CacheControl": "max-age=31536000"}
+    # MEDIA_URL is set automatically by django-storages from CUSTOM_DOMAIN;
+    # we leave it implicit so the bucket host stays the single source of truth.
+else:
+    # Dev / fallback: FileSystemStorage exactly as before. No env required.
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        },
+    }
+
+# Top-level folder inside the bucket (or MEDIA_ROOT in dev). Uploaded
+# files live at <MEDIA_ROOT_PREFIX>/<entity_type>/<id>/<filename> so a
+# future entity needs no upload-path code change.
+MEDIA_ROOT_PREFIX = os.environ.get("MMS_MEDIA_ROOT_PREFIX", "attachments")
+
+# File Upload Settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB upper bound; per-type limits enforced in views
+
+# Per-content-type size limits (enforced in mms.utils.uploads.validate_uploaded_file).
+MAX_IMAGE_SIZE = 10 * 1024 * 1024   # 10 MB — photos
+MAX_AUDIO_SIZE = 25 * 1024 * 1024   # 25 MB — voice notes
+MAX_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB — repair videos
+MAX_PDF_SIZE   = 20 * 1024 * 1024   # 20 MB — invoices, quotations
+
+# Local on-disk media root (dev only; production uses S3 via STORAGES above).
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
