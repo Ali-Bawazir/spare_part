@@ -16,9 +16,11 @@
       {% elif att.mime_type == 'video/mp4' or att.mime_type == 'video/quicktime' %}
         <video src="{{ att.file.url }}" controls
                style="max-width:240px;max-height:160px;border-radius:6px;display:block;background:#000;margin-top:.4rem"></video>
-      {% elif att.mime_type == 'audio/mpeg' or att.mime_type == 'audio/mp3' or att.mime_type == 'audio/wav' or att.mime_type == 'audio/ogg' %}
-        <audio src="{{ att.file.url }}" controls
-               style="display:block;margin-top:.4rem;max-width:240px"></audio>
+      {% elif att.mime_type == 'audio/mpeg' or att.mime_type == 'audio/mp3' or att.mime_type == 'audio/wav' or att.mime_type == 'audio/ogg' or att.mime_type == 'audio/webm' or att.mime_type == 'audio/mp4' or att.mime_type == 'audio/m4a' or att.mime_type == 'audio/x-m4a' %}
+        <audio src="{{ att.file.url }}" controls preload="metadata"
+               style="display:block;margin-top:.4rem;max-width:240px;width:100%">
+          {% if att.mime_type %}<source src="{{ att.file.url }}" type="{{ att.mime_type }}">{% endif %}
+        </audio>
       {% elif att.mime_type == 'application/pdf' %}
         <a href="{{ att.file.url }}" target="_blank" rel="noopener"
            class="mms-btn mms-btn--ghost mms-btn--sm"

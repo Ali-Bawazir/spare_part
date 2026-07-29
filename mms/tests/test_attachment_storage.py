@@ -71,6 +71,36 @@ def _make_png_bytes(width: int = 10, height: int = 10, color: str = "red") -> by
     return buf.getvalue()
 
 
+def _make_mp4_audio_bytes() -> bytes:
+    """Build a minimal ISO BMFF (mp4/m4a) header — what iOS Safari MediaRecorder
+    produces. Bytes 4..7 are 'ftyp', bytes 8..11 are the major brand.
+    A real iOS recording is much larger and has mdat+moov boxes; the validator
+    only inspects the first few bytes so a tiny stub is enough."""
+    ftyp_box = b"\x00\x00\x00\x20"  # box size = 32 bytes
+    ftyp_box += b"ftyp"
+    ftyp_box += b"iso5"             # major brand = ISO Base Media 5 (m4a/mp4)
+    ftyp_box += b"\x00\x00\x00\x01"  # minor version
+    ftyp_box += b"isom"             # compatible brand
+    # Tiny body to satisfy the audio sniff in mms.utils.uploads._looks_like_audio_video
+    return ftyp_box + b"\x00" * 64
+
+
+def _make_webm_audio_bytes() -> bytes:
+    """Build a minimal Matroska/WebM header — what Chrome MediaRecorder produces.
+    Real EBML header starts with 0x1A 0x45 0xDF 0xA3 followed by DocType='webm'.
+    """
+    ebml = b"\x1a\x45\xdf\xa3"  # EBML magic
+    # DocType element: id=0x4282 size=4 data='webm'
+    ebml += b"\x42\x82\x84"     # 0x4282 with size=4
+    ebml += b"webm"
+    return ebml + b"\x00" * 64
+
+
+def _make_ogg_audio_bytes() -> bytes:
+    """Build a minimal Ogg container header — what Firefox MediaRecorder produces."""
+    return b"OggS" + b"\x00" * 100
+
+
 class AttachmentUploadPendingTests(TestCase):
     """Regression tests for the NameError on /attachments/upload-pending/."""
 
@@ -166,6 +196,60 @@ class AttachmentUploadPendingTests(TestCase):
         self.assertIn("error", body)
         # No traceback leaked to client.
         self.assertNotIn("Traceback", body["error"])
+
+    def test_upload_pending_accepts_ios_safari_mp4_recording(self):
+        """iOS Safari MediaRecorder produces audio/mp4 (ISO BMFF). The
+        recorder's Blob type was previously hardcoded to audio/webm, so
+        an iOS recording would be uploaded with the wrong MIME and
+        silently fail to play back. This test asserts the server accepts
+        audio/mp4 and stores the mime_type verbatim so playback templates
+        can render an <audio> element.
+        """
+        f = SimpleUploadedFile(
+            "voice-note.m4a",
+            _make_mp4_audio_bytes(),
+            content_type="audio/mp4",
+        )
+        response = self.client.post("/attachments/upload-pending/", {"file": f})
+
+        self.assertEqual(response.status_code, 200, response.content[:500])
+        data = response.json()
+        self.assertIn("id", data)
+        self.assertIn("url", data)
+
+        att = Attachment.objects.get(pk=data["id"])
+        self.assertEqual(
+            att.mime_type,
+            "audio/mp4",
+            "server must preserve the audio/mp4 MIME so playback can match it",
+        )
+
+    def test_upload_pending_accepts_chrome_webm_recording(self):
+        """Chrome MediaRecorder produces audio/webm (Matroska/EBML).
+        Same as the iOS test but for Chrome's default format."""
+        f = SimpleUploadedFile(
+            "voice-note.webm",
+            _make_webm_audio_bytes(),
+            content_type="audio/webm",
+        )
+        response = self.client.post("/attachments/upload-pending/", {"file": f})
+
+        self.assertEqual(response.status_code, 200, response.content[:500])
+        att = Attachment.objects.get(pk=response.json()["id"])
+        self.assertEqual(att.mime_type, "audio/webm")
+
+    def test_upload_pending_accepts_firefox_ogg_recording(self):
+        """Firefox MediaRecorder produces audio/ogg."""
+        f = SimpleUploadedFile(
+            "voice-note.ogg",
+            _make_ogg_audio_bytes(),
+            content_type="audio/ogg",
+        )
+        response = self.client.post("/attachments/upload-pending/", {"file": f})
+
+        self.assertEqual(response.status_code, 200, response.content[:500])
+        att = Attachment.objects.get(pk=response.json()["id"])
+        self.assertEqual(att.mime_type, "audio/ogg")
 
 
 class AttachmentUploadJsonFallbackTests(TestCase):
