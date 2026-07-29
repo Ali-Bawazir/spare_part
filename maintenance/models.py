@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal
 from contextlib import contextmanager
 
@@ -9,6 +10,9 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -1737,43 +1741,71 @@ class Attachment(models.Model):
             self._generate_thumbnail()
 
     def _generate_thumbnail(self):
-        """Generate 300px max thumbnail using Pillow."""
+        """Generate a 300px max thumbnail using Pillow and save via the
+        configured storage backend (S3 in prod, FS in dev).
+
+        Phase 2.5 fix: previously used ``os.path`` + ``self.file.path`` directly,
+        which returned a remote URL when the storage backend was S3, so every
+        save hit ``os.makedirs('https://...')`` and silently dropped the
+        thumbnail (the upload itself succeeded, but no thumbnail was produced).
+        Now reads the bytes from the upload itself, generates the JPEG
+        thumbnail in memory, and writes through ``default_storage`` so the
+        path semantics match the main ``file`` upload.
+
+        For non-image content (PDFs, audio, video) Pillow can't decode — the
+        thumbnail is skipped and a warning is logged. This is acceptable:
+        thumbnails are only rendered in the image uploader UI.
+        """
         import os
+        from io import BytesIO
         from django.conf import settings
-        from PIL import Image
+        from django.core.files.storage import default_storage
+        from PIL import Image, UnidentifiedImageError
 
         try:
-            # self.file.path may be a Path (Django 4+) or str (older).
-            # Force str so .replace() works on all versions.
-            file_path = str(self.file.path)
-            img = Image.open(file_path)
+            # Read the uploaded file bytes. self.file is a FieldFile — calling
+            # .open() + .read() works for both local FS and S3 backends (S3
+            # uses streaming). Reading before .path is essential because
+            # self.file.path on S3 returns a URL, not a filesystem path.
+            self.file.seek(0)
+            file_bytes = self.file.read()
+            self.file.seek(0)
+            if not file_bytes:
+                logger.warning("Thumbnail skipped for attachment %s: empty file", self.pk)
+                return
 
+            img = Image.open(BytesIO(file_bytes))
             self.width = img.width
             self.height = img.height
 
             img.thumbnail((300, 300), Image.LANCZOS)
 
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            thumb_name = f"{base_name}_300.jpg"
-            # Replace /originals/ with /thumbs/ in the path string.
-            thumb_dir = file_path.replace('/originals/', '/thumbs/').rsplit('/', 1)[0]
-            os.makedirs(thumb_dir, exist_ok=True)
-            thumb_path = os.path.join(thumb_dir, thumb_name)
+            # Build the cloud-relative thumbnail path, mirroring the layout of
+            # the main attachment: <MEDIA_ROOT_PREFIX>/<entity_type>/<entity_id>/
+            # The thumbnail suffix _300 distinguishes from the original.
+            prefix = getattr(settings, "MEDIA_ROOT_PREFIX", "attachments")
+            original_name = self.filename or os.path.basename(self.file.name or f"att_{self.pk}")
+            base_name, _ext = os.path.splitext(original_name)
+            thumb_storage_name = f"{prefix}/{self.entity_type}/{self.entity_id}/{base_name}_300.jpg"
 
-            # Skip regeneration if file already exists (idempotent).
-            if not os.path.exists(thumb_path):
-                thumb_img = img.convert('RGB')
-                thumb_img.save(thumb_path, 'JPEG', quality=85, optimize=True)
+            # Skip regeneration if already present (idempotent re-save).
+            if not default_storage.exists(thumb_storage_name):
+                buf = BytesIO()
+                thumb_img = img.convert("RGB")
+                thumb_img.save(buf, format="JPEG", quality=85, optimize=True)
+                default_storage.save(thumb_storage_name, buf)
 
-            self.thumbnail = thumb_path.replace(str(settings.MEDIA_ROOT), '').lstrip('/')
-            self.width = img.width
-            self.height = img.height
+            # Store the storage-relative path. default_storage.url() resolves
+            # it to the CDN URL in prod, the local URL in dev.
+            self.thumbnail = thumb_storage_name
 
-            super().save(update_fields=['thumbnail', 'width', 'height'])
+            super().save(update_fields=["thumbnail", "width", "height"])
+        except (UnidentifiedImageError, OSError, ValueError) as e:
+            # Not an image (PDF / audio / video / corrupted) — skip cleanly.
+            logger.warning("Thumbnail skipped for attachment %s: %s", self.pk, e)
         except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Thumbnail generation failed for attachment {self.pk}: {e}")
+            # Defensive: never let thumbnail failure roll back the upload.
+            logger.warning("Thumbnail generation failed for attachment %s: %s", self.pk, e)
 
     def __str__(self) -> str:
         return f"{self.filename} ({self.entity_type}:{self.entity_id})"

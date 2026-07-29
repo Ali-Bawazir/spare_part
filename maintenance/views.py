@@ -5280,25 +5280,33 @@ def attachment_upload(request):
     if is_first_upload:
         is_primary = True
 
-    with transaction.atomic():
-        att = Attachment.objects.create(
-            entity_type=entity_type,
-            entity_id=int(entity_id),
-            file=file,
-            filename=file.name,
-            size_bytes=file.size or 0,
-            mime_type=content_type,
-            uploaded_by=request.user,
-            note=note,
-            is_primary=is_primary,
-            category=category,
-        )
-        if is_primary:
-            Attachment.objects.filter(
+    try:
+        with transaction.atomic():
+            att = Attachment.objects.create(
                 entity_type=entity_type,
                 entity_id=int(entity_id),
-                is_primary=True,
-            ).exclude(pk=att.pk).update(is_primary=False)
+                file=file,
+                filename=file.name,
+                size_bytes=file.size or 0,
+                mime_type=content_type,
+                uploaded_by=request.user,
+                note=note,
+                is_primary=is_primary,
+                category=category,
+            )
+            if is_primary:
+                Attachment.objects.filter(
+                    entity_type=entity_type,
+                    entity_id=int(entity_id),
+                    is_primary=True,
+                ).exclude(pk=att.pk).update(is_primary=False)
+    except Exception:
+        log.exception("attachment_upload failed (entity_type=%s, entity_id=%s, user=%s)",
+                      entity_type, entity_id, request.user.pk)
+        return JsonResponse(
+            {"error": "Internal upload error. Please try again."},
+            status=500,
+        )
 
     return JsonResponse({
         "id": att.pk,
@@ -5324,24 +5332,44 @@ def attachment_upload_pending(request):
 
     Creates an Attachment with entity_type='pending_voice' and entity_id=0.
     Caller must re-link via voice_attachment_id form field after parent is saved.
+
+    Phase 2.5 fix: was previously crashing with
+    ``NameError: name 'MAX_AUDIO_SIZE' is not defined`` (the constant lives in
+    ``settings.MAX_AUDIO_SIZE`` since the central validator refactor in M2.5
+    — this view was missed). Now delegates to ``validate_uploaded_file`` so
+    size + MIME + magic-byte rules are identical to the main
+    ``attachment_upload`` endpoint.
     """
     from .models import Attachment
+    from mms.utils.uploads import validate_uploaded_file
+
     f = request.FILES.get("file")
     if not f:
         return JsonResponse({"error": "No file"}, status=400)
-    if f.size > MAX_AUDIO_SIZE:
-        return JsonResponse({"error": f"File exceeds 30MB audio limit."}, status=400)
-    content_type = getattr(f, "content_type", "") or "audio/webm"
-    att = Attachment.objects.create(
-        entity_type='pending_voice',
-        entity_id=0,
-        file=f,
-        filename=f.name,
-        size_bytes=f.size,
-        mime_type=content_type,
-        category="OTHER",
-        uploaded_by=request.user,
-    )
+
+    content_type = getattr(f, "content_type", "") or ""
+    ok, msg = validate_uploaded_file(f, content_type=content_type)
+    if not ok:
+        return JsonResponse({"error": msg}, status=400)
+
+    try:
+        att = Attachment.objects.create(
+            entity_type='pending_voice',
+            entity_id=0,
+            file=f,
+            filename=f.name,
+            size_bytes=f.size or 0,
+            mime_type=content_type,
+            category="OTHER",
+            uploaded_by=request.user,
+        )
+    except Exception:
+        log.exception("attachment_upload_pending failed (entity_type=pending_voice, user=%s)", request.user.pk)
+        return JsonResponse(
+            {"error": "Internal upload error. Please try again."},
+            status=500,
+        )
+
     return JsonResponse({"id": att.pk, "url": att.file.url})
 
 
@@ -5413,7 +5441,14 @@ def attachment_delete(request, pk):
     att = get_object_or_404(Attachment, pk=pk)
     if att.uploaded_by != request.user and not request.user.is_super_admin_role():
         return JsonResponse({"error": "Not authorized."}, status=403)
-    att.delete()
+    try:
+        att.delete()
+    except Exception:
+        log.exception("attachment_delete failed (pk=%s, user=%s)", pk, request.user.pk)
+        return JsonResponse(
+            {"error": "Internal delete error. Please try again."},
+            status=500,
+        )
     return JsonResponse({"status": "deleted"})
 
 
@@ -5427,14 +5462,21 @@ def attachment_set_primary(request, pk):
     if att.uploaded_by != request.user and not request.user.is_super_admin_role():
         return JsonResponse({"error": "Not authorized."}, status=403)
 
-    with transaction.atomic():
-        Attachment.objects.filter(
-            entity_type=att.entity_type,
-            entity_id=att.entity_id,
-            is_primary=True,
-        ).exclude(pk=att.pk).update(is_primary=False)
-        att.is_primary = True
-        att.save(update_fields=["is_primary"])
+    try:
+        with transaction.atomic():
+            Attachment.objects.filter(
+                entity_type=att.entity_type,
+                entity_id=att.entity_id,
+                is_primary=True,
+            ).exclude(pk=att.pk).update(is_primary=False)
+            att.is_primary = True
+            att.save(update_fields=["is_primary"])
+    except Exception:
+        log.exception("attachment_set_primary failed (pk=%s, user=%s)", pk, request.user.pk)
+        return JsonResponse(
+            {"error": "Internal error. Please try again."},
+            status=500,
+        )
 
     return JsonResponse({
         "id": att.pk,
