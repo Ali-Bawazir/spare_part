@@ -1642,22 +1642,29 @@ class AuditEntry(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-
 def attachment_upload_path(instance, filename):
-    """Store uploads at media/attachments/originals/{entity_type}/{entity_id}/{uuid}.{ext}"""
-    import os
-    from uuid import uuid4
-    ext = filename.split(".")[-1] if "." in filename else ""
-    new_name = f"{uuid4().hex}.{ext}" if ext else uuid4().hex
-    return f"attachments/originals/{instance.entity_type}/{instance.entity_id}/{new_name}"
+    """Cloud path: <MEDIA_ROOT_PREFIX>/<entity_type>/<entity_id>/<filename>
+
+    Layout is entity-grouped so an operator can browse all attachments
+    for a single record in one listing. Works with any entity_type
+    (workorder, machine, part, supplier, user, ...) — adding a new
+    entity needs no upload-path code change.
+    """
+    from django.conf import settings
+    prefix = getattr(settings, "MEDIA_ROOT_PREFIX", "attachments")
+    return f"{prefix}/{instance.entity_type}/{instance.entity_id}/{filename}"
+
 
 def attachment_thumbnail_path(instance, filename):
-    """Thumbnail path: media/attachments/thumbs/{entity_type}/{entity_id}/{uuid}_300.{ext}"""
+    """Thumbnail path: <MEDIA_ROOT_PREFIX>/_thumbs/<entity_type>/<entity_id>/<filename>"""
     import os
-    from uuid import uuid4
-    ext = filename.split(".")[-1] if "." in filename else ""
-    base = os.path.splitext(filename)[0] if '.' in filename else filename
-    return f"attachments/thumbs/{instance.entity_type}/{instance.entity_id}/{base}_300.{ext}"
+    from django.conf import settings
+    prefix = getattr(settings, "MEDIA_ROOT_PREFIX", "attachments")
+    if "." in filename:
+        base, ext = os.path.splitext(filename)
+    else:
+        base, ext = filename, ""
+    return f"{prefix}/_thumbs/{instance.entity_type}/{instance.entity_id}/{base}_300{ext}"
 
 
 class Attachment(models.Model):

@@ -23,6 +23,10 @@ urlpatterns = [
     path("", include("inventory.urls")),  # stock-in routes (inventory app)
     path("", include("maintenance.urls")),
     path("home/", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
-    # Serve media files (works in both DEBUG and production)
-    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+    # NOTE: Media files are NOT served by Django. In production they are
+    # served by the configured CDN (AWS_S3_CUSTOM_DOMAIN) via the S3
+    # storage backend (see mms/settings.py STORAGES). In dev with no
+    # bucket env vars set, FileSystemStorage is used and the developer
+    # is expected to run a local web server that serves /media/ from
+    # MEDIA_ROOT, or to set MMS_MEDIA_BUCKET for local S3 testing.
 ]
