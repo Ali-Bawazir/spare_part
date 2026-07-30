@@ -3,6 +3,7 @@ Django settings for mms project.
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "axes",
     "accounts",
     "maintenance",
     "inventory",
@@ -63,6 +65,33 @@ LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
+# django-axes — brute-force protection. AxesStandaloneBackend gates every
+# authenticate() call; after 5 failures (per username OR per IP) the
+# account/IP is locked for 15 minutes. A successful login resets the
+# counter for that username.
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=15)
+AXES_LOCK_OUT_AT_FAILURE = True
+AXES_LOCK_OUT_BY_USER_OR_IP = True
+AXES_RESET_ON_SUCCESS = True
+AXES_ENABLE_ACCESS_FAILURE_LOG = True
+AXES_VERBOSE = True
+# Read real client IP from the CranL proxy header first, then REMOTE_ADDR.
+AXES_META_PRECEDENCE_ORDER = ("HTTP_X_FORWARDED_FOR", "REMOTE_ADDR")
+# Don't reset the cool-off clock when the locked-out user keeps trying.
+AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
+
+# axes W002 ("you don't have AxesMiddleware in MIDDLEWARE") is informational
+# only — AxesMiddleware is needed for DRF/TokenAuth flows. This MMS uses
+# session auth via django.contrib.auth.urls + AxesStandaloneBackend, which
+# gates every authenticate() call. No DRF endpoints are wired.
+SILENCED_SYSTEM_CHECKS = ["axes.W002"]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -71,6 +100,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.IdleSessionTimeoutMiddleware",  # must be after AuthenticationMiddleware
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -188,6 +218,13 @@ DATABASES = {
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+
+# Idle session timeout (seconds). accounts.middleware.IdleSessionTimeoutMiddleware
+# reads this on startup and logs the user out after `SESSION_IDLE_TIMEOUT_SECONDS`
+# of inactivity. Default 4h (14400s). Override via MMS_SESSION_TIMEOUT_SECONDS.
+SESSION_IDLE_TIMEOUT_SECONDS = int(
+    os.environ.get("MMS_SESSION_TIMEOUT_SECONDS", "14400")
+)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

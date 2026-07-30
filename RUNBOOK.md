@@ -40,6 +40,44 @@ Or in Django admin: `/admin/accounts/user/<id>/change/` and edit the role field.
 docker compose exec web python manage.py changepassword <username>
 ```
 
+### Account locked out by brute-force protection
+
+django-axes locks the account for 15 minutes after 5 failed logins
+(tracked per username + IP). Unlocks automatically.
+
+Manual unlock:
+
+```bash
+docker compose exec web python manage.py axes_reset
+docker compose exec web python manage.py axes_reset_username <username>
+```
+
+Or via `/admin/axes/accessattempt/` (delete the offending AccessAttempt rows).
+
+### Password Reset
+
+Users cannot reset or change forgotten passwords themselves.
+
+If a user forgets their password:
+
+1. User contacts the Super Admin.
+2. Super Admin opens Users.
+3. Super Admin edits the user.
+4. Super Admin sets a new password.
+5. User signs in with the new password.
+
+### Idle session timeout (4 hours)
+
+Authenticated sessions expire after 4 hours of inactivity. The
+session is renewed on any 2xx/3xx response, but not on failed requests
+or static asset hits. After expiry, the user is logged out and
+redirected to `/accounts/login/?expired=1` with a "Your session has
+expired. Please sign in again." banner.
+
+To change the timeout without redeploying code, set
+`MMS_SESSION_TIMEOUT_SECONDS=<seconds>` in the CranL app config and
+restart the web service. Default: 14400 (4 hours).
+
 ### Inspect a work order
 
 ```bash

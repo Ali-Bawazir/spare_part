@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView
 from django.conf import settings
@@ -10,6 +11,17 @@ admin.site.site_header = "Factory Maintenance & Spare Parts Management System"
 admin.site.site_title = "MMS Admin"
 admin.site.index_title = "Operations & master data"
 
+# Explicit auth URL list. Intentionally minimal:
+#   - login / logout only
+#   - no password_reset / password_change (no SMTP; Super Admin manages
+#     passwords via /users/<id>/edit/)
+# No namespace: keeps name="login" and name="logout" so reverse('login')
+# works everywhere (especially in the idle-timeout middleware).
+auth_urlpatterns = [
+    path("login/",  auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
+    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+]
+
 urlpatterns = [
     # Health endpoint — must come early so compose healthcheck (and any uptime
     # monitor) hits a lightweight handler with no DB-heavy middleware.
@@ -17,7 +29,7 @@ urlpatterns = [
 
     path("i18n/", include("django.conf.urls.i18n")),
     path("admin/", admin.site.urls),
-    path("accounts/", include("django.contrib.auth.urls")),
+    path("accounts/", include(auth_urlpatterns)),
     path("users/", include("accounts.urls")),
     path("procurement/", include("procurement.urls")),
     path("", include("inventory.urls")),  # stock-in routes (inventory app)

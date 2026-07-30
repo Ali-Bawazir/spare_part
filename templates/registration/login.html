@@ -17,6 +17,9 @@
       <h1>{% trans "Bawazir MMS" %}</h1>
       <p>{% trans "Factory maintenance &amp; spare parts" %}</p>
     </div>
+    {% if "expired" in request.GET %}
+      <div class="mms-form-nonfield" role="alert">{% trans "Your session has expired. Please sign in again." %}</div>
+    {% endif %}
     {% if form.errors %}
       <div class="mms-form-nonfield" role="alert">{% trans "Invalid username or password." %}</div>
     {% endif %}
