@@ -62,6 +62,8 @@ class AxesBruteForceTests(TestCase):
         )
         self.assertIn(response.status_code, (200, 403))
         self.assertNotIn("_auth_user_id", self.client.session)
+        # AxesAwareLoginView surfaces axes' cool-off message to the user.
+        self.assertContains(response, "Account locked")
 
     def test_lockout_expires_after_cooldown(self):
         for _ in range(5):

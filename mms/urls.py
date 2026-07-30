@@ -11,6 +11,25 @@ admin.site.site_header = "Factory Maintenance & Spare Parts Management System"
 admin.site.site_title = "MMS Admin"
 admin.site.index_title = "Operations & master data"
 
+
+# Custom LoginView that surfaces django-axes' cool-off / perma-lock
+# messages to the user. django-axes sets ``request.axes_locked_out``
+# when an account/IP is blocked; Django's default LoginView ignores
+# this flag and renders a generic "Invalid username or password"
+# error, which hides the lockout state. We override form_invalid to
+# append axes' cool-off message to the response when the flag is set.
+class AxesAwareLoginView(auth_views.LoginView):
+    def form_invalid(self, form):
+        # If axes flagged this attempt as locked, append its cool-off
+        # message to the form BEFORE rendering so the message survives
+        # into the template. Setting it on the already-rendered response
+        # is too late — the context dict has already been snapshotted.
+        if getattr(self.request, "axes_locked_out", False):
+            from axes.conf import settings as ax_settings
+            form.add_error(None, ax_settings.AXES_COOLOFF_MESSAGE)
+        return super().form_invalid(form)
+
+
 # Explicit auth URL list. Intentionally minimal:
 #   - login / logout only
 #   - no password_reset / password_change (no SMTP; Super Admin manages
@@ -18,7 +37,7 @@ admin.site.index_title = "Operations & master data"
 # No namespace: keeps name="login" and name="logout" so reverse('login')
 # works everywhere (especially in the idle-timeout middleware).
 auth_urlpatterns = [
-    path("login/",  auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
+    path("login/",  AxesAwareLoginView.as_view(template_name="registration/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
 ]
 

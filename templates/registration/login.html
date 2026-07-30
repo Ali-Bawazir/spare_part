@@ -20,7 +20,11 @@
     {% if "expired" in request.GET %}
       <div class="mms-form-nonfield" role="alert">{% trans "Your session has expired. Please sign in again." %}</div>
     {% endif %}
-    {% if form.errors %}
+    {% if form.non_field_errors %}
+      {% for error in form.non_field_errors %}
+        <div class="mms-form-nonfield" role="alert">{{ error }}</div>
+      {% endfor %}
+    {% elif form.errors %}
       <div class="mms-form-nonfield" role="alert">{% trans "Invalid username or password." %}</div>
     {% endif %}
     <form method="post" action="{% url 'login' %}" class="mms-form">
